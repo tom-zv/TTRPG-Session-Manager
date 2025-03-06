@@ -1,0 +1,31 @@
+{
+  "name": "ttrpg-session-manager",
+  "version": "1.0.0",
+  "description": "Manage session audio, track combat &  access campaign notes in one App.",
+  "main": "index.js",
+  "scripts": {
+    "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
+    "start:server": "cd server && npm start",
+    "start:client": "cd client-app && npm start",
+    
+    "dev:all": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client-app && npm run dev",
+
+    "install:all": "npm install && npm run install:server && npm run install:client",
+    "install:server": "cd server && npm install",
+    "install:client": "cd client-app && npm install"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tom-zv/TTRPG-Session-Manager.git"
+  },
+  "author": "Tom zayev",
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "bugs": {
+    "url": "https://github.com/tom-zv/TTRPG-Session-Manager/issues"
+  },
+  "homepage": "https://github.com/tom-zv/TTRPG-Session-Manager#readme"
+}
