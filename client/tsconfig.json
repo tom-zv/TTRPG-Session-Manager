@@ -1,0 +1,12 @@
+// client/tsconfig.json
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx"
+  },
+  "include": ["src", "../shared/types/","vite.config.ts"]
+}

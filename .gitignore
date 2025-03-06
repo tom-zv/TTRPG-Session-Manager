@@ -1,2 +1,10 @@
+.env
 node_modules/
+dist/
 package-lock.json
+# Logs
+logs
+*.log
+npm-debug.log*
+
+public/
