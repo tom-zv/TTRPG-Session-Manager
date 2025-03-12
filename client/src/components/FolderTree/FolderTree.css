@@ -1,0 +1,151 @@
+.folder-tree-container {
+  background-color: var(--bg-secondary);
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px var(--shadow);
+  max-height: 70vh;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 25vw;
+}
+
+.folder-tree {
+  width: 100%;
+  list-style-type: none;
+  padding-left: 0;
+}
+
+.folder-item {
+  padding: 3px 0;
+  position: relative;
+}
+
+.folder-children {
+  padding-left: 24px;
+  position: relative;
+}
+
+/* Vertical line for better visualization of hierarchy */
+.folder-children::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 0;
+  bottom: 8px;
+  width: 1px;
+  background-color: var(--border-color-light);
+}
+
+.folder-header, .file-header {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+  user-select: none;
+  position: relative;
+}
+
+.folder-header:hover, .file-header:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.folder-header.selected, .file-header.selected {
+  background-color: rgba(40, 42, 201, 0.2);
+}
+
+.folder-icon, .file-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  width: 20px;
+}
+
+.folder-icon.open {
+  transform: rotate(0deg);
+}
+
+.folder-icon.closed {
+  transform: rotate(-90deg);
+}
+
+.folder-name, .file-name {
+  flex-grow: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* File item styling */
+.file-item {
+  padding: 2px 0;
+  position: relative;
+}
+
+.file-name {
+  font-weight: normal;
+  font-size: 0.95em;
+}
+
+/* Separator between folders and files */
+.folder-separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 8px 0;
+  opacity: 0.5;
+}
+
+/* Drag-and-drop styling preparation */
+.folder-item.dragging, .file-item.dragging {
+  opacity: 0.5;
+}
+
+.folder-item.drop-target, .file-item.drop-target {
+  background-color: rgba(40, 42, 201, 0.1);
+}
+
+.dragging-multi::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--accent-primary, #4a5af8);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: e0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Folder type indicators */
+.folder-item[data-type="music"] .folder-name {
+  color: #5db8ff;
+}
+
+.folder-item[data-type="sfx"] .folder-name {
+  color: #ff9a5d;
+}
+
+.folder-item[data-type="ambience"] .folder-name {
+  color: #76e089;
+}
+
+/* File type indicators */
+.file-item[data-type="music"] .file-name {
+  color: #5db8ff;
+}
+
+.file-item[data-type="sfx"] .file-name {
+  color: #ff9a5d;
+}
+
+.file-item[data-type="ambience"] .file-name {
+  color: #76e089;
+}

@@ -1,9 +1,10 @@
+DROP DATABASE IF EXISTS DND;
 CREATE DATABASE IF NOT EXISTS DND;
 
 USE DND;
----------------
+-- --------- --
 -- Combat DB --
----------------
+-- --------- --
 CREATE TABLE
   IF NOT EXISTS users (
     user_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -51,9 +52,20 @@ CREATE TABLE
     FOREIGN KEY (dm_user_id) REFERENCES users (user_id) ON DELETE CASCADE,
     FOREIGN KEY (creature_id) REFERENCES creatures (creature_id) ON DELETE CASCADE
   );
---------------
+-- -------- --
 -- Audio DB --
---------------
+-- -------- --
+
+CREATE TABLE 
+  IF NOT EXISTS folders (
+    folder_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(128) NOT NULL,
+    parent_folder_id INT,
+    folder_type ENUM('music', 'sfx', 'ambience', 'root') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
+  );
+
 CREATE TABLE
   IF NOT EXISTS audio_files (
     audio_file_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -62,7 +74,7 @@ CREATE TABLE
     file_url VARCHAR(256),
     file_path VARCHAR(256),
     folder_id INT,
-    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET NULL
   );
 
@@ -80,8 +92,8 @@ CREATE TABLE
     audio_file_id INT NOT NULL,
     play_order INT,
     CONSTRAINT pk_music_playlist_files PRIMARY KEY (playlist_id, audio_file_id),
-    CONSTRAINT fk_playlist_id FOREIGN KEY (playlist_id) REFERENCES music_playlists (playlist_id) ON DELETE CASCADE,
-    CONSTRAINT fk_audio_file_id FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
+    CONSTRAINT fk_music_playlist_id FOREIGN KEY (playlist_id) REFERENCES music_playlists (playlist_id) ON DELETE CASCADE,
+    CONSTRAINT fk_playlist_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
 -- SFX sets
@@ -108,7 +120,7 @@ CREATE TABLE
     play_order INT,
     CONSTRAINT pk_sfx_macro_files PRIMARY KEY (macro_id, audio_file_id),
     CONSTRAINT fk_macro_id FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE,
-    CONSTRAINT fk_audio_file_id FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
+    CONSTRAINT fk_macro_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
 -- SFX sets contain files and macros.
@@ -163,7 +175,7 @@ CREATE TABLE
     pack_id INT NOT NULL,
     playlist_id INT NOT NULL,
     CONSTRAINT pk_audio_pack_playlists PRIMARY KEY (pack_id, playlist_id),
-    CONSTRAINT fk_pack_id FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pack_playlist FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
     CONSTRAINT fk_playlist_id FOREIGN KEY (playlist_id) REFERENCES music_playlists (playlist_id) ON DELETE CASCADE
   );
 
@@ -172,8 +184,8 @@ CREATE TABLE
     pack_id INT NOT NULL,
     macro_id INT NOT NULL,
     CONSTRAINT pk_audio_pack_macros PRIMARY KEY (pack_id, macro_id),
-    CONSTRAINT fk_pack_id FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_macro_id FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE
+    CONSTRAINT fk_pack_macro FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
+    CONSTRAINT fk_macro_pack FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE
   );
 
 CREATE TABLE 
@@ -181,7 +193,7 @@ CREATE TABLE
     pack_id INT NOT NULL,
     set_id INT NOT NULL,
     CONSTRAINT pk_audio_pack_sets PRIMARY KEY (pack_id, set_id),
-    CONSTRAINT fk_pack_id FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pack_set FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
     CONSTRAINT fk_set_id FOREIGN KEY (set_id) REFERENCES ambience_sets (set_id) ON DELETE CASCADE
   );
 
@@ -190,7 +202,7 @@ CREATE TABLE
     pack_id INT NOT NULL,
     ambience_set_id INT NOT NULL,
     CONSTRAINT pk_audio_pack_ambience_sets PRIMARY KEY (pack_id, ambience_set_id),
-    CONSTRAINT fk_pack_id FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pack_ambience FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
     CONSTRAINT fk_ambience_set_id FOREIGN KEY (ambience_set_id) REFERENCES ambience_sets (set_id) ON DELETE CASCADE
   );
 
@@ -199,24 +211,12 @@ CREATE TABLE
     pack_id INT NOT NULL,
     sfx_set_id INT NOT NULL,
     CONSTRAINT pk_audio_pack_sfx_sets PRIMARY KEY (pack_id, sfx_set_id),
-    CONSTRAINT fk_pack_id FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
+    CONSTRAINT fk_pack_sfx FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
     CONSTRAINT fk_sfx_set_id FOREIGN KEY (sfx_set_id) REFERENCES sfx_sets (set_id) ON DELETE CASCADE
   );
 
--- Folders structure
-  CREATE TABLE 
-  IF NOT EXISTS folders (
-    folder_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(128) NOT NULL,
-    parent_folder_id INT,
-    folder_type ENUM('music', 'sfx', 'ambience', 'root') NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
-  );
-
-
 -- Create base folders
-INSERT INTO folders (name, folder_type) VALUES ('Root', 'root');
-INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('Music', 'music', 1);
-INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('SFX', 'sfx', 1);
-INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('Ambience', 'ambience', 1);
+INSERT INTO folders (name, folder_type) VALUES ('audio', 'root');
+INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('music', 'music', 1);
+INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('sfx', 'sfx', 1);
+INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('ambience', 'ambience', 1);

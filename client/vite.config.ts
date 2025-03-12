@@ -11,5 +11,12 @@ export default vite.defineConfig({
         changeOrigin: true
       }
     }
-  }
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: './src/app/main.tsx',
+      },
+    },
+  },
 });

@@ -1,7 +1,16 @@
 import * as dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Initialize dotenv to load environment variables from .env file
 dotenv.config();
+
+// Calculate base directories for the application
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+export const rootDir = path.resolve(__dirname, '../../');
+export const publicDir = path.join(rootDir, 'public');
+
 
 // Database configuration
 export interface DatabaseConfig {
@@ -15,6 +24,9 @@ export interface DatabaseConfig {
 // Server configuration
 export interface ServerConfig {
   port: number;
+  rootDir: string;
+  publicDir: string;
+  audioDir: string;
 }
 
 // Load database configuration from environment variables
@@ -31,7 +43,10 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 // Load server configuration from environment variables
 export const getServerConfig = (): ServerConfig => {
   return {
-    port: process.env.PORT ? parseInt(process.env.PORT) : 3000
+    port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
+    rootDir,
+    publicDir,
+    audioDir: process.env.AUDIO_DIR || path.join(publicDir, 'audio'),
   };
 };
 

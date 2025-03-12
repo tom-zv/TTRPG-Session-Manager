@@ -3,6 +3,7 @@ import { serverConfig } from './config/server-config.js';
 import audioRoutes from './api/audio/audioRoutes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { scanAudioFiles } from './utils/file-scanner.js';
 
 // Initialize Express app
 const app = express();

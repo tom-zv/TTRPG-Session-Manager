@@ -1,15 +1,20 @@
 import express from 'express';
-import * as audioController from './audioController.js';
+import fileRoutes from './file/fileRoutes.js';
+import playlistRoutes from './playlist/playlistRoutes.js';
+import folderRoutes from './folder/folderRoutes.js';
 
 const router = express.Router();
 
-// GET /api/audio - Get all audio files
-router.get('/', audioController.getAllAudioFiles);
+// Mount file routes at /files
+router.use('/files', fileRoutes);
 
-// GET /api/audio/:id - Get audio file by ID
-router.get('/:id', audioController.getAudioFileById);
+// Mount playlist routes at /playlists
+router.use('/playlists', playlistRoutes);
 
-// POST /api/audio - Create a new audio file
-router.post('/', audioController.createAudioFile);
+// Mount folder routes at /folders
+router.use('/folders', folderRoutes);
+
+// For backward compatibility, mount file routes at root as well
+router.use('/', fileRoutes);
 
 export default router;
