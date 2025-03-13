@@ -1,5 +1,5 @@
 import React from 'react';
-import CollectionEditView from './CollectionEditView.js';
+import CollectionEditView from './CollectionEditView/CollectionEditView.js';
 import playlistApi from '../api/playlistApi.js';
 
 const PlaylistManager: React.FC = () => {
@@ -12,7 +12,7 @@ const PlaylistManager: React.FC = () => {
       fetchAvailableItems={playlistApi.getAvailableAudioFiles}
       onCreateCollection={playlistApi.createPlaylist}
       onUpdateCollection={(collection) => 
-        playlistApi.updatePlaylist(collection.id, collection.name, collection.description)
+        playlistApi.updatePlaylist(collection.id, collection.title, collection.description)
       }
       onDeleteCollection={playlistApi.deletePlaylist}
       onAddItem={playlistApi.addFileToPlaylist}
@@ -21,21 +21,22 @@ const PlaylistManager: React.FC = () => {
   );
 };
 
-// const sfxSetManager: React.FC = () => {
-//   return(
+// Implement SFX Sets manager similar to PlaylistManager
+// const SfxSetManager: React.FC = () => {
+//   return (
 //     <CollectionEditView
 //       collectionType="sfx_set"
 //       collectionTitle="SFX Sets"
-//       fetchCollections=
-//       fetchCollectionItems=
-//       fetchAvailableItems=
-//       onCreateCollection=
-//       onUpdateCollection=
-//       onDeleteCollection=
-//       onAddItem=
-//       onRemoveItem=
+//       fetchCollections={/* Your sfx API function */}
+//       fetchCollectionItems={/* Your sfx API function */}
+//       fetchAvailableItems={/* Your sfx API function */}
+//       onCreateCollection={/* Your sfx API function */}
+//       onUpdateCollection={/* Your sfx API function */}
+//       onDeleteCollection={/* Your sfx API function */}
+//       onAddItem={/* Your sfx API function */}
+//       onRemoveItem={/* Your sfx API function */}
 //     />
 //   );
 // };
-
+// export { SfxSetManager };
 export default PlaylistManager;

@@ -2,10 +2,25 @@ import fs from 'fs/promises';
 import path from 'path';
 import { serverConfig } from '../config/server-config.js';
 import { toRelativePath } from './path-utils.js';
-import { executeQuery } from '../db.js';
+import { pool } from '../db.js';
+import { ResultSetHeader } from 'mysql2';
+import { parseFile } from 'music-metadata';
 
 const audioExtensions = new Set(['.mp3', '.wav', '.ogg', '.flac', '.m4a']);
 type AudioType = 'music' | 'sfx' | 'ambience' | 'root';
+
+/**
+ * Get the duration of an audio file in seconds
+ */
+async function getAudioDuration(filePath: string): Promise<number> {
+  try {
+    const metadata = await parseFile(filePath);
+    return metadata.format.duration || 0;
+  } catch (error) {
+    console.error(`Error getting duration for ${filePath}:`, error);
+    return 0;
+  }
+}
 
 /**
  * Recursively scan a directory for audio files
@@ -18,7 +33,8 @@ async function scanDirectory(
   path: string,
   relativePath: string,
   folderId: number,
-  audioType: AudioType
+  audioType: AudioType,
+  duration?: number
 }>> {
   const entries = await fs.readdir(dirPath, { withFileTypes: true });
   const results: Array<{
@@ -26,6 +42,7 @@ async function scanDirectory(
     relativePath: string;
     folderId: number;
     audioType: AudioType;
+    duration?: number;
   }> = [];
 
   // Get or create folder ID for this directory
@@ -69,12 +86,12 @@ async function scanDirectory(
     );
 
     // Insert folder into database with the determined or passed-in audioType
-    const result = await executeQuery<{ insertId: number }>(
+    const [result] = await pool.execute(
       "INSERT INTO folders (name, parent_folder_id, folder_type) VALUES (?, ?, ?)",
       [folderName, parentId, audioType]
     );
-
-    folderId = result[0]?.insertId;
+    
+    folderId = (result as ResultSetHeader).insertId;
     folderIdMap.set(relFolderPath, folderId);
   }
 
@@ -91,11 +108,13 @@ async function scanDirectory(
     } else if (entry.isFile() && isAudioFile(entry.name)) {
       // This is an audio file
       const relativePath = toRelativePath(entryPath);
+      const duration = await getAudioDuration(entryPath);
       results.push({
         path: entryPath,
         relativePath,
         folderId,
         audioType,
+        duration
       });
     }
   }
@@ -166,14 +185,16 @@ function isAudioFile(filename: string): boolean {
 export async function scanAudioFiles(): Promise<void> {
   try {
     // Get existing folders from database to avoid duplicates
-    const folders = await executeQuery<{
-      folder_id: number,
-      name: string,
-      parent_folder_id: number
-    }>('SELECT folder_id, name, parent_folder_id FROM folders');
+    const [folders] = await pool.execute(
+      'SELECT folder_id, name, parent_folder_id FROM folders'
+    );
     
     // Build folder ID map using the extracted function
-    const folderIdMap = buildFolderPathMap(folders);
+    const folderIdMap = buildFolderPathMap(folders as {
+      folder_id: number,
+      name: string,
+      parent_folder_id: number | null
+    }[]);
     
     // Scan audio directory
     const audioFiles = await scanDirectory(serverConfig.audioDir, folderIdMap);
@@ -184,16 +205,22 @@ export async function scanAudioFiles(): Promise<void> {
       const fileExt = path.extname(fileName).toLowerCase() || '';
       
       // Check if file already exists in the database
-      const existingFiles = await executeQuery<{ audio_file_id: number }>(
+      const [existingFiles] = await pool.execute(
         'SELECT audio_file_id FROM audio_files WHERE file_path = ?',
         [file.relativePath]
       );
       
-      if (existingFiles.length === 0) {
+      if ((existingFiles as any[]).length === 0) {
         // Add new file to database using the audioType determined during scanning
-        await executeQuery(
-          'INSERT INTO audio_files (title, audio_type, file_path, folder_id) VALUES (?, ?, ?, ?)',
-          [fileName.replace(fileExt, ''), file.audioType, file.relativePath, file.folderId]
+        await pool.execute(
+          'INSERT INTO audio_files (title, audio_type, file_path, folder_id, duration) VALUES (?, ?, ?, ?, ?)',
+          [fileName.replace(fileExt, ''), file.audioType, file.relativePath, file.folderId, file.duration || 0]
+        );
+      } else {
+        // Update existing file's duration if needed
+        await pool.execute(
+          'UPDATE audio_files SET duration = ? WHERE file_path = ?',
+          [file.duration || 0, file.relativePath]
         );
       }
     }

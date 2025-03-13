@@ -1,5 +1,6 @@
 import playlistService from "./playlistService.js";
 import fileService from "../file/fileService.js";
+import { transformAudioFile } from "../../../utils/format-transformers.js";
 import { Request, Response } from 'express';
 
 export const getAllPlaylists = async (_req: Request, res: Response) => {
@@ -23,6 +24,10 @@ export const getPlaylistById = async (req: Request, res: Response) => {
   
   if (includeFiles) {
     response = await playlistService.getPlaylistWithFiles(id);
+    if (response.success && response.data.files) {
+      // Transform the files to the format expected by the frontend
+      response.data.files = response.data.files.map((file: any) => transformAudioFile(file));
+    }
   } else {
     response = await playlistService.getPlaylistById(id);
   }

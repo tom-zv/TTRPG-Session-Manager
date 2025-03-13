@@ -129,7 +129,7 @@ export async function addFileToPlaylist(
 ): Promise<ServiceResponse<void>> {
   try {
     const affectedRows = await playlistModel.addFileToPlaylist(playlistId, audioFileId, playOrder);
-    console.log('SERVICE: affectedRows:', affectedRows);
+    
     if (affectedRows === 0) {
       return { success: false, error: 'Failed to add file to playlist' };
     }

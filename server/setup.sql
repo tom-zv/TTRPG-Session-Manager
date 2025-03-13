@@ -71,6 +71,7 @@ CREATE TABLE
     audio_file_id INT AUTO_INCREMENT PRIMARY KEY,
     title VARCHAR(128) NOT NULL,
     audio_type ENUM ('music', 'sfx', 'ambience') NOT NULL DEFAULT 'music',
+    duration INT,
     file_url VARCHAR(256),
     file_path VARCHAR(256),
     folder_id INT,

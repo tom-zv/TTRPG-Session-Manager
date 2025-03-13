@@ -6,9 +6,9 @@ const NavBar: React.FC = () => {
   return (
     <nav className="nav-bar">
       <div className="nav-container">
-        <div className="nav-brand">
-          <NavLink to="/" end>TTRPG Session Manager</NavLink>
-        </div>
+        {/* <div className="nav-brand"> */}
+          {/* <NavLink to="/" end>TTRPG Session Manager</NavLink> */}
+        {/* </div> */}
         <ul className="nav-tabs">
           <li>
             <NavLink to="/" end className={({isActive}) => isActive ? 'active' : ''}>

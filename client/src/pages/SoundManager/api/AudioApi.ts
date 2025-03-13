@@ -33,14 +33,14 @@ export async function uploadAudioFile(audioData: Partial<AudioFile>, file?: File
   try {
     const formData = new FormData();
     formData.append('title', audioData.title || '');
-    formData.append('type', audioData.audio_type || '');
+    formData.append('type', audioData.audioType || '');
     
-    if (audioData.file_url) {
-      formData.append('file_url', audioData.file_url);
+    if (audioData.fileUrl) {
+      formData.append('file_url', audioData.fileUrl);
     }
     
-    if (audioData.folder_id) {
-      formData.append('folder_id', audioData.folder_id.toString());
+    if (audioData.folderId) {
+      formData.append('folder_id', audioData.folderId.toString());
     }
     
     if (file) {

@@ -10,9 +10,6 @@ export async function getFolderById(id: number): Promise<Folder | null> {
   return folders.length > 0 ? folders[0] : null;
 }
 
-export async function getFoldersByType(folderType: string): Promise<Folder[]> {
-  return await folderModel.getFoldersByType(folderType);
-}
 
 export async function getSubFolders(parentFolderId: number): Promise<Folder[]> {
   return await folderModel.getSubFolders(parentFolderId);
@@ -21,6 +18,5 @@ export async function getSubFolders(parentFolderId: number): Promise<Folder[]> {
 export default {
   getAllFolders,
   getFolderById,
-  getFoldersByType,
   getSubFolders
 };

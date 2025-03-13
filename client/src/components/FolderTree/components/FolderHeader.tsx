@@ -4,10 +4,12 @@ import { getFolderIcon } from '../utils/icons.js';
 
 interface FolderHeaderProps {
   folder: Folder;
-  isSelected: boolean;
   isOpen: boolean;
   hasContents: boolean;
-  onClick: (e: React.MouseEvent) => void;
+  isSelected?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragEnd?: (e: React.DragEvent) => void;
 }
 
 const FolderHeader: React.FC<FolderHeaderProps> = ({
@@ -15,15 +17,21 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
   isSelected,
   isOpen,
   hasContents,
-  onClick
+  onClick,
+  onDragStart,
+  onDragEnd
 }) => {
   return (
     <div 
       className={`folder-header ${isSelected ? 'selected' : ''}`} 
+      draggable
       onClick={onClick}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
+      data-type={folder.type}
     >
       <span className={`folder-icon ${hasContents ? (isOpen ? 'open' : 'closed') : ''}`}>
-        {getFolderIcon(folder.folder_type, isOpen, hasContents)}
+        {getFolderIcon(folder.type, isOpen, hasContents)}
       </span>
       <span className="folder-name">{folder.name}</span>
     </div>

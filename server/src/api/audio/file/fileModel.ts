@@ -1,14 +1,20 @@
-import { executeQuery, QueryResult } from "../../../db.js";
+import { pool } from "../../../db.js";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { AudioFile } from 'shared/types/types.js';
 
 ////////////////////////////////
 // Audio file model functions //
 export async function getAllAudioFiles(): Promise<AudioFile[]> {
-  return await executeQuery<AudioFile>('SELECT * FROM audio_files');
+  const [rows] = await pool.execute('SELECT * FROM audio_files');
+  return rows as AudioFile[] & RowDataPacket[];
 }
 
 export async function getAudioFile(id: number): Promise<AudioFile[]> {
-  return await executeQuery<AudioFile>('SELECT * FROM audio_files WHERE audio_file_id = ?', [id]);
+  const [rows] = await pool.execute(
+    'SELECT * FROM audio_files WHERE audio_file_id = ?', 
+    [id]
+  );
+  return rows as AudioFile[] & RowDataPacket[];
 }
 
 export async function insertAudioFile(
@@ -17,12 +23,16 @@ export async function insertAudioFile(
   file_path: string | null,
   file_url: string | null,
   folder_id: number | null
-): Promise<QueryResult> {
+): Promise<ResultSetHeader> {
   const query = `INSERT INTO audio_files 
   (title, audio_type, file_path, file_url, folder_id) VALUES (?,?,?,?,?)`;
 
-  const result = await executeQuery<QueryResult>(query, [title, type, file_path, file_url, folder_id]);
-  return result[0] || { insertId: 0 }; 
+  const [result] = await pool.execute(
+    query, 
+    [title, type, file_path, file_url, folder_id]
+  );
+  
+  return result as ResultSetHeader;
 }
 
 export default {

@@ -18,7 +18,7 @@ router.put('/:id', playlistController.updatePlaylist);
 // DELETE /playlists/:id - Delete a playlist
 router.delete('/:id', playlistController.deletePlaylist);
 
-// Playlist files management
+// Playlist files management //
 router.post('/:id/files', playlistController.addFileToPlaylist);
 
 router.delete('/:id/files/:fileId', playlistController.removeFileFromPlaylist);

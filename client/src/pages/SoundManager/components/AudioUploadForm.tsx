@@ -9,13 +9,11 @@ interface AudioUploadFormProps {
 
 const AudioUploadForm: React.FC<AudioUploadFormProps> = ({ 
   onUploadSuccess,
-  preselectedFolder
 }) => {
   const [title, setTitle] = useState('');
-  const [type, setType] = useState('music');
+  const [type, setType] = useState<'music' | 'sfx' | 'ambience'>('music');
   const [fileUrl, setFileUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
-  const [folderId, setFolderId] = useState<number | undefined>(preselectedFolder);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldError[] | null>(null);
@@ -62,8 +60,8 @@ const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
       await uploadAudioFile(
         {
           title,
-          audio_type: type,
-          file_url: fileUrl || undefined
+          audioType: type,
+          fileUrl: fileUrl || undefined
         },
         file || undefined
       );
@@ -117,8 +115,7 @@ const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
       options: [
         { value: 'music', label: 'Music' },
         { value: 'sfx', label: 'Sound Effect' },
-        { value: 'ambience', label: 'Ambience' },
-        { value: 'other', label: 'Other' }
+        { value: 'ambience', label: 'Ambience' }
       ]
     },
     {

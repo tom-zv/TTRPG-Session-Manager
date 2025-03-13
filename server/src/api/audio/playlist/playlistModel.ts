@@ -1,20 +1,22 @@
-import { executeQuery, QueryResult } from "../../../db.js";
+import { pool } from "../../../db.js";
+import { ResultSetHeader, RowDataPacket } from "mysql2";
 
-export async function getAllPlaylists(): Promise<any[]> {
-  const result = await executeQuery('SELECT * FROM music_playlists');
-  return result as any[];
+
+export async function getAllPlaylists(): Promise<RowDataPacket[]> {
+  const [result] = await pool.execute('SELECT * FROM music_playlists');
+  return result as RowDataPacket[];
 }
 
-export async function getPlaylistById(playlistId: number): Promise<any[]> {
-  const result = await executeQuery(
+export async function getPlaylistById(playlistId: number): Promise<RowDataPacket[]> {
+  const [result] = await pool.execute(
     'SELECT * FROM music_playlists WHERE playlist_id = ?',
     [playlistId]
   );
-  return result as any[];
+  return result as RowDataPacket[];
 }
 
-export async function getPlaylistFiles(playlistId: number): Promise<any[]> {
-  const result = await executeQuery(
+export async function getPlaylistFiles(playlistId: number): Promise<RowDataPacket[]> {
+  const [result] = await pool.execute(
     `SELECT af.*, mpf.play_order 
      FROM audio_files af
      JOIN music_playlist_files mpf ON af.audio_file_id = mpf.audio_file_id
@@ -22,16 +24,15 @@ export async function getPlaylistFiles(playlistId: number): Promise<any[]> {
      ORDER BY mpf.play_order ASC`,
     [playlistId]
   );
-  return result as any[];
+  return result as RowDataPacket[];
 }
 
 export async function createPlaylist(name: string, description: string | null): Promise<number> {
-  const result = await executeQuery<QueryResult>(
+  const [result] = await pool.execute(
     'INSERT INTO music_playlists (name, description) VALUES (?, ?)',
     [name, description]
   );
-  const queryResult = result as QueryResult;
-  return queryResult.insertId || 0;
+  return (result as ResultSetHeader).insertId || 0;
 }
 
 export async function updatePlaylist(
@@ -39,21 +40,19 @@ export async function updatePlaylist(
   name: string, 
   description: string | null
 ): Promise<number> {
-  const result = await executeQuery<QueryResult>(
+  const [result] = await pool.execute(
     'UPDATE music_playlists SET name = ?, description = ? WHERE playlist_id = ?',
     [name, description, playlistId]
   );
-  const queryResult = result as QueryResult;
-  return queryResult.affectedRows || 0;
+  return (result as ResultSetHeader).affectedRows || 0;
 }
 
 export async function deletePlaylist(playlistId: number): Promise<number> {
-  const result = await executeQuery<QueryResult>(
+  const [result] = await pool.execute(
     'DELETE FROM music_playlists WHERE playlist_id = ?',
     [playlistId]
   );
-  const queryResult = result as QueryResult;
-  return queryResult.affectedRows || 0;
+  return (result as ResultSetHeader).affectedRows || 0;
 }
 
 export async function addFileToPlaylist(
@@ -61,35 +60,42 @@ export async function addFileToPlaylist(
   audioFileId: number,
   playOrder: number | null
 ): Promise<number> {
-  // If playOrder is not provided, find the highest current order and add 1
-  if (playOrder === null) {
-    const currentOrders = await executeQuery<{maxOrder: number | null}>(
-      'SELECT MAX(play_order) as maxOrder FROM music_playlist_files WHERE playlist_id = ?',
-      [playlistId]
+  try {
+    // If playOrder is not provided, find the highest current order and add 1
+    if (playOrder === null) {
+      const [currentOrders] = await pool.execute<RowDataPacket[]>(
+        'SELECT MAX(play_order) as maxOrder FROM music_playlist_files WHERE playlist_id = ?',
+        [playlistId]
+      );
+      playOrder = currentOrders[0]?.maxOrder ? (currentOrders[0].maxOrder + 1) : 1;
+    }
+    
+    const [result] = await pool.execute(
+      'INSERT INTO music_playlist_files (playlist_id, audio_file_id, play_order) VALUES (?, ?, ?)',
+      [playlistId, audioFileId, playOrder]
     );
-    const orders = currentOrders as any[];
-    playOrder = orders[0]?.maxOrder ? (orders[0].maxOrder + 1) : 1;
+    
+    return (result as ResultSetHeader).affectedRows || 0;
+  } catch (error: any) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      console.log('File already exists in playlist, not an error');
+      // Return a special code to indicate duplicate entry
+      return -1;
+    }
+    // Rethrow the error for other cases
+    throw error;
   }
-  
-  const result = await executeQuery<QueryResult>(
-    'INSERT INTO music_playlist_files (playlist_id, audio_file_id, play_order) VALUES (?, ?, ?)',
-    [playlistId, audioFileId, playOrder]
-  );
-  const queryResult = result as QueryResult;
-  console.log('MODEL: queryResult', queryResult);
-  return queryResult.affectedRows || 0;  // Return affectedRows instead of insertId
 }
 
 export async function removeFileFromPlaylist(
   playlistId: number, 
   audioFileId: number
 ): Promise<number> {
-  const result = await executeQuery<QueryResult>(
+  const [result] = await pool.execute(
     'DELETE FROM music_playlist_files WHERE playlist_id = ? AND audio_file_id = ?',
     [playlistId, audioFileId]
   );
-  const queryResult = result as QueryResult;
-  return queryResult.affectedRows || 0;
+  return (result as ResultSetHeader).affectedRows || 0;
 }
 
 export async function updatePlaylistFileOrder(
@@ -97,12 +103,11 @@ export async function updatePlaylistFileOrder(
   audioFileId: number,
   newPlayOrder: number
 ): Promise<number> {
-  const result = await executeQuery<QueryResult>(
+  const [result] = await pool.execute(
     'UPDATE music_playlist_files SET play_order = ? WHERE playlist_id = ? AND audio_file_id = ?',
     [newPlayOrder, playlistId, audioFileId]
   );
-  const queryResult = result as QueryResult;
-  return queryResult.affectedRows || 0;
+  return (result as ResultSetHeader).affectedRows || 0;
 }
 
 export default {

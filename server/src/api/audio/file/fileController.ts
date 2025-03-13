@@ -1,12 +1,17 @@
 import fileService from "./fileService.js";
 import { Request, Response } from 'express';
 import { scanAudioFiles } from "../../../utils/file-scanner.js";
+import { transformAudioFile } from "../../../utils/format-transformers.js";
 import fs from 'fs';
 
 // Get all audio files
 export const getAllAudioFiles = async (_req: Request, res: Response) => {
   try {
-    const audioFiles = await fileService.getAllAudioFiles();
+    const dbAudioFiles = await fileService.getAllAudioFiles();
+    
+    // Transform each DB record to match the frontend format
+    const audioFiles = dbAudioFiles.map(file => transformAudioFile(file));
+    
     res.status(200).json(audioFiles);
   } catch (error) {
     console.error('Error getting all audio files:', error);
@@ -22,12 +27,15 @@ export const getAudioFileById = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid ID format' });
     }
 
-    const audioFile = await fileService.getAudioFile(id);
-    if (!audioFile || audioFile.length === 0) {
+    const audioFiles = await fileService.getAudioFile(id);
+    if (!audioFiles || audioFiles.length === 0) {
       return res.status(404).json({ error: 'Audio file not found' });
     }
 
-    res.status(200).json(audioFile[0]);
+    // Transform to frontend format
+    const transformedFile = transformAudioFile(audioFiles[0]);
+    
+    res.status(200).json(transformedFile);
   } catch (error) {
     console.error('Error getting audio file by ID:', error);
     res.status(500).json({ error: 'Failed to retrieve audio file' });
@@ -37,6 +45,7 @@ export const getAudioFileById = async (req: Request, res: Response) => {
 // Create a new audio file
 export const createAudioFile = async (req: Request, res: Response) => {
   try {
+    // Note: The incoming data from the client uses frontend naming (type instead of audio_type)
     const { title, type, file_url, folder_id } = req.body;
     
     // Validate required fields with specific field errors

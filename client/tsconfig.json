@@ -6,7 +6,11 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "shared/*": ["../shared/*"],  // Path is relative to client directory
+      "src/*": ["./src/*"]
+    }
   },
-  "include": ["src", "../shared/types/","vite.config.ts"]
+  "include": ["src", "../shared/types","vite.config.ts"]
 }

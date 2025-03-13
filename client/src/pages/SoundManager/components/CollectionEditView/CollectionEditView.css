@@ -51,7 +51,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 160px;
+  min-height: 110px;
   background-color: var(--bg-tertiary);
   cursor: pointer;
   transition: all 0.2s ease;
@@ -75,14 +75,15 @@
 
 .create-collection-icon {
   font-size: 2rem;
-  width: 60px;
-  height: 60px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   border: 2px dashed var(--border-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 0.5rem;
+  padding-bottom: 8px;
+  /* margin-bottom: 0.2rem; */
 }
 
 .create-collection-card:hover .create-collection-icon {
@@ -246,7 +247,7 @@
 
 .cancel-button {
   background-color: var(--bg-tertiary);
-  color: var(--text-primary);
+  color: var (--text-primary);
 }
 
 .cancel-button:hover {
@@ -275,6 +276,65 @@
 }
 .drop-target[data-count]::after {
   content: "Drop to add " attr(data-count) " file(s) to collection";
+}
+
+/* Add these styles to your existing CSS file */
+
+.collection-card {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.collection-card.drop-target {
+  outline: 2px dashed var(--accent-primary);
+  background-color: rgba(40, 42, 201, 0.05);
+  transform: scale(1.02);
+}
+
+.collection-card.drop-target::after {
+  content: "Drop to add to collection";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--bg-secondary);
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  font-weight: bold;
+  color: var(--accent-primary);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.collection-card[data-count]::after {
+  content: "Drop to add " attr(data-count) " file(s) to collection";
+}
+
+.collections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.collection-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.collection-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.collection-type {
+  text-transform: capitalize;
 }
 
 /* Responsive adjustments */

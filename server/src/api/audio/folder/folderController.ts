@@ -1,9 +1,11 @@
 import folderService from "./folderService.js";
+import { transformfolder } from "../../../utils/format-transformers.js";
 import { Request, Response } from 'express';
 
 export const getAllFolders = async (_req: Request, res: Response) => {
   try {
-    const folders = await folderService.getAllFolders();
+    const dbFolders = await folderService.getAllFolders();
+    const folders = dbFolders.map(folder => transformfolder(folder));
     res.status(200).json(folders);
   } catch (error) {
     console.error('Error getting folders:', error);
@@ -18,7 +20,8 @@ export const getFolderById = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid folder ID format' });
     }
 
-    const folder = await folderService.getFolderById(id);
+    const dbFolder = await folderService.getFolderById(id);
+    const folder = transformfolder(dbFolder);
     if (!folder) {
       return res.status(404).json({ error: 'Folder not found' });
     }
@@ -30,21 +33,6 @@ export const getFolderById = async (req: Request, res: Response) => {
   }
 };
 
-export const getFoldersByType = async (req: Request, res: Response) => {
-  try {
-    const folderType = req.params.type;
-    if (!folderType) {
-      return res.status(400).json({ error: 'Folder type is required' });
-    }
-
-    const folders = await folderService.getFoldersByType(folderType);
-    res.status(200).json(folders);
-  } catch (error) {
-    console.error('Error getting folders by type:', error);
-    res.status(500).json({ error: 'Failed to retrieve folders' });
-  }
-};
-
 export const getSubFolders = async (req: Request, res: Response) => {
   try {
     const parentId = parseInt(req.params.parentId);
@@ -52,7 +40,9 @@ export const getSubFolders = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid parent folder ID format' });
     }
 
-    const folders = await folderService.getSubFolders(parentId);
+    const dbFolders = await folderService.getSubFolders(parentId);
+    const folders = dbFolders.map(folder => transformfolder(folder));
+    
     res.status(200).json(folders);
   } catch (error) {
     console.error('Error getting subfolders:', error);
@@ -63,6 +53,5 @@ export const getSubFolders = async (req: Request, res: Response) => {
 export default {
   getAllFolders,
   getFolderById,
-  getFoldersByType,
   getSubFolders
 };

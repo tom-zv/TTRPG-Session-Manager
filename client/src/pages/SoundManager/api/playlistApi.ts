@@ -1,5 +1,4 @@
-import { AudioItem } from '../components/AudioItemList.js';
-import { Collection } from '../components/CollectionEditView.js';
+import { AudioItem } from '../types/AudioItem.js';
 
 const API_URL = '/api/audio/playlists';
 
@@ -7,18 +6,11 @@ export interface Playlist {
   playlist_id: number;
   name: string;
   description: string | null;
-  files?: Array<{
-    audio_file_id: number;
-    title: string;
-    audio_type: string;
-    play_order: number;
-    file_url?: string;
-    file_path?: string;
-  }>;
+  files?: AudioItem[];
 }
 
 // Get all playlists
-export async function getAllPlaylists(): Promise<Collection[]> {
+export async function getAllPlaylists(): Promise<AudioItem[]> {
   try {
     const response = await fetch(API_URL);
     if (!response.ok) {
@@ -26,10 +18,9 @@ export async function getAllPlaylists(): Promise<Collection[]> {
     }
     const playlists: Playlist[] = await response.json();
     
-    // Convert to Collection format for CollectionEditView
     return playlists.map(playlist => ({
       id: playlist.playlist_id,
-      name: playlist.name,
+      title: playlist.name,
       description: playlist.description || undefined,
       type: 'playlist' as const,
       itemCount: playlist.files?.length
@@ -124,10 +115,10 @@ export async function getPlaylistFiles(playlistId: number): Promise<AudioItem[]>
     
     // Convert to AudioItem format for AudioItemList component
     return playlist.files.map(file => ({
-      id: file.audio_file_id,
+      id: file.id,
       title: file.title,
       type: 'file',
-      audioType: file.audio_type as 'music' | 'sfx' | 'ambience'
+      audioType: file.audioType as 'music' | 'sfx' | 'ambience'
     }));
   } catch (error) {
     console.error(`Error fetching files for playlist ${playlistId}:`, error);

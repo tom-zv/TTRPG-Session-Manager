@@ -1,6 +1,6 @@
 .app-content {
   /* padding: 1rem; */
-  height: calc(100vh - 60px); /* Account for navbar height */
+  height: calc(100vh - 40px); /* Account for navbar height */
   overflow-y: auto;
 }
 
