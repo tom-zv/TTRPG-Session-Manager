@@ -18,11 +18,14 @@ export interface CollectionEditViewProps {
   onCreateCollection?: (name: string, description?: string) => Promise<number>;
   onUpdateCollection?: (collection: AudioItem) => Promise<boolean>;
   onDeleteCollection?: (collectionId: number) => Promise<boolean>;
-  onAddItem?: (collectionId: number, itemId: number) => Promise<boolean>;
-  onRemoveItem?: (collectionId: number, itemId: number) => Promise<boolean>;
-  onReorderItem?: (
+  onAddItems?: (collectionId: number, itemIds: number[], position?: number) => Promise<boolean>;
+  onRemoveItems?: (collectionId: number, itemIds: number | number[]) => Promise<boolean>;
+  onUpdateItemPosition?: (
     collectionId: number,
-    itemId: number,
-    newOrder: number
+    audioFileId: number,
+    newPosition: number,
+    // For range update
+    sourceStartPosition?: number,
+    sourceEndPosition?: number,
   ) => Promise<boolean>;
 }

@@ -5,7 +5,11 @@
     "outDir": "./dist",
     "rootDir": "../",
     "declaration": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "shared/*": ["../shared/*"],  // Path is relative to client directory
+      "src/*": ["./src/*"]
+    }
   },
   "include": ["src/**/*.ts", "../shared/**/*.ts"],
   "exclude": ["node_modules", "dist"]

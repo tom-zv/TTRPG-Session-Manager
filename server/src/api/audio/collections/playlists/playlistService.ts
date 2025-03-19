@@ -125,10 +125,10 @@ export async function deletePlaylist(id: number): Promise<ServiceResponse<void>>
 export async function addFileToPlaylist(
   playlistId: number,
   audioFileId: number,
-  playOrder: number | null = null
+  position: number | null = null
 ): Promise<ServiceResponse<void>> {
   try {
-    const affectedRows = await playlistModel.addFileToPlaylist(playlistId, audioFileId, playOrder);
+    const affectedRows = await playlistModel.addFileToPlaylist(playlistId, audioFileId, position);
     
     if (affectedRows === 0) {
       return { success: false, error: 'Failed to add file to playlist' };
@@ -137,6 +137,29 @@ export async function addFileToPlaylist(
   } catch (error) {
     console.error(`Service error adding file ${audioFileId} to playlist ${playlistId}:`, error);
     return { success: false, error: 'Failed to add file to playlist' };
+  }
+}
+
+// Add multiple files to a playlist
+export async function addFilesToPlaylist(
+  playlistId: number,
+  audioFileIds: number[],
+  startPosition: number | null = null
+): Promise<ServiceResponse<void>> {
+  try {
+    if (!audioFileIds || audioFileIds.length === 0) {
+      return { success: false, error: 'No files specified' };
+    }
+    
+    const affectedRows = await playlistModel.addFilesToPlaylist(playlistId, audioFileIds, startPosition);
+    
+    if (affectedRows === 0) {
+      return { success: false, error: 'Failed to add files to playlist' };
+    }
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error adding files to playlist ${playlistId}:`, error);
+    return { success: false, error: 'Failed to add files to playlist' };
   }
 }
 
@@ -157,28 +180,67 @@ export async function removeFileFromPlaylist(
   }
 }
 
-export async function updatePlaylistFileOrder(
+export async function updatePlaylistFilePosition(
   playlistId: number,
   audioFileId: number,
-  newPlayOrder: number
+  targetPosition: number
 ): Promise<ServiceResponse<void>> {
   try {
-    if (typeof newPlayOrder !== 'number') {
-      return { success: false, error: 'Invalid play order' };
+
+    if (typeof targetPosition !== 'number') {
+      return { success: false, error: 'Invalid play position' };
     }
     
-    const affectedRows = await playlistModel.updatePlaylistFileOrder(playlistId, audioFileId, newPlayOrder);
+    const affectedRows = await playlistModel.updatePlaylistFilePosition(playlistId, audioFileId, targetPosition);
     if (!affectedRows) {
       return { success: false, notFound: true, error: 'Playlist file not found' };
     }
     
     return { success: true };
   } catch (error) {
-    console.error(`Service error updating file order for ${audioFileId} in playlist ${playlistId}:`, error);
-    return { success: false, error: 'Failed to update file order' };
+    console.error(`Service error updating file position for ${audioFileId} in playlist ${playlistId}:`, error);
+    return { success: false, error: 'Failed to update file position' };
   }
 }
 
+export async function updateFileRangePosition(
+  playlistId: number,
+  sourceStartPosition: number,
+  sourceEndPosition: number,
+  targetPosition: number
+): Promise<ServiceResponse<void>> {
+  try {
+    if (
+      typeof sourceStartPosition !== 'number' || 
+      typeof sourceEndPosition !== 'number' || 
+      typeof targetPosition !== 'number'
+    ) {
+      return { success: false, error: 'Invalid position parameters' };
+    }
+    
+    if (sourceStartPosition > sourceEndPosition) {
+      return { success: false, error: 'Start position must be less than or equal to end position' };
+    }
+    
+    const affectedRows = await playlistModel.updateFileRangePosition(
+      playlistId, 
+      sourceStartPosition, 
+      sourceEndPosition, 
+      targetPosition
+    );
+    
+    if (affectedRows === 0) {
+      return { success: false, notFound: true, error: 'No playlist items found in the specified range' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error moving items in playlist ${playlistId}:`, error);
+    return { success: false, error: 'Failed to move playlist items' };
+  }
+}
+
+// Update the default export
 export default {
   getAllPlaylists,
   getPlaylistById,
@@ -187,6 +249,8 @@ export default {
   updatePlaylist,
   deletePlaylist,
   addFileToPlaylist,
+  addFilesToPlaylist,
   removeFileFromPlaylist,
-  updatePlaylistFileOrder
+  updatePlaylistFilePosition,
+  updateFileRangePosition
 };

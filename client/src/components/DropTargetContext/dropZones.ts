@@ -1,6 +1,7 @@
 // Define application-wide drop zones
 export const DROP_ZONES = {
   // Main content areas
+  DISABLED: 'disabled',
   SOUND_MANAGER_CONTENT: 'sound-manager-content',
   COMBAT_TRACKER_CONTENT: 'combat-tracker-content',
   

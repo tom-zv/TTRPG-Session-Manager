@@ -101,32 +101,6 @@
   opacity: 0.5;
 }
 
-/* Drag-and-drop styling preparation */
-.folder-item.dragging, .file-item.dragging {
-  opacity: 0.5;
-}
-
-.folder-item.drop-target, .file-item.drop-target {
-  background-color: rgba(40, 42, 201, 0.1);
-}
-
-.dragging-multi::after {
-  content: attr(data-count);
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: var(--accent-primary, #4a5af8);
-  color: white;
-  border-radius: 50%;
-  width: 20px;
-  height: e0px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
-}
-
 /* Folder type indicators */
 /* .folder-item[data-type="music"] .folder-name {
   color: #5db8ff;
@@ -179,4 +153,71 @@
 .folder-header.selected {
   border-left: 3px solid rgba(40, 42, 201, 0.5);
   padding-left: 5px;
+}
+
+/* Drag-and-drop styling preparation */
+.folder-item.dragging, .file-item.dragging {
+  opacity: 0.5;
+}
+
+.folder-item.drop-target, .file-item.drop-target {
+  background-color: rgba(40, 42, 201, 0.1);
+}
+
+.dragging-multi::after {
+  content: attr(data-count);
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: var(--accent-primary, #4a5af8);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: e0px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.drag-image-container {
+  position: absolute;
+  /* padding: 10px; */
+  box-sizing: border-box;
+  width: 250px;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.drag-image-item {
+  background-color: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 4px;
+  padding: 8px;
+  /* margin-bottom: 4px; */
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  position: relative;
+}
+
+.drag-item-stacked {
+  position: relative;
+}
+/* 
+.drag-item-1 { transform: translateY(0) translateX(0); z-index: 5; }
+.drag-item-2 { transform: translateY(-4px) translateX(4px); z-index: 4; }
+.drag-item-3 { transform: translateY(-8px) translateX(8px); z-index: 3; }
+.drag-item-4 { transform: translateY(-12px) translateX(12px); z-index: 2; }
+.drag-item-5 { transform: translateY(-16px) translateX(16px); z-index: 1; } */
+
+.drag-count-indicator {
+  background-color: var(--accent-primary, #4a5af8);
+  color: white;
+  border-radius: 20px;
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: bold;
+  position: absolute;
+  top: -8px;
+  right: -8px;
 }

@@ -339,3 +339,17 @@
         padding: 0.75rem;
     }
 }
+
+.insert-marker {
+    height: 3px;
+    background-color: var(--accent-primary); 
+    transition: all 0.15s ease;
+  }
+  
+  .insert-marker td {
+    padding: 0;
+  }
+  
+  .audio-item-table tbody tr.insert-marker:hover {
+    background-color: var(--accent-primary);
+  }

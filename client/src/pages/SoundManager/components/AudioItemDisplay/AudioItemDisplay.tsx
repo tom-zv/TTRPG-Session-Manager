@@ -16,14 +16,16 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
   showActions = false,
   onItemClick,
   onPlayItem,
+  onAddItems,
   onEditItem,
-  onRemoveItem,
+  onRemoveItems,
+  onUpdateItemPosition,
   renderSpecialItem
 }) => {
   const [viewMode, setViewMode] = useState<"grid" | "list">(view);
   
   // Initialize selection functionality
-  const { selectedItems, handleSelect } = useSelection<{ id: number; isCreateButton?: boolean }>({
+  const { selectedItems, handleSelect, clearSelection } = useSelection<{ id: number; isCreateButton?: boolean }>({
     getItemId: (item) => item.id,
     // Don't select special items like "Create New" button
     onSingleSelect: (item, _) => {
@@ -61,6 +63,15 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
     }
   };
 
+  const handleRemoveItems = (itemIds: number[]) => {
+    if (onRemoveItems) {
+      onRemoveItems(itemIds);
+    }
+
+    clearSelection();
+    
+  };
+
   // Return status components if needed
   if (isLoading || error || items.length === 0) {
     return (
@@ -75,13 +86,15 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
   // Shared props for view components
   const viewProps = {
     items,
+    selectedItemIds: selectedItems.map(item => item.id),
     showActions,
     onPlayItem,
     onEditItem,
-    onRemoveItem,
+    onAddItems,
+    onRemoveItems: handleRemoveItems,
     renderSpecialItem,
-    selectedItemIds: selectedItems.map(item => item.id),
-    onItemSelect: handleItemSelection
+    onItemSelect: handleItemSelection,
+    onUpdateItemPosition,
   };
 
   return (

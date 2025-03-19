@@ -2,8 +2,6 @@ import { pool } from "../../../db.js";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { AudioFile } from 'shared/types/types.js';
 
-////////////////////////////////
-// Audio file model functions //
 export async function getAllAudioFiles(): Promise<AudioFile[]> {
   const [rows] = await pool.execute('SELECT * FROM audio_files');
   return rows as AudioFile[] & RowDataPacket[];

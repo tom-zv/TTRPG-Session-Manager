@@ -81,26 +81,26 @@ CREATE TABLE
 
 -- Music playlists 
 CREATE TABLE
-  IF NOT EXISTS music_playlists (
+  IF NOT EXISTS playlists (
     playlist_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     description TEXT
   );
 
-CREATE TABLE
-  IF NOT EXISTS music_playlist_files (
-    playlist_id INT NOT NULL,
-    audio_file_id INT NOT NULL,
-    play_order INT,
-    CONSTRAINT pk_music_playlist_files PRIMARY KEY (playlist_id, audio_file_id),
-    CONSTRAINT fk_music_playlist_id FOREIGN KEY (playlist_id) REFERENCES music_playlists (playlist_id) ON DELETE CASCADE,
-    CONSTRAINT fk_playlist_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
-  );
+CREATE TABLE IF NOT EXISTS playlist_files (
+  playlist_id INT NOT NULL,
+  audio_file_id INT NOT NULL,
+  position INT NOT NULL,
+  CONSTRAINT pk_playlist_files PRIMARY KEY (playlist_id, audio_file_id),
+  CONSTRAINT playlist_id FOREIGN KEY (playlist_id) REFERENCES playlists (playlist_id) ON DELETE CASCADE,
+  CONSTRAINT playlist_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE,
+  UNIQUE KEY unique_position (playlist_id, position)
+);
 
--- SFX sets
+-- SFX collections
 CREATE TABLE
-  IF NOT EXISTS sfx_sets (
-    set_id INT AUTO_INCREMENT PRIMARY KEY,
+  IF NOT EXISTS sfx_collections (
+    collection_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     description TEXT
   );
@@ -118,51 +118,55 @@ CREATE TABLE
   IF NOT EXISTS sfx_macro_files (
     macro_id INT NOT NULL,
     audio_file_id INT NOT NULL,
-    play_order INT,
+    delay INT DEFAULT 0,
+    volume FLOAT DEFAULT 1.0,
     CONSTRAINT pk_sfx_macro_files PRIMARY KEY (macro_id, audio_file_id),
     CONSTRAINT fk_macro_id FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE,
     CONSTRAINT fk_macro_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
--- SFX sets contain files and macros.
+-- SFX collections contain files and macros.
 CREATE TABLE
-  IF NOT EXISTS sfx_set_files (
-    sfx_set_id INT NOT NULL,
+  IF NOT EXISTS sfx_collection_files (
+    sfx_collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
+    position INT NOT NULL,
     default_volume FLOAT DEFAULT 1.0,
-    PRIMARY KEY (sfx_set_id, audio_file_id),
-    FOREIGN KEY (sfx_set_id) REFERENCES sfx_sets (set_id) ON DELETE CASCADE,
+    PRIMARY KEY (sfx_collection_id, audio_file_id),
+    FOREIGN KEY (sfx_collection_id) REFERENCES sfx_collections (collection_id) ON DELETE CASCADE,
     FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
 CREATE TABLE
-  IF NOT EXISTS sfx_set_macros (
-    sfx_set_id INT NOT NULL,
+  IF NOT EXISTS sfx_collection_macros (
+    sfx_collection_id INT NOT NULL,
     macro_id INT NOT NULL,
-    PRIMARY KEY (sfx_set_id, macro_id),
-    FOREIGN KEY (sfx_set_id) REFERENCES sfx_sets (set_id) ON DELETE CASCADE,
+    position INT NOT NULL,
+    PRIMARY KEY (sfx_collection_id, macro_id),
+    FOREIGN KEY (sfx_collection_id) REFERENCES sfx_collections (collection_id) ON DELETE CASCADE,
     FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE
   );
 
--- Ambience sets
+-- Ambience collections
 CREATE TABLE
-  IF NOT EXISTS ambience_sets (
-    set_id INT AUTO_INCREMENT PRIMARY KEY,
+  IF NOT EXISTS ambience_collections (
+    collection_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     description TEXT
   );
 
 CREATE TABLE
-  IF NOT EXISTS audio_ambience_set_files (
-    ambience_set_id INT NOT NULL,
+  IF NOT EXISTS ambience_collection_files (
+    ambience_collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
+    position INT NOT NULL,
     default_volume FLOAT DEFAULT 1.0,
-    PRIMARY KEY (ambience_set_id, audio_file_id),
-    FOREIGN KEY (ambience_set_id) REFERENCES ambience_sets (set_id) ON DELETE CASCADE,
+    PRIMARY KEY (ambience_collection_id, audio_file_id),
+    FOREIGN KEY (ambience_collection_id) REFERENCES ambience_collections (collection_id) ON DELETE CASCADE,
     FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
--- Audio packs - contain playlist, sfx macros, and ambience sets
+-- Audio packs - contain playlists, sfx macros, and ambience collections
 CREATE TABLE
   IF NOT EXISTS audio_packs (
     pack_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -177,43 +181,25 @@ CREATE TABLE
     playlist_id INT NOT NULL,
     CONSTRAINT pk_audio_pack_playlists PRIMARY KEY (pack_id, playlist_id),
     CONSTRAINT fk_pack_playlist FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_playlist_id FOREIGN KEY (playlist_id) REFERENCES music_playlists (playlist_id) ON DELETE CASCADE
-  );
-
-CREATE TABLE
-  IF NOT EXISTS audio_pack_macros (
-    pack_id INT NOT NULL,
-    macro_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_macros PRIMARY KEY (pack_id, macro_id),
-    CONSTRAINT fk_pack_macro FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_macro_pack FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE
+    CONSTRAINT fk_playlist_id FOREIGN KEY (playlist_id) REFERENCES playlists (playlist_id) ON DELETE CASCADE
   );
 
 CREATE TABLE 
-  IF NOT EXISTS audio_pack_sets (
+  IF NOT EXISTS audio_pack_ambience_collections (
     pack_id INT NOT NULL,
-    set_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_sets PRIMARY KEY (pack_id, set_id),
-    CONSTRAINT fk_pack_set FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_set_id FOREIGN KEY (set_id) REFERENCES ambience_sets (set_id) ON DELETE CASCADE
-  );
-
-CREATE TABLE 
-  IF NOT EXISTS audio_pack_ambience_sets (
-    pack_id INT NOT NULL,
-    ambience_set_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_ambience_sets PRIMARY KEY (pack_id, ambience_set_id),
+    ambience_collection_id INT NOT NULL,
+    CONSTRAINT pk_audio_pack_ambience_collections PRIMARY KEY (pack_id, ambience_collection_id),
     CONSTRAINT fk_pack_ambience FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_ambience_set_id FOREIGN KEY (ambience_set_id) REFERENCES ambience_sets (set_id) ON DELETE CASCADE
+    CONSTRAINT fk_ambience_collection_id FOREIGN KEY (ambience_collection_id) REFERENCES ambience_collections (collection_id) ON DELETE CASCADE
   );
 
 CREATE TABLE 
-  IF NOT EXISTS audio_pack_sfx_sets (
+  IF NOT EXISTS audio_pack_sfx_collections (
     pack_id INT NOT NULL,
-    sfx_set_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_sfx_sets PRIMARY KEY (pack_id, sfx_set_id),
+    sfx_collection_id INT NOT NULL,
+    CONSTRAINT pk_audio_pack_sfx_collections PRIMARY KEY (pack_id, sfx_collection_id),
     CONSTRAINT fk_pack_sfx FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_sfx_set_id FOREIGN KEY (sfx_set_id) REFERENCES sfx_sets (set_id) ON DELETE CASCADE
+    CONSTRAINT fk_sfx_collection_id FOREIGN KEY (sfx_collection_id) REFERENCES sfx_collections (collection_id) ON DELETE CASCADE
   );
 
 -- Create base folders

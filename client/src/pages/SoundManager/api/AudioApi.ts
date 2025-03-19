@@ -1,11 +1,11 @@
 import { AudioFile } from 'shared/types/audio.js';
 import { Folder } from 'shared/types/folder.js';
 
-const API_URL = '/api';
+const API_URL = '/api/audio';
 
 export async function getAllAudioFiles(): Promise<AudioFile[]> {
   try {
-    const response = await fetch(`${API_URL}/audio`);
+    const response = await fetch(`${API_URL}/files`);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
@@ -18,7 +18,7 @@ export async function getAllAudioFiles(): Promise<AudioFile[]> {
 
 export async function getAudioFile(id: number): Promise<AudioFile> {
   try {
-    const response = await fetch(`${API_URL}/audio/${id}`);
+    const response = await fetch(`${API_URL}/files/${id}`);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
@@ -47,7 +47,7 @@ export async function uploadAudioFile(audioData: Partial<AudioFile>, file?: File
       formData.append('audioFile', file);
     }
 
-    const response = await fetch(`${API_URL}/audio`, {
+    const response = await fetch(`${API_URL}/files`, {
       method: 'POST',
       body: formData,
       // Do not set Content-Type header when sending FormData
@@ -66,7 +66,7 @@ export async function uploadAudioFile(audioData: Partial<AudioFile>, file?: File
 
 export async function initiateScan(): Promise<number> {
   try {
-    const response = await fetch(`${API_URL}/audio/scan`, {
+    const response = await fetch(`${API_URL}/files/scan`, {
       method: 'POST'
     });
 
@@ -83,7 +83,7 @@ export async function initiateScan(): Promise<number> {
 
 export async function getAllFolders(): Promise<Folder[]> {
   try {
-    const response = await fetch(`${API_URL}/audio/folders`);
+    const response = await fetch(`${API_URL}/folders`);
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }

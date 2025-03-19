@@ -1,6 +1,6 @@
 import playlistService from "./playlistService.js";
-import fileService from "../file/fileService.js";
-import { transformAudioFile } from "../../../utils/format-transformers.js";
+import fileService from "../../files/fileService.js";
+import { transformAudioFile } from "src/utils/format-transformers.js";
 import { Request, Response } from 'express';
 
 export const getAllPlaylists = async (_req: Request, res: Response) => {
@@ -105,8 +105,7 @@ export const deletePlaylist = async (req: Request, res: Response) => {
 
 export const addFileToPlaylist = async (req: Request, res: Response) => {
   const playlistId = parseInt(req.params.id);
-  const { audioFileId, playOrder } = req.body;
-  
+  const { audioFileId, position } = req.body;
   if (isNaN(playlistId) || !audioFileId) {
     return res.status(400).json({ error: 'Invalid playlist ID or audio file ID' });
   }
@@ -117,16 +116,43 @@ export const addFileToPlaylist = async (req: Request, res: Response) => {
     return res.status(404).json({ error: 'Playlist not found' });
   }
   
-  // Check if audio file exists (assuming fileService has similar response structure)
+  // Check if audio file exists
   const audioFile = await fileService.getAudioFile(audioFileId);
   if (!audioFile || audioFile.length === 0) {
     return res.status(404).json({ error: 'Audio file not found' });
   }
   
-  const response = await playlistService.addFileToPlaylist(playlistId, audioFileId, playOrder || null);
+  const response = await playlistService.addFileToPlaylist(playlistId, audioFileId, position );
   
   if (response.success) {
     res.status(201).json({ message: 'Audio file added to playlist' });
+  } else {
+    res.status(500).json({ error: response.error });
+  }
+};
+
+export const addFilesToPlaylist = async (req: Request, res: Response) => {
+  const playlistId = parseInt(req.params.id);
+  const { audioFileIds, startPosition } = req.body;
+  
+  if (isNaN(playlistId) || !Array.isArray(audioFileIds) || audioFileIds.length === 0) {
+    return res.status(400).json({ error: 'Invalid playlist ID or audio file IDs' });
+  }
+  
+  // Check if playlist exists
+  const playlistResponse = await playlistService.getPlaylistById(playlistId);
+  if (!playlistResponse.success) {
+    return res.status(404).json({ error: 'Playlist not found' });
+  }
+  
+  const response = await playlistService.addFilesToPlaylist(
+    playlistId, 
+    audioFileIds, 
+    startPosition !== undefined ? startPosition : null
+  );
+  
+  if (response.success) {
+    res.status(201).json({ message: `Added ${audioFileIds.length} files to playlist` });
   } else {
     res.status(500).json({ error: response.error });
   }
@@ -151,19 +177,52 @@ export const removeFileFromPlaylist = async (req: Request, res: Response) => {
   }
 };
 
-export const updatePlaylistFileOrder = async (req: Request, res: Response) => {
+export const updatePlaylistFilePosition = async (req: Request, res: Response) => {
   const playlistId = parseInt(req.params.id);
   const audioFileId = parseInt(req.params.fileId);
-  const { newPlayOrder } = req.body;
-  
+  const { targetPosition } = req.body;
+
   if (isNaN(playlistId) || isNaN(audioFileId)) {
     return res.status(400).json({ error: 'Invalid parameters' });
   }
   
-  const response = await playlistService.updatePlaylistFileOrder(playlistId, audioFileId, newPlayOrder);
+  const response = await playlistService.updatePlaylistFilePosition(playlistId, audioFileId, targetPosition);
   
   if (response.success) {
-    res.status(200).json({ message: 'Play order updated successfully' });
+    res.status(200).json({ message: 'Play position updated successfully' });
+  } else if (response.notFound) {
+    res.status(404).json({ error: response.error });
+  } else {
+    res.status(400).json({ error: response.error });
+    console.log('Error updating playlist file position:', response.error);
+  }
+};
+
+export const updateFileRangePosition = async (req: Request, res: Response) => {
+  const playlistId = parseInt(req.params.id);
+  const { sourceStartPosition, sourceEndPosition, targetPosition } = req.body;
+  
+  if (isNaN(playlistId)) {
+    return res.status(400).json({ error: 'Invalid playlist ID' });
+  }
+  
+  if (
+    typeof sourceStartPosition !== 'number' || 
+    typeof sourceEndPosition !== 'number' || 
+    typeof targetPosition !== 'number'
+  ) {
+    return res.status(400).json({ error: 'Invalid position parameters' });
+  }
+  
+  const response = await playlistService.updateFileRangePosition(
+    playlistId,
+    sourceStartPosition,
+    sourceEndPosition,
+    targetPosition
+  );
+  
+  if (response.success) {
+    res.status(200).json({ message: 'Playlist items moved successfully' });
   } else if (response.notFound) {
     res.status(404).json({ error: response.error });
   } else {
@@ -178,6 +237,8 @@ export default {
   updatePlaylist,
   deletePlaylist,
   addFileToPlaylist,
+  addFilesToPlaylist,
   removeFileFromPlaylist,
-  updatePlaylistFileOrder
+  updatePlaylistFilePosition,
+  updateFileRangePosition
 };

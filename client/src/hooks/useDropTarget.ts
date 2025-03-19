@@ -1,44 +1,100 @@
 import { useState, useCallback } from 'react';
-import { createDropHandlers } from 'src/utils/dragDropUtils.js';
+import { 
+  createDropHandlers, 
+  DropContext,
+  allowDropEffect
+} from 'src/utils/dragDropUtils.js';
 
-interface UseDropTargetOptions<T, D = any> {
+export interface DropTargetOptions<T, D = any> {
   acceptedTypes: string[];
-  onItemsDropped: (items: T[], destination?: D) => Promise<void>;
-  destination?: D;
+  onItemsDropped: (items: T[], context: DropContext<D>) => Promise<void>;
+  
+  initialDestination?: D;
+  initialIndex?: number;
   transformItems?: (sourceItems: any[]) => T[];
+  calculateDropIndex?: (e: React.DragEvent<HTMLElement>) => number | undefined;
+  calculateDestination?: (e: React.DragEvent<HTMLElement>) => D | undefined;
   onError?: (error: Error) => void;
 }
 
 export function useDropTarget<T, D = any>({
   acceptedTypes,
   onItemsDropped,
-  destination,
+  initialDestination,
+  initialIndex,
   transformItems,
+  calculateDropIndex,
+  calculateDestination,
   onError
-}: UseDropTargetOptions<T, D>) {
+}: DropTargetOptions<T, D>) {
   const [isDraggingOver, setIsDraggingOver] = useState<boolean>(false);
   const [dragCount, setDragCount] = useState<number>(0);
-
-  // Callback to update local drag state
-  const updateDragState = useCallback((drag: boolean, count: number) => {
-    setIsDraggingOver(drag);
+  const [dropIndex, setDropIndex] = useState<number | undefined>(initialIndex);
+  const [destination, setDestination] = useState<D | undefined>(initialDestination);
+  
+  // Reset state when dragging ends
+  const updateDragState = useCallback((isDragging: boolean, count: number) => {
+    setIsDraggingOver(isDragging);
     setDragCount(count);
-  }, []);
+    if (!isDragging) {
+      setDropIndex(initialIndex);
+      setDestination(initialDestination);
+    }
+  }, [initialIndex, initialDestination]);
 
-  const handlers = createDropHandlers<T, D>(
+  // Get the current context values
+  const getCurrentContext = useCallback(() => {
+    return { 
+      destination,
+      index: dropIndex
+    };
+  }, [dropIndex, destination]);
+
+  // Create handlers using our utility
+  const handlers = createDropHandlers<T, D>({
     acceptedTypes,
+    transformItems,
+    onError,
     onItemsDropped,
-    { transformItems, destination, onError },
-    updateDragState
-  );
+  }, updateDragState, getCurrentContext);
+  
+  // Combined onDragOver that handles both default behavior and calculations
+  const enhancedOnDragOver = useCallback((e: React.DragEvent<HTMLElement>) => {
+    // Handle default drag behavior
+    allowDropEffect(e);
+    //console.log('DragOver event');
+    // Calculate and update drop index if needed
+    if (calculateDropIndex) {
+      const newIndex = calculateDropIndex(e);
+      if (typeof newIndex === 'number' && newIndex !== dropIndex) {
+        setDropIndex(newIndex);
+      }
+    }
+    
+    // Calculate and update destination if needed
+    if (calculateDestination) {
+      const newDestination = calculateDestination(e);
+      if (newDestination !== destination) {
+        setDestination(newDestination);
+      }
+    }
+  }, [calculateDropIndex, dropIndex, calculateDestination, destination]);
 
   return {
     isDraggingOver,
     dragCount,
-    ...handlers,
+    dropIndex,
+    destination,
+    setDropIndex,
+    setDestination,
+    onDragOver: enhancedOnDragOver,
+    onDragEnter: handlers.onDragEnter,
+    onDragLeave: handlers.onDragLeave,
+    onDrop: handlers.onDrop,
+    
     // Convenience prop object for drop zone elements
     dropAreaProps: {
-      onDragOver: handlers.onDragOver,
+      onDragOver: enhancedOnDragOver,
       onDragEnter: handlers.onDragEnter,
       onDragLeave: handlers.onDragLeave,
       onDrop: handlers.onDrop,

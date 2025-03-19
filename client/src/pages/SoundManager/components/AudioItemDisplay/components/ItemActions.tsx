@@ -3,13 +3,15 @@ import { AudioItem, AudioItemActions } from '../types.js';
 
 interface ItemActionsProps extends AudioItemActions {
   item: AudioItem;
+  selectedItemIds?: number[];
   isSmall?: boolean;
 }
 
 export const ItemActions: React.FC<ItemActionsProps> = ({
   item,
+  selectedItemIds,
   onEditItem,
-  onRemoveItem,
+  onRemoveItems,
   isSmall = false
 }) => {
   // Event handlers with stopPropagation
@@ -22,10 +24,14 @@ export const ItemActions: React.FC<ItemActionsProps> = ({
   };
 
   const handleRemoveClick = (e: React.MouseEvent) => {
-    if (onRemoveItem) {
-      e.stopPropagation();
-      onRemoveItem(item.id);
-    }
+    if (!onRemoveItems) return;
+    e.stopPropagation();
+
+    const idsToRemove = selectedItemIds && selectedItemIds.length > 0
+      ? selectedItemIds
+      : [item.id];
+
+    onRemoveItems(idsToRemove);
   };
 
   const buttonClass = isSmall ? 'small' : '';
@@ -43,7 +49,7 @@ export const ItemActions: React.FC<ItemActionsProps> = ({
         </button>
       )}
       
-      {onRemoveItem && !item.isCreateButton && (
+      {onRemoveItems && !item.isCreateButton && (
         <button
           className={`delete-button ${buttonClass}`}
           onClick={handleRemoveClick}

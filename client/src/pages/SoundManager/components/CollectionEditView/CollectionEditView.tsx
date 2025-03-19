@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import type { CollectionEditViewProps } from "./types.js";
-import type { AudioItem } from "./types.js";
 import { useCollections } from "./hooks/useCollections.js";
 import CollectionsGrid from "./components/CollectionsGrid.js";
 import CollectionDetail from "./components/CollectionDetail.js";
@@ -15,8 +14,9 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
     fetchCollectionItems,
     onCreateCollection,
     onDeleteCollection,
-    onAddItem,
-    onRemoveItem,
+    onAddItems,
+    onRemoveItems,
+    onUpdateItemPosition
   } = props;
 
   // Collections state and methods from hook
@@ -27,8 +27,9 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
     fetchCollectionItems,
     onCreateCollection,
     onDeleteCollection,
-    onAddItem,
-    onRemoveItem,
+    onAddItems,
+    onRemoveItems,
+    onUpdateItemPosition
   });
   
   // State for error and loading management
@@ -76,16 +77,17 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
         />
       ) : (
         collections.selectedCollection && (
-          <CollectionDetail
-            collection={collections.selectedCollection}
-            collectionItems={collections.collectionItems}
-            isLoading={isLoading}
-            error={error}
-            onBackClick={collections.handleBackToCollections}
-            onRemoveItem={collections.handleRemoveItem}
-            handleAddItem={collections.handleAddItem}
-            setError={setError}
-          />
+        <CollectionDetail
+          collection={collections.selectedCollection}
+          collectionItems={collections.collectionItems}
+          isLoading={isLoading}
+          error={error}
+          onBackClick={collections.handleBackToCollections}
+          onRemoveItems={collections.handleRemoveItems}
+          handleAddItems={collections.handleAddItems}
+          onUpdateItemPosition={collections.handleUpdateItemPositions}
+          setError={setError}
+        />
         )
       )}
       

@@ -1,7 +1,8 @@
 import express from 'express';
-import fileRoutes from './file/fileRoutes.js';
-import playlistRoutes from './playlist/playlistRoutes.js';
-import folderRoutes from './folder/folderRoutes.js';
+import fileRoutes from './files/fileRoutes.js';
+import folderRoutes from './folders/folderRoutes.js';
+import playlistRoutes from './collections/playlists/playlistRoutes.js';
+import sfxRoutes from './collections/sfx/sfxCollectionRoutes.js';
 
 const router = express.Router();
 
@@ -14,7 +15,7 @@ router.use('/playlists', playlistRoutes);
 // Mount folder routes at /folders
 router.use('/folders', folderRoutes);
 
-// For backward compatibility, mount file routes at root as well
-router.use('/', fileRoutes);
+// mount sfx routes at /sfx
+router.use('/sfx', sfxRoutes);
 
 export default router;

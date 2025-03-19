@@ -10,8 +10,15 @@ interface CollectionDetailProps {
   isLoading: boolean;
   error: string | null;
   onBackClick: () => void;
-  onRemoveItem: (itemId: number) => Promise<void>;
-  handleAddItem: (item: AudioItem) => Promise<void>;
+  onRemoveItems: (itemIds: number | number[]) => Promise<void>;
+  handleAddItems: (items: AudioItem | AudioItem[], position?: number) => Promise<void>;
+  onUpdateItemPosition: (
+    itemId: number,
+    targetPosition: number,
+    // For range update
+    sourceStartPosition?: number,
+    sourceEndPosition?: number
+  ) => Promise<void>;
   setError: (error: string | null) => void;
 }
 
@@ -21,8 +28,9 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
   isLoading,
   error,
   onBackClick,
-  onRemoveItem,
-  handleAddItem
+  onRemoveItems,
+  handleAddItems,
+  onUpdateItemPosition
 }) => {
   const { registerDropHandler, unregisterDropHandler } = useDropTargetContext();
   
@@ -44,16 +52,15 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
       DROP_ZONES.SOUND_MANAGER_CONTENT, // Use the content area as drop zone
       ['audio-file'],
       async (items) => {
-        for (const item of items) {
-          await handleAddItem(item);
-        }
+        // Process all dropped items at once
+        await handleAddItems(items);
       },
       { transformItems }
     );
     
     // Clean up when unmounting
     return () => unregisterDropHandler(DROP_ZONES.SOUND_MANAGER_CONTENT);
-  }, [registerDropHandler, unregisterDropHandler, handleAddItem]);
+  }, [registerDropHandler, unregisterDropHandler, handleAddItems]);
 
   return (
     <div>
@@ -75,9 +82,9 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
         showToggle={false}
         showActions={true}
         title={`Items in ${collection.title}`}
-        onRemoveItem={(itemId) => {
-          onRemoveItem(itemId);
-        }}
+        onAddItems={(items, position) => handleAddItems(items, position)}
+        onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
+        onUpdateItemPosition={onUpdateItemPosition}
       />
     </div>
   );

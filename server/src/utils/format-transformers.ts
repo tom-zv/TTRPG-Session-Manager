@@ -5,6 +5,7 @@ export function transformAudioFile(dbAudioFile: any) {
     title: dbAudioFile.title,
     audioType: dbAudioFile.audio_type,
     duration: dbAudioFile.duration,
+    position: dbAudioFile.position,
     fileUrl: dbAudioFile.file_url,
     filePath: dbAudioFile.file_path,
     folderId: dbAudioFile.folder_id,

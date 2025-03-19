@@ -6,7 +6,7 @@ import { getAllFolders, getAllAudioFiles } from '../../../pages/SoundManager/api
 import { buildFolderTree } from '../utils/FolderTree.js';
 import { useSelection } from '../../../hooks/useSelection.js';
 import { useDragSource } from '../../../hooks/useDragSource.js';
-import { DRAG_TYPES, getFilesFromFolder, getFilesFromFolders } from '../utils/DragHandlers.js';
+import { getFilesFromFolders } from '../utils/DragUtils.js';
 import '../FolderTree.css';
 
 interface FolderTreeProps {
@@ -59,7 +59,8 @@ const FolderTree: React.FC<FolderTreeProps> = ({
 
   // Drag source for folders
   const folderDragSource = useDragSource<AudioFile>({
-    contentType: DRAG_TYPES.AUDIO_FILE,
+    contentType: 'audio-file',
+    mode: 'file-transfer',
     getItemId: file => file.id,
     getItemsForDrag: (selectedIds) => {
       // When dragging folders, get all audio files from those folders
@@ -69,12 +70,14 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   
   // Drag source for individual files
   const fileDragSource = useDragSource<AudioFile>({
-    contentType: DRAG_TYPES.AUDIO_FILE,
+    contentType: 'audio-file',
+    mode: 'file-transfer',
     getItemId: file => file.id,
     getItemsForDrag: (selectedIds) => {
       // Get the selected audio files
       return audioFiles.filter(file => selectedIds.includes(file.id));
-    }
+    },
+    getItemName: (file) => file.title || `Audio #${file.id}`
   });
 
   // Helper function to flatten folder tree
@@ -142,8 +145,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     
     // For range file selection, we'll consider only files in the same folder
     const folderFiles = audioFiles.filter(f => 
-      f.id === file.id && 
-      (fileSelection.selectedItems.length)
+      f.folderId === file.folderId
     );
     
     fileSelection.handleSelect(file, folderFiles, isMultiSelect, isShiftSelect);
@@ -152,7 +154,6 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   // Drag handlers
   const handleFolderDragStart = (e: React.DragEvent, folder: Folder) => {
     folderDragSource.handleDragStart(e, { id: folder.id } as AudioFile, [folder.id]);
-    console.log('Folder drag start', folder);
   };
   
   const handleFileDragStart = (e: React.DragEvent, file: AudioFile) => {

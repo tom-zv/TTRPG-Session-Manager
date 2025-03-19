@@ -1,5 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
-import { createDropHandlers, DropHandlers } from 'src/utils/dragDropUtils.js';
+import { 
+  createDropHandlers, 
+  DropHandlers, 
+  DropContext, 
+  allowDropEffect 
+} from 'src/utils/dragDropUtils.js';
 
 /**
  * This context provider enables making any element a drop target by passing
@@ -8,18 +13,21 @@ import { createDropHandlers, DropHandlers } from 'src/utils/dragDropUtils.js';
  * the need to drill props through intermediate components.
  */
 
-// Type for a drop handler function
-type DropHandler<T = any> = (items: T[], destination?: any) => Promise<void>;
+// Updated type for drop handler function to match the new context pattern
+type DropHandler<T = any, D = any> = (items: T[], context: DropContext<D>) => Promise<void>;
 
 // Context type definitions
 interface DropTargetContextType {
-  registerDropHandler: <T>(
+  registerDropHandler: <T, D = any>(
     zoneId: string,
     acceptedTypes: string[],
-    handler: DropHandler<T>,
+    handler: DropHandler<T, D>,
     options?: {
-      destination?: any;
+      initialDestination?: D;
       transformItems?: (sourceItems: any[]) => T[];
+      initialIndex?: number;
+      calculateDropIndex?: (e: React.DragEvent) => number | undefined;
+      onError?: (error: Error) => void;
     }
   ) => void;
   unregisterDropHandler: (zoneId: string) => void;
@@ -32,15 +40,19 @@ interface DropTargetContextType {
 }
 
 // Extended info stored for each drop zone
-interface DropHandlerInfo {
+interface DropHandlerInfo<D = any> {
   zoneId: string;
   acceptedTypes: string[];
-  handler: DropHandler<any>;
+  handler: DropHandler<any, D>;
   dropHandlers: DropHandlers;
   isDraggingOver: boolean;
   dragCount: number;
   transformItems?: (sourceItems: any[]) => any[];
-  destination?: any;
+  destination?: D;
+  index?: number;
+  initialIndex?: number;
+  calculateDropIndex?: (e: React.DragEvent) => number | undefined;
+  onError?: (error: Error) => void;
 }
 
 const DropTargetContext = createContext<DropTargetContextType | null>(null);
@@ -51,21 +63,49 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [, forceUpdate] = useState({});
 
   // Register a new drop zone and create its complete set of handlers
-  const registerDropHandler = useCallback(<T,>(
+  const registerDropHandler = useCallback(<T, D = any>(
     zoneId: string,
     acceptedTypes: string[],
-    handler: DropHandler<T>,
+    handler: DropHandler<T, D>,
     options?: {
-      destination?: any;
+      initialDestination?: D;
       transformItems?: (sourceItems: any[]) => T[];
+      initialIndex?: number;
+      calculateDropIndex?: (e: React.DragEvent) => number | undefined;
+      onError?: (error: Error) => void;
     }
   ) => {
-    const dropHandlers = createDropHandlers<T>(
+    // Create updater function for this specific zone
+    const updateDragState = (isDragging: boolean, count: number) => {
+      const zone = handlersRef.current[zoneId];
+      if (zone) {
+        zone.isDraggingOver = isDragging;
+        zone.dragCount = count;
+        if (!isDragging) {
+          // Reset index when dragging ends
+          zone.index = zone.initialIndex;
+        }
+        forceUpdate({});
+      }
+    };
+    
+    // Rename to better reflect what it does
+    const getCurrentContext = () => {
+      const zone = handlersRef.current[zoneId];
+      return {
+        destination: zone?.destination,
+        index: zone?.index
+      };
+    };
+    
+    // Create handlers with new signature
+    const dropHandlers = createDropHandlers<T, D>({
       acceptedTypes,
-      handler,
-      { transformItems: options?.transformItems, destination: options?.destination, zoneId }
-      // No local update callback is provided in this context version.
-    );
+      transformItems: options?.transformItems,
+      onError: options?.onError,
+      onItemsDropped: handler,
+    }, updateDragState, getCurrentContext);
+    
     handlersRef.current[zoneId] = {
       zoneId,
       acceptedTypes,
@@ -74,7 +114,11 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       isDraggingOver: false,
       dragCount: 0,
       transformItems: options?.transformItems,
-      destination: options?.destination
+      destination: options?.initialDestination,
+      index: options?.initialIndex,
+      initialIndex: options?.initialIndex,
+      calculateDropIndex: options?.calculateDropIndex,
+      onError: options?.onError
     };
     forceUpdate({});
   }, []);
@@ -98,8 +142,18 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const handleDragOver = useCallback((zoneId: string, e: React.DragEvent) => {
     const zone = handlersRef.current[zoneId];
     if (zone) {
-      zone.dropHandlers.onDragOver(e);
-      forceUpdate({});
+      // Call the standard allowDropEffect first
+      allowDropEffect(e);
+      
+      // If we have a calculateDropIndex function, use it to update the current index
+      if (zone.calculateDropIndex) {
+        const newIndex = zone.calculateDropIndex(e);
+        if (typeof newIndex === 'number' && zone.index !== newIndex) {
+          // Update the index for this zone
+          zone.index = newIndex;
+          forceUpdate({});
+        }
+      }
     }
   }, []);
 
