@@ -1,15 +1,42 @@
-// Function to transform DB audio file to API response format
-export function transformAudioFile(dbAudioFile: any) {
+// Function to transform DB audio item to API response format
+export function transformAudioItem(dbAudioItem: any) {
   return {
-    id: dbAudioFile.audio_file_id,
-    title: dbAudioFile.title,
-    audioType: dbAudioFile.audio_type,
-    duration: dbAudioFile.duration,
-    position: dbAudioFile.position,
-    fileUrl: dbAudioFile.file_url,
-    filePath: dbAudioFile.file_path,
-    folderId: dbAudioFile.folder_id,
-    addedAt: dbAudioFile.added_at
+    id: dbAudioItem.audio_file_id,
+    collection_id: dbAudioItem.collection_id,
+    name: dbAudioItem.name,
+    type: dbAudioItem.type,
+    audioType: dbAudioItem.audio_type,
+    duration: dbAudioItem.duration,
+    position: dbAudioItem.position,
+    fileUrl: dbAudioItem.file_url,
+    filePath: dbAudioItem.file_path,
+    folderId: dbAudioItem.folder_id,
+    addedAt: dbAudioItem.added_at,
+    volume: dbAudioItem.volume,
+    itemCount: dbAudioItem.item_count,
+    description: dbAudioItem.description,
+  };
+}
+
+
+export function transformCollection(dbCollection: any){
+  return {
+    id: dbCollection.collection_id,
+    name: dbCollection.name,
+    type: dbCollection.collection_type,
+    description: dbCollection.description,
+    itemCount: dbCollection.item_count,
+    position: dbCollection.position,
+  };
+}
+
+export function transformMacro(dbMacro: any) {
+  return {
+    id: dbMacro.macro_id,
+    type: 'macro',
+    position: dbMacro.position,
+    name: dbMacro.name,
+    description: dbMacro.description
   };
 }
 

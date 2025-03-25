@@ -13,7 +13,6 @@ import {
  * the need to drill props through intermediate components.
  */
 
-// Updated type for drop handler function to match the new context pattern
 type DropHandler<T = any, D = any> = (items: T[], context: DropContext<D>) => Promise<void>;
 
 // Context type definitions
@@ -24,33 +23,38 @@ interface DropTargetContextType {
     handler: DropHandler<T, D>,
     options?: {
       initialDestination?: D;
-      transformItems?: (sourceItems: any[]) => T[];
       initialIndex?: number;
+      transformItems?: (sourceItems: any[]) => T[];
       calculateDropIndex?: (e: React.DragEvent) => number | undefined;
       onError?: (error: Error) => void;
     }
   ) => void;
   unregisterDropHandler: (zoneId: string) => void;
-  getActiveDropZones: () => string[];
+  // Separate functions for checking registration vs active state
+  isDropZoneRegistered: (zoneId: string) => boolean;
   isDropZoneActive: (zoneId: string) => boolean;
+  acceptedTypes: (zoneId: string) => string[];
+  setDropZoneActiveStatus: (zoneId: string, status: boolean) => void;
+  // Existing handlers
   handleDrop: (zoneId: string, e: React.DragEvent) => Promise<void>;
   handleDragOver: (zoneId: string, e: React.DragEvent) => void;
   handleDragEnter: (zoneId: string, e: React.DragEvent) => void;
   handleDragLeave: (zoneId: string, e: React.DragEvent) => void;
 }
 
-// Extended info stored for each drop zone
+// Info stored for each drop zone
 interface DropHandlerInfo<D = any> {
   zoneId: string;
   acceptedTypes: string[];
   handler: DropHandler<any, D>;
   dropHandlers: DropHandlers;
+  isActive: boolean;      
   isDraggingOver: boolean;
   dragCount: number;
-  transformItems?: (sourceItems: any[]) => any[];
   destination?: D;
   index?: number;
   initialIndex?: number;
+  transformItems?: (sourceItems: any[]) => any[];
   calculateDropIndex?: (e: React.DragEvent) => number | undefined;
   onError?: (error: Error) => void;
 }
@@ -69,12 +73,13 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     handler: DropHandler<T, D>,
     options?: {
       initialDestination?: D;
-      transformItems?: (sourceItems: any[]) => T[];
       initialIndex?: number;
+      transformItems?: (sourceItems: any[]) => T[];
       calculateDropIndex?: (e: React.DragEvent) => number | undefined;
       onError?: (error: Error) => void;
     }
   ) => {
+
     // Create updater function for this specific zone
     const updateDragState = (isDragging: boolean, count: number) => {
       const zone = handlersRef.current[zoneId];
@@ -89,7 +94,6 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
     
-    // Rename to better reflect what it does
     const getCurrentContext = () => {
       const zone = handlersRef.current[zoneId];
       return {
@@ -98,25 +102,29 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       };
     };
     
-    // Create handlers with new signature
-    const dropHandlers = createDropHandlers<T, D>({
-      acceptedTypes,
-      transformItems: options?.transformItems,
-      onError: options?.onError,
-      onItemsDropped: handler,
-    }, updateDragState, getCurrentContext);
+    const dropHandlers = createDropHandlers<T, D>(
+      {
+        acceptedTypes,
+        transformItems: options?.transformItems,
+        onError: options?.onError,
+        onItemsDropped: handler,
+      },
+      updateDragState,
+      getCurrentContext
+    );
     
     handlersRef.current[zoneId] = {
       zoneId,
       acceptedTypes,
       handler,
       dropHandlers,
+      isActive: false, 
       isDraggingOver: false,
       dragCount: 0,
-      transformItems: options?.transformItems,
       destination: options?.initialDestination,
       index: options?.initialIndex,
       initialIndex: options?.initialIndex,
+      transformItems: options?.transformItems,
       calculateDropIndex: options?.calculateDropIndex,
       onError: options?.onError
     };
@@ -130,25 +138,40 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, []);
 
-  const isDropZoneActive = useCallback((zoneId: string) => {
+  const isDropZoneRegistered = useCallback((zoneId: string) => {
     return !!handlersRef.current[zoneId];
   }, []);
 
-  const getActiveDropZones = useCallback(() => {
-    return Object.keys(handlersRef.current);
+  const isDropZoneActive = useCallback((zoneId: string) => {
+    const zone = handlersRef.current[zoneId];
+    return zone ? zone.isActive : false;
   }, []);
+
+  const setDropZoneActiveStatus = useCallback((zoneId: string, status: boolean) => {
+    const zone = handlersRef.current[zoneId];
+    if (zone && zone.isActive !== status) {
+      zone.isActive = status;
+      forceUpdate({});
+    }
+  }, []);
+
+  
+  const acceptedTypes = useCallback((zoneId: string) => {
+    const zone = handlersRef.current[zoneId];
+    return zone ? zone.acceptedTypes : [];
+  },[]);
 
   // Delegate event handling to the stored drop handlers
   const handleDragOver = useCallback((zoneId: string, e: React.DragEvent) => {
     const zone = handlersRef.current[zoneId];
-    if (zone) {
+    if (zone) {  
       // Call the standard allowDropEffect first
       allowDropEffect(e);
       
       // If we have a calculateDropIndex function, use it to update the current index
       if (zone.calculateDropIndex) {
         const newIndex = zone.calculateDropIndex(e);
-        if (typeof newIndex === 'number' && zone.index !== newIndex) {
+        if (zone.index !== newIndex) {
           // Update the index for this zone
           zone.index = newIndex;
           forceUpdate({});
@@ -159,7 +182,7 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const handleDragEnter = useCallback((zoneId: string, e: React.DragEvent) => {
     const zone = handlersRef.current[zoneId];
-    if (zone) {
+    if (zone) {  
       zone.dropHandlers.onDragEnter(e);
       zone.isDraggingOver = true;
       zone.dragCount = 1; // Alternatively, getDragCountFromEvent(e) if needed.
@@ -179,7 +202,7 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const handleDrop = useCallback(async (zoneId: string, e: React.DragEvent) => {
     const zone = handlersRef.current[zoneId];
-    if (zone) {
+    if (zone) {  
       await zone.dropHandlers.onDrop(e);
       zone.isDraggingOver = false;
       zone.dragCount = 0;
@@ -190,8 +213,12 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const contextValue: DropTargetContextType = {
     registerDropHandler,
     unregisterDropHandler,
-    getActiveDropZones,
+    
+    isDropZoneRegistered,
     isDropZoneActive,
+    acceptedTypes,
+    setDropZoneActiveStatus,
+
     handleDrop,
     handleDragOver,
     handleDragEnter,
@@ -213,20 +240,32 @@ export const useDropTargetContext = () => {
   return context;
 };
 
+// Update DropArea props to support both states
 interface DropAreaProps {
   zoneId: string;
   className?: string;
-  activeClassName?: string;
+  registeredClassName?: string;  
+  activeClassName?: string;      
   children: React.ReactNode;
 }
 
 export const DropArea: React.FC<DropAreaProps> = ({
   zoneId,
   className = '',
+  registeredClassName = 'drop-target-registered',
   activeClassName = 'drop-target-active',
   children
 }) => {
-  const { isDropZoneActive, handleDrop, handleDragOver, handleDragEnter, handleDragLeave } = useDropTargetContext();
+  const { 
+    isDropZoneRegistered,
+    isDropZoneActive, 
+    handleDrop, 
+    handleDragOver, 
+    handleDragEnter, 
+    handleDragLeave 
+  } = useDropTargetContext();
+  
+  const isRegistered = isDropZoneRegistered(zoneId);
   const isActive = isDropZoneActive(zoneId);
 
   return (
@@ -235,7 +274,7 @@ export const DropArea: React.FC<DropAreaProps> = ({
       onDragOver={(e) => handleDragOver(zoneId, e)}
       onDragEnter={(e) => handleDragEnter(zoneId, e)}
       onDragLeave={(e) => handleDragLeave(zoneId, e)}
-      className={`${className} ${isActive ? activeClassName : ''}`}
+      className={`${className} ${isRegistered ? registeredClassName : ''} ${isActive ? activeClassName : ''}`}
     >
       {children}
     </div>

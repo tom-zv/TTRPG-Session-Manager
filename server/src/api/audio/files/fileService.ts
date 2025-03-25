@@ -11,13 +11,13 @@ export async function getAudioFile(id: number): Promise<AudioFile[]> {
 }
 
 export async function createAudioFile(
-  title: string,
+  name: string,
   type: string,
   file_path: string | null,
   file_url: string | null,
   folder_id: number | null
 ): Promise<QueryResult> {
-  return await fileModel.insertAudioFile(title, type, file_path, file_url, folder_id);
+  return await fileModel.insertAudioFile(name, type, file_path, file_url, folder_id);
 }
 
 export default {

@@ -8,7 +8,7 @@ import "./CollectionEditView.css";
 
 const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
   const {
-    collectionTitle,
+    collectionName,
     collectionType,
     fetchCollections,
     fetchCollectionItems,
@@ -16,12 +16,12 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
     onDeleteCollection,
     onAddItems,
     onRemoveItems,
-    onUpdateItemPosition
+    onUpdateItemPosition,
   } = props;
 
   // Collections state and methods from hook
   const collections = useCollections({
-    collectionTitle,
+    collectionName,
     collectionType,
     fetchCollections,
     fetchCollectionItems,
@@ -66,7 +66,7 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
     <div className="collection-edit-view">
       {collections.viewMode === "grid" ? (
         <CollectionsGrid
-          collectionTitle={collectionTitle}
+          collectionName={collectionName}
           collectionType={collectionType}
           collections={collections.collectionsAsAudioItems}
           isLoading={isLoading}
@@ -74,11 +74,14 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
           onCreateCollection={onCreateCollection}
           onItemClick={handleItemClick}
           onDeleteClick={collections.handleDeleteCollection}
+          isDragSource={true}
+          isDropTarget={false}
         />
       ) : (
         collections.selectedCollection && (
         <CollectionDetail
           collection={collections.selectedCollection}
+          collectionType={collectionType}
           collectionItems={collections.collectionItems}
           isLoading={isLoading}
           error={error}
@@ -86,7 +89,8 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
           onRemoveItems={collections.handleRemoveItems}
           handleAddItems={collections.handleAddItems}
           onUpdateItemPosition={collections.handleUpdateItemPositions}
-          setError={setError}
+          isDragSource={true}
+          isDropTarget={true}
         />
         )
       )}
@@ -94,7 +98,7 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
       <CreateCollectionDialog
         isOpen={collections.isCreateDialogOpen}
         onClose={() => collections.setIsCreateDialogOpen(false)}
-        collectionTitle={collectionTitle}
+        collectionName={collectionName}
         collectionType={collectionType}
         newItemName={collections.newItemName}
         newItemDescription={collections.newItemDescription}

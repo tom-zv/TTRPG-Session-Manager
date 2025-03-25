@@ -32,7 +32,7 @@ export async function getAudioFile(id: number): Promise<AudioFile> {
 export async function uploadAudioFile(audioData: Partial<AudioFile>, file?: File): Promise<number> {
   try {
     const formData = new FormData();
-    formData.append('title', audioData.title || '');
+    formData.append('name', audioData.name || '');
     formData.append('type', audioData.audioType || '');
     
     if (audioData.fileUrl) {

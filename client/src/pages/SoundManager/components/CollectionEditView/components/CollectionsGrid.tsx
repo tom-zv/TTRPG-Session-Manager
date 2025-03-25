@@ -1,38 +1,58 @@
 import React from 'react';
 import { AudioItem, CollectionType } from '../types.js';
 import { AudioItemDisplay } from '../../AudioItemDisplay/AudioItemDisplay.js';
+import { DROP_ZONES } from 'src/components/DropTargetContext/dropZones.js';
 
-interface CollectionsGridProps {
-  collectionTitle: string;
+// Create a shared interface for drag-drop props that can be reused
+interface DragDropProps {
+  isDragSource?: boolean;
+  isDropTarget?: boolean;
+}
+
+interface CollectionsGridProps extends DragDropProps {
+  // Data props
+  collectionName: string;
   collectionType: CollectionType;
   collections: AudioItem[];
+  
+  // UI state props
   isLoading: boolean;
   error: string | null;
+  
+  // Action handlers
   onCreateCollection?: (name: string, description?: string) => Promise<number>;
   onItemClick: (itemId: number) => void;
-  onDeleteClick: (itemId: number) => void;
+  onDeleteClick: (itemId: number | number[]) => void;
 }
 
 const CollectionsGrid: React.FC<CollectionsGridProps> = ({
-  collectionTitle,
+  // Data props
+  collectionName,
   collectionType,
   collections,
+  
+  // UI state props
   isLoading,
   error,
+  
+  // Action handlers
   onCreateCollection,
   onItemClick,
-  onDeleteClick
+  onDeleteClick,
+  
+  // Drag drop props
+  isDragSource,
+  isDropTarget = false 
 }) => {
   // Create a special AudioItem for the "Create New" button
-  const createNewItem = {
-    id: -1, // Use a special ID that won't conflict with real items
-    title: `Create New ${collectionTitle.slice(0, -1)}`,
+  const createNewItem: AudioItem = {
+    id: -1, 
+    name: `Create New ${collectionName.slice(0, -1)}`,
     type: collectionType, 
     itemCount: 0,
-    isCreateButton: true // Custom property to identify this special item
+    isCreateButton: true 
   };
 
-  // Add the create button to the list if we have the function to create collections
   const displayItems = [...collections];
   if (onCreateCollection) {
     displayItems.push(createNewItem);
@@ -40,32 +60,37 @@ const CollectionsGrid: React.FC<CollectionsGridProps> = ({
 
   return (
     <div className="collections-grid-view">
-      {/* <div className="collections-header">
-        <h2>{collectionTitle}</h2>
-      </div> */}
-      
       <AudioItemDisplay
         items={displayItems}
+        itemType={collectionType}
         isLoading={isLoading}
         error={error}
         view="grid"
         showToggle={false}
         showActions={true}
-        title={collectionTitle}
+        name={collectionName}
         onItemClick={onItemClick}
-        onRemoveItem={(itemId) => {
-          if (itemId !== -1) { // Don't allow deleting our create button
-            onDeleteClick(itemId);
+        onRemoveItems={(itemIds) => {
+          // Filter out the create button and pass the array directly
+          const validIds = Array.isArray(itemIds) ? itemIds.filter(id => id !== -1) : 
+                          (itemIds !== -1 ? [itemIds] : []);
+          
+          if (validIds.length > 0) {
+            onDeleteClick(validIds);
           }
         }}
         renderSpecialItem={(item) => 
           item.isCreateButton && (
             <div className="create-collection-content">
               <div className="create-collection-icon">+</div>
-              <span className="create-collection-text">{item.title}</span>
+              <span className="create-collection-text">{item.name}</span>
             </div>
           )
         }
+        isDragSource={isDragSource}
+        isDropTarget={isDropTarget}
+        dropZoneId={DROP_ZONES.SOUND_MANAGER_PACK_DROP}
+        acceptedDropTypes={[]}
       />
     </div>
   );

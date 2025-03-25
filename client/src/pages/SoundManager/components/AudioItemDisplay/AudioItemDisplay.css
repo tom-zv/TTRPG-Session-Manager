@@ -4,6 +4,7 @@
    .audio-item-display {
     width: 100%;
     margin-bottom: 1.5rem;
+    min-width: 350px;
 }
 
 .audio-item-display-header {
@@ -50,8 +51,8 @@
    ========================================================================== */
 .audio-item-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 220px));
+    gap: 3rem;
 }
 
 .audio-item-card {
@@ -64,7 +65,7 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     display: flex;
     flex-direction: column;
-    height: 140px;
+    max-height: 120px;
     overflow: hidden;
 }
 
@@ -76,8 +77,8 @@
 /* Type indicators on cards */
 .audio-item-card.file { border-left: 4px solid var(--success); }
 .audio-item-card.playlist { border-left: 4px solid var(--accent-primary); }
-.audio-item-card.sfx_set { border-left: 4px solid var(--warning); }
-.audio-item-card.ambience_set { border-left: 4px solid #9c27b0; }
+.audio-item-card.sfx { border-left: 4px solid var(--warning); }
+.audio-item-card.ambience { border-left: 4px solid #9c27b0; }
 .audio-item-card.pack { border-left: 4px solid var(--danger); }
 
 .audio-item {
@@ -97,7 +98,7 @@
     font-size: 1.1rem;
 }
 
-.audio-item-title {
+.audio-item-name {
     margin: 0;
     font-size: 1rem;
     font-weight: 500;
@@ -219,7 +220,7 @@
     box-shadow: inset 4px 0 0 var(--accent-primary);
 }
 
-.item-title-cell {
+.item-name-cell {
     display: flex;
     align-items: center;
     gap: 0.75rem;
@@ -352,4 +353,18 @@
   
   .audio-item-table tbody tr.insert-marker:hover {
     background-color: var(--accent-primary);
+  }
+
+.grid-insert-marker {
+    grid-column: 1 / -1; /* Span all columns */
+    width: 100%;
+    z-index: 5;
+    margin: 1rem 0;
+    box-shadow: 0 0 8px var(--accent-primary);
+}
+.audio-item-card.card-drop-target {
+    outline: 2px dashed var(--accent-primary);
+    background-color: rgba(53, 114, 227, 0.1);
+    transform: scale(1.02);
+    z-index: 5;
   }

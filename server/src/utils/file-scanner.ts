@@ -213,7 +213,7 @@ export async function scanAudioFiles(): Promise<void> {
       if ((existingFiles as any[]).length === 0) {
         // Add new file to database using the audioType determined during scanning
         await pool.execute(
-          'INSERT INTO audio_files (title, audio_type, file_path, folder_id, duration) VALUES (?, ?, ?, ?, ?)',
+          'INSERT INTO audio_files (name, audio_type, file_path, folder_id, duration) VALUES (?, ?, ?, ?, ?)',
           [fileName.replace(fileExt, ''), file.audioType, file.relativePath, file.folderId, file.duration || 0]
         );
       } else {

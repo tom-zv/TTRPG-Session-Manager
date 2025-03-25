@@ -43,7 +43,7 @@ export const ItemActions: React.FC<ItemActionsProps> = ({
         <button
           className={`edit-button ${buttonClass}`}
           onClick={handleEditClick}
-          title="Edit"
+          name="Edit"
         >
           ✏️
         </button>
@@ -53,7 +53,7 @@ export const ItemActions: React.FC<ItemActionsProps> = ({
         <button
           className={`delete-button ${buttonClass}`}
           onClick={handleRemoveClick}
-          title="Remove"
+          name="Remove"
         >
           X
         </button>
@@ -75,7 +75,7 @@ export const PlayItem: React.FC<ItemActionsProps> = ({ item, onPlayItem }) => {
       <button
         className="play-button"
         onClick={handlePlayClick}
-        title="Play"
+        name="Play"
       >
         &#9658;
       </button>

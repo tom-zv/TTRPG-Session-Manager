@@ -94,12 +94,12 @@ export function createDropHandlers<T, D = any>(
     onDrop: async (e) => {
       e.preventDefault();
       e.stopPropagation();
+      // Get current context values from hook if provided
+      const context = getContext ? getContext() : {};
+
       if (updateDragState) {
         updateDragState(false, 0);
       }
-      
-      // Get current context values from hook if provided
-      const context = getContext ? getContext() : {};
       
       await processDropEvent<T, D>(e, acceptedTypes, onItemsDropped, {
         ...options,
@@ -140,7 +140,7 @@ export async function processDropEvent<T, D = any>(
     //console.log('Drop payload:', payload);
     
     if (!acceptedTypes.includes(payload.contentType)) {
-      console.log(`Content type ${payload.contentType} not in accepted types:`, acceptedTypes);
+      console.log(`Content type: ${payload.contentType}, not in accepted types:`, acceptedTypes);
       return;
     }
     if (payload.items && payload.items.length > 0) {

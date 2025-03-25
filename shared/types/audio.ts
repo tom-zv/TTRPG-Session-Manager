@@ -1,6 +1,6 @@
 export type AudioFile = {
   id: number;
-  title: string;
+  name: string;
   audioType: 'music' | 'sfx' | 'ambience';
   duration?: number;
   playOrder: number;

@@ -16,18 +16,18 @@ export async function getAudioFile(id: number): Promise<AudioFile[]> {
 }
 
 export async function insertAudioFile(
-  title: string,
+  name: string,
   type: string,
   file_path: string | null,
   file_url: string | null,
   folder_id: number | null
 ): Promise<ResultSetHeader> {
   const query = `INSERT INTO audio_files 
-  (title, audio_type, file_path, file_url, folder_id) VALUES (?,?,?,?,?)`;
+  (name, audio_type, file_path, file_url, folder_id) VALUES (?,?,?,?,?)`;
 
   const [result] = await pool.execute(
     query, 
-    [title, type, file_path, file_url, folder_id]
+    [name, type, file_path, file_url, folder_id]
   );
   
   return result as ResultSetHeader;

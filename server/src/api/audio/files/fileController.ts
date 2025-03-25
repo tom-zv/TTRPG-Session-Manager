@@ -1,7 +1,7 @@
 import fileService from "./fileService.js";
 import { Request, Response } from 'express';
 import { scanAudioFiles } from "../../../utils/file-scanner.js";
-import { transformAudioFile } from "../../../utils/format-transformers.js";
+import { transformAudioItem } from "../../../utils/format-transformers.js";
 import fs from 'fs';
 
 // Get all audio files
@@ -10,7 +10,7 @@ export const getAllAudioFiles = async (_req: Request, res: Response) => {
     const dbAudioFiles = await fileService.getAllAudioFiles();
     
     // Transform each DB record to match the frontend format
-    const audioFiles = dbAudioFiles.map(file => transformAudioFile(file));
+    const audioFiles = dbAudioFiles.map(file => transformAudioItem(file));
     
     res.status(200).json(audioFiles);
   } catch (error) {
@@ -33,7 +33,7 @@ export const getAudioFileById = async (req: Request, res: Response) => {
     }
 
     // Transform to frontend format
-    const transformedFile = transformAudioFile(audioFiles[0]);
+    const transformedFile = transformAudioItem(audioFiles[0]);
     
     res.status(200).json(transformedFile);
   } catch (error) {
@@ -46,13 +46,13 @@ export const getAudioFileById = async (req: Request, res: Response) => {
 export const createAudioFile = async (req: Request, res: Response) => {
   try {
     // Note: The incoming data from the client uses frontend naming (type instead of audio_type)
-    const { title, type, file_url, folder_id } = req.body;
+    const { name, type, file_url, folder_id } = req.body;
     
     // Validate required fields with specific field errors
-    if (!title) {
+    if (!name) {
       return res.status(400).json({ 
-        fields: 'title',
-        message: 'Title is required' 
+        fields: 'name',
+        message: 'name is required' 
       });
     }
 
@@ -79,7 +79,7 @@ export const createAudioFile = async (req: Request, res: Response) => {
     }
 
     const result = await fileService.createAudioFile(
-      title,
+      name,
       type,
       file_path,
       file_url || null, 

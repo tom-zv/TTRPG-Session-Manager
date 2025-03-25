@@ -4,14 +4,17 @@ import { DragEvent } from 'react';
  * Calculate the appropriate drop index for a table based on mouse position
  * 
  * @param e - The drag event
- * @param tableElement - The table element reference
+ * @param element - The container element reference
  * @returns The calculated drop index, or undefined if unable to calculate
  */
 export function calculateTableDropIndex(
   e: DragEvent,
-  tableElement: HTMLTableElement | null
+  element: HTMLElement | null
 ): number | undefined {
-  if (!tableElement) return undefined;
+  // Check if element is a table
+  if (!element || !(element instanceof HTMLTableElement)) return undefined;
+  
+  const tableElement = element as HTMLTableElement;
   
   const tbody = tableElement.querySelector('tbody');
   if (!tbody) return undefined;
@@ -31,7 +34,7 @@ export function calculateTableDropIndex(
   // If mouse is below the last row, insert at end
   const lastRowRect = rows[rows.length - 1].getBoundingClientRect();
   if (mouseY > lastRowRect.bottom) {
-    return rows.length ;
+    return rows.length;
   }
   
   // Find the row where the mouse is positioned

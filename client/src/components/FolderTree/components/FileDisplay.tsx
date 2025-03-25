@@ -31,7 +31,7 @@ const FileDisplay: React.FC<FileDisplayProps> = ({
           {getFileIcon(file.audioType || 'default')}
         </span>
         <span className="file-name">
-          {file.title}
+          {file.name}
         </span>
       </div>
     </div>

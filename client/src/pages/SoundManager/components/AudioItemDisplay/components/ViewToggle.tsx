@@ -20,14 +20,14 @@ export const ViewToggle: React.FC<ViewToggleProps> = ({
       <button
         className={`view-toggle-button ${viewMode === "list" ? "active" : ""}`}
         onClick={() => setViewMode("list")}
-        title="List View"
+        name="List View"
       >
         ☰
       </button>
       <button
         className={`view-toggle-button ${viewMode === "grid" ? "active" : ""}`}
         onClick={() => setViewMode("grid")}
-        title="Grid View"
+        name="Grid View"
       >
         ⊞
       </button>

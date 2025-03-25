@@ -1,7 +1,9 @@
 DROP DATABASE IF EXISTS DND;
+
 CREATE DATABASE IF NOT EXISTS DND;
 
 USE DND;
+
 -- --------- --
 -- Combat DB --
 -- --------- --
@@ -49,60 +51,34 @@ CREATE TABLE
     dm_user_id INT NOT NULL,
     creature_id INT NOT NULL,
     UNIQUE (dm_user_id, creature_id),
-    FOREIGN KEY (dm_user_id) REFERENCES users (user_id) ON DELETE CASCADE,
-    FOREIGN KEY (creature_id) REFERENCES creatures (creature_id) ON DELETE CASCADE
+    CONSTRAINT fk_dm_creatures_dm_user_id FOREIGN KEY (dm_user_id) REFERENCES users (user_id) ON DELETE CASCADE,
+    CONSTRAINT fk_dm_creatures_creature_id FOREIGN KEY (creature_id) REFERENCES creatures (creature_id) ON DELETE CASCADE
   );
+
 -- -------- --
 -- Audio DB --
 -- -------- --
-
-CREATE TABLE 
+CREATE TABLE
   IF NOT EXISTS folders (
     folder_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     parent_folder_id INT,
-    folder_type ENUM('music', 'sfx', 'ambience', 'root') NOT NULL,
+    folder_type ENUM ('music', 'sfx', 'ambience', 'root') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (parent_folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
+    CONSTRAINT fk_folders_parent_folder_id FOREIGN KEY (parent_folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
   );
 
 CREATE TABLE
   IF NOT EXISTS audio_files (
     audio_file_id INT AUTO_INCREMENT PRIMARY KEY,
-    title VARCHAR(128) NOT NULL,
+    name VARCHAR(128) NOT NULL,
     audio_type ENUM ('music', 'sfx', 'ambience') NOT NULL DEFAULT 'music',
     duration INT,
     file_url VARCHAR(256),
     file_path VARCHAR(256),
     folder_id INT,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET NULL
-  );
-
--- Music playlists 
-CREATE TABLE
-  IF NOT EXISTS playlists (
-    playlist_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(128) NOT NULL,
-    description TEXT
-  );
-
-CREATE TABLE IF NOT EXISTS playlist_files (
-  playlist_id INT NOT NULL,
-  audio_file_id INT NOT NULL,
-  position INT NOT NULL,
-  CONSTRAINT pk_playlist_files PRIMARY KEY (playlist_id, audio_file_id),
-  CONSTRAINT playlist_id FOREIGN KEY (playlist_id) REFERENCES playlists (playlist_id) ON DELETE CASCADE,
-  CONSTRAINT playlist_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE,
-  UNIQUE KEY unique_position (playlist_id, position)
-);
-
--- SFX collections
-CREATE TABLE
-  IF NOT EXISTS sfx_collections (
-    collection_id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(128) NOT NULL,
-    description TEXT
+    CONSTRAINT fk_audio_files_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET NULL
   );
 
 -- SFX macros 
@@ -121,49 +97,38 @@ CREATE TABLE
     delay INT DEFAULT 0,
     volume FLOAT DEFAULT 1.0,
     CONSTRAINT pk_sfx_macro_files PRIMARY KEY (macro_id, audio_file_id),
-    CONSTRAINT fk_macro_id FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE,
-    CONSTRAINT fk_macro_audio_file FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
+    CONSTRAINT fk_sfx_macro_files_macro_id FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE,
+    CONSTRAINT fk_sfx_macro_files_audio_file_id FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
--- SFX collections contain files and macros.
+-- Collections
 CREATE TABLE
-  IF NOT EXISTS sfx_collection_files (
-    sfx_collection_id INT NOT NULL,
-    audio_file_id INT NOT NULL,
-    position INT NOT NULL,
-    default_volume FLOAT DEFAULT 1.0,
-    PRIMARY KEY (sfx_collection_id, audio_file_id),
-    FOREIGN KEY (sfx_collection_id) REFERENCES sfx_collections (collection_id) ON DELETE CASCADE,
-    FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
-  );
-
-CREATE TABLE
-  IF NOT EXISTS sfx_collection_macros (
-    sfx_collection_id INT NOT NULL,
-    macro_id INT NOT NULL,
-    position INT NOT NULL,
-    PRIMARY KEY (sfx_collection_id, macro_id),
-    FOREIGN KEY (sfx_collection_id) REFERENCES sfx_collections (collection_id) ON DELETE CASCADE,
-    FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE
-  );
-
--- Ambience collections
-CREATE TABLE
-  IF NOT EXISTS ambience_collections (
+  collections (
     collection_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
-    description TEXT
+    description TEXT,
+    type ENUM ('playlist', 'sfx', 'ambience') NOT NULL
   );
 
 CREATE TABLE
-  IF NOT EXISTS ambience_collection_files (
-    ambience_collection_id INT NOT NULL,
+  collection_files (
+    collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
     position INT NOT NULL,
-    default_volume FLOAT DEFAULT 1.0,
-    PRIMARY KEY (ambience_collection_id, audio_file_id),
-    FOREIGN KEY (ambience_collection_id) REFERENCES ambience_collections (collection_id) ON DELETE CASCADE,
+    volume FLOAT DEFAULT 1,  
+    PRIMARY KEY (collection_id, audio_file_id),
+    FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE,
     FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
+  );
+
+CREATE TABLE 
+  collection_sfx_macros (
+    collection_id INT NOT NULL,
+    macro_id INT NOT NULL,
+    position INT NOT NULL,
+    PRIMARY KEY (collection_id, macro_id),
+    FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE,
+    FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE
   );
 
 -- Audio packs - contain playlists, sfx macros, and ambience collections
@@ -176,34 +141,31 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  IF NOT EXISTS audio_pack_playlists (
+  IF NOT EXISTS audio_pack_collections (
     pack_id INT NOT NULL,
-    playlist_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_playlists PRIMARY KEY (pack_id, playlist_id),
-    CONSTRAINT fk_pack_playlist FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_playlist_id FOREIGN KEY (playlist_id) REFERENCES playlists (playlist_id) ON DELETE CASCADE
-  );
-
-CREATE TABLE 
-  IF NOT EXISTS audio_pack_ambience_collections (
-    pack_id INT NOT NULL,
-    ambience_collection_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_ambience_collections PRIMARY KEY (pack_id, ambience_collection_id),
-    CONSTRAINT fk_pack_ambience FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_ambience_collection_id FOREIGN KEY (ambience_collection_id) REFERENCES ambience_collections (collection_id) ON DELETE CASCADE
-  );
-
-CREATE TABLE 
-  IF NOT EXISTS audio_pack_sfx_collections (
-    pack_id INT NOT NULL,
-    sfx_collection_id INT NOT NULL,
-    CONSTRAINT pk_audio_pack_sfx_collections PRIMARY KEY (pack_id, sfx_collection_id),
-    CONSTRAINT fk_pack_sfx FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
-    CONSTRAINT fk_sfx_collection_id FOREIGN KEY (sfx_collection_id) REFERENCES sfx_collections (collection_id) ON DELETE CASCADE
+    collection_id INT NOT NULL,
+    CONSTRAINT pk_audio_pack_collections PRIMARY KEY (pack_id, collection_id),
+    CONSTRAINT fk_audio_pack_id FOREIGN KEY (pack_id) REFERENCES audio_packs (pack_id) ON DELETE CASCADE,
+    CONSTRAINT fk_audio_collection_id FOREIGN KEY (collection_id) REFERENCES collections (collection_id) ON DELETE CASCADE
   );
 
 -- Create base folders
-INSERT INTO folders (name, folder_type) VALUES ('audio', 'root');
-INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('music', 'music', 1);
-INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('sfx', 'sfx', 1);
-INSERT INTO folders (name, folder_type, parent_folder_id) VALUES ('ambience', 'ambience', 1);
+INSERT INTO
+  folders (name, folder_type)
+VALUES
+  ('audio', 'root');
+
+INSERT INTO
+  folders (name, folder_type, parent_folder_id)
+VALUES
+  ('music', 'music', 1);
+
+INSERT INTO
+  folders (name, folder_type, parent_folder_id)
+VALUES
+  ('sfx', 'sfx', 1);
+
+INSERT INTO
+  folders (name, folder_type, parent_folder_id)
+VALUES
+  ('ambience', 'ambience', 1);

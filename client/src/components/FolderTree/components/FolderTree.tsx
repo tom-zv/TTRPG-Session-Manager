@@ -59,7 +59,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
 
   // Drag source for folders
   const folderDragSource = useDragSource<AudioFile>({
-    contentType: 'audio-file',
+    contentType: 'file',
     mode: 'file-transfer',
     getItemId: file => file.id,
     getItemsForDrag: (selectedIds) => {
@@ -70,14 +70,14 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   
   // Drag source for individual files
   const fileDragSource = useDragSource<AudioFile>({
-    contentType: 'audio-file',
+    contentType: 'file',
     mode: 'file-transfer',
     getItemId: file => file.id,
     getItemsForDrag: (selectedIds) => {
       // Get the selected audio files
       return audioFiles.filter(file => selectedIds.includes(file.id));
     },
-    getItemName: (file) => file.title || `Audio #${file.id}`
+    getItemName: (file) => file.name || `Audio #${file.id}`
   });
 
   // Helper function to flatten folder tree

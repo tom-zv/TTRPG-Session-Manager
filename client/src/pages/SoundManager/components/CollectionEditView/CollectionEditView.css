@@ -362,3 +362,44 @@
     width: 100%;
   }
 }
+
+.collection-detail-view-content{
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+}
+
+.pack-detail-view {
+  display: flex;
+  flex-direction: row;
+  gap: 1.5rem;
+}
+
+.pack-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.pack-section {
+  /* background-color: var(--bg-secondary); */
+  /* border-radius: 8px; */
+  padding: 2rem;
+  /* box-shadow: 0 2px 8px var(--shadow); */
+  
+}
+
+.pack-section h3 {
+  margin-inline: 50x;
+  margin-top: 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary);
+  align-content: center;
+}
+
+@media (max-width: 768px) {
+  .pack-section {
+    padding: 0.75rem;
+  }
+}

@@ -1,10 +1,9 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 
 export type dragMode = 'file-transfer' | 'reorder';
-export type DRAG_CONTENT_TYPES = 'audio-file' | 'folder';
 
 interface UseDragSourceOptions<T> {
-  contentType: DRAG_CONTENT_TYPES;
+  contentType: any;
   mode: dragMode;
   getItemsForDrag: (selectedItemIds: number[]) => T[];
   getItemId: (item: T) => number;
@@ -23,6 +22,7 @@ export function useDragSource<T>({
   onDragEnd,
   getItemName = (item: T) => `Item ${getItemId(item)}`
 }: UseDragSourceOptions<T>) {
+  const [isDragging, setIsDragging] = useState<boolean>(false);
   
   // Create a multi-file drag image
   const createMultiDragImage = (items: T[]): HTMLElement => {
@@ -57,12 +57,14 @@ export function useDragSource<T>({
     return container;
   };
   
+  // Gets the items to be dragged, 
   const handleDragStart = useCallback((
     e: React.DragEvent, 
     item: T, 
     selectedItemIds: number[]
   ) => {
     e.stopPropagation();
+    setIsDragging(true);
     
     // Determine if this is part of a multi-selection 
     const itemId = getItemId(item);
@@ -80,6 +82,8 @@ export function useDragSource<T>({
       count: draggedItems.length
     };
     
+    console.log('Drag payload:', payload);
+
     // Set the data transfer
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
     
@@ -106,6 +110,8 @@ export function useDragSource<T>({
   }, [contentType, getItemsForDrag, getItemId, onDragStart, getItemName]);
   
   const handleDragEnd = useCallback((e: React.DragEvent) => {
+    // Reset dragging state
+    setIsDragging(false);
     e.currentTarget.classList.remove('dragging');
     e.currentTarget.classList.remove('dragging-multi');
     
@@ -115,6 +121,7 @@ export function useDragSource<T>({
   }, [onDragEnd]);
   
   return {
+    isDragging, 
     handleDragStart,
     handleDragEnd
   };

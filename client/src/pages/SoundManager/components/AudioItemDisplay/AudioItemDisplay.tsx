@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React from "react";
 import { AudioItemDisplayProps } from './types.js';
 import GridView from './components/GridView.js';
 import ListView from './components/ListView.js';
 import ViewToggle from './components/ViewToggle.js';
 import StatusMessages from './components/StatusMessages.js';
-import { useSelection } from "../../../../hooks/useSelection.js";
+import { useAudioItems } from './hooks/useAudioItems.js';
 import "./AudioItemDisplay.css";
 
 export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
   items,
+  itemType,
   isLoading = false,
   error = null,
   view = "list",
@@ -20,81 +21,50 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
   onEditItem,
   onRemoveItems,
   onUpdateItemPosition,
-  renderSpecialItem
+  renderSpecialItem,
+  isDragSource = false,        
+  isDropTarget = false,       
+  dropZoneId,                 
+  acceptedDropTypes = [], 
 }) => {
-  const [viewMode, setViewMode] = useState<"grid" | "list">(view);
-  
-  // Initialize selection functionality
-  const { selectedItems, handleSelect, clearSelection } = useSelection<{ id: number; isCreateButton?: boolean }>({
-    getItemId: (item) => item.id,
-    // Don't select special items like "Create New" button
-    onSingleSelect: (item, _) => {
-      if (item.isCreateButton) {
-        return [];
-      }
-      return [item];
-    }
+
+  const {
+    viewMode,
+    setViewMode,
+    selectedItemIds,
+    handleItemSelection,
+    handleRemoveItems
+  } = useAudioItems({items, initialView: view, onItemClick, onRemoveItems
   });
-  
-  // Handle item selection with mouse event modifiers
-  const handleItemSelection = (e: React.MouseEvent, itemId: number) => {
-    e.stopPropagation();
-    
-    // Find the item
-    const item = items.find(i => i.id === itemId);
-    if (!item) return;
-    
-    // Don't handle selection for create buttons
-    if (item.isCreateButton) {
-      if (onItemClick) onItemClick(itemId);
-      return;
-    }
-    
-    const isMultiSelect = e.ctrlKey || e.metaKey;
-    const isShiftSelect = e.shiftKey;
-    
-    // Use our selection hook
-    handleSelect(item, items, isMultiSelect, isShiftSelect);
-    
-    // If it's a regular click (not multi/shift select) and we have an onClick handler,
-    // also call that handler
-    if (!isMultiSelect && !isShiftSelect && onItemClick) {
-      onItemClick(itemId);
-    }
-  };
-
-  const handleRemoveItems = (itemIds: number[]) => {
-    if (onRemoveItems) {
-      onRemoveItems(itemIds);
-    }
-
-    clearSelection();
-    
-  };
 
   // Return status components if needed
   if (isLoading || error || items.length === 0) {
-    return (
-      <StatusMessages
-        isLoading={isLoading}
-        error={error}
-        isEmpty={items.length === 0}
-      />
-    );
+    return <StatusMessages isLoading={isLoading} error={error} isEmpty={items.length === 0} />;
   }
 
   // Shared props for view components
   const viewProps = {
+    // Data props
     items,
-    selectedItemIds: selectedItems.map(item => item.id),
+    itemType,
+    // UI state props
+    selectedItemIds,
     showActions,
+    showPlayButton: false, // Default for GridView
+    // Action handlers
     onPlayItem,
     onEditItem,
     onAddItems,
     onRemoveItems: handleRemoveItems,
-    renderSpecialItem,
     onItemSelect: handleItemSelection,
     onUpdateItemPosition,
+    // Render customization
+    renderSpecialItem,
+    // Drag and drop props
+    isDragSource,
+    isDropTarget,
+    dropZoneId,
+    acceptedDropTypes,
   };
 
   return (
@@ -105,10 +75,9 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
           setViewMode={setViewMode}
           showToggle={showToggle}
         />
-        
-        {selectedItems.length > 0 && (
+        {selectedItemIds.length > 0 && (
           <div className="selection-info">
-            {selectedItems.length} item{selectedItems.length !== 1 ? 's' : ''} selected
+            {selectedItemIds.length} item{selectedItemIds.length !== 1 ? 's' : ''} selected
           </div>
         )}
       </div>

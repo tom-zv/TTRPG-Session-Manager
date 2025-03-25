@@ -4,7 +4,7 @@ import { CollectionType } from '../types.js';
 interface CreateCollectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  collectionTitle: string;
+  collectionName: string;
   collectionType: CollectionType;
   newItemName: string;
   newItemDescription: string;
@@ -17,7 +17,7 @@ interface CreateCollectionDialogProps {
 const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
   isOpen,
   onClose,
-  collectionTitle,
+  collectionName,
   collectionType,
   newItemName,
   newItemDescription,
@@ -32,7 +32,7 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
     <div className="modal-overlay">
       <div className="modal">
         <div className="modal-header">
-          <h2>Create New {collectionTitle.slice(0, -1)}</h2>
+          <h2>Create New {collectionName.slice(0, -1)}</h2>
           <button 
             className="close-button"
             onClick={onClose}
