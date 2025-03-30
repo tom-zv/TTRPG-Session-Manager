@@ -1,5 +1,6 @@
 import React from 'react';
 import { CollectionType } from '../types.js';
+import './CreateCollectionDialog.css';
 
 interface CreateCollectionDialogProps {
   isOpen: boolean;

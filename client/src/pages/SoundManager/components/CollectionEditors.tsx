@@ -1,10 +1,10 @@
 import React from 'react';
-import CollectionEditView from './CollectionEditView/CollectionEditView.js';
-import { playlistApi, sfxApi, ambienceApi, packApi} from '../api/collections/collectionApi.js';
+import CollectionView from './CollectionView/CollectionView.js';
+import { playlistApi, sfxApi, ambienceApi, packApi, macroApi} from '../api/collections/collectionApi.js';
 
-const PlaylistManager: React.FC = () => {
+const PlaylistEditor: React.FC = () => {
   return (
-    <CollectionEditView
+    <CollectionView
       collectionType="playlist"
       collectionName="Playlists"
       fetchCollections={playlistApi.getAllCollections}
@@ -21,9 +21,9 @@ const PlaylistManager: React.FC = () => {
   );
 };
 
-const SoundEffectManager: React.FC = () => {
+const SoundEffectEditor: React.FC = () => {
   return (
-    <CollectionEditView
+    <CollectionView
       collectionType="sfx"
       collectionName="Sound Effect Collections"
       fetchCollections={sfxApi.getAllCollections}
@@ -40,9 +40,9 @@ const SoundEffectManager: React.FC = () => {
   );
 }
 
-const AmbienceManager: React.FC = () => {
+const AmbienceEditor: React.FC = () => {
   return (
-    <CollectionEditView
+    <CollectionView
       collectionType="ambience"
       collectionName="Ambience Collections"
       fetchCollections={ambienceApi.getAllCollections}
@@ -59,13 +59,13 @@ const AmbienceManager: React.FC = () => {
   );
 }
 
-const PackManager: React.FC = () => {
+const PackEditor: React.FC = () => {
   return (
-    <CollectionEditView
+    <CollectionView
       collectionType="pack"
       collectionName="Packs"
       fetchCollections={packApi.getAllPacks}
-      fetchCollectionItems={ packApi.getPackCollections } // Placeholder 
+      fetchCollectionItems={ packApi.getPackCollections } 
       onCreateCollection={packApi.createPack}
       onUpdateCollection={() => Promise.resolve(true)} // Placeholder 
       onDeleteCollection={packApi.deletePack}
@@ -76,4 +76,28 @@ const PackManager: React.FC = () => {
   );
 }
 
-export { PlaylistManager, SoundEffectManager, AmbienceManager, PackManager };
+const MacroEditor: React.FC = () => {
+  return (
+    <CollectionView
+      collectionType="macro"
+      collectionName="Macros"
+      fetchCollections={macroApi.getAllCollections}
+      fetchCollectionItems={macroApi.getCollectionFiles}
+      onCreateCollection={macroApi.createCollection}
+      onUpdateCollection={(collection) =>
+        macroApi.updateCollection(
+          collection.id,
+          collection.name,
+          collection.description
+        )
+      }
+      onDeleteCollection={macroApi.deleteCollection}
+      onAddItems={macroApi.addToCollection}
+      onEditItem={macroApi.editItem}
+      onRemoveItems={macroApi.removeFilesFromCollection}
+      onUpdateItemPosition={macroApi.updatePosition}
+    />
+  );
+}
+
+export { PlaylistEditor, SoundEffectEditor, AmbienceEditor, PackEditor, MacroEditor };

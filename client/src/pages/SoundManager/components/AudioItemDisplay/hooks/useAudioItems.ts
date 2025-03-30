@@ -21,8 +21,6 @@ export function useAudioItems({
   // Selection state and handlers
   const { selectedItems, handleSelect, clearSelection } = useSelection<AudioItem>({
     getItemId: (item) => item.id,
-    // Don't select special items like "Create New" button
-    onSingleSelect: (item) => item.isCreateButton ? [] : [item]
   });
   
   // Handle item selection with mouse event modifiers
@@ -52,7 +50,7 @@ export function useAudioItems({
     }
   }, [items, onItemClick, handleSelect]);
 
-  // Handle removing items and clear selection
+  // Handle removing items, clearing selection
   const handleRemoveItems = useCallback((itemIds: number[]) => {
     if (onRemoveItems) {
       onRemoveItems(itemIds);

@@ -1,5 +1,5 @@
 // src/pages/SoundManager/components/AudioItemDisplay/hooks/useItemDragDrop.ts
-import { useRef, useState, useCallback, useEffect } from "react";
+import { useRef, useState, useCallback, useEffect, useMemo } from "react"; // Add useMemo
 import { useDragSource } from "src/hooks/useDragSource.js";
 import { useDropTarget } from "src/hooks/useDropTarget.js";
 import { useDropTargetContext } from "src/hooks/useDropTargetContext.js";
@@ -11,7 +11,7 @@ interface UseItemDragDropProps extends AudioItemActions, DragDropProps {
   items: AudioItem[];
   selectedItemIds: number[];
   contentType: string;
-  containerRef?: React.RefObject<HTMLElement>; // Add this parameter
+  containerRef?: React.RefObject<HTMLElement>;
 }
 
 export function useItemDragDrop({
@@ -19,7 +19,7 @@ export function useItemDragDrop({
   selectedItemIds = [],
   contentType,
   isDragSource = false,
-  isReordering = false,
+  isReorderable = false,
   isDropTarget = false,
   dropZoneId = null,
   acceptedDropTypes = [],
@@ -29,8 +29,9 @@ export function useItemDragDrop({
   calculateDropTarget
 }: UseItemDragDropProps) {
   const [targetIndex, setTargetIndex] = useState<number | undefined>(undefined);
-  containerRef = containerRef || useRef<HTMLDivElement | null>(null);
-  
+  const internalRef = useRef<HTMLDivElement | null>(null);
+  const effectiveRef = containerRef || internalRef;
+
   const {
     registerDropHandler,
     unregisterDropHandler,
@@ -38,55 +39,45 @@ export function useItemDragDrop({
     acceptedTypes,
   } = useDropTargetContext();
 
-  const calculateDropIndex = (e: React.DragEvent) => {
+  const calculateDropIndex = useCallback((e: React.DragEvent) => {
     if (!calculateDropTarget) return undefined;
-    const index = calculateDropTarget(e, containerRef.current);
+    const index = calculateDropTarget(e, effectiveRef.current);
     if (index !== undefined) {
       setTargetIndex(index);
     }
-
-    console.log("Drop index calculated:", index);
-
     return index;
-  };
-  
-  const itemDragSource = isDragSource
-    ? useDragSource<AudioItem>({
-        contentType: contentType,
-        mode: isReordering ? "reorder" : "file-transfer",
-        getItemsForDrag: (selectedItemIds) => {
-          return items.filter((item) => selectedItemIds.includes(item.id));
-        },
+  }, [calculateDropTarget, effectiveRef]);
 
-        getItemId: (item) => item.id,
-        getItemName: (item) => item.name,
-        onDragStart: () => {
-          if (
-            dropZoneId &&
-            items.length > 0 &&
-            acceptedTypes(dropZoneId).includes(contentType)
-          ) {
-            setDropZoneActiveStatus(dropZoneId, true);
-          }
-        },
-        onDragEnd: () => {
-          if (dropZoneId) {
-            setDropZoneActiveStatus(dropZoneId, false);
-          }
-          setTargetIndex(undefined);
-        },
-      })
-    : null;
+  const dragSourceResult = useDragSource<AudioItem>({
+    contentType: contentType,
+    mode: isReorderable ? "reorder" : "file-transfer",
+    getItemsForDrag: (selectedItemIds) => {
+      return items.filter((item) => selectedItemIds.includes(item.id));
+    },
+    getItemId: (item) => item.id,
+    getItemName: (item) => item.name,
+    onDragStart: () => {
+      if (isDragSource && dropZoneId && items.length > 0 && 
+          acceptedTypes(dropZoneId).includes(contentType)) {
+        setDropZoneActiveStatus(dropZoneId, true);
+      }
+    },
+    onDragEnd: () => {
+      if (isDragSource && dropZoneId) {
+        setDropZoneActiveStatus(dropZoneId, false);
+      }
+      setTargetIndex(undefined);
+    },
+  });
 
-  // Handle drag start event - extracted from GridView/ListView
+  const itemDragSource = isDragSource ? dragSourceResult : null;
+
   const handleDragStart = useCallback(
     (e: React.DragEvent, item: AudioItem) => {
       if (item.isCreateButton || !isDragSource || !itemDragSource) return;
       
       e.stopPropagation();
       
-      // If the item isn't in the selection, drag just this item
-      // Otherwise drag all selected items
       const itemsToUse = selectedItemIds.includes(item.id) 
         ? selectedItemIds 
         : [item.id];
@@ -96,7 +87,6 @@ export function useItemDragDrop({
     [isDragSource, itemDragSource, selectedItemIds]
   );
 
-  // Handle drag end event - extracted from GridView/ListView
   const handleDragEnd = useCallback(
     (e: React.DragEvent) => {
       e.stopPropagation();
@@ -108,81 +98,82 @@ export function useItemDragDrop({
     [isDragSource, itemDragSource]
   );
 
+  // Memoize handleDrop to prevent recreation on every render
   const handleDrop = useCallback(
     async (items: AudioItem[], context: DropContext<unknown>) => {
       if (onAddItems) {
         onAddItems(items, context.index);
       }
-      setTargetIndex(undefined); // Clear target index after drop
+      setTargetIndex(undefined);
     },
     [onAddItems]
   );
-  
-  let dropAreaProps = {};
-  if (isDropTarget) {   // Local drop target
-    const { dropAreaProps: dap } = useDropTarget<AudioItem>({
-      acceptedTypes: ["file"],
-      onItemsDropped: async (items, context) => {
-        const { index, mode } = context;
 
-        // Handle reordering
-        if (mode === "reorder" && onUpdateItemPosition && items.length > 0) {
-          const sourceStartPosition = items[0].position;
-          const sourceEndPosition = items[items.length - 1].position;
+  const dropTargetResult = useDropTarget<AudioItem>({
+    acceptedTypes: ["file","macro"],
+    onItemsDropped: async (items, context) => {
+      if (!isDropTarget) return;
+      
+      const { index, mode } = context;
 
-          // Check if the drop index is within the source range
-          if ( sourceStartPosition! <= index! && index! <= sourceEndPosition! + 1
-          ) {
-            setTargetIndex(undefined);
-            return;
-          }
+      if (mode === "reorder" && onUpdateItemPosition && items.length > 0) {
+        const sourceStartPosition = items[0].position;
+        const sourceEndPosition = items[items.length - 1].position;
 
-          if (items.length > 1) {
-            // For multiple items, include source positions
-            await onUpdateItemPosition(
-              items[0].id,
-              index!,
-              sourceStartPosition,
-              sourceEndPosition
-            );
-          } else {
-            // Single file reordering
-            await onUpdateItemPosition(items[0].id, index!);
-          }
-        } else if (mode === "file-transfer" && onAddItems) {
-          // Handle file transfer
-          if (items.length > 0) {
-            onAddItems(items, index);
-          }
+        if (sourceStartPosition! <= index! && index! <= sourceEndPosition! + 1) {
           setTargetIndex(undefined);
+          return;
         }
-      },
-      calculateDropIndex,
-    });
-    dropAreaProps = dap;
-  }
 
-  useEffect(() => {  // Distant drop target in dropZone
+        if (items.length > 1) {
+          await onUpdateItemPosition(
+            items[0].id,
+            index!,
+            sourceStartPosition,
+            sourceEndPosition
+          );
+        } else {
+          await onUpdateItemPosition(items[0].id, index!);
+        }
+      } else if (mode === "file-transfer" && onAddItems) {
+        if (items.length > 0) {
+          onAddItems(items, index);
+        }
+        setTargetIndex(undefined);
+      }
+    },
+    calculateDropIndex,
+  });
+
+  let dropAreaProps = isDropTarget ? dropTargetResult.dropAreaProps : {};
+
+  const registrationOptions = useMemo(() => ({
+    calculateDropIndex: calculateDropIndex,
+  }), [calculateDropIndex]);
+
+  const registerHandler = useCallback(() => {
     if (isDropTarget && dropZoneId) {
-      registerDropHandler(dropZoneId, acceptedDropTypes, handleDrop, {
-        calculateDropIndex: calculateDropIndex,
-      });
-
-      return () => {
-        unregisterDropHandler(dropZoneId);
-      };
+      registerDropHandler(dropZoneId, acceptedDropTypes, handleDrop, registrationOptions);
     }
-  }, [isDropTarget, dropZoneId, acceptedDropTypes]);
+  }, [isDropTarget, dropZoneId, acceptedDropTypes, registerDropHandler, handleDrop, registrationOptions]);
 
-  // Return necessary handlers and state
+  const unregisterHandler = useCallback(() => {
+    if (isDropTarget && dropZoneId) {
+      unregisterDropHandler(dropZoneId);
+    }
+  }, [isDropTarget, dropZoneId, unregisterDropHandler]);
+
+  useEffect(() => {
+    registerHandler();
+    return unregisterHandler;
+  }, [registerHandler, unregisterHandler]);
+
   return {
     targetIndex,
     handleDragStart,
     handleDragEnd,
     isInsertionPoint: (index: number) => targetIndex === index,
     dropAreaProps,
-    
-    // Rename to dragItemProps for consistency with dropAreaProps
     dragItemProps: (item: AudioItem, className = '') => ({
       className: `${className} ${selectedItemIds.includes(item.id) ? 'selected' : ''}`,
       draggable: !item.isCreateButton && isDragSource,

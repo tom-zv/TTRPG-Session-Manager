@@ -92,12 +92,13 @@ CREATE TABLE
 
 CREATE TABLE
   IF NOT EXISTS sfx_macro_files (
-    macro_id INT NOT NULL,
+    collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
+    tag VARCHAR(64) NOT NULL,
     delay INT DEFAULT 0,
     volume FLOAT DEFAULT 1.0,
-    CONSTRAINT pk_sfx_macro_files PRIMARY KEY (macro_id, audio_file_id),
-    CONSTRAINT fk_sfx_macro_files_macro_id FOREIGN KEY (macro_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE,
+    CONSTRAINT pk_sfx_macro_files PRIMARY KEY (collection_id, audio_file_id),
+    CONSTRAINT fk_sfx_macro_files_macro_id FOREIGN KEY (collection_id) REFERENCES sfx_macros (macro_id) ON DELETE CASCADE,
     CONSTRAINT fk_sfx_macro_files_audio_file_id FOREIGN KEY (audio_file_id) REFERENCES audio_files (audio_file_id) ON DELETE CASCADE
   );
 
@@ -114,6 +115,7 @@ CREATE TABLE
   collection_files (
     collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
+    active BOOLEAN DEFAULT TRUE,
     position INT NOT NULL,
     volume FLOAT DEFAULT 1,  
     PRIMARY KEY (collection_id, audio_file_id),

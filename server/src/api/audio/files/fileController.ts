@@ -1,7 +1,7 @@
 import fileService from "./fileService.js";
 import { Request, Response } from 'express';
 import { scanAudioFiles } from "../../../utils/file-scanner.js";
-import { transformAudioItem } from "../../../utils/format-transformers.js";
+import { transformAudioFile } from "../../../utils/format-transformers.js";
 import fs from 'fs';
 
 // Get all audio files
@@ -10,7 +10,7 @@ export const getAllAudioFiles = async (_req: Request, res: Response) => {
     const dbAudioFiles = await fileService.getAllAudioFiles();
     
     // Transform each DB record to match the frontend format
-    const audioFiles = dbAudioFiles.map(file => transformAudioItem(file));
+    const audioFiles = dbAudioFiles.map(file => transformAudioFile(file));
     
     res.status(200).json(audioFiles);
   } catch (error) {
@@ -33,7 +33,7 @@ export const getAudioFileById = async (req: Request, res: Response) => {
     }
 
     // Transform to frontend format
-    const transformedFile = transformAudioItem(audioFiles[0]);
+    const transformedFile = transformAudioFile(audioFiles[0]);
     
     res.status(200).json(transformedFile);
   } catch (error) {

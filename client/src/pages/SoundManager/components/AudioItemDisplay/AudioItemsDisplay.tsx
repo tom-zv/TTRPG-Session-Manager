@@ -2,19 +2,28 @@ import React from "react";
 import { AudioItemDisplayProps } from './types.js';
 import GridView from './components/GridView.js';
 import ListView from './components/ListView.js';
+import MacroEditView from './components/MacroEditView.js'; // New import
 import ViewToggle from './components/ViewToggle.js';
 import StatusMessages from './components/StatusMessages.js';
 import { useAudioItems } from './hooks/useAudioItems.js';
-import "./AudioItemDisplay.css";
+import { isAudioFile } from '../../types/AudioItem.js';
+import "./AudioItemsDisplay.css";
 
-export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
+/* AudioItemDisplay Component
+ * This component is responsible for displaying a list of audio items in either a grid or list view.
+ ******************************************************************************************************/
+
+export const AudioItemsDisplay: React.FC<AudioItemDisplayProps> = ({
   items,
-  itemType,
+  collectionType,
   isLoading = false,
+  isSelectable = true,
   error = null,
-  view = "list",
-  showToggle = false,
+  view = "grid",
+  showHeaders = true,
+  showToggle = true,
   showActions = false,
+  showPlayButton = false,
   onItemClick,
   onPlayItem,
   onAddItems,
@@ -22,7 +31,8 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
   onRemoveItems,
   onUpdateItemPosition,
   renderSpecialItem,
-  isDragSource = false,        
+  isDragSource = false,
+  isReorderable = true,        
   isDropTarget = false,       
   dropZoneId,                 
   acceptedDropTypes = [], 
@@ -46,26 +56,30 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
   const viewProps = {
     // Data props
     items,
-    itemType,
+    collectionType,
     // UI state props
     selectedItemIds,
     showActions,
-    showPlayButton: false, // Default for GridView
+    showPlayButton,
+    showHeaders, 
     // Action handlers
     onPlayItem,
-    onEditItem,
     onAddItems,
     onRemoveItems: handleRemoveItems,
-    onItemSelect: handleItemSelection,
+    onItemSelect: isSelectable ? handleItemSelection : undefined,
     onUpdateItemPosition,
     // Render customization
     renderSpecialItem,
     // Drag and drop props
     isDragSource,
+    isReorderable,
     isDropTarget,
     dropZoneId,
     acceptedDropTypes,
   };
+
+  // Filter items to only include AudioFiles for MacroEditView
+  const audioFileItems = items.filter(isAudioFile);
 
   return (
     <div className="audio-item-display">
@@ -75,19 +89,25 @@ export const AudioItemDisplay: React.FC<AudioItemDisplayProps> = ({
           setViewMode={setViewMode}
           showToggle={showToggle}
         />
+
         {selectedItemIds.length > 0 && (
           <div className="selection-info">
-            {selectedItemIds.length} item{selectedItemIds.length !== 1 ? 's' : ''} selected
+            {selectedItemIds.length} item
+            {selectedItemIds.length !== 1 ? "s" : ""} selected
           </div>
         )}
       </div>
 
-      {viewMode === "grid" 
-        ? <GridView {...viewProps} /> 
-        : <ListView {...viewProps} />
-      }
+      {/* Choose the view based on mode and item type */}
+      {viewMode === "grid" ? (
+        <GridView {...viewProps} />
+      ) : collectionType === "macro" ? (
+        <MacroEditView {...viewProps} collectionType="macro" items={audioFileItems} onEditItem={onEditItem} />
+      ) : (
+        <ListView {...viewProps} />
+      )}
     </div>
   );
 };
 
-export default AudioItemDisplay;
+export default AudioItemsDisplay;

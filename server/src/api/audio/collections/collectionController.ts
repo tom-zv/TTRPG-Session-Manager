@@ -1,19 +1,22 @@
 import { Request, Response } from 'express';
 import collectionService from './collectionService.js';
 import fileService from '../files/fileService.js';
-import { transformAudioItem, transformCollection, transformMacro } from 'src/utils/format-transformers.js';
+import { transformAudioFile, transformCollection, transformMacro } from 'src/utils/format-transformers.js';
 
+const collectionTypes = ['playlist', 'sfx', 'ambience', 'macro'];
 
 export const getAllCollections = async (req: Request, res: Response) => {
   const type = req.params.type;
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
   try {
     const response = await collectionService.getAllCollections(type);
+
+    //console.log('Controller: getAllCollections response:', response);
 
     if (response.success) {
       response.data = response.data ? response.data.map(transformCollection) : [];
@@ -27,6 +30,22 @@ export const getAllCollections = async (req: Request, res: Response) => {
   }
 };
 
+export const getAllCollectionsAllTypes = async (_req: Request, res: Response) => {
+  try {
+    const response = await collectionService.getAllCollectionsAllTypes();
+
+    if (response.success) {
+      response.data = response.data ? response.data.map(transformCollection) : [];
+      res.status(200).json(response.data);
+    } else {
+      res.status(500).json({ error: response.error });
+    }
+  } catch (error) {
+    console.error('Error getting all collections:', error);
+    res.status(500).json({ error: 'Failed to retrieve collections' });
+  }
+};
+
 export const getCollectionById = async (req: Request, res: Response) => {
   const type = req.params.type;
   const id = parseInt(req.params.id);
@@ -34,7 +53,7 @@ export const getCollectionById = async (req: Request, res: Response) => {
   //console.log(`controller: Getting ${type} collection with ID: ${id}`);
 
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -52,15 +71,17 @@ export const getCollectionById = async (req: Request, res: Response) => {
       if (response.success) {
         // For regular collections, just transform files
         if (type !== 'sfx') {
-          response.data.items = response.data.files.map(transformAudioItem);
+          response.data.items = response.data.files.map(transformAudioFile);
         } 
         // For SFX collections, combine files and macros into a unified items array
         else {
-          const fileItems = response.data.files.map(transformAudioItem);
+          const fileItems = response.data.files.map(transformAudioFile);
           const macroItems = response.data.macros.map(transformMacro);
           
           // Combine and sort by position
           response.data.items = [...fileItems, ...macroItems].sort((a, b) => a.position - b.position);
+          
+          //console.log("controller: SFX collection items:", response.data.items);
         }
         // Remove the separate arrays since we now have a unified items array
         delete response.data.files;
@@ -70,7 +91,7 @@ export const getCollectionById = async (req: Request, res: Response) => {
       response = await collectionService.getCollectionById(type, id);
     }
     
-    console.log(response.data);
+    //console.log("Controller: getCollectionById for type: ", type, " response.data: ", response.data);
 
     if (response.success) {
       res.status(200).json(response.data);
@@ -90,7 +111,7 @@ export const createCollection = async (req: Request, res: Response) => {
   const { name, description } = req.body;
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -121,7 +142,7 @@ export const updateCollection = async (req: Request, res: Response) => {
   const { name, description } = req.body;
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -157,7 +178,7 @@ export const deleteCollection = async (req: Request, res: Response) => {
   const id = parseInt(req.params.id);
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -188,10 +209,10 @@ export const deleteCollection = async (req: Request, res: Response) => {
 export const addFileToCollection = async (req: Request, res: Response) => {
   const type = req.params.type;
   const collectionId = parseInt(req.params.id);
-  const { audioFileId, position } = req.body;
+  const { audioFileId, position, delay } = req.body;
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -212,7 +233,7 @@ export const addFileToCollection = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Audio file not found' });
     }
     
-    const response = await collectionService.addFileToCollection(type, collectionId, audioFileId, position);
+    const response = await collectionService.addFileToCollection(type, collectionId, audioFileId, position, delay);
     
     if (response.success) {
       res.status(201).json({ message: `Audio file added to ${type} collection` });
@@ -231,7 +252,7 @@ export const addFilesToCollection = async (req: Request, res: Response) => {
   const { audioFileIds, startPosition } = req.body;
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -270,7 +291,7 @@ export const removeFileFromCollection = async (req: Request, res: Response) => {
   const audioFileId = parseInt(req.params.fileId);
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -301,7 +322,7 @@ export const updateCollectionFilePosition = async (req: Request, res: Response) 
   const { targetPosition } = req.body;
 
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -333,7 +354,7 @@ export const updateFileRangePosition = async (req: Request, res: Response) => {
   const { sourceStartPosition, sourceEndPosition, targetPosition } = req.body;
   
   // Validate collection type
-  if (!['playlist', 'sfx', 'ambience'].includes(type)) {
+  if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
@@ -371,11 +392,127 @@ export const updateFileRangePosition = async (req: Request, res: Response) => {
   }
 };
 
+export const updateItem = async (req: Request, res: Response) => {
+  const type = req.params.type;
+  const collectionId = parseInt(req.params.id);
+  const audioFileId = parseInt(req.params.fileId);
+  
+  // Extract different parameters based on collection type
+  const { delay, volume, name, file_url, file_path, folder_id } = req.body;
+  
+  if (isNaN(collectionId) || isNaN(audioFileId)) {
+    return res.status(400).json({ error: 'Invalid parameters' });
+  }
+  
+  try {
+    // Build the params object based on collection type and provided fields
+    const params: any = {};
+    
+    if (type === 'macro') {
+      // For macro type, only include delay and volume
+      if (delay !== undefined) params.delay = delay;
+      if (volume !== undefined) params.volume = volume;
+    } else {
+      // For other types, include audio file properties
+      if (name !== undefined) params.name = name;
+      if (file_url !== undefined) params.file_url = file_url;
+      if (file_path !== undefined) params.file_path = file_path;
+      if (folder_id !== undefined) params.folder_id = folder_id;
+    }
+    
+    // Check if any parameters were provided
+    if (Object.keys(params).length === 0) {
+      return res.status(400).json({ error: 'No update parameters provided' });
+    }
+    
+    const response = await collectionService.updateItem(
+      type, collectionId, audioFileId, params
+    );
+    
+    if (response.success) {
+      res.status(200).json({ 
+        message: `File updated successfully in ${type} collection` 
+      });
+    } else if (response.notFound) {
+      res.status(404).json({ error: response.error });
+    } else {
+      res.status(400).json({ error: response.error });
+    }
+  } catch (error) {
+    console.error(`Error updating file in ${type} collection ${collectionId}:`, error);
+    res.status(500).json({ error: `Failed to update file in ${type} collection` });
+  }
+};
+
+export const addMacroToCollection = async (req: Request, res: Response) => {
+  const collectionId = parseInt(req.params.id);
+  const { macroId, position } = req.body;
+  
+  if (isNaN(collectionId) || !macroId) {
+    return res.status(400).json({ error: 'Invalid collection ID or macro ID' });
+  }
+  
+  try {
+    const response = await collectionService.addMacroToCollection(
+      collectionId,
+      macroId,
+      position !== undefined ? position : null
+    );
+    
+    if (response.success) {
+      res.status(201).json({ 
+        message: 'Macro added to SFX collection',
+        macro_id: macroId 
+      });
+    } else if (response.notFound) {
+      res.status(404).json({ error: response.error });
+    } else {
+      res.status(400).json({ error: response.error });
+    }
+  } catch (error) {
+    console.error(`Error adding macro to SFX collection ${collectionId}:`, error);
+    res.status(500).json({ error: 'Failed to add macro to SFX collection' });
+  }
+};
+
+export const addMacrosToCollection = async (req: Request, res: Response) => {
+  const collectionId = parseInt(req.params.id);
+  const { macroIds, startPosition } = req.body;
+  
+  if (isNaN(collectionId) || !Array.isArray(macroIds) || macroIds.length === 0) {
+    return res.status(400).json({ error: 'Invalid collection ID or macro IDs' });
+  }
+  
+  try {
+    const response = await collectionService.addMacrosToCollection(
+      collectionId,
+      macroIds,
+      startPosition !== undefined ? startPosition : null
+    );
+    
+    if (response.success) {
+      res.status(201).json({ 
+        message: `Added ${macroIds.length} macros to SFX collection` 
+      });
+    } else if (response.notFound) {
+      res.status(404).json({ error: response.error });
+    } else {
+      res.status(400).json({ error: response.error });
+    }
+  } catch (error) {
+    console.error(`Error adding macros to SFX collection ${collectionId}:`, error);
+    res.status(500).json({ error: 'Failed to add macros to SFX collection' });
+  }
+};
+
 /* Pack endpoints
  ******************/
 export const getAllPacks = async (_req: Request, res: Response) => {
   try {
     const response = await collectionService.getAllPacks();
+
+    ///console.log('Controller: getAllPacks response:', response);
+
     if (response.success) {
       res.status(200).json(response.data);
     } else {
@@ -486,6 +623,7 @@ export const getPackCollections = async (req: Request, res: Response) => {
 
 export default {
   getAllCollections,
+  getAllCollectionsAllTypes,
   getCollectionById,
   createCollection,
   updateCollection,
@@ -495,6 +633,9 @@ export default {
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,
+  updateItem,
+  addMacroToCollection,
+  addMacrosToCollection,
   getAllPacks,
   createPack,
   deletePack,

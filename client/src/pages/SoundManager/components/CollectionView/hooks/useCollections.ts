@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { AudioItem, CollectionType } from "../types.js";
+import { AudioItem, AudioCollection, CollectionType } from "../types.js";
 
 interface UseCollectionsProps {
   // Display metadata
@@ -7,7 +7,7 @@ interface UseCollectionsProps {
   collectionType: CollectionType;
 
   // Data fetching
-  fetchCollections: () => Promise<AudioItem[]>;
+  fetchCollections: () => Promise<AudioCollection[]>;
   fetchCollectionItems?: (collectionId: number) => Promise<AudioItem[]>;
 
   // Collection operations
@@ -21,6 +21,11 @@ interface UseCollectionsProps {
     position?: number
   ) => Promise<boolean>;
   onRemoveItems?: (collectionId: number, itemIds: number[]) => Promise<boolean>; // Standardize to arrays only
+  onEditItem?: (
+    collectionId: number,
+    itemId: number,
+    params: any
+  ) => Promise<boolean>;
   onUpdateItemPosition?: (
     collectionId: number,
     itemId: number,
@@ -38,13 +43,14 @@ export const useCollections = ({
   onCreateCollection,
   onDeleteCollection,
   onAddItems,
+  onEditItem,
   onRemoveItems,
   onUpdateItemPosition,
 }: UseCollectionsProps) => {
   // Collections data
-  const [collections, setCollections] = useState<AudioItem[]>([]);
+  const [collections, setCollections] = useState<AudioCollection[]>([]);
   const [selectedCollection, setSelectedCollection] =
-    useState<AudioItem | null>(null);
+    useState<AudioCollection | null>(null);
   const [collectionItems, setCollectionItems] = useState<AudioItem[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "detail">("grid");
 
@@ -99,11 +105,11 @@ export const useCollections = ({
 
   // Handle collection selection
   const handleSelectCollection = useCallback(
-    async (collection: AudioItem) => {
+    async (collection: AudioCollection| null) => {
       setSelectedCollection(collection);
       setViewMode("detail");
 
-      if (fetchCollectionItems) {
+      if (fetchCollectionItems && collection) {
         await loadCollectionItems(collection.id);
       }
     },
@@ -115,7 +121,7 @@ export const useCollections = ({
     if (!onCreateCollection || !newItemName) return;
 
     // Create optimistic collection
-    const optimisticCollection: AudioItem = {
+    const optimisticCollection: AudioCollection = {
       id: -Date.now(), // Temporary negative ID to avoid conflicts
       name: newItemName,
       description: newItemDescription || undefined,
@@ -216,7 +222,9 @@ export const useCollections = ({
     ]
   );
 
-  // Handle adding items to the collection (supports both single and batch operations)
+  /* Collection item handlers
+  ******************************/
+
   const handleAddItems = useCallback(
     async (audioItems: AudioItem | AudioItem[], position?: number) => {
       if (!onAddItems || !selectedCollection) return;
@@ -275,11 +283,46 @@ export const useCollections = ({
     },
     [onAddItems, selectedCollection, collectionItems, collectionType]
   );
+  
+  const handleEditItem = useCallback(
+    async (itemId: number, params: any) => {
+      if (!onEditItem || !selectedCollection) return;
+
+      // Find the item to edit
+      const itemToEdit = collectionItems.find((item) => item.id === itemId);
+      if (!itemToEdit) return;
+
+      // Optimistically update the item
+      const updatedItems = collectionItems.map((item) =>
+        item.id === itemId ? { ...item, ...params } : item
+      );
+      
+      setCollectionItems(updatedItems);
+
+      try {
+        // Make the API call to update the item
+        await onEditItem(selectedCollection.id, itemId, params);
+      } catch (err) {
+        console.error("Error editing item:", err);
+        // Restore the original item on error
+        setCollectionItems(collectionItems);
+        setError(
+          `Failed to edit item in ${collectionType}. Please try again.`
+        );
+      }
+    },
+    [onEditItem, selectedCollection, collectionItems, collectionType]
+  );
+
 
   // Handle removing items from the collection (supports both single and batch operations)
   const handleRemoveItems = useCallback(
     async (itemIds: number | number[]) => {
+      console.log("onRemoveItems", !!onRemoveItems);
+      console.log("selectedCollection", !!selectedCollection);
       if (!onRemoveItems || !selectedCollection) return;
+
+      console.log("Removing items:", itemIds);
 
       // Convert single ID to array if needed
       const idsArray = Array.isArray(itemIds) ? itemIds : [itemIds];
@@ -460,14 +503,6 @@ export const useCollections = ({
     setViewMode("grid");
   }, []);
 
-  // Convert collections to AudioItem format for AudioItemList component
-  const collectionsAsAudioItems = collections.map((collection) => ({
-    id: collection.id,
-    name: collection.name,
-    type: collection.type,
-    itemCount: collection.itemCount || 0,
-  }));
-
   return {
     // State
     collections,
@@ -479,7 +514,6 @@ export const useCollections = ({
     isCreateDialogOpen,
     newItemName,
     newItemDescription,
-    collectionsAsAudioItems,
 
     // Setters
     setIsCreateDialogOpen,
@@ -493,6 +527,7 @@ export const useCollections = ({
     handleCreateCollection,
     handleDeleteCollection,
     handleAddItems,
+    handleEditItem,
     handleRemoveItems,
     handleBackToCollections,
     handleUpdateItemPositions,

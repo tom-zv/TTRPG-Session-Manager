@@ -1,0 +1,25 @@
+.drop-target {
+  outline: 2px dashed var(--accent-primary);
+  background-color: rgba(53, 114, 227, 0.05);
+  position: relative;
+}
+
+.drop-target::after {
+  content: "Drop to add to collection";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--bg-secondary);
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-weight: bold;
+  color: var(--accent-primary);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.drop-target[data-count]::after {
+  content: "Drop to add " attr(data-count) " file(s) to collection";
+}

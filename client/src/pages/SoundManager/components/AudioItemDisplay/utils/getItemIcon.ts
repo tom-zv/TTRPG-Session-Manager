@@ -5,10 +5,10 @@ export function getItemIcon(item: AudioItem): string {
     case 'file':
       return item.fileType === 'music' ? '🎵' : 
              item.fileType === 'sfx' ? '🔊' : '🔈';
-    case 'playlist': return '';
-    case 'sfx': return '';
-    case 'ambience': return '';
+    case 'playlist': return '🎧';
+    case 'sfx': return '🔊';
+    case 'ambience': return '🍃';
     case 'pack': return '📦';
-    default: return '📄';
+    default: return '';
   }
 }

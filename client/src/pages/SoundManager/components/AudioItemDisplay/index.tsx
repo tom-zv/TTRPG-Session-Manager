@@ -1,3 +1,3 @@
-import { AudioItemDisplay } from './AudioItemDisplay.js';
+import { AudioItemsDisplay } from './AudioItemsDisplay.js';
 export * from './types.js';
-export default AudioItemDisplay;
+export default AudioItemsDisplay;

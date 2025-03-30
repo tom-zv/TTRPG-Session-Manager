@@ -1,0 +1,173 @@
+.audio-item-display-header {
+  display: none;
+}
+
+.playlist-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  /* background-color: var(--bg-tertiary); */
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+}
+
+.panel-header h3 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.2rem;
+  font-weight: 600;
+  flex-grow: 1;
+}
+
+.back-button {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 1rem;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: var(--bg-secondary);
+  transform: translateY(-1px);
+}
+
+.play-all-button {
+  background-color: var(--accent-primary);
+  color: var(--text-primary);
+  border: none;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  margin-left: 1rem;
+}
+
+.play-all-button:hover {
+  background-color: var(--accent-secondary);
+  transform: scale(1.05);
+}
+
+/* Hide AudioItemDisplay header when in the playlists panel */
+.playlist-panel .audio-item-display thead {
+  display: none;
+}
+
+/* Make sure the audio items fill the available space */
+.playlist-panel .audio-item-display {
+  flex: 1;
+}
+
+/* Custom styling for playlist rows */
+.playlist-panel .audio-item-row {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.playlist-panel .audio-item-row:hover {
+  background-color: rgba(53, 114, 227, 0.08);
+}
+
+/* Style for the play button in playlist list */
+/* .playlist-panel .item-actions .play-button {
+  opacity: 0.5;
+  transition: all 0.2s ease;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  margin-right: 0.5rem;
+} */
+
+.playlist-panel .audio-item-row:hover .item-actions .play-button {
+  opacity: 1;
+}
+
+/* Position/Play button hover effect for playlist items */
+.playlist-panel [data-item-id] td:first-child {
+  position: relative;
+}
+
+.playlist-panel .audio-item-row:not(.playlist) td:nth-child(1) {
+  width: 40px;
+  text-align: center;
+}
+
+.playlist-panel .audio-item-row:not(.playlist) .position-number {
+  transition: opacity 0.2s ease;
+  opacity: 1;
+}
+
+.playlist-panel .audio-item-row:not(.playlist):hover .position-number {
+  opacity: 0;
+}
+
+/* .playlist-panel .audio-item-row:not(.playlist) .hover-play-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+} */
+
+/* .playlist-panel .audio-item-row:not(.playlist):hover .hover-play-button {
+  opacity: 1;
+} */
+
+/* Adjust table styling specifically for the playlist panel */
+.playlist-panel .audio-item-table {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.playlist-panel .audio-item-table td {
+  padding: 0.6rem 0.8rem;
+}
+
+.playlist-panel .audio-item-table th {
+  padding: 0.6rem 0.8rem;
+  background-color: rgba(53, 114, 227, 0.05);
+  color: var(--text-secondary);
+}
+
+/* Custom animation for active playlist item */
+.playlist-panel .audio-item-row.playing {
+  background-color: rgba(53, 114, 227, 0.2);
+  position: relative;
+}
+
+.playlist-panel .audio-item-row.playing::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3px;
+  background-color: var(--accent-primary);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.6; }
+  50% { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+

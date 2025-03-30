@@ -1,24 +1,18 @@
 import React from 'react';
 import { AudioItem, CollectionType } from '../types.js';
-import { AudioItemDisplay } from '../../AudioItemDisplay/AudioItemDisplay.js';
+import { DragDropProps } from 'src/types/dragDropProps.js';
+import { AudioItemsDisplay } from '../../AudioItemDisplay/AudioItemsDisplay.js';
 import { DROP_ZONES } from 'src/components/DropTargetContext/dropZones.js';
-
-// Create a shared interface for drag-drop props that can be reused
-interface DragDropProps {
-  isDragSource?: boolean;
-  isDropTarget?: boolean;
-}
+import './CollectionsGrid.css';
 
 interface CollectionsGridProps extends DragDropProps {
   // Data props
   collectionName: string;
   collectionType: CollectionType;
   collections: AudioItem[];
-  
   // UI state props
   isLoading: boolean;
   error: string | null;
-  
   // Action handlers
   onCreateCollection?: (name: string, description?: string) => Promise<number>;
   onItemClick: (itemId: number) => void;
@@ -30,16 +24,13 @@ const CollectionsGrid: React.FC<CollectionsGridProps> = ({
   collectionName,
   collectionType,
   collections,
-  
   // UI state props
   isLoading,
   error,
-  
   // Action handlers
   onCreateCollection,
   onItemClick,
   onDeleteClick,
-  
   // Drag drop props
   isDragSource,
   isDropTarget = false 
@@ -60,9 +51,9 @@ const CollectionsGrid: React.FC<CollectionsGridProps> = ({
 
   return (
     <div className="collections-grid-view">
-      <AudioItemDisplay
+      <AudioItemsDisplay
         items={displayItems}
-        itemType={collectionType}
+        collectionType={collectionType}
         isLoading={isLoading}
         error={error}
         view="grid"
@@ -70,15 +61,7 @@ const CollectionsGrid: React.FC<CollectionsGridProps> = ({
         showActions={true}
         name={collectionName}
         onItemClick={onItemClick}
-        onRemoveItems={(itemIds) => {
-          // Filter out the create button and pass the array directly
-          const validIds = Array.isArray(itemIds) ? itemIds.filter(id => id !== -1) : 
-                          (itemIds !== -1 ? [itemIds] : []);
-          
-          if (validIds.length > 0) {
-            onDeleteClick(validIds);
-          }
-        }}
+        onRemoveItems={onDeleteClick}
         renderSpecialItem={(item) => 
           item.isCreateButton && (
             <div className="create-collection-content">

@@ -1,12 +1,12 @@
-import type { AudioItem } from "../../types/index.js";
+import type { AudioItem, CollectionType } from "../../types/index.js";
 import type { DragDropProps } from "src/types/index.js";
-export type { AudioItem };
+export * from "../../types/index.js";
 
 export interface AudioItemActions {
   // Selection and navigation actions
   onItemClick?: (itemId: number) => void;
   onPlayItem?: (itemId: number) => void;
-  onEditItem?: (itemId: number) => void;
+  onEditItem?: (itemId: number, params: any) => void;
   
   // Collection modification actions
   onAddItems?: (items: AudioItem[], position?: number) => void;
@@ -22,13 +22,15 @@ export interface AudioItemActions {
 export interface AudioItemDisplayProps extends AudioItemActions, DragDropProps {
   // Data props
   items: AudioItem[];
-  itemType: string;
+  collectionType: CollectionType | "macro";
   name?: string;
   
   // UI state props
   isLoading?: boolean;
+  isSelectable?: boolean;
   error?: string | null;
   view?: "grid" | "list";
+  showHeaders?: boolean;
   showToggle?: boolean;
   showActions?: boolean | null;
   showPlayButton?: boolean;

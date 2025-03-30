@@ -1,27 +1,28 @@
-import type { AudioItem } from "../../types/index.js";
+import type { AudioCollection, AudioItem } from "../../types/index.js";
 import type { DragDropProps } from "src/types/index.js";
-export type { AudioItem };
+export * from "../../types/index.js";
 
-export type CollectionType = 'playlist' | 'sfx' | 'ambience' | 'pack';
+export type CollectionType = 'playlist' | 'sfx' | 'ambience' | 'pack' | 'macro';
 
-// Props for the CollectionEditView component
-export interface CollectionEditViewProps extends DragDropProps {
+// Props for the CollectionView component
+export interface CollectionViewProps extends DragDropProps {
   // Display metadata
   collectionName: string;
   collectionType: CollectionType;
 
   // Data fetching
-  fetchCollections: () => Promise<AudioItem[]>;
+  fetchCollections: () => Promise<AudioCollection[]>;
   fetchCollectionItems?: (collectionId: number) => Promise<AudioItem[]>;
   fetchAvailableItems?: (collectionId?: number) => Promise<AudioItem[]>;
 
   // Collection operations
   onCreateCollection?: (name: string, description?: string) => Promise<number>;
-  onUpdateCollection?: (collection: AudioItem) => Promise<boolean>;
+  onUpdateCollection?: (collection: AudioCollection) => Promise<boolean>;
   onDeleteCollection?: (collectionId: number) => Promise<boolean>;
 
   // Item operations
   onAddItems?: (collectionId: number, itemIds: number[], position?: number) => Promise<boolean>;
+  onEditItem?: (collectionId: number, itemId: number, params: any) => Promise<boolean>;
   onRemoveItems?: (collectionId: number, itemIds: number[]) => Promise<boolean>;
   onUpdateItemPosition?: (
     collectionId: number,
@@ -30,5 +31,9 @@ export interface CollectionEditViewProps extends DragDropProps {
     sourceStartPosition?: number,
     sourceEndPosition?: number,
   ) => Promise<boolean>;
+
+  // UI state
+  itemDisplayView?: 'list' | 'grid';
+  isEditing?: boolean;
 }
 

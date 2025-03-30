@@ -1,6 +1,6 @@
 export interface DragDropProps {
   isDragSource?: boolean;
-  isReordering?: boolean;
+  isReorderable?: boolean;
   isDropTarget?: boolean;
   dropZoneId?: string | null;
   acceptedDropTypes?: string[];

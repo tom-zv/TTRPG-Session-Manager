@@ -1,46 +1,45 @@
 import React, { useRef } from "react";
 import { AudioItem, AudioItemActions } from "../index.js";
-import { ItemActions, PlayItem } from "./ItemActions.js";
+import ItemActions  from "./ItemActions.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
 import { useItemDragDrop } from '../hooks/useItemDragDrop.js';
 import { calculateTableDropIndex } from "src/utils/tableDropUtils.js";
+import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
+import { isAudioFile, isAudioMacro,} from "../../../types/AudioItem.js";
+import { getItemIcon } from '../utils/getItemIcon.js';
+import './ListView.css';
 
 interface ListViewProps extends AudioItemActions, DragDropProps {
   // Data props
   items: AudioItem[];
-  itemType: string;
-  
+  collectionType: string;
   // UI state props
   selectedItemIds?: number[];
   showPlayButton?: boolean;
   showActions?: boolean | null;
-  
+  showHeaders?: boolean;
   // Event handlers
   onItemSelect?: (e: React.MouseEvent, itemId: number) => void;
-  
-  // Render customization
-  renderSpecialItem?: (item: AudioItem) => React.ReactNode;
 }
 
 export const ListView: React.FC<ListViewProps> = ({
   items,
-  itemType,
+  collectionType,
   selectedItemIds = [],
-  showPlayButton = false,
   showActions = false,
+  showHeaders = true,
+  onItemSelect,
   onPlayItem,
   onEditItem,
   onAddItems,
   onRemoveItems,
-  renderSpecialItem,
-  onItemSelect,
   onUpdateItemPosition,
   // drag and drop control props
   isDragSource = false,
+  isReorderable = true,
   isDropTarget = false,
+  acceptedDropTypes = [],
 }) => {
-  const regularItems = items.filter((item) => !item.isCreateButton);
-  const createButtonItem = items.find((item) => item.isCreateButton);
   const tableRef = useRef<HTMLTableElement | null>(null);
 
   const { 
@@ -48,12 +47,14 @@ export const ListView: React.FC<ListViewProps> = ({
     dragItemProps,
     isInsertionPoint,
   } = useItemDragDrop({
-    items: regularItems,
+    items: items,
     selectedItemIds,
-    contentType: itemType,
+    contentType: 'file',
     isDragSource,
-    isReordering: true, // ListView supports reordering
+    isReorderable, 
     isDropTarget,
+    dropZoneId: DROP_ZONES.SOUND_MANAGER_CONTENT,
+    acceptedDropTypes,
     containerRef: tableRef, 
     onAddItems,
     onUpdateItemPosition,
@@ -62,32 +63,65 @@ export const ListView: React.FC<ListViewProps> = ({
 
   let columns:string[] = [];
   
-  switch(itemType){
+  switch(collectionType){
     case "pack":
-      columns = ["name", "actions"];
+      columns = ["icon", "name", "type"];
+      break;
+    case "playlist":
+      columns = ["position", "name", "duration", "actions"];
+      break;
+    case "macro":
+      columns = ["-" ,"name"];
       break;
     default:
-      columns = ["id", "name", "duration", "actions"];
+      columns = ["position", "name", "duration", "actions"];
   }
 
   // Calculate the total number of columns for colSpan
-  const columnCount = columns.length + (showPlayButton ? 1 : 0);
+  const columnCount = columns.length ;
 
   // Helper function to render a cell based on column type
   const renderCell = (column: string, item: AudioItem) => {
     switch(column) {
       case "id":
-        return <td key={column}>{item.position}</td>;
+        return <td key={column}>{item.id}</td>;
+      case "icon":
+        return <td key={column} className="icon-cell">{getItemIcon(item)}</td>;
+      case "position":
+        return (
+          <td key={column}>
+            <div className="position-cell">
+              <span className="position-number">{item.position! + 1}</span>
+              {onPlayItem && (
+                <button
+                  className="position-play-button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (onPlayItem) onPlayItem(item.id);
+                  }}
+                  aria-label="Play"
+                >
+                  ▶
+                </button>
+              )}
+            </div>
+          </td>
+        );
       case "name":
         return (
           <td key={column}>
-            <div className="item-name-cell">{item.name}</div>
+            <div className="item-name-cell">
+              {item.name}
+              {collectionType !== "macro" && item.type === "macro" && (
+                <span className="macro-indicator">Macro</span>
+              )}
+            </div>
           </td>
         );
       case "duration":
         return (
           <td key={column}>
-            {item.duration &&
+            {(isAudioFile(item) || isAudioMacro(item)) && item.duration &&
               new Date(item.duration * 1000)
                 .toISOString()
                 .slice(11, 19)
@@ -114,13 +148,13 @@ export const ListView: React.FC<ListViewProps> = ({
   };
 
   return (
-    <div {...dropAreaProps}>
+    <div {...dropAreaProps} className={collectionType === "macro" ? "macro-list-view" : ""}>
       <table ref={tableRef} className="audio-item-table">
         <thead>
           <tr>
-            {showPlayButton && <th aria-label="Play"></th>}
-            {columns.map(column => {
-              if (column === "id") return <th key={column}>#</th>;
+            {/* {showPlayButton && <th aria-label="Play"></th>} */}
+            {showHeaders && columns.map(column => {
+              if (column === "position") return <th key={column}>#</th>;
               if (column === "actions" && !showActions) return null;
               if (column === "actions") return <th key={column} className="actions-column">Actions</th>;
               return <th key={column}>{column.charAt(0).toUpperCase() + column.slice(1)}</th>;
@@ -135,8 +169,8 @@ export const ListView: React.FC<ListViewProps> = ({
             </tr>
           )}
 
-          {regularItems.map((item, index) => (
-            <React.Fragment key={item.id}>
+          {items.map((item, index) => (
+            <React.Fragment key={`${item.type}-${item.id}`}>
               <tr
                 {...(() => {
                   const dragProps = dragItemProps(item);
@@ -147,11 +181,11 @@ export const ListView: React.FC<ListViewProps> = ({
                 aria-selected={selectedItemIds.includes(item.id)}
                 data-item-id={item.id}
               >
-                {showPlayButton && (
+                {/* {showPlayButton && (
                   <td>
                     <PlayItem item={item} onPlayItem={onPlayItem} />
                   </td>
-                )}
+                )} */}
                 {columns.map(column => renderCell(column, item))}
               </tr>
 
@@ -165,17 +199,6 @@ export const ListView: React.FC<ListViewProps> = ({
           ))}
         </tbody>
       </table>
-
-      {createButtonItem && renderSpecialItem && (
-        <div
-          className="create-button-list-view"
-          onClick={(e) => onItemSelect ? onItemSelect(e, createButtonItem.id) : undefined}
-          role="button"
-          aria-label="Create new item"
-        >
-          {renderSpecialItem(createButtonItem)}
-        </div>
-      )}
     </div>
   );
 };

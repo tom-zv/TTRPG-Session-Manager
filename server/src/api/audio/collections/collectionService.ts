@@ -1,4 +1,5 @@
 import collectionModel from './collectionModel.js';
+import macroModel from '../macros/macroModel.js';
 import { pool } from "src/db.js";
 
 // Interface for standardized service responses
@@ -11,7 +12,12 @@ export interface ServiceResponse<T> {
 
 export async function getAllCollections(type: string): Promise<ServiceResponse<any[]>> {
   try {
-    const collections = await collectionModel.getAllCollections(type);
+    let collections;
+    if (type === 'macro') {
+      collections = await macroModel.getAllMacros();
+    } else {
+      collections = await collectionModel.getAllCollections(type);
+    }
     return { success: true, data: collections };
   } catch (error) {
     console.error(`Service error getting all ${type} collections:`, error);
@@ -19,9 +25,25 @@ export async function getAllCollections(type: string): Promise<ServiceResponse<a
   }
 }
 
+export async function getAllCollectionsAllTypes(): Promise<ServiceResponse<any[]>> {
+  try {
+    const collections = await collectionModel.getAllCollectionsAllTypes();
+    return { success: true, data: collections };
+  } catch (error) {
+    console.error('Service error getting all collections:', error);
+    return { success: false, error: 'Failed to retrieve collections' };
+  }
+}
+
 export async function getCollectionById(type: string, id: number): Promise<ServiceResponse<any>> {
   try {
-    const collections = await collectionModel.getCollectionById(type, id);
+    let collections;
+    if (type === 'macro') {
+      collections = await macroModel.getMacroById(id);
+    } else {
+      collections = await collectionModel.getCollectionById(type, id);
+    }
+    
     if (collections.length === 0) {
       return { success: false, notFound: true, error: `${type} collection not found` };
     }
@@ -39,14 +61,20 @@ export async function getCollectionWithFiles(type: string, id: number): Promise<
       return collectionResponse;
     }
     
-    const result = await collectionModel.getCollectionFiles(type, id);
+    let result;
+    if (type === 'macro') {
+      const files = await macroModel.getMacroFiles(id); 
+      result = { files, macros: [] };
+    } else {
+      result = await collectionModel.getCollectionFiles(type, id);
+    }
     
     return {
       success: true,
       data: {
         ...collectionResponse.data,
         files: result.files,
-        macros: result.macros
+        macros: result.macros || []
       }
     };
   } catch (error) {
@@ -61,7 +89,13 @@ export async function createCollection(type: string, name: string, description: 
       return { success: false, error: 'Collection name is required' };
     }
     
-    const insertId = await collectionModel.createCollection(type, name, description);
+    let insertId;
+    if (type === 'macro') {
+      insertId = await macroModel.createMacro(name, description);
+    } else {
+      insertId = await collectionModel.createCollection(type, name, description);
+    }
+    
     if (!insertId) {
       return { success: false, error: `Failed to create ${type} collection` };
     }
@@ -94,7 +128,13 @@ export async function updateCollection(
       return collectionResponse;
     }
     
-    const affectedRows = await collectionModel.updateCollection(type, id, name, description);
+    let affectedRows;
+    if (type === 'macro') {
+      affectedRows = await macroModel.updateMacro(id, name, description);
+    } else {
+      affectedRows = await collectionModel.updateCollection(type, id, name, description);
+    }
+    
     if (!affectedRows) {
       return { success: false, error: `Failed to update ${type} collection` };
     }
@@ -114,7 +154,13 @@ export async function deleteCollection(type: string, id: number): Promise<Servic
       return collectionResponse;
     }
     
-    const affectedRows = await collectionModel.deleteCollection(type, id);
+    let affectedRows;
+    if (type === 'macro') {
+      affectedRows = await macroModel.deleteMacro(id);
+    } else {
+      affectedRows = await collectionModel.deleteCollection(type, id);
+    }
+    
     if (!affectedRows) {
       return { success: false, error: `Failed to delete ${type} collection` };
     }
@@ -133,10 +179,17 @@ export async function addFileToCollection(
   type: string,
   collectionId: number,
   audioFileId: number,
-  position: number | null = null
+  position: number | null = null,
+  delay: number | null = null
 ): Promise<ServiceResponse<void>> {
   try {
-    const affectedRows = await collectionModel.addFileToCollection(type, collectionId, audioFileId, position);
+    let affectedRows;
+    if (type === 'macro') {
+      // For macros, position represents delay
+      affectedRows = await macroModel.addFileToMacro(collectionId, audioFileId, delay || 0);
+    } else {
+      affectedRows = await collectionModel.addFileToCollection(type, collectionId, audioFileId, position);
+    }
     
     if (affectedRows === 0) {
       return { success: false, error: `Failed to add file to ${type} collection` };
@@ -158,9 +211,12 @@ export async function addFilesToCollection(
     if (!audioFileIds || audioFileIds.length === 0) {
       return { success: false, error: 'No files specified' };
     }
-    
-    const affectedRows = await collectionModel.addFilesToCollection(type, collectionId, audioFileIds, startPosition);
-    
+    let affectedRows;
+    if (type === 'macro') {
+      affectedRows = await macroModel.addFilesToMacro(collectionId, audioFileIds);
+    } else {
+      affectedRows = await collectionModel.addFilesToCollection(type, collectionId, audioFileIds, startPosition);
+    }
     if (affectedRows === 0) {
       return { success: false, error: `Failed to add files to ${type} collection` };
     }
@@ -177,7 +233,13 @@ export async function removeFileFromCollection(
   audioFileId: number
 ): Promise<ServiceResponse<void>> {
   try {
-    const affectedRows = await collectionModel.removeFileFromCollection(type, collectionId, audioFileId);
+    let affectedRows;
+    if (type === 'macro') {
+      affectedRows = await macroModel.removeFileFromMacro(collectionId, audioFileId);
+    } else {
+      affectedRows = await collectionModel.removeFileFromCollection(type, collectionId, audioFileId);
+    }
+    
     if (!affectedRows) {
       return { success: false, notFound: true, error: `${type} collection file not found` };
     }
@@ -247,6 +309,67 @@ export async function updateFileRangePosition(
   } catch (error) {
     console.error(`Service error moving items in ${type} collection ${collectionId}:`, error);
     return { success: false, error: `Failed to move ${type} collection items` };
+  }
+}
+
+export async function updateItem(
+  type: string,
+  collectionId: number,
+  audioFileId: number,
+  params: { 
+    // For macro type
+    delay?: number, 
+    volume?: number,
+    // For non-macro types
+    name?: string,
+    file_url?: string,
+    file_path?: string,
+    folder_id?: number
+  }
+): Promise<ServiceResponse<void>> {
+  try {
+    let affectedRows = 0;
+    
+    if (type === 'macro') {
+      // For macros, update the macro file properties
+      affectedRows = await macroModel.updateMacroFile(
+        collectionId, 
+        audioFileId, 
+        params.delay, 
+        params.volume
+      );
+    } else {
+      // For other collection types, update the audio file properties
+      // First, verify the file exists in the collection
+      const [existingFile] = await pool.execute(
+        `SELECT * FROM collection_files WHERE collection_id = ? AND audio_file_id = ?`,
+        [collectionId, audioFileId]
+      );
+      
+      if (!(existingFile as any[])[0]) {
+        return { success: false, notFound: true, error: `File not found in collection` };
+      }
+      
+      // Then update the audio file properties
+      affectedRows = await collectionModel.updateAudioFile(
+        audioFileId,
+        {
+          name: params.name,
+          file_url: params.file_url,
+          file_path: params.file_path,
+          folder_id: params.folder_id
+        }
+      );
+    }
+    
+    if (!affectedRows) {
+      return { success: false, error: `No fields were updated` };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error updating file ${audioFileId} in ${type} collection ${collectionId}:`, error);
+    return { success: false, error: `Failed to update file in ${type} collection` };
   }
 }
 
@@ -364,8 +487,79 @@ export async function getPackCollections(packId: number): Promise<ServiceRespons
   }
 }
 
+export async function addMacroToCollection(
+  collectionId: number,
+  macroId: number,
+  position: number | null = null
+): Promise<ServiceResponse<void>> {
+  try {
+    // Check if collection exists and is of sfx type
+    const collectionResponse = await getCollectionById('sfx', collectionId);
+    if (!collectionResponse.success) {
+      return { success: false, notFound: true, error: 'SFX collection not found' };
+    }
+    
+    // Check if macro exists
+    const macroResponse = await getCollectionById('macro', macroId);
+    if (!macroResponse.success) {
+      return { success: false, notFound: true, error: 'Macro not found' };
+    }
+    
+    const affectedRows = await collectionModel.addMacroToCollection(collectionId, macroId, position);
+    
+    if (affectedRows === 0) {
+      return { success: false, error: 'Failed to add macro to SFX collection' };
+    } else if (affectedRows === -1) {
+      return { success: false, error: 'Macro already exists in this collection' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error adding macro ${macroId} to SFX collection ${collectionId}:`, error);
+    return { success: false, error: 'Failed to add macro to SFX collection' };
+  }
+}
+
+export async function addMacrosToCollection(
+  collectionId: number,
+  macroIds: number[],
+  startPosition: number | null = null
+): Promise<ServiceResponse<void>> {
+  try {
+    if (!macroIds || macroIds.length === 0) {
+      return { success: false, error: 'No macros specified' };
+    }
+    
+    // Check if collection exists and is of sfx type
+    const collectionResponse = await getCollectionById('sfx', collectionId);
+    if (!collectionResponse.success) {
+      return { success: false, notFound: true, error: 'SFX collection not found' };
+    }
+    
+    // Check if all macros exist
+    for (const macroId of macroIds) {
+      const macroResponse = await getCollectionById('macro', macroId);
+      if (!macroResponse.success) {
+        return { success: false, notFound: true, error: `Macro ${macroId} not found` };
+      }
+    }
+    
+    const affectedRows = await collectionModel.addMacrosToCollection(collectionId, macroIds, startPosition);
+    
+    if (affectedRows === 0) {
+      return { success: false, error: 'Failed to add macros to SFX collection' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error adding macros to SFX collection ${collectionId}:`, error);
+    return { success: false, error: 'Failed to add macros to SFX collection' };
+  }
+}
+
 export default {
   getAllCollections,
+  getAllCollectionsAllTypes,
   getCollectionById,
   getCollectionWithFiles,
   createCollection,
@@ -376,9 +570,12 @@ export default {
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,
+  updateItem,
   getAllPacks,
   createPack,
   deletePack,
   addCollectionToPack,
-  getPackCollections
+  getPackCollections,
+  addMacroToCollection,
+  addMacrosToCollection,
 };

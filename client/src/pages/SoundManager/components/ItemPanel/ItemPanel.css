@@ -1,0 +1,171 @@
+.folder-tree-container {
+    max-height: fit-content;
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+    padding: 5px;
+    margin: 0;
+    max-width: 100%;
+  }
+
+.macro-display-panel {
+    overflow-y: auto; 
+    max-width: 300px;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease-in-out;
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--border-color);
+  }
+  
+  .macro-display-panel.visible {
+    opacity: 1;
+    min-height: 200px;
+    max-height: 500px;
+    overflow-x: hidden;
+    /* margin: 12px 10px; */
+  }
+  
+  .macro-display-panel.hidden {
+    opacity: 0;
+    max-height: 0;
+    margin: 0;
+    pointer-events: none; /* Prevent interaction when hidden */
+  }
+  
+  .macro-display-panel h3 {
+    margin: 0;
+    padding: 12px 16px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  /* Customize the AudioItemDisplay specifically when used in macro-display-panel */
+  .macro-display-panel .audio-item-display {
+    margin: 0;
+    padding: 2px 0;
+    max-width: 100%;
+    padding-left: 4px; /* Add padding to accommodate the tree structure */
+    position: relative; /* Needed for the continuous vertical line */
+  }
+  
+  /* Add a continuous vertical line for the entire list */
+  .macro-display-panel .audio-item-display::before {
+    content: "";
+    position: absolute;
+    left: 14px;
+    top: 0;
+    bottom: 18px;
+    width: 1px;
+    background-color: var(--border-color-light);
+    z-index: 1;
+  }
+  
+  .macro-display-panel .audio-item-table {
+    background-color: transparent;
+    box-shadow: none;
+    width: 100%;
+  }
+  
+  .macro-display-panel .audio-item-row {
+    cursor: grab;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    padding: 4px 0;
+    margin: 2px 0;
+    position: relative; /* For proper horizontal line positioning */
+  }
+  
+  .macro-display-panel .audio-item-table td {
+    padding: 4px 8px;
+    border-bottom: none;
+  }
+  
+  /* Remove the vertical line from individual items since we have the continuous one */
+  .macro-display-panel .audio-item-row .item-name-cell::before {
+    content: none;
+  }
+  
+  /* Adjust horizontal line */
+  .macro-display-panel .audio-item-row .item-name-cell::after {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    background-color: var(--border-color-light);
+    z-index: 2;
+  }
+  
+  /* Hide header when in macro display area */
+  .macro-display-panel .audio-item-display-header {
+    display: none;
+  }
+  
+  /* Empty state for macro display */
+  .macro-display-panel .audio-item-display:empty::after {
+    content: "No macros available";
+    display: block;
+    text-align: center;
+    padding: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+    font-size: 0.9rem;
+    margin-left: -20px; /* Adjust for the tree structure padding */
+  }
+
+/* Collections display panel styling */
+.collections-display-panel {
+  overflow-y: auto; 
+  max-width: 310px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease-in-out;
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border-color);
+}
+
+.collections-display-panel.visible {
+  opacity: 1;
+  min-height: 200px;
+  max-height: 500px;
+  overflow-x: hidden;
+}
+
+.collections-display-panel.hidden {
+  opacity: 0;
+  max-height: 0;
+  margin: 0;
+  pointer-events: none;
+}
+
+.collections-display-panel h3 {
+  margin: 0;
+  padding: 12px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Style similar to macro display panel for consistency */
+.collections-display-panel .audio-item-display {
+  margin: 0;
+  padding: 2px 0;
+  max-width: 100%;
+  padding-left: 4px;
+  position: relative;
+}

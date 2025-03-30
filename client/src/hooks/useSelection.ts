@@ -3,13 +3,10 @@ import { useState, useCallback } from 'react';
 interface SelectionOptions<T> {
   // Function to extract the unique ID from an item
   getItemId: (item: T) => number | string;
-  
   // Optional: callback when selection changes
   onSelectionChange?: (selectedItems: T[]) => void;
-  
   // Optional: Whether to allow multiple items to be selected
   allowMultiSelect?: boolean;
-  
   // Optional: Special handling for different selection modes
   onSingleSelect?: (item: T, selectedItems: T[]) => T[];
 }

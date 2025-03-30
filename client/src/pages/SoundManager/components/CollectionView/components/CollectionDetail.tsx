@@ -1,24 +1,30 @@
-import React, { useEffect } from "react";
-import type { AudioItem } from "../types.js";
-import AudioItemDisplay from "../../AudioItemDisplay/AudioItemDisplay.js";
+import React, { useMemo } from "react";
+import type { AudioItem, AudioCollection, CollectionType } from "../types.js";
+import AudioItemsDisplay from "../../AudioItemDisplay/AudioItemsDisplay.js";
 import CollectionPackDetail from "./CollectionPackDetail.js";
-import { useDropTargetContext } from 'src/hooks/useDropTargetContext.js';
 import { DROP_ZONES } from 'src/components/DropTargetContext/dropZones.js';
+import './CollectionDetail.css';
+
+
+/* CollectionDetail.tsx
+ * This component is responsible for displaying the details of a collection.
+*****************************************************************************/
 
 interface CollectionDetailProps {
   // Data props
-  collection: AudioItem;
-  collectionType: string;
+  collection: AudioCollection;
+  collectionType: CollectionType;
   collectionItems: AudioItem[];
-  
   // UI state props
+  itemDisplayView: 'list' | 'grid';
+  isEditing: boolean;
   isLoading: boolean;
   error: string | null;
-  
   // Action handlers
   onBackClick: () => void;
+  onAddItems: (items: AudioItem[], position?: number) => Promise<void>;
+  onEditItem: (itemId: number, params: any) => Promise<void>;
   onRemoveItems: (itemIds: number[]) => Promise<void>;
-  handleAddItems: (items: AudioItem[], position?: number) => Promise<void>;
   onUpdateItemPosition: (
     itemId: number,
     targetPosition: number,
@@ -35,45 +41,19 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
   collection,
   collectionType,
   collectionItems,
+  
+  itemDisplayView,
   isLoading,
   error,
+  
   onBackClick,
   onRemoveItems,
-  handleAddItems,
+  onEditItem,
+  onAddItems,
   onUpdateItemPosition,
   isDragSource = false,
   isDropTarget = false,
 }) => {
-  const { registerDropHandler, unregisterDropHandler } = useDropTargetContext();
-
-  // Register our drop handler when component mounts
-  useEffect(() => {
-    // Transform function if needed
-    const transformItems = (items: any[]): AudioItem[] => {
-      return items.map((item) => ({
-        id: item.id,
-        name: item.name,
-        type: "file",
-        fileType: item.fileType || "music",
-        duration: item.duration,
-      }));
-    };
-
-    // TODO move context drop-zone to ListView
-    registerDropHandler<AudioItem>(
-      DROP_ZONES.SOUND_MANAGER_CONTENT,
-      ["file"],
-      async (items) => {
-        // Process all dropped items at once
-        await handleAddItems(items);
-      },
-      { transformItems }
-    );
-
-    // Clean up when unmounting
-    return () => unregisterDropHandler(DROP_ZONES.SOUND_MANAGER_CONTENT);
-  }, [registerDropHandler, unregisterDropHandler, handleAddItems]);
-
 
   if (collectionType === "pack") {
     return (
@@ -83,39 +63,55 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
         collectionItems={collectionItems}
         isLoading={isLoading}
         onBackClick={onBackClick}
+        onAddItems={onAddItems}
         onRemoveItems={onRemoveItems}
-        handleAddItems={handleAddItems}
         onUpdateItemPosition={onUpdateItemPosition}
         isDragSource={isDragSource}
         isDropTarget={isDropTarget}
       />
     );
   }
-
+  
+  // Check if description is short enough to display inline
+  const useInlineDescription = useMemo(() => {
+    return collection.description && collection.description.length < 80;
+  }, [collection.description]);
+  
   return ( 
     <div className="collection-detail-view">
       <div className="collection-detail-header">
         <button className="back-button" onClick={onBackClick}>
           ←
         </button>
-        <h2>{collection.name}</h2>
-        {collection.description && (
-          <p className="collection-description">{collection.description}</p>
-        )}
+        
+        <div className="collection-title-group">
+          <h2>{collection.name}</h2>
+          {useInlineDescription && collection.description && (
+            <p className="collection-description-inline">{collection.description}</p>
+          )}
+        </div>
       </div>
-      <div className="collection-detail-view-content">
-
-        <AudioItemDisplay
+      
+      {!useInlineDescription && collection.description && (
+        <p className="collection-description">{collection.description}</p>
+      )}
+      
+      <div className={`collection-detail-view-content ${itemDisplayView === "grid" ? "collection-detail-view-grid" : "collection-detail-view-list"}`}>
+        
+        <AudioItemsDisplay
           items={collectionItems}
-          itemType={'file'}
+          collectionType={collectionType}
           isLoading={isLoading}
           error={error}
-          view="list"
+          view={itemDisplayView}
           showToggle={false}
           showActions={true}
+          showPlayButton={true}
           name={`Items in ${collection.name}`}
-          onAddItems={(items, position) => handleAddItems(items, position)}
-          onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
+          onPlayItem={() => {console.log("Play item clicked");}}
+          onAddItems={onAddItems}
+          onEditItem={onEditItem}
+          onRemoveItems={onRemoveItems}
           onUpdateItemPosition={onUpdateItemPosition}
           isDragSource={isDragSource}
           isDropTarget={isDropTarget}

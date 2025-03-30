@@ -22,6 +22,17 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
   return result as RowDataPacket[];
 }
 
+export async function getAllCollectionsAllTypes(): Promise<RowDataPacket[]> {
+  const [result] = await pool.execute(
+    `SELECT c.*, COUNT(cf.audio_file_id) AS item_count
+       FROM ${COLLECTIONS_TABLE} c
+       LEFT JOIN ${COLLECTION_FILES_TABLE} cf ON c.collection_id = cf.collection_id
+       GROUP BY c.collection_id
+       ORDER BY c.type, c.name ASC`
+  );
+  return result as RowDataPacket[];
+}
+
 export async function getCollectionById(type: string, collectionId: number): Promise<RowDataPacket[]> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
@@ -96,19 +107,34 @@ export async function getCollectionFiles(
   );
 
   // For SFX collections, get both files and macros
-
   let macros: RowDataPacket[] = [];
 
   if (type == "sfx") {
     const [macroResults] = await pool.execute(
-      `SELECT m.*, cm.position
+      `SELECT m.*, cm.position,
+       GROUP_CONCAT(JSON_OBJECT(
+         'audio_file_id', af.audio_file_id,
+         'name', af.name,
+         'audio_type', af.audio_type,
+         'file_path', af.file_path,
+         'folder_id', af.folder_id,
+         'file_url', af.file_url,
+         'duration', af.duration,
+         'delay', mf.delay,
+         'volume', mf.volume
+       )) AS files
      FROM sfx_macros m
      JOIN ${COLLECTION_SFX_MACROS_TABLE} cm ON m.macro_id = cm.macro_id
+     JOIN sfx_macro_files mf ON m.macro_id = mf.collection_id
+     JOIN audio_files af ON mf.audio_file_id = af.audio_file_id
      WHERE cm.collection_id = ?
+     GROUP BY m.macro_id, cm.position
      ORDER BY cm.position ASC`,
       [collectionId]
     );
     macros = macroResults as RowDataPacket[];
+
+    console.log("`MODEL: Macros:", macros);
   }
 
   return { files, macros };
@@ -132,18 +158,43 @@ export async function addFileToCollection(
     
     // If position is not provided, find the highest current Position and add 1
     if (position === null) {
-      const [currentPositions] = await connection.execute<RowDataPacket[]>(
-        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
-        [collectionId]
-      );
-      
-      position = currentPositions[0]?.maxPosition ? (currentPositions[0].maxPosition + 1) : 0;
+      if (type === 'sfx') {
+        // For SFX collections, we need to check both collection file & macro tables for the max position
+        const [filePositions] = await connection.execute<RowDataPacket[]>(
+          `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
+          [collectionId]
+        );
+        
+        const [macroPositions] = await connection.execute<RowDataPacket[]>(
+          `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ?`,
+          [collectionId]
+        );
+        
+        const fileMaxPos = filePositions[0]?.maxPosition || 0;
+        const macroMaxPos = macroPositions[0]?.maxPosition || 0;
+        position = Math.max(fileMaxPos, macroMaxPos) + 1;
+      } else {
+        const [currentPositions] = await connection.execute<RowDataPacket[]>(
+          `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
+          [collectionId]
+        );
+        
+        position = currentPositions[0]?.maxPosition ? (currentPositions[0].maxPosition + 1) : 0;
+      }
     } else {
       // If inserting at a specific position, move all existing items up
       await connection.execute(
         `UPDATE ${COLLECTION_FILES_TABLE} SET position = position + 1 WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
         [collectionId, position]
       );
+      
+      // For SFX collections, also update positions in the macros table
+      if (type === 'sfx') {
+        await connection.execute(
+          `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + 1 WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
+          [collectionId, position]
+        );
+      }
     }
     
     let result;
@@ -187,17 +238,42 @@ export async function addFilesToCollection(
     
     // If position is not provided, find the highest current position and add 1
     if (insertPosition === null) {
-      const [currentPositions] = await connection.execute<RowDataPacket[]>(
-        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
-        [collectionId]
-      );
-      insertPosition = currentPositions[0]?.maxPosition ? (currentPositions[0].maxPosition + 1) : 1;
+      if (type === 'sfx') {
+        // For SFX collections, check max positions across both tables
+        const [filePositions] = await connection.execute<RowDataPacket[]>(
+          `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
+          [collectionId]
+        );
+        
+        const [macroPositions] = await connection.execute<RowDataPacket[]>(
+          `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ?`,
+          [collectionId]
+        );
+        
+        const fileMaxPos = filePositions[0]?.maxPosition || 0;
+        const macroMaxPos = macroPositions[0]?.maxPosition || 0;
+        insertPosition = Math.max(fileMaxPos, macroMaxPos) + 1;
+      } else {
+        const [currentPositions] = await connection.execute<RowDataPacket[]>(
+          `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
+          [collectionId]
+        );
+        insertPosition = currentPositions[0]?.maxPosition ? (currentPositions[0].maxPosition + 1) : 1;
+      }
     } else {
       // If inserting at a specific position, move all existing items up by the number of files we're adding
       await connection.execute(
         `UPDATE ${COLLECTION_FILES_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
         [audioFileIds.length, collectionId, insertPosition]
       );
+      
+      // For SFX collections, also update positions in the macros table
+      if (type === 'sfx') {
+        await connection.execute(
+          `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
+          [audioFileIds.length, collectionId, insertPosition]
+        );
+      }
     }
     
     // Prepare batch insert values
@@ -446,6 +522,136 @@ export async function updateFileRangePosition(
   }
 }
 
+/* Macro collection management endpoints 
+ ****************************************/
+
+export async function addMacroToCollection(
+  collectionId: number,
+  macroId: number,
+  position: number | null = null
+): Promise<number> {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    
+    // If position is not provided, find the highest current Position and add 1
+    if (position === null) {
+      // For macros, we need to check both tables for the max position
+      const [filePositions] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
+        [collectionId]
+      );
+      
+      const [macroPositions] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ?`,
+        [collectionId]
+      );
+      
+      const fileMaxPos = filePositions[0]?.maxPosition || 0;
+      const macroMaxPos = macroPositions[0]?.maxPosition || 0;
+      position = Math.max(fileMaxPos, macroMaxPos) + 1;
+    } else {
+      // If inserting at a specific position, move all existing items up in both tables
+      await connection.execute(
+        `UPDATE ${COLLECTION_FILES_TABLE} SET position = position + 1 WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
+        [collectionId, position]
+      );
+      
+      await connection.execute(
+        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + 1 WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
+        [collectionId, position]
+      );
+    }
+    
+    // Insert new entry
+    const [result] = await connection.execute(
+      `INSERT INTO ${COLLECTION_SFX_MACROS_TABLE} (collection_id, macro_id, position) VALUES (?, ?, ?)`,
+      [collectionId, macroId, position]
+    );
+    
+    await connection.commit();
+    return (result as ResultSetHeader).affectedRows || 0;
+  } catch (error: any) {
+    await connection.rollback();
+    if (error.code === 'ER_DUP_ENTRY') {
+      return -1; // Special code to indicate duplicate entry
+    }
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function addMacrosToCollection(
+  collectionId: number,
+  macroIds: number[],
+  startPosition: number | null = null
+): Promise<number> {
+  if (!macroIds.length) return 0;
+  
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    let insertPosition = startPosition;
+    
+    // If position is not provided, find the highest current position and add 1
+    if (insertPosition === null) {
+      // For macros, check max positions across both tables
+      const [filePositions] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
+        [collectionId]
+      );
+      
+      const [macroPositions] = await connection.execute<RowDataPacket[]>(
+        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ?`,
+        [collectionId]
+      );
+      
+      const fileMaxPos = filePositions[0]?.maxPosition || 0;
+      const macroMaxPos = macroPositions[0]?.maxPosition || 0;
+      insertPosition = Math.max(fileMaxPos, macroMaxPos) + 1;
+    } else {
+      // If inserting at a specific position, move all existing items up in both tables
+      await connection.execute(
+        `UPDATE ${COLLECTION_FILES_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
+        [macroIds.length, collectionId, insertPosition]
+      );
+      
+      await connection.execute(
+        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
+        [macroIds.length, collectionId, insertPosition]
+      );
+    }
+    
+    // Prepare batch insert values
+    const values = macroIds.map((macroId, index) => [
+      collectionId, 
+      macroId, 
+      insertPosition! + index
+    ]);
+    
+    // Use multi-row insert for better performance
+    const placeholders = values.map(() => '(?, ?, ?)').join(', ');
+    const flatValues = values.flat();
+    
+    const [result] = await connection.execute(
+      `INSERT INTO ${COLLECTION_SFX_MACROS_TABLE} (collection_id, macro_id, position) VALUES ${placeholders} 
+       ON DUPLICATE KEY UPDATE position = VALUES(position)`,
+      flatValues
+    );
+    
+    await connection.commit();
+    return (result as ResultSetHeader).affectedRows || 0;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 /* Pack endpoints
  *****************/
 
@@ -481,7 +687,9 @@ export async function addCollectionToPack(
   
   try {
     await connection.beginTransaction();
-    console.log(`Adding collection ${collectionId} to pack ${packId}`);
+
+    //console.log(`Adding collection ${collectionId} to pack ${packId}`);
+    
     // Insert new entry
     const [result] = await connection.execute(
       `INSERT INTO audio_pack_collections (pack_id, collection_id) VALUES (?, ?)`,
@@ -513,8 +721,58 @@ export async function getPackCollections(packId: number): Promise<RowDataPacket[
   return result as RowDataPacket[];
 }
 
+export async function updateAudioFile(
+  audioFileId: number,
+  updates: { 
+    name?: string, 
+    file_url?: string, 
+    file_path?: string, 
+    folder_id?: number 
+  }
+): Promise<number> {
+  // Build dynamic query based on provided params
+  const updateFields: string[] = [];
+  const params: any[] = [];
+  
+  if (updates.name !== undefined) {
+    updateFields.push('name = ?');
+    params.push(updates.name);
+  }
+  
+  if (updates.file_url !== undefined) {
+    updateFields.push('file_url = ?');
+    params.push(updates.file_url);
+  }
+  
+  if (updates.file_path !== undefined) {
+    updateFields.push('file_path = ?');
+    params.push(updates.file_path);
+  }
+  
+  if (updates.folder_id !== undefined) {
+    updateFields.push('folder_id = ?');
+    params.push(updates.folder_id);
+  }
+  
+  // If no fields to update, return early
+  if (updateFields.length === 0) {
+    return 0;
+  }
+  
+  // Complete the params array with the WHERE clause parameter
+  params.push(audioFileId);
+  
+  const [result] = await pool.execute(
+    `UPDATE audio_files SET ${updateFields.join(', ')} WHERE audio_file_id = ?`,
+    params
+  );
+  
+  return (result as ResultSetHeader).affectedRows || 0;
+}
+
 export default {
   getAllCollections,
+  getAllCollectionsAllTypes,
   getCollectionById,
   createCollection,
   updateCollection,
@@ -525,9 +783,12 @@ export default {
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,
+  addMacroToCollection,
+  addMacrosToCollection,
   getAllPacks,
   createPack,
   deletePack,
   addCollectionToPack,
-  getPackCollections
+  getPackCollections,
+  updateAudioFile
 };

@@ -1,0 +1,74 @@
+/* Common item actions container */
+.item-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.audio-item-controls {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+/* Play button styling */
+.play-button {
+    background-color: var(--bg-secondary);
+    color: var(--accent-primary);
+    border: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.play-button:hover {
+    background: var(--bg-tertiary);
+    transform: translateY(-1px);
+}
+
+.play-button small {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+/* Edit/Delete button styling */
+.edit-button, 
+.delete-button {
+    background: transparent;
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    font-size: 1rem;
+    transition: all 0.2s ease;
+}
+
+.edit-button.small, 
+.delete-button.small {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+}
+
+.edit-button:hover,
+.edit-button.small:hover {
+    background: var(--bg-tertiary);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.delete-button:hover,
+.delete-button.small:hover {
+    background: rgba(214, 69, 80, 0.1);
+    color: var(--danger);
+    border-color: var(--danger);
+}

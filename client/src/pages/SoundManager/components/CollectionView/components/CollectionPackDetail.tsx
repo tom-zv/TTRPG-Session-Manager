@@ -1,10 +1,11 @@
 import React from "react";
-import type { AudioItem } from "../types.js";
-import AudioItemDisplay from "../../AudioItemDisplay/AudioItemDisplay.js";
+import type { AudioItem, AudioCollection } from "../types.js";
+import AudioItemsDisplay from "../../AudioItemDisplay/AudioItemsDisplay.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
+import './CollectionPackDetail.css';
 
 interface CollectionPackDetailProps extends DragDropProps {
-  collection: AudioItem;
+  collection: AudioCollection;
   collectionType: string;
   collectionItems: AudioItem[];
   isLoading: boolean;
@@ -12,7 +13,7 @@ interface CollectionPackDetailProps extends DragDropProps {
   onBackClick: () => void;
 
   onRemoveItems: (itemIds: number[]) => Promise<void>;
-  handleAddItems: (items: AudioItem[], position?: number) => Promise<void>;
+  onAddItems: (items: AudioItem[], position?: number) => Promise<void>;
 
   onUpdateItemPosition: (
     itemId: number,
@@ -29,7 +30,7 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
   isLoading,
   onBackClick,
   onRemoveItems,
-  handleAddItems,
+  onAddItems,
   onUpdateItemPosition,
 }) => {
   if (collectionType !== "pack") {
@@ -56,16 +57,16 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
         {/* Playlists section */}
         <div className="pack-section">
           <h3>Playlists</h3>
-          <AudioItemDisplay
+          <AudioItemsDisplay
             items={playlistItems}
-            itemType={collectionType}
+            collectionType={collectionType}
             isLoading={isLoading && playlistItems.length === 0}
             error={null}
             view="list"
             showToggle={false}
             showActions={true}
             name="Playlists"
-            onAddItems={(items, position) => handleAddItems(items, position)}
+            onAddItems={(items, position) => onAddItems(items, position)}
             onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
             onUpdateItemPosition={onUpdateItemPosition}
           />
@@ -74,16 +75,16 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
         {/* SFX Collections section */}
         <div className="pack-section">
           <h3>SFX Collections</h3>
-          <AudioItemDisplay
+          <AudioItemsDisplay
             items={sfxItems}
-            itemType={collectionType}
+            collectionType={collectionType}
             isLoading={isLoading && sfxItems.length === 0}
             error={null}
             view="list"
             showToggle={false}
             showActions={true}
             name="SFX Collections"
-            onAddItems={(items, position) => handleAddItems(items, position)}
+            onAddItems={(items, position) => onAddItems(items, position)}
             onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
             onUpdateItemPosition={onUpdateItemPosition}
           />
@@ -92,16 +93,16 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
         {/* Ambience Collections section */}
         <div className="pack-section">
           <h3>Ambience Collections</h3>
-          <AudioItemDisplay
+          <AudioItemsDisplay
             items={ambienceItems}
-            itemType={collectionType}
+            collectionType={collectionType}
             isLoading={isLoading && ambienceItems.length === 0}
             error={null}
             view="list"
             showToggle={false}
             showActions={true}
             name="Ambience Collections"
-            onAddItems={(items, position) => handleAddItems(items, position)}
+            onAddItems={(items, position) => onAddItems(items, position)}
             onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
             onUpdateItemPosition={onUpdateItemPosition}
           />

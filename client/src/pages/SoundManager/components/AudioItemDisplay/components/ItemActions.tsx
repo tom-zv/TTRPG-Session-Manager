@@ -1,68 +1,48 @@
 import React from 'react';
-import { AudioItem, AudioItemActions } from '../types.js';
+import { AudioItem } from '../types.js';
+import './ItemActions.css';
 
-interface ItemActionsProps extends AudioItemActions {
+interface ItemActionProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: (e: React.MouseEvent) => void;
+  buttonClass: string;
+  small: boolean;
+}
+
+const ActionButton: React.FC<ItemActionProps> = ({ icon, label, onClick, buttonClass, small }) => {
+  const sizeClass = small ? 'small' : '';
+  return (
+    <button
+      className={`${buttonClass} ${sizeClass}`}
+      onClick={onClick}
+      aria-label={label}
+    >
+      <span>{icon}</span>
+    </button>
+  );
+};
+
+interface ItemActionsProps {
   item: AudioItem;
   selectedItemIds?: number[];
+  onPlayItem?: (itemId: number) => void;
+  onEditItem?: (itemId: number, params: any) => void;
+  onRemoveItems?: (itemIds: number[]) => void;
   isSmall?: boolean;
 }
 
-export const ItemActions: React.FC<ItemActionsProps> = ({
+const ItemActions: React.FC<ItemActionsProps> = ({
   item,
-  selectedItemIds,
+  selectedItemIds = [],
+  onPlayItem,
   onEditItem,
   onRemoveItems,
   isSmall = false
 }) => {
-  // Event handlers with stopPropagation
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    if (onEditItem) {
-      e.stopPropagation();
-      onEditItem(item.id);
-    }
-  };
-
-  const handleRemoveClick = (e: React.MouseEvent) => {
-    if (!onRemoveItems) return;
-    e.stopPropagation();
-
-    const idsToRemove = selectedItemIds && selectedItemIds.length > 0
-      ? selectedItemIds
-      : [item.id];
-
-    onRemoveItems(idsToRemove);
-  };
-
-  const buttonClass = isSmall ? 'small' : '';
-
-  return (
-    <div className={isSmall ? "item-actions" : "audio-item-controls"}>
-      
-      {onEditItem && !item.isCreateButton && (
-        <button
-          className={`edit-button ${buttonClass}`}
-          onClick={handleEditClick}
-          name="Edit"
-        >
-          ✏️
-        </button>
-      )}
-      
-      {onRemoveItems && !item.isCreateButton && (
-        <button
-          className={`delete-button ${buttonClass}`}
-          onClick={handleRemoveClick}
-          name="Remove"
-        >
-          X
-        </button>
-      )}
-    </div>
-  );
-};
-
-export const PlayItem: React.FC<ItemActionsProps> = ({ item, onPlayItem }) => {
+  // Don't show actions for create buttons
+  if (item.isCreateButton) return null;
+  
   const handlePlayClick = (e: React.MouseEvent) => {
     if (onPlayItem) {
       e.stopPropagation();
@@ -70,17 +50,59 @@ export const PlayItem: React.FC<ItemActionsProps> = ({ item, onPlayItem }) => {
     }
   };
 
+  const handleEditClick = (e: React.MouseEvent) => {
+    if (onEditItem) {
+      e.stopPropagation();
+      onEditItem(item.id, {}); // Pass needed params here
+    }
+  };
+
+  const handleRemoveClick = (e: React.MouseEvent) => {
+    if (!onRemoveItems) return;
+    e.stopPropagation();
+
+    const idsToRemove = selectedItemIds.length > 0
+      ? selectedItemIds
+      : [item.id];
+
+    onRemoveItems(idsToRemove);
+  };
+
+  const containerClass = isSmall ? "item-actions" : "audio-item-controls";
+
   return (
-    <div className={"item-actions"}>
-      <button
-        className="play-button"
-        onClick={handlePlayClick}
-        name="Play"
-      >
-        &#9658;
-      </button>
+    <div className={containerClass}>
+      {onPlayItem && (
+        <ActionButton 
+          icon="▶" 
+          label="Play"
+          onClick={handlePlayClick}
+          buttonClass="play-button"
+          small={isSmall}
+        />
+      )}
+      
+      {onEditItem && (
+        <ActionButton 
+          icon="✏️" 
+          label="Edit"
+          onClick={handleEditClick}
+          buttonClass="edit-button"
+          small={isSmall}
+        />
+      )}
+      
+      {onRemoveItems && (
+        <ActionButton 
+          icon="×" 
+          label="Remove"
+          onClick={handleRemoveClick}
+          buttonClass="delete-button" 
+          small={isSmall}
+        />
+      )}
     </div>
   );
-}
+};
 
 export default ItemActions;

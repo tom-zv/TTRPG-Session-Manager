@@ -5,6 +5,9 @@ import collectionController from './collectionController.js';
 
 const router = express.Router();
 
+// GET /collections - Get all collections of all types
+router.get('/', collectionController.getAllCollectionsAllTypes);
+
 /* Pack endpoints
  *****************/
 // GET /pack - Get all packs
@@ -21,6 +24,12 @@ router.post('/pack/:id/collections', collectionController.addCollectionToPack);
 
 // GET /pack/:id/collections - Get all collections in a pack
 router.get('/pack/:id/collections', collectionController.getPackCollections);
+
+// POST /collections/sfx/:id/macros - Add a macro to a collection
+router.post('/sfx/:id/macros', collectionController.addMacroToCollection);
+
+// POST /collections/sfx/:id/macros/batch - Add multiple macros to a collection
+router.post('/sfx/:id/macros/batch', collectionController.addMacrosToCollection);
 
 /* Collection endpoints
  ***********************/
@@ -57,5 +66,8 @@ router.put('/:type/:id/files/:fileId/position', collectionController.updateColle
 
 // PUT /collections/:type/:id/files/positions - Move a range of files to a new position
 router.put('/:type/:id/files/positions', collectionController.updateFileRangePosition);
+
+// PUT /collections/:type/:id/files/:fileId - Update a file in a collection
+router.put('/:type/:id/files/:fileId', collectionController.updateItem);
 
 export default router;

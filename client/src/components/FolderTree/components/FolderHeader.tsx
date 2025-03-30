@@ -1,6 +1,7 @@
 import React from 'react';
 import { Folder } from 'shared/types/folder.js';
 import { getFolderIcon } from '../utils/icons.js';
+import FileScanButton from './FileScanButton.js';
 
 interface FolderHeaderProps {
   folder: Folder;
@@ -10,6 +11,7 @@ interface FolderHeaderProps {
   onClick?: (e: React.MouseEvent) => void;
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: (e: React.DragEvent) => void;
+  onScanComplete?: () => void;
 }
 
 const FolderHeader: React.FC<FolderHeaderProps> = ({
@@ -19,7 +21,8 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
   hasContents,
   onClick,
   onDragStart,
-  onDragEnd
+  onDragEnd,
+  onScanComplete
 }) => {
   return (
     <div 
@@ -34,6 +37,9 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         {getFolderIcon(folder.type, isOpen, hasContents)}
       </span>
       <span className="folder-name">{folder.name}</span>
+      {folder.type === 'root' && (
+        <FileScanButton onScanComplete={onScanComplete} />
+      )}
     </div>
   );
 };

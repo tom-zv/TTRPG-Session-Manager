@@ -1,6 +1,5 @@
 .folder-tree-container {
   background-color: var(--bg-secondary);
-  border-radius: 6px;
   margin-bottom: 1.5rem;
   box-shadow: 0 2px 4px var(--shadow);
   max-height: 70vh;
@@ -46,6 +45,7 @@
   transition: background-color 0.2s ease;
   user-select: none;
   position: relative;
+  justify-content: space-between;
 }
 
 .folder-header:hover, .file-header:hover {
@@ -78,6 +78,12 @@
 .folder-name, .file-name {
   flex-grow: 1;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.folder-header .folder-name {
+  margin-right: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -220,4 +226,27 @@
   position: absolute;
   top: -8px;
   right: -8px;
+}
+
+/* Scan button styling */
+.scan-button {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 0.8em;
+  background-color: var(--accent-primary, #4a5af8);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  align-self: center;
+}
+
+.scan-button:hover {
+  background-color: var(--accent-hover, #3846d4);
+}
+
+.scan-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 90, 248, 0.5);
 }

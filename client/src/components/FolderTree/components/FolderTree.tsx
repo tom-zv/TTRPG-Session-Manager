@@ -21,6 +21,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [folderTreeKey, setFolderTreeKey] = useState<number>(0);
 
   // Use selection hooks for folders and files
   const folderSelection = useSelection<Folder>({
@@ -97,7 +98,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   // Load folders and audio files
   useEffect(() => {
     loadData();
-  }, []);
+  }, [folderTreeKey]); // Re-run when key changes
 
   // Load all data
   const loadData = async () => {
@@ -119,6 +120,12 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle scan completion
+  const handleScanComplete = () => {
+    // Increment the key to trigger a re-render with fresh data
+    setFolderTreeKey(prevKey => prevKey + 1);
   };
 
   // Selection handlers using the useSelection hook
@@ -193,6 +200,7 @@ const FolderTree: React.FC<FolderTreeProps> = ({
         onFolderDragEnd={folderDragSource.handleDragEnd}
         onFileDragStart={handleFileDragStart}
         onFileDragEnd={fileDragSource.handleDragEnd}
+        onScanComplete={handleScanComplete}
       />
     </div>
   );

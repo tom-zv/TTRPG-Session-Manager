@@ -18,6 +18,7 @@ interface FolderDisplayProps {
   onFolderDragEnd?: (e: React.DragEvent) => void;
   onFileDragStart?: (e: React.DragEvent, file: AudioFile) => void;
   onFileDragEnd?: (e: React.DragEvent) => void;
+  onScanComplete?: () => void;
 }
 
 const FolderDisplay: React.FC<FolderDisplayProps> = ({
@@ -32,7 +33,8 @@ const FolderDisplay: React.FC<FolderDisplayProps> = ({
   onFolderDragStart,
   onFolderDragEnd,
   onFileDragStart,
-  onFileDragEnd
+  onFileDragEnd,
+  onScanComplete
 }) => {
   return (
     <ul className="folder-tree" style={{ paddingLeft: level > 0 ? "0" : "0" }}>
@@ -63,6 +65,7 @@ const FolderDisplay: React.FC<FolderDisplayProps> = ({
                 }
                 onDragStart={(e) => onFolderDragStart && onFolderDragStart(e, folder)}
                 onDragEnd={onFolderDragEnd}
+                onScanComplete={onScanComplete}
               />
 
               {isOpen && (
@@ -82,6 +85,7 @@ const FolderDisplay: React.FC<FolderDisplayProps> = ({
                       onFolderDragEnd={onFolderDragEnd}
                       onFileDragStart={onFileDragStart}
                       onFileDragEnd={onFileDragEnd}
+                      onScanComplete={onScanComplete}
                     />
                   )}
 

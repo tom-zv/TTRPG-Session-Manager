@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import type { CollectionEditViewProps } from "./types.js";
+import React, { useEffect } from "react";
+import type { CollectionViewProps } from "./types.js";
 import { useCollections } from "./hooks/useCollections.js";
 import CollectionsGrid from "./components/CollectionsGrid.js";
 import CollectionDetail from "./components/CollectionDetail.js";
 import CreateCollectionDialog from "./components/CreateCollectionDialog.js";
-import "./CollectionEditView.css";
+import "./CollectionView.css";
 
-const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
+const CollectionView: React.FC<CollectionViewProps> = (props) => {
   const {
     collectionName,
     collectionType,
@@ -15,8 +15,12 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
     onCreateCollection,
     onDeleteCollection,
     onAddItems,
+    onEditItem,
     onRemoveItems,
     onUpdateItemPosition,
+    // UI props
+    itemDisplayView,
+    isEditing,
   } = props;
 
   // Collections state and methods from hook
@@ -28,20 +32,11 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
     onCreateCollection,
     onDeleteCollection,
     onAddItems,
+    onEditItem,
     onRemoveItems,
     onUpdateItemPosition
   });
   
-  // State for error and loading management
-  const [isLoading, setIsLoading] = useState(collections.isLoading);
-  const [error, setError] = useState(collections.error);
-  
-  // Update local state when hook state changes
-  useEffect(() => {
-    setIsLoading(collections.isLoading);
-    setError(collections.error);
-  }, [collections.isLoading, collections.error]);
-
   // Load collections when component mounts
   useEffect(() => {
     collections.loadCollections();
@@ -63,14 +58,14 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
   };
 
   return (
-    <div className="collection-edit-view">
+    <div className="collection-view">
       {collections.viewMode === "grid" ? (
         <CollectionsGrid
           collectionName={collectionName}
           collectionType={collectionType}
-          collections={collections.collectionsAsAudioItems}
-          isLoading={isLoading}
-          error={error}
+          collections={collections.collections}
+          isLoading={collections.isLoading}
+          error={collections.error}
           onCreateCollection={onCreateCollection}
           onItemClick={handleItemClick}
           onDeleteClick={collections.handleDeleteCollection}
@@ -83,11 +78,14 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
           collection={collections.selectedCollection}
           collectionType={collectionType}
           collectionItems={collections.collectionItems}
-          isLoading={isLoading}
-          error={error}
+          itemDisplayView={itemDisplayView || "list"}
+          isEditing={isEditing || false}
+          isLoading={collections.isLoading}
+          error={collections.error}
           onBackClick={collections.handleBackToCollections}
+          onAddItems={collections.handleAddItems}
           onRemoveItems={collections.handleRemoveItems}
-          handleAddItems={collections.handleAddItems}
+          onEditItem={collections.handleEditItem}
           onUpdateItemPosition={collections.handleUpdateItemPositions}
           isDragSource={true}
           isDropTarget={true}
@@ -105,10 +103,10 @@ const CollectionEditView: React.FC<CollectionEditViewProps> = (props) => {
         setNewItemName={collections.setNewItemName}
         setNewItemDescription={collections.setNewItemDescription}
         onCreateCollection={collections.handleCreateCollection}
-        isLoading={isLoading}
+        isLoading={collections.isLoading}
       />
     </div>
   );
 };
 
-export default CollectionEditView;
+export default CollectionView;
