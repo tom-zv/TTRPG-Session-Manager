@@ -1,32 +1,34 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useSelection } from "../../../../../hooks/useSelection.js";
 import type { AudioItem } from "../types.js";
 
 interface UseAudioItemLogicOptions {
   items: AudioItem[];
-  initialView: "grid" | "list";
+  initialView?: "grid" | "list";
   onItemClick?: (itemId: number) => void;
-  onRemoveItems?: (itemIds: number[]) => void;
 }
 
 export function useAudioItems({
   items,
   initialView = "list",
   onItemClick,
-  onRemoveItems
 }: UseAudioItemLogicOptions) {
   // View state
   const [viewMode, setViewMode] = useState<"grid" | "list">(initialView);
   
-  // Selection state and handlers
   const { selectedItems, handleSelect, clearSelection } = useSelection<AudioItem>({
     getItemId: (item) => item.id,
   });
   
+  // Create a memoized array of selected item IDs
+  const selectedItemIds = useMemo(() => 
+    selectedItems.map(item => item.id), 
+    [selectedItems]
+  );
+  
   // Handle item selection with mouse event modifiers
   const handleItemSelection = useCallback((e: React.MouseEvent, itemId: number) => {
     e.stopPropagation();
-    
     // Find the item
     const item = items.find(i => i.id === itemId);
     if (!item) return;
@@ -40,31 +42,24 @@ export function useAudioItems({
     const isMultiSelect = e.ctrlKey || e.metaKey;
     const isShiftSelect = e.shiftKey;
     
-    // Use our selection hook
-    handleSelect(item, items, isMultiSelect, isShiftSelect);
-    
-    // If it's a regular click (not multi/shift select) and we have an onClick handler,
-    // also call that handler
-    if (!isMultiSelect && !isShiftSelect && onItemClick) {
-      onItemClick(itemId);
-    }
-  }, [items, onItemClick, handleSelect]);
-
-  // Handle removing items, clearing selection
-  const handleRemoveItems = useCallback((itemIds: number[]) => {
-    if (onRemoveItems) {
-      onRemoveItems(itemIds);
+    if (isMultiSelect || isShiftSelect) {
+      handleSelect(item, items, isMultiSelect, isShiftSelect);
+    } else {
       clearSelection();
     }
-  }, [onRemoveItems, clearSelection]);
-
-  // Return all state and handlers that UI components need
+    
+    // After selection, trigger the parent click handler if provided
+    if (onItemClick) {
+      onItemClick(itemId);
+    }
+  }, [items, handleSelect, clearSelection, onItemClick]);
+  
   return {
     viewMode,
     setViewMode,
     selectedItems,
-    selectedItemIds: selectedItems.map(item => item.id),
+    selectedItemIds,
     handleItemSelection,
-    handleRemoveItems
+    clearSelection,
   };
 }

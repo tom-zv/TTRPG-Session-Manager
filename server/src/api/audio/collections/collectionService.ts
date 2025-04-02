@@ -115,32 +115,27 @@ export async function createCollection(type: string, name: string, description: 
 export async function updateCollection(
   type: string,
   id: number, 
-  name: string, 
-  description: string | null
+  name?: string, 
+  description?: string | null,
+  volume?: number
 ): Promise<ServiceResponse<any>> {
   try {
-    if (!name) {
-      return { success: false, error: 'Collection name is required' };
-    }
-    
-    const collectionResponse = await getCollectionById(type, id);
-    if (!collectionResponse.success) {
-      return collectionResponse;
-    }
-    
-    let affectedRows;
+    let affectedRows = 0;
     if (type === 'macro') {
-      affectedRows = await macroModel.updateMacro(id, name, description);
+      affectedRows = await macroModel.updateMacro(id, name, description, volume);
     } else {
       affectedRows = await collectionModel.updateCollection(type, id, name, description);
     }
-    
-    if (!affectedRows) {
+
+    if (affectedRows > 0) {
+      return { success: true };
+    } else {
+      const checkResponse = await getCollectionById(type, id);
+      if (!checkResponse.success) {
+        return { success: false, notFound: true, error: `${type} collection not found` };
+      }
       return { success: false, error: `Failed to update ${type} collection` };
     }
-    
-    const updatedCollectionResponse = await getCollectionById(type, id);
-    return { success: true, data: updatedCollectionResponse.data };
   } catch (error) {
     console.error(`Service error updating ${type} collection ${id}:`, error);
     return { success: false, error: `Failed to update ${type} collection` };
@@ -312,19 +307,15 @@ export async function updateFileRangePosition(
   }
 }
 
-export async function updateItem(
+export async function updateFile(
   type: string,
   collectionId: number,
   audioFileId: number,
-  params: { 
+  params: {
+    active?: boolean, 
+    volume?: number,
     // For macro type
     delay?: number, 
-    volume?: number,
-    // For non-macro types
-    name?: string,
-    file_url?: string,
-    file_path?: string,
-    folder_id?: number
   }
 ): Promise<ServiceResponse<void>> {
   try {
@@ -351,13 +342,11 @@ export async function updateItem(
       }
       
       // Then update the audio file properties
-      affectedRows = await collectionModel.updateAudioFile(
+      affectedRows = await collectionModel.updateFile(
         audioFileId,
         {
-          name: params.name,
-          file_url: params.file_url,
-          file_path: params.file_path,
-          folder_id: params.folder_id
+          active: params.active,
+          volume: params.volume,
         }
       );
     }
@@ -557,9 +546,45 @@ export async function addMacrosToCollection(
   }
 }
 
+export async function getAllCollectionsWithFiles(type: string): Promise<ServiceResponse<any[]>> {
+  try {
+    let collections;
+    if (type === 'macro') {
+      collections = await macroModel.getAllMacros();
+    } else {
+      collections = await collectionModel.getAllCollections(type);
+    }
+    
+    // For each collection, fetch its files
+    const collectionsWithFiles = await Promise.all(
+      collections.map(async (collection: any) => {
+        let result;
+        if (type === 'macro') {
+          const files = await macroModel.getMacroFiles(collection.collection_id);
+          result = { files, macros: [] };
+        } else {
+          result = await collectionModel.getCollectionFiles(type, collection.collection_id);
+        }
+        
+        return {
+          ...collection,
+          files: result.files,
+          macros: result.macros || []
+        };
+      })
+    );
+    
+    return { success: true, data: collectionsWithFiles };
+  } catch (error) {
+    console.error(`Service error getting all ${type} collections with files:`, error);
+    return { success: false, error: `Failed to retrieve ${type} collections with files` };
+  }
+}
+
 export default {
   getAllCollections,
   getAllCollectionsAllTypes,
+  getAllCollectionsWithFiles,
   getCollectionById,
   getCollectionWithFiles,
   createCollection,
@@ -570,7 +595,7 @@ export default {
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,
-  updateItem,
+  updateFile,
   getAllPacks,
   createPack,
   deletePack,

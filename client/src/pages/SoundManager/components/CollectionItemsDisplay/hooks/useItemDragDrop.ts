@@ -1,5 +1,5 @@
-// src/pages/SoundManager/components/AudioItemDisplay/hooks/useItemDragDrop.ts
-import { useRef, useState, useCallback, useEffect, useMemo } from "react"; // Add useMemo
+// src/pages/SoundManager/components/CollectionItemsDisplay/hooks/useItemDragDrop.ts
+import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useDragSource } from "src/hooks/useDragSource.js";
 import { useDropTarget } from "src/hooks/useDropTarget.js";
 import { useDropTargetContext } from "src/hooks/useDropTargetContext.js";
@@ -24,13 +24,14 @@ export function useItemDragDrop({
   dropZoneId = null,
   acceptedDropTypes = [],
   containerRef,
-  onAddItems,
-  onUpdateItemPosition,
-  calculateDropTarget
+  useAddItems,
+  useUpdateItemPosition,
+  calculateDropTarget,
 }: UseItemDragDropProps) {
   const [targetIndex, setTargetIndex] = useState<number | undefined>(undefined);
   const internalRef = useRef<HTMLDivElement | null>(null);
   const effectiveRef = containerRef || internalRef;
+
 
   const {
     registerDropHandler,
@@ -43,6 +44,7 @@ export function useItemDragDrop({
     if (!calculateDropTarget) return undefined;
     const index = calculateDropTarget(e, effectiveRef.current);
     if (index !== undefined) {
+      console.log("Calculated drop index:", index);
       setTargetIndex(index);
     }
     return index;
@@ -98,15 +100,13 @@ export function useItemDragDrop({
     [isDragSource, itemDragSource]
   );
 
-  // Memoize handleDrop to prevent recreation on every render
   const handleDrop = useCallback(
     async (items: AudioItem[], context: DropContext<unknown>) => {
-      if (onAddItems) {
-        onAddItems(items, context.index);
+      if (useAddItems) {
+        useAddItems(items, context.index, context.isMacro);
       }
-      setTargetIndex(undefined);
     },
-    [onAddItems]
+    [useAddItems]
   );
 
   const dropTargetResult = useDropTarget<AudioItem>({
@@ -116,7 +116,7 @@ export function useItemDragDrop({
       
       const { index, mode } = context;
 
-      if (mode === "reorder" && onUpdateItemPosition && items.length > 0) {
+      if (mode === "reorder" && useUpdateItemPosition && items.length > 0) {
         const sourceStartPosition = items[0].position;
         const sourceEndPosition = items[items.length - 1].position;
 
@@ -126,18 +126,22 @@ export function useItemDragDrop({
         }
 
         if (items.length > 1) {
-          await onUpdateItemPosition(
+          useUpdateItemPosition(
             items[0].id,
             index!,
             sourceStartPosition,
             sourceEndPosition
           );
         } else {
-          await onUpdateItemPosition(items[0].id, index!);
+          useUpdateItemPosition(
+            items[0].id,
+            index!
+          );
         }
-      } else if (mode === "file-transfer" && onAddItems) {
+      } else if (mode === "file-transfer" && useAddItems) {
         if (items.length > 0) {
-          onAddItems(items, index);
+          // Pass full items instead of just mapping to IDs
+          useAddItems(items, index);
         }
         setTargetIndex(undefined);
       }

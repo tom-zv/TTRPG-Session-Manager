@@ -5,6 +5,7 @@ export function transformAudioFile(dbAudioFile: any) {
     type: "file", 
     audioType: dbAudioFile.audio_type,   // audio type: music, sfx, ambience
     name: dbAudioFile.name, 
+    active: dbAudioFile.active, // Active status
     duration: dbAudioFile.duration,
     position: dbAudioFile.position,    // Position in collection
     fileUrl: dbAudioFile.file_url,     // Remote URL for playback
@@ -47,9 +48,8 @@ export function transformMacro(dbMacro: any) {
   }
   
   let MacroDuration = 0;
-  for (const f in nestedFiles) {
-    let fileDuration = nestedFiles[f].duration + nestedFiles[f].delay / 1000;
-
+  for (const file of nestedFiles) {
+    let fileDuration = (file.duration || 0) + (file.delay || 0) / 1000;
     MacroDuration = Math.max(MacroDuration, fileDuration);
   }
 
@@ -59,6 +59,7 @@ export function transformMacro(dbMacro: any) {
     audioType: "sfx", // Macros are always SFX type
     name: dbMacro.name,
     description: dbMacro.description,
+    volume: dbMacro.volume,
     duration: MacroDuration, // Duration is the longest of the nested files including delay
     position: dbMacro.position,
     files: nestedFiles, // Include the nested files for playback
@@ -74,6 +75,7 @@ export function transformCollection(dbCollection: any){
     description: dbCollection.description,
     itemCount: dbCollection.item_count, 
     position: dbCollection.position,  // Position in a pack
+    items: null as any,
   };
 }
 

@@ -1,124 +1,101 @@
-import React, { useEffect } from "react";
-import { playlistApi } from "../../api/collections/collectionApi.js";
-import { useCollections } from "../CollectionView/hooks/useCollections.js";
-import { useItemPanel } from "../ItemPanel/ItemPanelContext.js";
-import AudioItemsDisplay from "../AudioItemDisplay/AudioItemsDisplay.js";
+import React, { useState, useMemo, useCallback } from "react";
+import { useGetCollectionsOfType } from "../../api/collections/useCollectionQueries.js";
+import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
+import { Audio } from "../AudioService/AudioContext.js";
+
 import "./PlaylistPanel.css";
 
-const PlaylistPanel: React.FC = () => {
-  // Get the isPanelActive state from ItemPanelContext
-  const { isItemPanelActive } = useItemPanel();
+const PlaylistPanel: React.FC = React.memo(() => {
 
-  // Hook to manage Playlists
-  const playlists = useCollections({
-    collectionName: "playlists",
-    collectionType: "playlist",
-    fetchCollections: playlistApi.getAllCollections,
-    fetchCollectionItems: playlistApi.getCollectionFiles,
-    onCreateCollection: playlistApi.createCollection,
-    onDeleteCollection: playlistApi.deleteCollection,
-    onEditItem: playlistApi.updateItem,
-    onRemoveItems: playlistApi.removeFilesFromCollection,
-    onUpdateItemPosition: playlistApi.updatePosition,
-  });
+  // Get audio context functionality
+  const { toggleAudioItem, isAudioItemPlaying, playlist: { togglePlaylist, currentIndex }} = Audio.useAudio();
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
 
-  useEffect(() => {
-    playlists.loadCollections();
-  }, []);
+  const { data: playlistCollection } = useGetCollectionsOfType("playlist");
+  const playlists = playlistCollection?.items || [];
 
-  const handlePlaylistClick = (playlistId: number) => {
-    const selectedCollection = playlists.collections.find((playlist) => playlist.id === playlistId);
-    if (!selectedCollection) {
-      console.error("Playlist not found");
-      return;
-    }
-
-    playlists.handleSelectCollection(selectedCollection);
-    playlists.loadCollectionItems(playlistId);
-  };
+  // Memoize the selected playlist to prevent unnecessary lookups
+  const selectedPlaylist = useMemo(() => 
+    playlists?.find((playlist) => playlist.id === selectedPlaylistId),
+    [playlists, selectedPlaylistId]
+  );
 
   // Function to handle going back to all playlists
-  const handleBackClick = () => {
-    playlists.handleSelectCollection(null);
-  };
-
-  // Function to handle playing a playlist
-  const handlePlayPlaylist = (playlistId: number) => {
-    console.log("Playing playlist:", playlistId);
-    // playlist playback logic
-  };
-
-  // Function to handle playing a playlist item
-  const handlePlayItem = (itemId: number) => {
-    console.log("Playing item:", itemId);
-    // item playback logic
-  };
+  const handleBackClick = useCallback(() => {
+    setSelectedPlaylistId(null);
+  }, []);
+  
+  // Handle playlist selection
+  const handlePlaylistSelect = useCallback((itemId: number) => {
+    setSelectedPlaylistId(itemId);
+  }, []);
+  
+  // Handle play/pause toggle
+  const handleTogglePlay = useCallback(() => {
+    if (selectedPlaylist) {
+      togglePlaylist(selectedPlaylistId!, currentIndex );
+    }
+  }, [selectedPlaylist, toggleAudioItem]);
 
   // Don't render if the ItemPanel is active
-  if (isItemPanelActive) {
-    return null;
-  }
+
+  const listViewProps = {
+    collectionType: "playlist" as const,
+    collectionId: -1,
+    view: "list" as const,
+    showToggle: false,
+    showHeaders: false,
+    showPlayButton: true,
+    onItemClick: handlePlaylistSelect,
+    isDragSource: false,
+    isReorderable: false,
+    isDropTarget: false,
+  };
+  
+  const detailViewProps = {
+    collectionType: "playlist" as const,
+    collectionId: selectedPlaylistId!,
+    view: "list" as const,
+    showToggle: false,
+    showHeaders: true,
+    showActions: true,
+    isDragSource: true,
+    isReorderable: true,
+    isDropTarget: true,
+    acceptedDropTypes: ["file"],
+  };
 
   return (
     <div className="playlist-panel">
-      {!playlists.selectedCollection ? (
+      {!selectedPlaylistId ? (
         <>
           <div className="panel-header">
             <h3>Playlists</h3>
           </div>
-          <AudioItemsDisplay
-            items={playlists.collections}
-            collectionType="pack"
-            view="list"
-            showToggle={false}
-            showHeaders={false}
-            showPlayButton={true}
-            onItemClick={handlePlaylistClick}
-            onPlayItem={handlePlayPlaylist}
-            isDragSource={false}
-            isReorderable={false}
-            isDropTarget={false}
-          />
+          <CollectionItemsDisplay {...listViewProps} />
         </>
-      ) : (
+      ) : selectedPlaylist ? (
         <>
           <div className="panel-header">
             <button className="back-button" onClick={handleBackClick}>
               ←
             </button>
-            <h3>{playlists.selectedCollection.name}</h3>
+            <h3>{selectedPlaylist.name}</h3>
             <button
-              className="play-all-button"
-              onClick={() => handlePlayPlaylist(playlists.selectedCollection!.id)}
-              title="Play all"
+              className={`play-all-button ${isAudioItemPlaying(selectedPlaylist) ? "playing" : ""}`}
+              onClick={handleTogglePlay}
+              title={isAudioItemPlaying(selectedPlaylist) ? "Pause" : "Play all"}
             >
-              ▶
+              {isAudioItemPlaying(selectedPlaylist) ? "⏸" : "▶"}
             </button>
           </div>
-          <AudioItemsDisplay
-            items={playlists.collectionItems}
-            collectionType={"playlist"}
-            isEditing={true}
-            isLoading={playlists.isLoading}
-            error={playlists.error}
-            view="list"
-            showToggle={false}
-            showHeaders={true}
-            showActions={true}
-            onAddItems={playlists.handleAddItems}
-            onEditItem={playlists.handleEditItem}
-            onRemoveItems={playlists.handleRemoveItems}
-            onPlayItem={handlePlayItem}
-            onUpdateItemPosition={playlists.handleUpdateItemPositions}
-            isDragSource={true}
-            isReorderable={true}
-            isDropTarget={true}
-            acceptedDropTypes={["file"]}
-          />
+          <CollectionItemsDisplay {...detailViewProps} />
+          
         </>
-      )}
+        
+      ) : null}
     </div>
   );
-};
+});
 
 export default PlaylistPanel;

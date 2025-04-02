@@ -79,11 +79,6 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       onError?: (error: Error) => void;
     }
   ) => {
-    
-
-    console.log(`Registering drop handler for zone: ${zoneId}`);
-
-
     // Create updater function for this specific zone
     const updateDragState = (isDragging: boolean, count: number) => {
       const zone = handlersRef.current[zoneId];
@@ -136,9 +131,6 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const unregisterDropHandler = useCallback((zoneId: string) => {
-
-    console.log(`Unregistering drop handler for zone: ${zoneId}`);
-
     if (handlersRef.current[zoneId]) {
       delete handlersRef.current[zoneId];
       forceUpdate({});

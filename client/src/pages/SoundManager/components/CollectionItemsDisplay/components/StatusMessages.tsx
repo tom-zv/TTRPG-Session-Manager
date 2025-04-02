@@ -2,7 +2,7 @@ import React from 'react';
 
 interface StatusMessagesProps {
   isLoading: boolean;
-  error: string | null;
+  error: Error | null;
   isEmpty: boolean;
 }
 
@@ -16,7 +16,7 @@ export const StatusMessages: React.FC<StatusMessagesProps> = ({
   }
 
   if (error) {
-    return <div className="error-message">{error}</div>;
+    return <div className="error-message">{error.message}</div>;
   }
 
   if (isEmpty) {

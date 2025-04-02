@@ -34,12 +34,39 @@ export async function createMacro(name: string, description: string | null): Pro
 
 export async function updateMacro(
   macroId: number, 
-  name: string, 
-  description: string | null
+  name?: string, 
+  description?: string | null,
+  volume?: number
 ): Promise<number> {
+  // Build dynamic query based on provided params
+  const updateFields: string[] = [];
+  const params: any[] = [];
+
+  if (name !== undefined) {
+    updateFields.push('name = ?');
+    params.push(name);
+  }
+  
+  if (description !== undefined) {
+    updateFields.push('description = ?');
+    params.push(description);
+  }
+
+  if (volume !== undefined) {
+    updateFields.push('volume = ?');
+    params.push(volume);
+  }
+
+  // If no fields to update, return early
+  if (updateFields.length === 0) {
+    return 0;
+  }
+
+  params.push(macroId);
+
   const [result] = await pool.execute(
-    `UPDATE ${MACRO_TABLE} SET name = ?, description = ? WHERE macro_id = ?`,
-    [name, description, macroId]
+    `UPDATE ${MACRO_TABLE} SET ${updateFields.join(', ')} WHERE macro_id = ?`,
+    params
   );
   return (result as ResultSetHeader).affectedRows || 0;
 }

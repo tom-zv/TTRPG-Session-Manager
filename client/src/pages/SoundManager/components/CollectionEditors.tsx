@@ -24,19 +24,24 @@ const PlaylistEditor: React.FC = () => {
 const SoundEffectEditor: React.FC = () => {
   return (
     <CollectionView
-      collectionType="sfx"
-      collectionName="Sound Effect Collections"
-      fetchCollections={sfxApi.getAllCollections}
-      fetchCollectionItems={sfxApi.getCollectionFiles}
-      onCreateCollection={sfxApi.createCollection}
-      onUpdateCollection={(collection) => 
-        sfxApi.updateCollection(collection.id, collection.name, collection.description)
-      }
-      onDeleteCollection={sfxApi.deleteCollection}
-      onAddItems={sfxApi.addToCollection}
-      onRemoveItems={sfxApi.removeFilesFromCollection}
-      onUpdateItemPosition={sfxApi.updatePosition}
-    />
+    collectionType="sfx"
+    collectionName="Sound Effect Collections"
+    fetchCollections={sfxApi.getAllCollections}
+    fetchCollectionItems={sfxApi.getCollectionFiles}
+    onCreateCollection={sfxApi.createCollection}
+    onUpdateCollection={(collection) =>
+      sfxApi.updateCollection(
+        collection.id,
+        collection.name,
+        collection.description
+      )
+    }
+    onDeleteCollection={sfxApi.deleteCollection}
+    onAddItems={sfxApi.addToCollection}
+    onRemoveItems={sfxApi.removeFilesFromCollection}
+    onUpdateItemPosition={sfxApi.updatePosition}
+    itemDisplayView="grid"
+  />
   );
 }
 
@@ -55,6 +60,7 @@ const AmbienceEditor: React.FC = () => {
       onAddItems={ambienceApi.addToCollection}
       onRemoveItems={ambienceApi.removeFilesFromCollection}
       onUpdateItemPosition={ambienceApi.updatePosition}
+      itemDisplayView="grid"
     />
   );
 }
@@ -72,6 +78,7 @@ const PackEditor: React.FC = () => {
       onAddItems={() => Promise.resolve(true)} // Placeholder 
       onRemoveItems={() => Promise.resolve(true)} // Placeholder 
       onUpdateItemPosition={() => Promise.resolve(true)} // Placeholder 
+      itemDisplayView="grid"
     />
   );
 }
@@ -93,9 +100,10 @@ const MacroEditor: React.FC = () => {
       }
       onDeleteCollection={macroApi.deleteCollection}
       onAddItems={macroApi.addToCollection}
-      onEditItem={macroApi.editItem}
+      onEditItem={macroApi.updateFile}
       onRemoveItems={macroApi.removeFilesFromCollection}
       onUpdateItemPosition={macroApi.updatePosition}
+      itemDisplayView="grid"
     />
   );
 }

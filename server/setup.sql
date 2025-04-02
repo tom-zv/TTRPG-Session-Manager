@@ -87,6 +87,7 @@ CREATE TABLE
     macro_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(64) NOT NULL,
     description TEXT,
+    volume FLOAT DEFAULT 1.0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -115,7 +116,7 @@ CREATE TABLE
   collection_files (
     collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
-    active BOOLEAN DEFAULT TRUE,
+    active BOOLEAN DEFAULT FALSE,
     position INT NOT NULL,
     volume FLOAT DEFAULT 1,  
     PRIMARY KEY (collection_id, audio_file_id),

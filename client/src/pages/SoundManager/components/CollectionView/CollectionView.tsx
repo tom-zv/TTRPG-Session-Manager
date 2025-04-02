@@ -1,110 +1,61 @@
-import React, { useEffect } from "react";
+import React, { useState } from "react";
 import type { CollectionViewProps } from "./types.js";
-import { useCollections } from "./hooks/useCollections.js";
 import CollectionsGrid from "./components/CollectionsGrid.js";
 import CollectionDetail from "./components/CollectionDetail.js";
-import CreateCollectionDialog from "./components/CreateCollectionDialog.js";
 import "./CollectionView.css";
 
 const CollectionView: React.FC<CollectionViewProps> = (props) => {
   const {
-    collectionName,
     collectionType,
-    fetchCollections,
-    fetchCollectionItems,
-    onCreateCollection,
-    onDeleteCollection,
-    onAddItems,
-    onEditItem,
-    onRemoveItems,
-    onUpdateItemPosition,
     // UI props
     itemDisplayView,
-    isEditing,
+    dropZoneId, 
+    acceptedDropTypes, 
   } = props;
-
-  // Collections state and methods from hook
-  const collections = useCollections({
-    collectionName,
-    collectionType,
-    fetchCollections,
-    fetchCollectionItems,
-    onCreateCollection,
-    onDeleteCollection,
-    onAddItems,
-    onEditItem,
-    onRemoveItems,
-    onUpdateItemPosition
-  });
   
-  // Load collections when component mounts
-  useEffect(() => {
-    collections.loadCollections();
-  }, [collectionType]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<number>(-1);
+  const [viewMode, setViewMode] = useState<string>("grid");
 
   // Handle collection item click
   const handleItemClick = (itemId: number) => {
     // Special case for our "Create New" button
     if (itemId === -1) {
-      collections.setIsCreateDialogOpen(true);
+      // TODO: create collection dialog
       return;
     }
 
-    // Regular collection item
-    const collection = collections.collections.find((c) => c.id === itemId);
-    if (collection) {
-      collections.handleSelectCollection(collection);
-    }
+    setViewMode("detail");
+    setSelectedCollectionId(itemId);
   };
 
   return (
     <div className="collection-view">
-      {collections.viewMode === "grid" ? (
+      {viewMode === "grid" ? (
         <CollectionsGrid
-          collectionName={collectionName}
           collectionType={collectionType}
-          collections={collections.collections}
-          isLoading={collections.isLoading}
-          error={collections.error}
-          onCreateCollection={onCreateCollection}
           onItemClick={handleItemClick}
-          onDeleteClick={collections.handleDeleteCollection}
           isDragSource={true}
           isDropTarget={false}
         />
       ) : (
-        collections.selectedCollection && (
-        <CollectionDetail
-          collection={collections.selectedCollection}
-          collectionType={collectionType}
-          collectionItems={collections.collectionItems}
-          itemDisplayView={itemDisplayView || "list"}
-          isEditing={isEditing || false}
-          isLoading={collections.isLoading}
-          error={collections.error}
-          onBackClick={collections.handleBackToCollections}
-          onAddItems={collections.handleAddItems}
-          onRemoveItems={collections.handleRemoveItems}
-          onEditItem={collections.handleEditItem}
-          onUpdateItemPosition={collections.handleUpdateItemPositions}
-          isDragSource={true}
-          isDropTarget={true}
-        />
+        selectedCollectionId > 0 && (
+          <CollectionDetail
+            collectionType={collectionType}
+            collectionId={selectedCollectionId}
+            itemDisplayView={itemDisplayView || "list"}
+            onBackClick={
+              () => {
+                setViewMode("grid");
+                setSelectedCollectionId(-1);
+              }
+            }
+            isDragSource={true}
+            isDropTarget={true}
+            dropZoneId={dropZoneId} 
+            acceptedDropTypes={acceptedDropTypes} 
+          />
         )
       )}
-      
-      <CreateCollectionDialog
-        isOpen={collections.isCreateDialogOpen}
-        onClose={() => collections.setIsCreateDialogOpen(false)}
-        collectionName={collectionName}
-        collectionType={collectionType}
-        newItemName={collections.newItemName}
-        newItemDescription={collections.newItemDescription}
-        setNewItemName={collections.setNewItemName}
-        setNewItemDescription={collections.setNewItemDescription}
-        onCreateCollection={collections.handleCreateCollection}
-        isLoading={collections.isLoading}
-      />
     </div>
   );
 };

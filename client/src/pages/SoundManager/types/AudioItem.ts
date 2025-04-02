@@ -2,7 +2,7 @@
 export type AudioFileType = "music" | "sfx" | "ambience";
 
 // Collection-specific types
-export type CollectionType = "playlist" | "sfx" | "ambience" | "pack";
+export type CollectionType = "playlist" | "sfx" | "ambience" | "pack" | "macro";
 
 // Base interface with common properties
 export interface AudioItemBase {
@@ -16,8 +16,8 @@ export interface AudioItemBase {
 export interface AudioFile extends AudioItemBase {
   type: "file";
   fileType: AudioFileType;
-  duration?: number;
-  volume?: number;
+  duration: number;
+  volume: number;
   delay?: number; // For macro timing
   fileUrl?: string;
   filePath?: string;
@@ -40,6 +40,7 @@ export interface AudioMacro extends AudioItemBase {
   itemCount?: number;
   items?: AudioFile[]; // For nested collections or when files are loaded
   duration?: number; // Total duration of the macro
+  volume?: number; // Volume for the macro
 }
 
 // Union type

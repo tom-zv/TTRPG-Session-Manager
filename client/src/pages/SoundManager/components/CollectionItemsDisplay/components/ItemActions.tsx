@@ -1,5 +1,5 @@
 import React from 'react';
-import { AudioItem } from '../types.js';
+import { AudioItem, AudioItemActions } from '../types.js';
 import './ItemActions.css';
 
 interface ItemActionProps {
@@ -23,76 +23,56 @@ const ActionButton: React.FC<ItemActionProps> = ({ icon, label, onClick, buttonC
   );
 };
 
-interface ItemActionsProps {
+interface ItemActionsProps extends AudioItemActions {
+  collectionId: number;
   item: AudioItem;
   selectedItemIds?: number[];
-  onPlayItem?: (itemId: number) => void;
-  onEditItem?: (itemId: number, params: any) => void;
-  onRemoveItems?: (itemIds: number[]) => void;
   isSmall?: boolean;
 }
 
 const ItemActions: React.FC<ItemActionsProps> = ({
   item,
   selectedItemIds = [],
-  onPlayItem,
-  onEditItem,
-  onRemoveItems,
+  useRemoveItems,
   isSmall = false
 }) => {
   // Don't show actions for create buttons
   if (item.isCreateButton) return null;
   
-  const handlePlayClick = (e: React.MouseEvent) => {
-    if (onPlayItem) {
-      e.stopPropagation();
-      onPlayItem(item.id);
-    }
-  };
-
-  const handleEditClick = (e: React.MouseEvent) => {
-    if (onEditItem) {
-      e.stopPropagation();
-      onEditItem(item.id, {}); // Pass needed params here
-    }
-  };
+  // const handleEditClick = (e: React.MouseEvent) => {
+  //   if (useEditItem) {
+  //     e.stopPropagation();
+  //     //useEditItem(item.id, {}); // Pass needed params here
+  //   }
+  // };
 
   const handleRemoveClick = (e: React.MouseEvent) => {
-    if (!onRemoveItems) return;
+    if (!useRemoveItems) return;
     e.stopPropagation();
 
-    const idsToRemove = selectedItemIds.length > 0
+    const idsToRemove = selectedItemIds.length > 0 && selectedItemIds.some(id => id == item.id)
       ? selectedItemIds
       : [item.id];
 
-    onRemoveItems(idsToRemove);
+    useRemoveItems(idsToRemove);
   };
 
   const containerClass = isSmall ? "item-actions" : "audio-item-controls";
 
   return (
     <div className={containerClass}>
-      {onPlayItem && (
-        <ActionButton 
-          icon="▶" 
-          label="Play"
-          onClick={handlePlayClick}
-          buttonClass="play-button"
-          small={isSmall}
-        />
-      )}
       
-      {onEditItem && (
+      {/* {useEditItem && (
         <ActionButton 
-          icon="✏️" 
+          icon="⚙" 
           label="Edit"
           onClick={handleEditClick}
           buttonClass="edit-button"
           small={isSmall}
         />
-      )}
+      )} */}
       
-      {onRemoveItems && (
+      {useRemoveItems && (
         <ActionButton 
           icon="×" 
           label="Remove"

@@ -15,6 +15,10 @@
   --success: #19b47a;
   --warning: #ff9800;
   
+  /* State indicators */
+  --accent-playing-bg: rgba(25, 180, 122, 0.15); /* Based on --success */
+  --accent-active-glow: rgba(61, 230, 168, 1);  /* Based on --success */
+
   --border-color: #444c56;
   --border-color-light: #5a626e;
   --shadow: rgba(0, 0, 0, 0.25);

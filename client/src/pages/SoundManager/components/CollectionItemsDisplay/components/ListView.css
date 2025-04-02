@@ -8,6 +8,7 @@
 
 .audio-item-table {
     width: 100%;
+    max-width: 900px;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 0.95rem;
@@ -31,12 +32,12 @@
 
 .audio-item-table th:first-child {
     padding-left: 1.5rem;
-    border-top-left-radius: 8px;
+    /* border-top-left-radius: 8px; */
 }
 
 .audio-item-table th:last-child {
     padding-right: 1.5rem;
-    border-top-right-radius: 8px;
+    /* border-top-right-radius: 8px; */
 }
 
 /* Table cells */
@@ -64,15 +65,72 @@
     background-color: rgba(53, 114, 227, 0.05);
 }
 
+/* Selected state */
 .audio-item-row.selected {
     background-color: rgba(53, 114, 227, 0.1);
     box-shadow: inset 4px 0 0 var(--accent-primary);
+}
+
+/* Current Track - the track that is loaded but may not be playing */
+.audio-item-row.current-track {
+    background-color: rgba(53, 114, 227, 0.05);
+    border-left: 2px solid var(--accent-primary);
+}
+
+.audio-item-row.current-track:hover {
+    background-color: rgba(53, 114, 227, 0.1);
+}
+
+.audio-item-row.current-track .position-number {
+    color: var(--accent-primary);
+    font-weight: 700;
+}
+
+.audio-item-row.current-track.selected {
+    background-color: rgba(53, 114, 227, 0.15);
+}
+
+/* Playing state - used for playlist tracks, SFX, and macros */
+/* .audio-item-row.playing {
+    background-color: rgba(25, 190, 107, 0.1);
+    box-shadow: inset 4px 0 0 var(--accent-success, #19BE6B);
+}
+
+.audio-item-row.playing:hover {
+    background-color: rgba(25, 190, 107, 0.15);
+}
+
+.audio-item-row.playing.selected {
+    background-color: rgba(25, 190, 107, 0.15);
+    box-shadow: inset 4px 0 0 var(--accent-success, #19BE6B), 
+                inset 8px 0 0 var(--accent-primary);
+} */
+
+/* Active state - used specifically for ambience files */
+.audio-item-row.active {
+    background-color: rgba(53, 114, 227, 0.07);
+    border-left: 1px dashed var(--accent-info, #2D8CF0);
+}
+
+/* Combined active + playing state for ambience files */
+.audio-item-row.active.playing {
+    background-color: rgba(25, 190, 107, 0.1);
+    border-left: 1px dashed var(--accent-info, #2D8CF0);
+    box-shadow: inset 4px 0 0 var(--accent-success, #19BE6B);
+}
+
+/* Current track + playing combined state */
+.audio-item-row.current-track.playing {
+    background-color: rgba(25, 190, 107, 0.15);
+    border-left: none;
 }
 
 /* Cell content styling */
 .item-name-cell {
     display: flex;
     align-items: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     gap: 0.75rem;
     font-weight: 500;
 }
@@ -158,6 +216,18 @@
 
 .audio-item-table tbody tr.insert-marker:hover {
     background-color: var(--accent-primary);
+}
+
+.empty-list-view {
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.empty-table-drop-area {
+    width: 100%;
+    min-height: 150px;
 }
 
 /* Responsive adjustments */

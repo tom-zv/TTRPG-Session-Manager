@@ -7,19 +7,45 @@ const collectionTypes = ['playlist', 'sfx', 'ambience', 'macro'];
 
 export const getAllCollections = async (req: Request, res: Response) => {
   const type = req.params.type;
-  
+  const includeFiles = req.query.includeFiles === 'true';
   // Validate collection type
   if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
   
   try {
-    const response = await collectionService.getAllCollections(type);
-
-    //console.log('Controller: getAllCollections response:', response);
+    let response;
+    
+    if (includeFiles) {
+      response = await collectionService.getAllCollectionsWithFiles(type);
+      if (response.success) {
+        // Transform the collections with their items
+        response.data = response.data ? response.data.map((collection: any) => {
+          const baseCollection = transformCollection(collection);
+          
+          if (type !== 'sfx') {
+            // For regular collections, just transform files
+            baseCollection.items = collection.files.map(transformAudioFile);
+          } else {
+            // For SFX collections, combine files and macros into a unified items array
+            const fileItems = collection.files.map(transformAudioFile);
+            const macroItems = collection.macros.map(transformMacro);
+            
+            // Combine and sort by position
+            baseCollection.items = [...fileItems, ...macroItems].sort((a, b) => a.position - b.position);
+          }
+          
+          return baseCollection;
+        }) : [];
+      }
+    } else {
+      response = await collectionService.getAllCollections(type);
+      if (response.success) {
+        response.data = response.data ? response.data.map(transformCollection) : [];
+      }
+    }
 
     if (response.success) {
-      response.data = response.data ? response.data.map(transformCollection) : [];
       res.status(200).json(response.data);
     } else {
       res.status(500).json({ error: response.error });
@@ -86,6 +112,9 @@ export const getCollectionById = async (req: Request, res: Response) => {
         // Remove the separate arrays since we now have a unified items array
         delete response.data.files;
         delete response.data.macros;
+    
+        response.data.id = response.data.collection_id; // Rename for consistency
+        delete response.data.collection_id;
       }
     } else {
       response = await collectionService.getCollectionById(type, id);
@@ -139,29 +168,32 @@ export const createCollection = async (req: Request, res: Response) => {
 export const updateCollection = async (req: Request, res: Response) => {
   const type = req.params.type;
   const id = parseInt(req.params.id);
-  const { name, description } = req.body;
-  
-  // Validate collection type
+  const { name, description, volume } = req.body; 
+
   if (!collectionTypes.includes(type)) {
     return res.status(400).json({ error: 'Invalid collection type' });
   }
-  
   if (isNaN(id)) {
     return res.status(400).json({ error: `Invalid ${type} collection ID` });
   }
-  
-  if (!name) {
-    return res.status(400).json({ 
-      field: 'name',
-      error: 'Collection name is required' 
-    });
+
+  // All fields are now optional, but at least one must be provided
+  if (
+    name === undefined &&
+    description === undefined &&
+    volume === undefined
+  ) {
+    return res.status(400).json({ error: 'No update parameters provided' });
   }
-  
+
+  if (type === 'macro' && volume !== undefined && (typeof volume !== 'number' || volume < 0 || volume > 1)) {
+    return res.status(400).json({ field: 'volume', error: 'Volume must be a number between 0 and 1' });
+  }
+
   try {
-    const response = await collectionService.updateCollection(type, id, name, description || null);
-    
+    const response = await collectionService.updateCollection(type, id, name, description, volume);
     if (response.success) {
-      res.status(200).json(response.data);
+      res.status(200).json({ message: `${type} collection updated successfully` });
     } else if (response.notFound) {
       res.status(404).json({ error: response.error });
     } else {
@@ -392,13 +424,13 @@ export const updateFileRangePosition = async (req: Request, res: Response) => {
   }
 };
 
-export const updateItem = async (req: Request, res: Response) => {
+export const updateFile = async (req: Request, res: Response) => {
   const type = req.params.type;
   const collectionId = parseInt(req.params.id);
   const audioFileId = parseInt(req.params.fileId);
   
   // Extract different parameters based on collection type
-  const { delay, volume, name, file_url, file_path, folder_id } = req.body;
+  const { active, volume, delay } = req.body;
   
   if (isNaN(collectionId) || isNaN(audioFileId)) {
     return res.status(400).json({ error: 'Invalid parameters' });
@@ -409,23 +441,21 @@ export const updateItem = async (req: Request, res: Response) => {
     const params: any = {};
     
     if (type === 'macro') {
-      // For macro type, only include delay and volume
+      // For macro type, only include delay 
       if (delay !== undefined) params.delay = delay;
-      if (volume !== undefined) params.volume = volume;
     } else {
-      // For other types, include audio file properties
-      if (name !== undefined) params.name = name;
-      if (file_url !== undefined) params.file_url = file_url;
-      if (file_path !== undefined) params.file_path = file_path;
-      if (folder_id !== undefined) params.folder_id = folder_id;
+      // For other types, include active
+      if (active !== undefined) params.active = active;
     }
+    // For all types, include volume if provided
+    if (volume !== undefined) params.volume = volume;
     
     // Check if any parameters were provided
     if (Object.keys(params).length === 0) {
       return res.status(400).json({ error: 'No update parameters provided' });
     }
     
-    const response = await collectionService.updateItem(
+    const response = await collectionService.updateFile(
       type, collectionId, audioFileId, params
     );
     
@@ -633,7 +663,7 @@ export default {
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,
-  updateItem,
+  updateFile,
   addMacroToCollection,
   addMacrosToCollection,
   getAllPacks,

@@ -1,0 +1,222 @@
+.play-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 0.5rem 0.1rem 0.5rem 0.4rem;
+  background-color: var(--bg-secondary);
+  border-radius: 6px;
+  box-shadow: 0 2px 6px var(--shadow);
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-color);
+}
+
+.playbar-main-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  flex-wrap: nowrap;
+  min-width: 0; /* Important for flexbox to respect child min-width */
+}
+
+.track-info {
+  flex: 0 0 auto;
+  text-overflow: ellipsis;
+  min-width: 25px;
+  width: 110px;
+  font-size: 0.8rem;
+  margin-right: 0px;
+}
+
+.track-name {
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+  display: block;
+  color: var(--text-primary);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 0rem;
+  margin-right: 10px;
+  margin-left: 15px;
+  flex: 0 0 auto; /* Don't grow or shrink */
+}
+
+.control-btn {
+  border: none;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  width: 0px;
+  height: 0px;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-primary);
+  opacity: 0.8;
+  transition: background-color 0.2s, transform 0.1s ease;
+}
+
+.control-btn:hover {
+  background-color: transparent;
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.control-btn:active {
+  transform: scale(0.98);
+}
+
+.play-btn {
+  font-size: 1.4rem;
+  width: 35px;
+  height: 20px;
+  margin-bottom: 2px;
+  border: none;
+  background: var(--bg-secondary);
+}
+
+.play-btn:hover {
+  background-color: transparent;
+}
+
+.volume-control {
+  width: 110px;
+  display: flex;
+  align-items: center;
+  border: none;
+  outline: none;
+  flex: 0 0 auto; /* Don't grow or shrink */
+}
+
+.volume-slider {
+  width: 100%;
+  height: auto;
+  cursor: pointer;
+  appearance: none;
+  margin-bottom: -1px;
+  /* background: var(--border-color); */
+  border-radius: 2px;
+  border: none;
+  outline: none;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  border-radius: 2px;
+  background-color: var(--border-color-light);
+}
+
+.volume-slider::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -5px;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+.volume-slider::-moz-range-thumb:hover {
+  background: var(--accent-secondary);
+}
+
+.seek-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  flex-basis: 100%; /* Force the seek container to occupy a full row */
+  margin-top: 0.7rem; 
+  gap: 0;
+}
+
+.time-display {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  width: 45px;
+  text-align: center;
+}
+
+.seek-bar {
+  flex: 1;
+  height: 3px;
+  cursor: pointer;
+  appearance: none;
+  border-radius: 2px;
+  outline: none;
+  border: none;
+  /* background: var(--border-color-light); */
+}
+
+.seek-bar::-webkit-slider-runnable-track {
+  height: 1px;
+  border-radius: 2px;
+  background-color: var(--border-color-light);
+}
+
+.seek-bar::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -5px;
+  width: 10px;
+  height: 10px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.seek-bar::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  background: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background 0.2s;
+}
+
+/* responsive adjustments */
+@media (max-width: 600px) {
+  .play-bar {
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+  
+  /* Keep the main controls row as a row even on mobile */
+  .playbar-main-row {
+    width: 100%;
+  }
+  
+  .track-info, .controls, .volume-control, .seek-container {
+    width: 100%;
+    margin-right: 0;
+  }
+  
+  .volume-control {
+    max-width: 80px; /* Make volume control a bit smaller on mobile */
+  }
+  
+  .seek-container {
+    width: 100%;
+    margin-right: 0;
+  }
+}

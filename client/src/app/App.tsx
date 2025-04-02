@@ -1,12 +1,15 @@
 import React from 'react';
 import { AppRouter } from './router.js';
+import { QueryProvider } from '../QueryProvider.js';
 import './Theme.css';
 
 const App: React.FC = () => {
   return (
-    <div className="app">
-      <AppRouter />
-    </div>
+    <QueryProvider>
+      <div className="app">
+        <AppRouter />
+      </div>
+    </QueryProvider>
   );
 };
 

@@ -1,99 +1,91 @@
-import React, { useState, useEffect } from "react";
-import { macroApi, packApi } from "src/pages/SoundManager/api/collections/collectionApi.js";
+import React from "react";
 import FolderTree from "src/components/FolderTree/index.js";
-import AudioItemsDisplay from "../AudioItemDisplay/index.js";
+import { BsFileEarmarkMusic } from "react-icons/bs";
+import { LuChevronsDown, LuChevronsUp } from "react-icons/lu";
+import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { useItemPanel } from "./ItemPanelContext.js";
+
 import "./ItemPanel.css";
 
-
 const ItemPanel: React.FC = () => {
-  const [macros, setMacros] = useState<any[]>([]);
-  const [collections, setCollections] = useState<any[]>([]);
-  const { itemPanelOptions } = useItemPanel();
-  
-  // Fetch macros if needed
-  useEffect(() => {
-    if (itemPanelOptions.showMacros) {
-      const fetchMacros = async () => {
-        try {
-          const response = await macroApi.getAllCollections();
-          setMacros(response || []);
-        } catch (error) {
-          console.error("Error fetching macros:", error);
-          setMacros([]);
-        }
-      };
-
-      fetchMacros();
-    }
-  }, [itemPanelOptions.showMacros]);
-
-  // Fetch collections if needed - this would depend on your API
-  useEffect(() => {
-    if (itemPanelOptions.showCollections) {
-      
-      const fetchCollections = async () => {
-        try {
-          const response = await packApi.getAllCollections();
-          setCollections(response || []);
-        } catch (error) {
-          console.error("Error fetching collections:", error);
-          setCollections([]);
-        }
-      };
-      fetchCollections();
-    }
-  }, [itemPanelOptions.showCollections]);
+  const { itemPanelOptions, isPanelVisible, togglePanelVisibility } =
+    useItemPanel();
 
   return (
-    <>
-      {/* Show files if showFiles is true */}
-      {itemPanelOptions.showFiles && (
-        <FolderTree showFilesInTree={true} />
-      )}
+    <div className="item-panel-container">
+      <div className="item-panel-header">
+        <h3 className="item-panel-header-text">
+          <span className="icon">
+            {" "}
+            <BsFileEarmarkMusic />{" "}
+          </span>
+          Item Panel
+        </h3>
+        {/* Toggle button to show the panel */}
+        <button
+          className="panel-toggle-button closed"
+          onClick={togglePanelVisibility}
+          aria-label="Show panel"
+        >
+          <span className="icon-toggle">
+            {isPanelVisible ? <LuChevronsDown /> : <LuChevronsUp />}
+          </span>
+        </button>
+      </div>
 
-      {/* Show separator if we're showing both files and something else */}
-      {itemPanelOptions.showFiles && 
-       (itemPanelOptions.showMacros || itemPanelOptions.showCollections) && (
-        <div className="layout-horizontal-separator"></div>
-      )}
+      {isPanelVisible && (
+        <div className="item-panel-content">
+          {itemPanelOptions.showFiles && (
+            <FolderTree
+              showFilesInTree={true}
+            />
+          )}
 
-      {/* Show macros if showMacros is true */}
-      {itemPanelOptions.showMacros && (
-        <div className="macro-display-panel visible">
-          <h3>Macros</h3>
-          <AudioItemsDisplay
-            items={macros}
-            collectionType="macro"
-            view="list"
-            showToggle={false}
-            showActions={false}
-            showHeaders={false}
-            isSelectable={false}
-            isDragSource={true}
-            isReorderable={false}
-          />
+          {/* Separator */}
+          {itemPanelOptions.showFiles &&
+            (itemPanelOptions.showMacros ||
+              itemPanelOptions.showCollections) && (
+              <div className="layout-horizontal-separator"></div>
+            )}
+
+          {/* Show macros if showMacros is true */}
+          { (
+            <div className="macro-display-panel visible">
+              <h3>Macros</h3>
+              <CollectionItemsDisplay
+                collectionType="macro"
+                collectionId={-1}
+                view="list"
+                showToggle={false}
+                showActions={false}
+                showHeaders={false}
+                isSelectable={false}
+                isDragSource={true}
+                isReorderable={false}
+              />
+            </div>
+          )}
+
+          {/* Show collections if showCollections is true */}
+          {itemPanelOptions.showCollections && (
+            <div className="collections-display-panel visible">
+              <h3>Collections</h3>
+              <CollectionItemsDisplay
+                collectionType="pack"
+                collectionId={-1}
+                view="list"
+                showToggle={false}
+                showActions={false}
+                showHeaders={false}
+                isSelectable={false}
+                isDragSource={true}
+                isReorderable={false}
+              />
+            </div>
+          )}
         </div>
       )}
-
-      {/* Show collections if showCollections is true */}
-      {itemPanelOptions.showCollections && (
-        <div className="collections-display-panel visible">
-          <h3>Collections</h3>
-          <AudioItemsDisplay
-            items={collections}
-            collectionType={"pack"}
-            view="list"
-            showToggle={false}
-            showActions={false}
-            showHeaders={false}
-            isSelectable={false}
-            isDragSource={true}
-            isReorderable={false}
-          />
-        </div>
-      )}
-    </>
+    </div>
   );
 };
 

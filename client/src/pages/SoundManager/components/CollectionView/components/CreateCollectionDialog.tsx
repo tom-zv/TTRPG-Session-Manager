@@ -1,34 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { collectionNameFromType } from '../hooks/useCollections.js';
 import { CollectionType } from '../types.js';
 import './CreateCollectionDialog.css';
 
 interface CreateCollectionDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  collectionName: string;
   collectionType: CollectionType;
-  newItemName: string;
-  newItemDescription: string;
-  setNewItemName: (name: string) => void;
-  setNewItemDescription: (desc: string) => void;
-  onCreateCollection: () => void;
-  isLoading: boolean;
+  createCollection: (name: string, description?: string) => void;
+  isLoading?: boolean;
 }
 
 const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
   isOpen,
   onClose,
-  collectionName,
   collectionType,
-  newItemName,
-  newItemDescription,
-  setNewItemName,
-  setNewItemDescription,
-  onCreateCollection,
-  isLoading
+  createCollection,
+  isLoading = false
 }) => {
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemDescription, setNewItemDescription] = useState('');
+
   if (!isOpen) return null;
 
+  const collectionName = collectionNameFromType(collectionType);
+  
+  const handleCreateCollection = async () => {
+    if (!newItemName) return;
+    
+    try {
+      await createCollection(newItemName, newItemDescription || undefined);
+      setNewItemName('');
+      setNewItemDescription('');
+      onClose();
+    } catch (error) {
+      console.error("Error creating collection:", error);
+      // Error is handled by the mutation already
+    }
+  };
+  
   return (
     <div className="modal-overlay">
       <div className="modal">
@@ -67,7 +77,7 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
         <div className="modal-footer">
           <button
             className="create-button"
-            onClick={onCreateCollection}
+            onClick={handleCreateCollection}
             disabled={!newItemName || isLoading}
           >
             Create

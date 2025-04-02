@@ -9,7 +9,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  padding: 0.75rem 1.5rem;
+  padding: 0.25rem 1.5rem;
   border-bottom: 1px solid var(--border-color);
   gap: 0.5rem;
   position: relative;
@@ -18,7 +18,8 @@
 .collection-detail-header h2 {
   margin: 0;
   margin-right: 0.75rem;
-  padding: 0.5rem 0.5rem;
+  padding: 0px 0.5rem;
+  font-size: 1rem;
 }
 
 /* Title and description container */
@@ -51,29 +52,31 @@
   color: var(--text-secondary);
 }
 
-/* Back button */
-.back-button {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-  border: none;
-  padding: 0.5rem 1rem;
+.edit-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
   border-radius: 4px;
+  background: transparent;
+  border: none;
   cursor: pointer;
-  margin-right: 1rem;
-  transition: all 0.2s ease;
 }
 
-.back-button:hover {
-  background-color: var(--bg-secondary);
-  transform: translateY(-1px);
+.edit-button:hover {
+  background-color: transparent;
+}
+
+.edit-button svg {
+  font-size: 18px;
 }
 
 /* Content layouts */
 .collection-detail-view-content {
   width: 100%;
-  padding: 1rem;
   position: relative;
   transition: all 0.2s ease;
+  padding: 2rem;
 }
 
 /* List View Style */
@@ -82,7 +85,7 @@
   flex-direction: column;
 }
 
-.collection-detail-view-list .audio-item-display {
+.collection-detail-view-list .collection-items-display {
   width: 100%;
 }
 
@@ -90,27 +93,7 @@
   margin-bottom: 0;
 }
 
-/* Grid View Style */
-.collection-detail-view-grid {
-  display: flex;
-  flex-direction: column;
-}
 
-.collection-detail-view-grid .audio-item-display {
-  width: 100%;
-}
-
-.collection-detail-view-grid .audio-item-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
-  gap: 1.5rem;
-  padding: 0.5rem;
-}
-
-/* Ensure proper card spacing in grid view */
-.collection-detail-view-grid .audio-item-card {
-  margin-bottom: 0;
-}
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
@@ -139,8 +122,5 @@
     width: 100%;
   }
   
-  .collection-detail-view-grid .audio-item-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 1rem;
-  }
+
 }

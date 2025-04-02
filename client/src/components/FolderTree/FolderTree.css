@@ -40,7 +40,7 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 5px 8px;
+  padding: 2px 10px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
   user-select: none;
@@ -249,4 +249,21 @@
 .scan-button:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(74, 90, 248, 0.5);
+}
+
+.folder-tree-toggle-button {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 8px;
+  margin-top: 5px;
+  z-index: 10; 
+  color: var(--text-primary);
+}
+
+.folder-tree-toggle-button:hover {
+  color: var(--text-primary);
+  background-color: transparent;
 }

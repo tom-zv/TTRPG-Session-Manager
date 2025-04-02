@@ -1,7 +1,11 @@
 .audio-item-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(125px, 150px));
-    gap: 4rem;
+    grid-auto-columns: 200px;
+    grid-auto-flow: column;
+    gap: 50px;
+    width: 100%;
+    margin: 0 auto;
+    justify-content: center;
 }
 
 .audio-item {
@@ -25,6 +29,7 @@
     margin: 0;
     font-size: 1rem;
     font-weight: 500;
+    max-width: 130px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

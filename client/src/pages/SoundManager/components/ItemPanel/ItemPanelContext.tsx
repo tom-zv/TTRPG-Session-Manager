@@ -1,36 +1,41 @@
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 // Define what each panel type needs as props
 export interface ItemPanelOptions {
   showFiles?: boolean;
   showMacros?: boolean;
   showCollections?: boolean;
-  // Add other panel-specific options as needed
 }
 
 interface ItemPanelContextValue {
   // Current panel state
   itemPanelOptions: ItemPanelOptions;
   // Flag indicating if any panel content is currently showing
-  isItemPanelActive: boolean;
-  
+  isPanelVisible: boolean;
   // Methods to control the panel
   showItemPanel: (options?: ItemPanelOptions) => void;
   hideItemPanel: () => void;
   updateItemPanelOptions: (options: Partial<ItemPanelOptions>) => void;
+  togglePanelVisibility: () => void;
 }
 
 // Create the context with default values
-const ItemPanelContext = createContext<ItemPanelContextValue>({
-  itemPanelOptions: {},
-  isItemPanelActive: false,
-  showItemPanel: () => {},
-  hideItemPanel: () => {},
-  updateItemPanelOptions: () => {},
-});
+const defaultItemPanelOptions = {
+  showFiles: true, // FolderTree is default content
+  showMacros: true,
+  showCollections: false,
+};
+
+const ItemPanelContext = createContext<ItemPanelContextValue | null>(null);
 
 // Hook to use the context
-export const useItemPanel = () => useContext(ItemPanelContext);
+export const useItemPanel = () => {
+  const context = useContext(ItemPanelContext);
+  if (!context) {
+    throw new Error("useItemPanel must be used within an ItemPanelProvider");
+  }
+  return context;
+};
 
 // Provider component
 interface ItemPanelProviderProps {
@@ -38,32 +43,30 @@ interface ItemPanelProviderProps {
 }
 
 export const ItemPanelProvider: React.FC<ItemPanelProviderProps> = ({ children }) => {
-  const [itemPanelOptions, setPanelOptions] = useState<ItemPanelOptions>({}); // Default options
+  const [itemPanelOptions, setItemPanelOptions] = useState<ItemPanelOptions>(defaultItemPanelOptions);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
 
-  // Derive isPanelActive from panelOptions
-  const isItemPanelActive = Boolean(
-    itemPanelOptions.showFiles || 
-    itemPanelOptions.showMacros || 
-    itemPanelOptions.showCollections
-  );
+  const togglePanelVisibility = () => {
+    setIsPanelVisible(prev => !prev);
+  };
 
   const showItemPanel = (options: ItemPanelOptions = {}) => {
-    setPanelOptions(options);
+    setItemPanelOptions(options);
   };
 
   const hideItemPanel = () => {
-    setPanelOptions({});
+    setItemPanelOptions({});
   };
 
   const updateItemPanelOptions = (options: Partial<ItemPanelOptions>) => {
     // Create a new object with all options set to false by default
     const newOptions: ItemPanelOptions = {
       showFiles: false,
-      showMacros: false,
+      showMacros: true,
       showCollections: false,
     };
     
-    //set to true the options that are explicitly provided with true
+    // set to true the options that are explicitly provided with true
     Object.keys(options).forEach(key => {
       const typedKey = key as keyof ItemPanelOptions;
       if (options[typedKey] === true) {
@@ -71,17 +74,18 @@ export const ItemPanelProvider: React.FC<ItemPanelProviderProps> = ({ children }
       }
     });
     
-    setPanelOptions(newOptions);
+    setItemPanelOptions(newOptions);
   };
 
   return (
     <ItemPanelContext.Provider
       value={{
         itemPanelOptions,
-        isItemPanelActive,
+        isPanelVisible,
         showItemPanel,
         hideItemPanel,
-        updateItemPanelOptions
+        updateItemPanelOptions,
+        togglePanelVisibility,
       }}
     >
       {children}

@@ -1,0 +1,87 @@
+.sound-manager-live-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Panel styling */
+.sfx-section, .ambience-section {
+  height: 100%;
+  overflow: auto;
+  position: relative;
+}
+
+/* Resize handle styling */
+.separator-handle {
+  height: 8px;
+  background-color: var(--bg-tertiary);
+  cursor: row-resize;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid var(--border-color-light);
+  border-bottom: 1px solid var(--border-color-light);
+  z-index: 10;
+}
+
+.separator-handle:hover {
+  background-color: var(--bg-hover);
+}
+
+.separator-handle .drag-handle {
+  width: 30px;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+
+.collapse-btn {
+  position: absolute;
+  right: 15px;
+  top: 0px;
+  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  padding: 5px 15px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 10%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: transform 0.3s ease;
+  z-index: 11;
+}
+
+.collapse-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.collapsed-info-bar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Shadow effect for handles */
+.separator-handle::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent);
+  pointer-events: none;
+}

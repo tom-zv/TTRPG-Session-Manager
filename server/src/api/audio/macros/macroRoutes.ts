@@ -57,7 +57,7 @@ router.delete('/:id/files/:fileId', (req, res) => {
 // PUT /macros/:id/files/:fileId - Update a file in a macro (delay, volume)
 router.put('/:id/files/:fileId', (req, res) => {
   (req.params as any).type = 'macro';
-  collectionController.updateItem(req, res);
+  collectionController.updateFile(req, res);
 });
 
 export default router;

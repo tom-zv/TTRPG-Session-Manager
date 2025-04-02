@@ -35,5 +35,7 @@ export interface CollectionViewProps extends DragDropProps {
   // UI state
   itemDisplayView?: 'list' | 'grid';
   isEditing?: boolean;
+  dropZoneId?: string | null; // Add dropZoneId
+  acceptedDropTypes?: string[]; // Add acceptedDropTypes
 }
 

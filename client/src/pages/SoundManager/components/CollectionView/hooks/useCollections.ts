@@ -3,7 +3,6 @@ import { AudioItem, AudioCollection, CollectionType } from "../types.js";
 
 interface UseCollectionsProps {
   // Display metadata
-  collectionName: string;
   collectionType: CollectionType;
 
   // Data fetching
@@ -36,7 +35,6 @@ interface UseCollectionsProps {
 }
 
 export const useCollections = ({
-  collectionName,
   collectionType,
   fetchCollections,
   fetchCollectionItems,
@@ -51,7 +49,6 @@ export const useCollections = ({
   const [collections, setCollections] = useState<AudioCollection[]>([]);
   const [selectedCollection, setSelectedCollection] =
     useState<AudioCollection | null>(null);
-  const [collectionItems, setCollectionItems] = useState<AudioItem[]>([]);
   const [viewMode, setViewMode] = useState<"grid" | "detail">("grid");
 
   // UI state
@@ -60,6 +57,9 @@ export const useCollections = ({
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState<boolean>(false);
   const [newItemName, setNewItemName] = useState<string>("");
   const [newItemDescription, setNewItemDescription] = useState<string>("");
+
+  // Collection name for display
+  const collectionName = collectionNameFromType(collectionType);
 
   // Load all collections
   const loadCollections = useCallback(async () => {
@@ -89,7 +89,11 @@ export const useCollections = ({
 
       try {
         const items = await fetchCollectionItems(collectionId);
-        setCollectionItems(items);
+
+        setSelectedCollection((prev) =>
+          prev ? { ...prev, items: items } : null
+        );
+
       } catch (err) {
         console.error(
           `Error loading collection items for ID ${collectionId}:`,
@@ -105,15 +109,23 @@ export const useCollections = ({
 
   // Handle collection selection
   const handleSelectCollection = useCallback(
-    async (collection: AudioCollection| null) => {
+    async (collection: AudioCollection | null) => {
       setSelectedCollection(collection);
       setViewMode("detail");
 
       if (fetchCollectionItems && collection) {
-        await loadCollectionItems(collection.id);
+        try {
+          const items = await fetchCollectionItems(collection.id);
+
+          setSelectedCollection((prev) =>
+            prev ? { ...prev, items: items } : null
+          );
+        } catch (err) {
+          // Error handling
+        }
       }
     },
-    [fetchCollectionItems, loadCollectionItems]
+    [fetchCollectionItems]
   );
 
   // Handle creating a new collection
@@ -227,7 +239,7 @@ export const useCollections = ({
 
   const handleAddItems = useCallback(
     async (audioItems: AudioItem | AudioItem[], position?: number) => {
-      if (!onAddItems || !selectedCollection) return;
+      if (!onAddItems || !selectedCollection || !selectedCollection.items) return;
 
       // Convert single item to array if needed
       const itemsArray = Array.isArray(audioItems) ? audioItems : [audioItems];
@@ -235,12 +247,12 @@ export const useCollections = ({
 
       // Filter out items already in collection
       const newItems = itemsArray.filter(
-        (item) => !collectionItems.some((existing) => existing.id === item.id)
+        (item) => !selectedCollection.items!.some((existing) => existing.id === item.id)
       );
       if (newItems.length === 0) return;
 
       // Make a copy of the current items for optimistic update
-      const updatedItems = [...collectionItems];
+      const updatedItems = [...selectedCollection.items];
       let insertPosition = position;
 
       // If no position specified, add at the end
@@ -263,10 +275,12 @@ export const useCollections = ({
       }));
 
       // Update state with the new items properly positioned
-      setCollectionItems(
-        [...updatedItems, ...itemsToInsert].sort(
-          (a, b) => (a.position || 0) - (b.position || 0)
-        )
+      const sortedItems = [...updatedItems, ...itemsToInsert].sort(
+        (a, b) => (a.position || 0) - (b.position || 0)
+      );
+      
+      setSelectedCollection(prev => 
+        prev ? { ...prev, items: sortedItems } : null
       );
 
       try {
@@ -277,27 +291,31 @@ export const useCollections = ({
         console.error("Error adding items to collection:", err);
 
         // Restore previous state on error
-        setCollectionItems(collectionItems);
+        setSelectedCollection(prev => 
+          prev ? { ...prev, items: selectedCollection.items } : null
+        );
         setError(`Failed to add items to ${collectionType}. Please try again.`);
       }
     },
-    [onAddItems, selectedCollection, collectionItems, collectionType]
+    [onAddItems, selectedCollection, collectionType]
   );
-  
+
   const handleEditItem = useCallback(
     async (itemId: number, params: any) => {
-      if (!onEditItem || !selectedCollection) return;
+      if (!onEditItem || !selectedCollection || !selectedCollection.items) return;
 
       // Find the item to edit
-      const itemToEdit = collectionItems.find((item) => item.id === itemId);
+      const itemToEdit = selectedCollection.items.find((item) => item.id === itemId);
       if (!itemToEdit) return;
 
       // Optimistically update the item
-      const updatedItems = collectionItems.map((item) =>
+      const updatedItems = selectedCollection.items.map((item) =>
         item.id === itemId ? { ...item, ...params } : item
       );
       
-      setCollectionItems(updatedItems);
+      setSelectedCollection(prev => 
+        prev ? { ...prev, items: updatedItems } : null
+      );
 
       try {
         // Make the API call to update the item
@@ -305,31 +323,28 @@ export const useCollections = ({
       } catch (err) {
         console.error("Error editing item:", err);
         // Restore the original item on error
-        setCollectionItems(collectionItems);
+        setSelectedCollection(prev => 
+          prev ? { ...prev, items: selectedCollection.items } : null
+        );
         setError(
           `Failed to edit item in ${collectionType}. Please try again.`
         );
       }
     },
-    [onEditItem, selectedCollection, collectionItems, collectionType]
+    [onEditItem, selectedCollection, collectionType]
   );
-
 
   // Handle removing items from the collection (supports both single and batch operations)
   const handleRemoveItems = useCallback(
     async (itemIds: number | number[]) => {
-      console.log("onRemoveItems", !!onRemoveItems);
-      console.log("selectedCollection", !!selectedCollection);
-      if (!onRemoveItems || !selectedCollection) return;
-
-      console.log("Removing items:", itemIds);
+      if (!onRemoveItems || !selectedCollection || !selectedCollection.items) return;
 
       // Convert single ID to array if needed
       const idsArray = Array.isArray(itemIds) ? itemIds : [itemIds];
       if (idsArray.length === 0) return;
 
       // Find the items to be removed
-      const itemsToRemove = collectionItems.filter((item) =>
+      const itemsToRemove = selectedCollection.items.filter((item) =>
         idsArray.includes(item.id)
       );
       if (itemsToRemove.length === 0) return;
@@ -341,7 +356,7 @@ export const useCollections = ({
         .sort((a, b) => a - b);
 
       // Create updated collection with removed items filtered out
-      const remainingItems = collectionItems.filter(
+      const remainingItems = selectedCollection.items.filter(
         (item) => !idsArray.includes(item.id)
       );
 
@@ -360,7 +375,9 @@ export const useCollections = ({
       });
 
       // Update state with the adjusted remaining items
-      setCollectionItems(remainingItems);
+      setSelectedCollection(prev => 
+        prev ? { ...prev, items: remainingItems } : null
+      );
 
       try {
         // Make the API call
@@ -369,13 +386,15 @@ export const useCollections = ({
         console.error("Error removing items from collection:", err);
 
         // Restore the original items on error
-        setCollectionItems(collectionItems);
+        setSelectedCollection(prev => 
+          prev ? { ...prev, items: selectedCollection.items } : null
+        );
         setError(
           `Failed to remove items from ${collectionType}. Please try again.`
         );
       }
     },
-    [onRemoveItems, selectedCollection, collectionItems, collectionType]
+    [onRemoveItems, selectedCollection, collectionType]
   );
 
   // Handle updating item positions (supports both single item and range updates)
@@ -386,10 +405,10 @@ export const useCollections = ({
       sourceStartPosition?: number,
       sourceEndPosition?: number
     ) => {
-      if (!selectedCollection || !onUpdateItemPosition) return;
+      if (!selectedCollection || !onUpdateItemPosition || !selectedCollection.items) return;
 
       // Make a copy of the current items
-      const updatedItems = [...collectionItems];
+      const updatedItems = [...selectedCollection.items];
 
       // Determine if this is a single item update or a range update
       let itemsToMove: AudioItem[];
@@ -473,7 +492,9 @@ export const useCollections = ({
       updatedItems.sort((a, b) => (a.position || 0) - (b.position || 0));
 
       // Optimistically update the state
-      setCollectionItems(updatedItems);
+      setSelectedCollection(prev => 
+        prev ? { ...prev, items: updatedItems } : null
+      );
 
       try {
         // Make the API call to persist the changes
@@ -487,19 +508,20 @@ export const useCollections = ({
       } catch (err) {
         console.error("Error updating item positions:", err);
         // Revert to previous state on error
-        setCollectionItems(collectionItems);
+        setSelectedCollection(prev => 
+          prev ? { ...prev, items: selectedCollection.items } : null
+        );
         setError(
           `Failed to update positions in ${collectionType}. Please try again.`
         );
       }
     },
-    [onUpdateItemPosition, selectedCollection, collectionItems, collectionType]
+    [onUpdateItemPosition, selectedCollection, collectionType]
   );
 
   // Return to the collections grid view
   const handleBackToCollections = useCallback(() => {
     setSelectedCollection(null);
-    setCollectionItems([]);
     setViewMode("grid");
   }, []);
 
@@ -507,7 +529,6 @@ export const useCollections = ({
     // State
     collections,
     selectedCollection,
-    collectionItems,
     isLoading,
     error,
     viewMode,
@@ -533,3 +554,20 @@ export const useCollections = ({
     handleUpdateItemPositions,
   };
 };
+
+export const collectionNameFromType = (collectionType: string): string => {
+  switch(collectionType) {
+    case 'playlist':
+      return 'Playlists';
+    case 'sfx':
+      return 'Sound Effect Collections';
+    case 'ambience':
+      return 'Ambience Collections';
+    case 'pack':
+      return 'Packs';
+    case 'macro':
+      return 'Macros';
+    default:
+      return `${(collectionType as string).charAt(0).toUpperCase() + (collectionType as string).slice(1)}s`;
+  };
+}

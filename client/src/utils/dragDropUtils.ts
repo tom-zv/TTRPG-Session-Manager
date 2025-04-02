@@ -9,6 +9,7 @@ export interface DropContext<D = any> {
   destination?: D;
   index?: number;
   mode?: dragMode;
+  isMacro?: boolean;
 }
 
 /**
@@ -55,6 +56,8 @@ export interface DropContextGetter<D = any> {
   (): {
     destination?: D;
     index?: number;
+    mode?: dragMode;
+    isMacro?: boolean;
   }
 }
 
@@ -151,6 +154,7 @@ export async function processDropEvent<T, D = any>(
       await dropHandler(finalItems, {
         destination: options.destination,
         index: options.index,
+        isMacro: payload.contentType === 'macro',
         mode: payload.mode
       });
     }

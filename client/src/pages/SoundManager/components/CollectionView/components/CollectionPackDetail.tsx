@@ -1,13 +1,26 @@
 import React from "react";
-import type { AudioItem, AudioCollection } from "../types.js";
-import AudioItemsDisplay from "../../AudioItemDisplay/AudioItemsDisplay.js";
+import type { AudioItem, AudioCollection, CollectionType } from "../types.js";
+import { CollectionItemsDisplay } from "../../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
 import './CollectionPackDetail.css';
 
+// Helper function to create subcollection for display
+const createSubcollection = (
+  parentCollection: AudioCollection, 
+  type: string, 
+  title: string
+): AudioCollection => {
+  return {
+    id: parentCollection.id, // Same ID as parent
+    name: title,
+    type: type as any, // Cast to the proper type
+    items: parentCollection.items?.filter(item => item.type === type) || []
+  };
+};
+
 interface CollectionPackDetailProps extends DragDropProps {
-  collection: AudioCollection;
-  collectionType: string;
-  collectionItems: AudioItem[];
+  collectionType: CollectionType;
+  collectionId: number;
   isLoading: boolean;
 
   onBackClick: () => void;
@@ -24,9 +37,8 @@ interface CollectionPackDetailProps extends DragDropProps {
 }
 
 const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
-  collection,
   collectionType,
-  collectionItems,
+  collectionId,
   isLoading,
   onBackClick,
   onRemoveItems,
@@ -34,12 +46,13 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
   onUpdateItemPosition,
 }) => {
   if (collectionType !== "pack") {
-    return;
+    return null;
   }
-  // Filter items by type
-  const playlistItems = collectionItems.filter((item) => item.type === "playlist");
-  const sfxItems = collectionItems.filter((item) => item.type === "sfx");
-  const ambienceItems = collectionItems.filter((item) => item.type === "ambience");
+  
+  // Create virtual subcollections by type
+  const playlistCollection = createSubcollection(collection, "playlist", "Playlists");
+  const sfxCollection = createSubcollection(collection, "sfx", "SFX Collections");
+  const ambienceCollection = createSubcollection(collection, "ambience", "Ambience Collections");
 
   return (
     <div className="collection-detail-view">
@@ -57,15 +70,13 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
         {/* Playlists section */}
         <div className="pack-section">
           <h3>Playlists</h3>
-          <AudioItemsDisplay
-            items={playlistItems}
-            collectionType={collectionType}
-            isLoading={isLoading && playlistItems.length === 0}
+          <CollectionItemsDisplay
+            collection={playlistCollection}
+            isLoading={isLoading && playlistCollection.items!.length === 0}
             error={null}
             view="list"
             showToggle={false}
             showActions={true}
-            name="Playlists"
             onAddItems={(items, position) => onAddItems(items, position)}
             onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
             onUpdateItemPosition={onUpdateItemPosition}
@@ -75,15 +86,13 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
         {/* SFX Collections section */}
         <div className="pack-section">
           <h3>SFX Collections</h3>
-          <AudioItemsDisplay
-            items={sfxItems}
-            collectionType={collectionType}
-            isLoading={isLoading && sfxItems.length === 0}
+          <CollectionItemsDisplay
+            collection={sfxCollection}
+            isLoading={isLoading && sfxCollection.items!.length === 0}
             error={null}
             view="list"
             showToggle={false}
             showActions={true}
-            name="SFX Collections"
             onAddItems={(items, position) => onAddItems(items, position)}
             onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
             onUpdateItemPosition={onUpdateItemPosition}
@@ -93,15 +102,13 @@ const CollectionPackDetail: React.FC<CollectionPackDetailProps> = ({
         {/* Ambience Collections section */}
         <div className="pack-section">
           <h3>Ambience Collections</h3>
-          <AudioItemsDisplay
-            items={ambienceItems}
-            collectionType={collectionType}
-            isLoading={isLoading && ambienceItems.length === 0}
+          <CollectionItemsDisplay
+            collection={ambienceCollection}
+            isLoading={isLoading && ambienceCollection.items!.length === 0}
             error={null}
             view="list"
             showToggle={false}
             showActions={true}
-            name="Ambience Collections"
             onAddItems={(items, position) => onAddItems(items, position)}
             onRemoveItems={(itemIds) => onRemoveItems(itemIds)}
             onUpdateItemPosition={onUpdateItemPosition}

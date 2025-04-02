@@ -59,18 +59,41 @@ export async function createCollection(type: string, name: string, description: 
 
 export async function updateCollection(
   type: string,
-  collectionId: number, 
-  name: string, 
-  description: string | null
+  collectionId: number,
+  name?: string,
+  description?: string | null
 ): Promise<number> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
-  
-  const [result] = await pool.execute(
-    `UPDATE ${COLLECTIONS_TABLE} SET name = ?, description = ? WHERE collection_id = ? AND type = ?`,
-    [name, description, collectionId, type]
-  );
+
+  const fields: string[] = [];
+  const params: any[] = [];
+
+  if (name !== undefined) {
+    fields.push('name = ?');
+    params.push(name);
+  }
+  if (description !== undefined) {
+    fields.push('description = ?');
+    params.push(description);
+  }
+
+  // Nothing to update
+  if (fields.length === 0) {
+    return 0;
+  }
+
+  // Add WHERE params
+  params.push(collectionId, type);
+
+  const sql = `
+    UPDATE ${COLLECTIONS_TABLE}
+    SET ${fields.join(', ')}
+    WHERE collection_id = ? AND type = ?
+  `;
+
+  const [result] = await pool.execute(sql, params);
   return (result as ResultSetHeader).affectedRows || 0;
 }
 
@@ -98,7 +121,7 @@ export async function getCollectionFiles(
   }
 
   const [files] = await pool.execute(
-    `SELECT af.*, cf.position, cf.volume 
+    `SELECT af.*, cf.position, cf.volume, cf.active
        FROM audio_files af
        JOIN ${COLLECTION_FILES_TABLE} cf ON af.audio_file_id = cf.audio_file_id
        WHERE cf.collection_id = ?
@@ -112,29 +135,33 @@ export async function getCollectionFiles(
   if (type == "sfx") {
     const [macroResults] = await pool.execute(
       `SELECT m.*, cm.position,
-       GROUP_CONCAT(JSON_OBJECT(
-         'audio_file_id', af.audio_file_id,
-         'name', af.name,
-         'audio_type', af.audio_type,
-         'file_path', af.file_path,
-         'folder_id', af.folder_id,
-         'file_url', af.file_url,
-         'duration', af.duration,
-         'delay', mf.delay,
-         'volume', mf.volume
-       )) AS files
-     FROM sfx_macros m
-     JOIN ${COLLECTION_SFX_MACROS_TABLE} cm ON m.macro_id = cm.macro_id
-     JOIN sfx_macro_files mf ON m.macro_id = mf.collection_id
-     JOIN audio_files af ON mf.audio_file_id = af.audio_file_id
-     WHERE cm.collection_id = ?
-     GROUP BY m.macro_id, cm.position
-     ORDER BY cm.position ASC`,
+              GROUP_CONCAT(
+                CASE 
+                  WHEN af.audio_file_id IS NOT NULL THEN JSON_OBJECT(
+                    'audio_file_id', af.audio_file_id,
+                    'name', af.name,
+                    'audio_type', af.audio_type,
+                    'file_path', af.file_path,
+                    'folder_id', af.folder_id,
+                    'file_url', af.file_url,
+                    'duration', af.duration,
+                    'delay', mf.delay,
+                    'volume', mf.volume
+                  )
+                  ELSE NULL
+                END
+              ) AS files
+            FROM sfx_macros m
+            JOIN ${COLLECTION_SFX_MACROS_TABLE} cm ON m.macro_id = cm.macro_id
+            LEFT JOIN sfx_macro_files mf ON m.macro_id = mf.collection_id -- Changed to LEFT JOIN
+            LEFT JOIN audio_files af ON mf.audio_file_id = af.audio_file_id -- Changed to LEFT JOIN
+            WHERE cm.collection_id = ?
+            GROUP BY m.macro_id, cm.position
+            ORDER BY cm.position ASC`,
       [collectionId]
     );
+    // console.log("MODEL: macro results", macroResults); // Keep for debugging if needed
     macros = macroResults as RowDataPacket[];
-
-    console.log("`MODEL: Macros:", macros);
   }
 
   return { files, macros };
@@ -721,37 +748,25 @@ export async function getPackCollections(packId: number): Promise<RowDataPacket[
   return result as RowDataPacket[];
 }
 
-export async function updateAudioFile(
+export async function updateFile(
   audioFileId: number,
   updates: { 
-    name?: string, 
-    file_url?: string, 
-    file_path?: string, 
-    folder_id?: number 
+    active?: boolean;
+    volume?: number;
   }
 ): Promise<number> {
   // Build dynamic query based on provided params
   const updateFields: string[] = [];
   const params: any[] = [];
   
-  if (updates.name !== undefined) {
-    updateFields.push('name = ?');
-    params.push(updates.name);
+  if (updates.active !== undefined) {
+    updateFields.push('active = ?');
+    params.push(updates.active);
   }
-  
-  if (updates.file_url !== undefined) {
-    updateFields.push('file_url = ?');
-    params.push(updates.file_url);
-  }
-  
-  if (updates.file_path !== undefined) {
-    updateFields.push('file_path = ?');
-    params.push(updates.file_path);
-  }
-  
-  if (updates.folder_id !== undefined) {
-    updateFields.push('folder_id = ?');
-    params.push(updates.folder_id);
+
+  if (updates.volume !== undefined) {
+    updateFields.push('volume = ?');
+    params.push(updates.volume);
   }
   
   // If no fields to update, return early
@@ -763,7 +778,7 @@ export async function updateAudioFile(
   params.push(audioFileId);
   
   const [result] = await pool.execute(
-    `UPDATE audio_files SET ${updateFields.join(', ')} WHERE audio_file_id = ?`,
+    `UPDATE collection_files SET ${updateFields.join(', ')} WHERE audio_file_id = ?`,
     params
   );
   
@@ -790,5 +805,5 @@ export default {
   deletePack,
   addCollectionToPack,
   getPackCollections,
-  updateAudioFile
+  updateFile
 };

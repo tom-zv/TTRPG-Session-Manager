@@ -1,21 +1,19 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { AudioFile, AudioItemActions } from "../types.js";
+import { AudioFile, AudioItemActions, AudioCollection } from "../index.js";
 import ItemActions from "./ItemActions.js";
 import { useItemDragDrop } from '../hooks/useItemDragDrop.js';
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
+import { isAudioFile } from "../../../types/AudioItem.js";
 import "./MacroEditView.css"; 
 
 interface MacroEditViewProps extends AudioItemActions, DragDropProps {
   // Data props
-  items: AudioFile[];
-  collectionType: "macro";
-
+  collection: AudioCollection;
   // UI state props
   selectedItemIds?: number[];
   showPlayButton?: boolean;
   showActions?: boolean | null;
-
   // Event handlers
   onItemSelect?: (e: React.MouseEvent, itemId: number) => void;
 }
@@ -40,7 +38,7 @@ const useDebounce = (callback: Function, delay: number) => {
 };
 
 export const MacroEditView: React.FC<MacroEditViewProps> = ({
-  items,
+  collection,
   selectedItemIds = [],
   onEditItem,
   onRemoveItems,
@@ -48,6 +46,9 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
   onItemSelect,
   // Add drag and drop props with defaults
 }) => {
+  // Filter items to only include AudioFiles
+  const items = (collection.items || []).filter(isAudioFile) as AudioFile[];
+  
   const tableRef = useRef<HTMLTableElement | null>(null);
   const [debouncedSortedItems, setDebouncedSortedItems] = useState<AudioFile[]>([]);
   const acceptedDropTypes = useMemo(() => ["file"], []);
@@ -77,9 +78,6 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
     containerRef: tableRef, 
     onAddItems,
   });
-
-  // State to hold the sorted items with debouncing
-  
 
   // Process any initial values from items
   useEffect(() => {
@@ -272,7 +270,6 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                   <td>
                     <div className="item-name-cell">{item.name}</div>
                   </td>
-                  {/* Rest of the cells remain unchanged */}
                   <td>
                     <div className="parameter-control">
                       <input

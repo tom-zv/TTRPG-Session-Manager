@@ -3,6 +3,7 @@
     display: flex;
     gap: 0.5rem;
     align-items: center;
+    width: fit-content; 
 }
 
 .audio-item-controls {
@@ -25,6 +26,8 @@
     border-radius: 4px;
     font-size: 1rem;
     transition: all 0.2s ease;
+    position: relative; 
+    z-index: 2; 
 }
 
 .play-button:hover {
@@ -47,6 +50,8 @@
     padding: 0.5rem 0.75rem;
     font-size: 1rem;
     transition: all 0.2s ease;
+    position: relative; 
+    z-index: 2; 
 }
 
 .edit-button.small, 
@@ -55,8 +60,8 @@
     color: var(--text-secondary);
     border: 1px solid var(--border-color);
     border-radius: 4px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
+    padding: 0rem 0.3rem;
+    font-size: 1.2rem;
 }
 
 .edit-button:hover,
