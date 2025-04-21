@@ -581,6 +581,36 @@ export async function getAllCollectionsWithFiles(type: string): Promise<ServiceR
   }
 }
 
+export async function removeMacroFromCollection(
+  collectionId: number, 
+  macroId: number
+): Promise<ServiceResponse<void>> {
+  try {
+    // Check if collection exists and is of sfx type
+    const collectionResponse = await getCollectionById('sfx', collectionId);
+    if (!collectionResponse.success) {
+      return { success: false, notFound: true, error: 'SFX collection not found' };
+    }
+    
+    // Check if macro exists
+    const macroResponse = await getCollectionById('macro', macroId);
+    if (!macroResponse.success) {
+      return { success: false, notFound: true, error: 'Macro not found' };
+    }
+    
+    const affectedRows = await collectionModel.removeMacroFromCollection(collectionId, macroId);
+    
+    if (!affectedRows) {
+      return { success: false, notFound: true, error: 'Macro not found in this collection' };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error removing macro ${macroId} from SFX collection ${collectionId}:`, error);
+    return { success: false, error: 'Failed to remove macro from SFX collection' };
+  }
+}
+
 export default {
   getAllCollections,
   getAllCollectionsAllTypes,
@@ -603,4 +633,5 @@ export default {
   getPackCollections,
   addMacroToCollection,
   addMacrosToCollection,
+  removeMacroFromCollection,
 };

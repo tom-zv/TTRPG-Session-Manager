@@ -28,25 +28,31 @@
   z-index: 10;
 }
 
+/* Panel layout styling */
 .sound-manager-left-panel {
   position: relative;
   display: flex;
   flex-direction: column;
   flex: 0 0 320px;
-  overflow-y: hidden;
-  border-right: none;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color-light);
+  height: 100%;
 }
 
-.sound-manager-left-panel .seperator-handle {
-  border : 1px solid var(--border-color);
+.sound-manager-left-panel [data-panel] {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
+
+/* Play bar positioning */
+.sound-manager-left-panel .play-bar {
+  height: 100%;
+}
+
 .sound-manager-left-panel .audio-item-table{
   max-width: 320px;
-}
-
-.sound-manager-left-panel .play-bar{
-  position: absolute;
-  bottom: 0;
 }
 
 /* .sound-manager-controls {
@@ -194,7 +200,7 @@
   pointer-events: all;
 }
 
-.collection-pack-drop-zone.drop-target-active {
+.collection-pack-drop-zone.drop-target.active {
   border-color: var(--accent-primary);
   background-color: rgba(53, 114, 227, 0.1);
   transform: scale(1.02);
@@ -222,7 +228,7 @@
   transition: all 0.2s ease;
 }
 
-.collection-pack-drop-zone.drop-target-active .pack-drop-icon {
+.collection-pack-drop-zone.drop-target.active .pack-drop-icon {
   border-color: var(--accent-primary);
   color: var(--accent-primary);
 }
@@ -274,7 +280,7 @@
 }
 
 /* Active state - expanded content */
-.pack-drop-area.drop-target-active > div {
+.pack-drop-area.drop-target.active > div {
   height: 160px;
   opacity: 1;
   pointer-events: all;
@@ -285,12 +291,12 @@
 }
 
 /* Styling for the drop content when active */
-.pack-drop-area.drop-target-active {
+.pack-drop-area.drop-target.active {
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
 }
 
 /* Drop target styling when an item is dragged over */
-.pack-drop-area.drop-target-active.drop-target-registered:hover {
+.pack-drop-area.drop-target.active .drop-target.registered:hover {
   background-color: rgba(53, 114, 227, 0.05);
 }
 

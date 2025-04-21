@@ -21,7 +21,7 @@ interface ItemPanelContextValue {
 
 // Create the context with default values
 const defaultItemPanelOptions = {
-  showFiles: true, // FolderTree is default content
+  showFiles: true,
   showMacros: true,
   showCollections: false,
 };
@@ -62,7 +62,7 @@ export const ItemPanelProvider: React.FC<ItemPanelProviderProps> = ({ children }
     // Create a new object with all options set to false by default
     const newOptions: ItemPanelOptions = {
       showFiles: false,
-      showMacros: true,
+      showMacros: false,
       showCollections: false,
     };
     

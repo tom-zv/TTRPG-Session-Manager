@@ -62,7 +62,8 @@ export function transformMacro(dbMacro: any) {
     volume: dbMacro.volume,
     duration: MacroDuration, // Duration is the longest of the nested files including delay
     position: dbMacro.position,
-    files: nestedFiles, // Include the nested files for playback
+    itemCount: dbMacro.item_count, // Number of files in the macro
+    items: nestedFiles, // Include the nested items for playback
     addedAt: dbMacro.created_at
   };
 }

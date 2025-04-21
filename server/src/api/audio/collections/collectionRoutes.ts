@@ -32,6 +32,9 @@ router.get('/pack/:id/collections', collectionController.getPackCollections);
 // POST /collections/sfx/:id/macros - Add a macro to a collection
 router.post('/sfx/:id/macros', collectionController.addMacroToCollection);
 
+// DELETE /collections/sfx/:id/macros/:macroId - Remove a macro from a collection
+router.delete('/sfx/:id/macros/:macroId', collectionController.deleteMacroFromCollection);
+
 // POST /collections/sfx/:id/macros/batch - Add multiple macros to a collection
 router.post('/sfx/:id/macros/batch', collectionController.addMacrosToCollection);
 

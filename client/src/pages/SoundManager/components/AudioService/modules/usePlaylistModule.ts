@@ -91,7 +91,7 @@ export function usePlaylistModule() {
       if (AudioService.isPlaylistPlaying()) {
         positionIntervalRef.current = setInterval(() => {
           setPosition(AudioService.getCurrentPlaylistPosition());
-        }, 100000); // Update every second 
+        }, 1000); // Update every second 
       }
     };
     

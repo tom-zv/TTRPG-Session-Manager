@@ -13,6 +13,12 @@ import { AudioCollection, AudioItem } from "../../types/AudioItem.js";
  * hook utilising React Query to handle fetching, caching, syncing and updating Audio data from the server DB.
  ****************************************************************************************************************/
 
+// Add a new type for parent collection information
+type ParentCollectionInfo = {
+  type: CollectionType;
+  id: number;
+};
+
 export const getApiForType = (type: CollectionType): CollectionApi => {
   switch (type) {
     case "playlist":
@@ -48,13 +54,13 @@ export const useGetCollectionsOfType = (type: CollectionType, options = {}) => {
     queryKey: collectionKeys.type(type),
     queryFn: async () => {
       const collections = await api.getAllCollections();
-      
+
       // Transform the array of collections into a virtual collection object
       return {
-        id: -1, 
+        id: -1,
         type: type,
         name: `All ${type}s`,
-        items: collections, 
+        items: collections,
       } as AudioCollection;
     },
     ...options,
@@ -63,17 +69,17 @@ export const useGetCollectionsOfType = (type: CollectionType, options = {}) => {
 
 // Fetch all items in a specific collection
 export const useGetCollectionById = (
-  type: CollectionType, 
+  type: CollectionType,
   id: number,
-  options = {} 
-) => {  
+  options = {}
+) => {
   const api = getApiForType(type);
-  
+
   return useQuery({
     queryKey: collectionKeys.collection(type, id),
     queryFn: () => api.getCollectionById(id, true),
     enabled: id > 0,
-    ...options
+    ...options,
   });
 };
 
@@ -81,22 +87,58 @@ export const useGetCollectionById = (
 export const useCreateCollection = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
-  
+
   return useMutation({
-    mutationFn: ({ name, description }: { name: string; description?: string }) => 
-      api.createCollection(name, description),
-    onMutate: async (newCollections) => {
-       // Cancel any outgoing refetches
-      await queryClient.cancelQueries({queryKey: collectionKeys.type(type)})
+    mutationFn: ({
+      name,
+      description,
+    }: {
+      name: string;
+      description?: string;
+    }) => api.createCollection(name, description),
+    onMutate: async (newCollection) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: collectionKeys.type(type) });
       // Save previous value
-      const previousCollections = queryClient.getQueryData([collectionKeys.type(type)])
+      const previousCollections = queryClient.getQueryData(
+        collectionKeys.type(type)
+      );
       // Optimistic update
-      queryClient.setQueryData(collectionKeys.type(type), (old : AudioCollection[]) => [...old, newCollections])
+      queryClient.setQueryData(collectionKeys.type(type), (old: any) => {
+        // If old is undefined, initialize with a new virtual collection
+        if (!old) {
+          return {
+            id: -1,
+            type: type,
+            name: `All ${type}s`,
+            items: [newCollection],
+          };
+        }
+
+        // If old is already a virtual collection (with items array)
+        if (old.items) {
+          return {
+            ...old,
+            items: [...old.items, newCollection],
+          };
+        }
+
+        // If old is an array (unlikely but for safety)
+        if (Array.isArray(old)) {
+          return [...old, newCollection];
+        }
+
+        // Default fallback
+        return old;
+      });
       // return saved value in context object
-      return {previousCollections}
+      return { previousCollections };
     },
-    onError: (_err, _newCollections, context) => {
-      queryClient.setQueryData(collectionKeys.type(type), context!.previousCollections)
+    onError: (_err, _newCollection, context) => {
+      queryClient.setQueryData(
+        collectionKeys.type(type),
+        context!.previousCollections
+      );
     },
     onSettled: () => {
       // Invalidate the collections list query to refetch
@@ -106,7 +148,7 @@ export const useCreateCollection = (type: CollectionType) => {
 };
 
 // Delete a collection
-export const useDeleteCollections = (type : CollectionType) => {
+export const useDeleteCollections = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
 
@@ -123,13 +165,27 @@ export const useDeleteCollections = (type : CollectionType) => {
         collectionKeys.type(type)
       );
       // Optimistic update - remove collections with matching ids
-      queryClient.setQueryData(
-        collectionKeys.type(type),
-        (old: AudioCollection[]) => {
-          if (!old) return [];
+      queryClient.setQueryData(collectionKeys.type(type), (old: any) => {
+        if (!old) return [];
+
+        // If old is a virtual collection with items array
+        if (old.items) {
+          return {
+            ...old,
+            items: old.items.filter(
+              (collection: any) => !ids.includes(collection.id)
+            ),
+          };
+        }
+
+        // If old is an array of collections directly
+        if (Array.isArray(old)) {
           return old.filter((collection) => !ids.includes(collection.id));
         }
-      );
+
+        // Default fallback - return old unchanged if we can't determine structure
+        return old;
+      });
       // return saved value in context object
       return { previousCollections };
     },
@@ -144,7 +200,7 @@ export const useDeleteCollections = (type : CollectionType) => {
       queryClient.invalidateQueries({ queryKey: collectionKeys.type(type) });
     },
   });
-}
+};
 
 // Add items to a collection
 export const useAddToCollection = (type: CollectionType) => {
@@ -152,82 +208,101 @@ export const useAddToCollection = (type: CollectionType) => {
   const api = getApiForType(type);
 
   return useMutation({
-    mutationFn: async ({
-      collectionId,
-      audioItems,
-      position,
-      isMacro,
-    }: {
+    mutationFn: async (vars: {
       collectionId: number;
-      audioItems: AudioItem[];
+      items: AudioItem[];
+      parentInfo?: ParentCollectionInfo; // todo: make not optional
       position?: number;
-      isMacro?: boolean;
+      
     }) => {
-      const itemIds = audioItems.map(item => item.id);
-      return await api.addToCollection(collectionId, itemIds, position, isMacro)
+      const { collectionId, items, position } = vars;
+      return await api.addToCollection(collectionId, items, position);
     },
-    onMutate: async ({ collectionId, audioItems, position }) => {
+    onMutate: async ({ collectionId, items, position }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: collectionKeys.collection(type, collectionId),
       });
-      
-      // Save previous value
-      const previousCollection = queryClient.getQueryData(collectionKeys.collection(type, collectionId));
-      
+
+      const previousCollection = queryClient.getQueryData(
+        collectionKeys.collection(type, collectionId)
+      );
+
       // Optimistic update with full audio items and smart positioning
       queryClient.setQueryData(
         collectionKeys.collection(type, collectionId),
         (old: AudioCollection) => {
           if (!old) return { id: collectionId, type, name: "", items: [] };
-          
+
           // Create a copy of existing items
           const updatedItems = [...(old.items || [])];
-          
+
           // Filter out new items that already exist in the collection
-          const newItems = audioItems.filter(
-            newItem => !updatedItems.some(existing => existing.id === newItem.id)
+          const newItems = items.filter(
+            (newItem) =>
+              !updatedItems.some((existing) => existing.id === newItem.id)
           );
-          
+
           if (newItems.length === 0) return old;
-          
+
           // Determine insertion position
-          const insertPosition = position !== undefined ? position : updatedItems.length;
-          
+          const insertPosition =
+            position !== undefined ? position : updatedItems.length;
+
           // Adjust positions of existing items
           for (let i = 0; i < updatedItems.length; i++) {
             if ((updatedItems[i].position ?? 0) >= insertPosition) {
-              updatedItems[i].position = (updatedItems[i].position ?? 0) + newItems.length;
+              updatedItems[i].position =
+                (updatedItems[i].position ?? 0) + newItems.length;
             }
           }
-          
+
           // Add new items with proper positions
           const itemsToInsert = newItems.map((item, index) => ({
             ...item,
-            position: insertPosition + index
+            position: insertPosition + index,
           }));
-          
+
           // Combine and sort by position
           const sortedItems = [...updatedItems, ...itemsToInsert].sort(
             (a, b) => (a.position || 0) - (b.position || 0)
           );
-          
+
           return {
             ...old,
-            items: sortedItems
+            items: sortedItems,
           };
         }
       );
-      
+
       return { previousCollection };
     },
     onError: (_err, vars, context) => {
+      console.log(`[AddToCollection] Error occurred, rolling back changes`);
       queryClient.setQueryData(
-        collectionKeys.collection(type, vars.collectionId), context?.previousCollection);
+        collectionKeys.collection(type, vars.collectionId),
+        context?.previousCollection
+      );
     },
-    onSettled: (_data, _err, vars) => {
-      // Invalidate the collections list query to refetch
-      queryClient.invalidateQueries({ queryKey: collectionKeys.collection(type, vars.collectionId)});
+    onSettled: (_data, err, vars) => {
+      queryClient.invalidateQueries({
+        queryKey: collectionKeys.collection(type, vars.collectionId),
+      });
+
+      // Invalidate parent collection if specified - for parent pack, or parent sfx collection for macros
+      if (vars.parentInfo) {
+        const parentQueryKey = collectionKeys.collection(
+          vars.parentInfo.type,
+          vars.parentInfo.id
+        );
+
+        queryClient.invalidateQueries({
+          queryKey: parentQueryKey,
+        });
+      }
+      if (err) {
+        console.error(`[AddToCollection] Error during mutation:`, err);
+      }
     },
   });
 };
@@ -237,76 +312,114 @@ export const useRemoveFromCollection = (type: CollectionType) => {
   const api = getApiForType(type);
 
   return useMutation({
-    mutationFn: async ({collectionId, itemIds}: { collectionId: number; itemIds: number[];}) => {
-      return await api.removeFilesFromCollection(collectionId, itemIds);
+    mutationFn: async (vars: {
+      collectionId: number;
+      items: AudioItem[];
+      parentInfo?: ParentCollectionInfo;
+    }) => {
+      const { collectionId, items } = vars;
+      return await api.removeFilesFromCollection(collectionId, items);
     },
-    onMutate: async ({ collectionId, itemIds }) => {
-      // Cancel any outgoing refetches 
+    onMutate: async ({ collectionId, items }) => {
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: collectionKeys.collection(type, collectionId),
       });
-      
-      // Save previous value 
+
+      // Save previous value
       const previousCollection = queryClient.getQueryData(
         collectionKeys.collection(type, collectionId)
       );
-      
+
+      // Create a Set of IDs for efficient lookup
+      const itemIdsToRemove = new Set(items.map((item) => item.id));
+
       // Optimistic update with position adjustment
       queryClient.setQueryData(
         collectionKeys.collection(type, collectionId),
-        (old: AudioCollection) => {
+        (old: AudioCollection | undefined): AudioCollection | undefined => {
           if (!old || !old.items) return old;
-          
-          // Find items being removed
-          const itemsToRemove = old.items.filter(item => itemIds.includes(item.id));
-          
+
+          // Find items being removed using the Set of IDs
+          const itemsToRemove = old.items.filter((item) =>
+            itemIdsToRemove.has(item.id)
+          );
+
           // Get positions of removed items for shifting remaining items
           const removedPositions = itemsToRemove
-            .map(item => item.position || 0)
-            .filter(pos => pos > 0)
-            .sort((a, b) => a - b);
-          
-          // Filter out removed items
-          const remainingItems = old.items.filter(item => !itemIds.includes(item.id));
-          
+            .map((item) => item.position ?? 0) // Use nullish coalescing for safety
+            .sort((a, b) => a - b); // Sort positions numerically
+
+          // Filter out removed items using the Set of IDs
+          const remainingItems = old.items.filter(
+            (item) => !itemIdsToRemove.has(item.id)
+          );
+
           // Adjust positions of remaining items
-          // For each removed position, decrement the position of items that were after it
-          removedPositions.forEach((removedPos, idx) => {
-            // Adjust for positions already removed
-            const adjustedPos = removedPos - idx;
-            
-            // Decrement position of all items that were after this one
-            for (let i = 0; i < remainingItems.length; i++) {
-              if ((remainingItems[i].position ?? 0) > adjustedPos) {
-                remainingItems[i].position = (remainingItems[i].position ?? 0) - 1;
-              }
+          // Create a mutable copy for position updates
+          const updatedRemainingItems = remainingItems.map((item) => ({
+            ...item,
+          }));
+
+          // Store how many items have been removed *before* a given position
+          const removedCountBefore: { [key: number]: number } = {};
+          let count = 0;
+          for (
+            let i = 0;
+            i <= updatedRemainingItems.length + removedPositions.length;
+            i++
+          ) {
+            if (removedPositions.includes(i)) {
+              count++;
+            }
+            removedCountBefore[i] = count;
+          }
+
+          // Adjust positions based on how many items were removed before them
+          updatedRemainingItems.forEach((item) => {
+            const originalPos = item.position ?? 0;
+            const removedBefore = removedCountBefore[originalPos] ?? 0;
+            if (removedBefore > 0) {
+              item.position = originalPos - removedBefore;
             }
           });
-          
-          // Sort by position
-          remainingItems.sort((a, b) => (a.position || 0) - (b.position || 0));
-          
+
+          // Sort by the newly adjusted position
+          updatedRemainingItems.sort(
+            (a, b) => (a.position ?? 0) - (b.position ?? 0)
+          );
+
           return {
             ...old,
-            items: remainingItems
+            items: updatedRemainingItems, // Use the updated items
           };
         }
       );
-      
+
       return { previousCollection };
     },
     onError: (_err, vars, context) => {
-      // Restore previous state 
+      // Restore previous state
       queryClient.setQueryData(
-        collectionKeys.collection(type, vars.collectionId), 
+        collectionKeys.collection(type, vars.collectionId),
         context?.previousCollection
       );
     },
     onSettled: (_data, _err, vars) => {
-      // Invalidate with correct key
-      queryClient.invalidateQueries({ 
-        queryKey: collectionKeys.collection(type, vars.collectionId)
+      queryClient.invalidateQueries({
+        queryKey: collectionKeys.collection(type, vars.collectionId),
       });
+
+      // Invalidate parent collection if specified
+      if (vars.parentInfo) {
+        const parentQueryKey = collectionKeys.collection(
+          vars.parentInfo.type,
+          vars.parentInfo.id
+        );
+        queryClient.invalidateQueries({
+          queryKey: parentQueryKey,
+        });
+      }
     },
   });
 };
@@ -338,7 +451,13 @@ export const useUpdateItemPositions = (type: CollectionType) => {
         sourceEndPosition
       );
     },
-    onMutate: async ({ collectionId, itemId, targetPosition, sourceStartPosition, sourceEndPosition }) => {
+    onMutate: async ({
+      collectionId,
+      itemId,
+      targetPosition,
+      sourceStartPosition,
+      sourceEndPosition,
+    }) => {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: collectionKeys.collection(type, collectionId),
@@ -363,7 +482,10 @@ export const useUpdateItemPositions = (type: CollectionType) => {
           let startPos: number;
           let endPos: number;
 
-          if (sourceStartPosition !== undefined && sourceEndPosition !== undefined) {
+          if (
+            sourceStartPosition !== undefined &&
+            sourceEndPosition !== undefined
+          ) {
             // RANGE UPDATE - validate range
             if (sourceStartPosition > sourceEndPosition) return old;
 
@@ -391,7 +513,8 @@ export const useUpdateItemPositions = (type: CollectionType) => {
           }
 
           // Early return if no items to move or moving to same position
-          if (itemsToMove.length === 0 || targetPosition === startPos) return old;
+          if (itemsToMove.length === 0 || targetPosition === startPos)
+            return old;
 
           // Number of items being moved
           const itemCount = itemsToMove.length;
@@ -439,7 +562,7 @@ export const useUpdateItemPositions = (type: CollectionType) => {
 
           return {
             ...old,
-            items: updatedItems
+            items: updatedItems,
           };
         }
       );
@@ -456,9 +579,8 @@ export const useUpdateItemPositions = (type: CollectionType) => {
     onSettled: (_data, _err, vars) => {
       // Invalidate with correct key
       queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection(type, vars.collectionId)
+        queryKey: collectionKeys.collection(type, vars.collectionId),
       });
     },
   });
 };
-

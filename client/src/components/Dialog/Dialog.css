@@ -1,82 +1,114 @@
+/* Dialog.css */
 .dialog-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.7);
+  inset: 0;                         /* top/right/bottom/left = 0 */
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.7);   
 }
 
+/* 2) Side-panel mode: transparent behind dialog + cutout mask */
+.dialog-overlay.side-panel {
+  background: transparent;          
+  margin-left: 320px;               
+}
+
+/* mask for side-panel mode */
+.dialog-overlay.side-panel::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  clip-path: polygon(
+    0% 0%,
+    var(--cutout-left) 0%,
+    var(--cutout-left) var(--cutout-top),
+    var(--cutout-left)
+      calc(var(--cutout-top) + var(--cutout-height)),
+    calc(var(--cutout-left) + var(--cutout-width))
+      calc(var(--cutout-top) + var(--cutout-height)),
+    calc(var(--cutout-left) + var(--cutout-width))
+      var(--cutout-top),
+    var(--cutout-left) var(--cutout-top),
+    var(--cutout-left) 0%,
+    100% 0%,
+    100% 100%,
+    0% 100%
+  );
+  pointer-events: auto;
+  z-index: 1000;
+}
+
+/* dialog window */
 .dialog-container {
-  background-color: var(--bg-secondary);
-  border-radius: 8px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 4px 8px var(--shadow);
-  max-height: 90vh;
-  overflow-y: auto;
+  position: relative;
+  background: var(--bg-secondary);
   border: 1px solid var(--border-color);
+  border-radius: 8px;
+  max-width: 800px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 8px var(--shadow);
+  z-index: 1001;
+  pointer-events: auto;
 }
 
+/* header */
 .dialog-header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-color);
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  background-color: var(--bg-tertiary);
+  justify-content: space-between;
+  padding: 16px;
+  background: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
 }
-
 .dialog-header h2 {
   margin: 0;
   color: var(--text-primary);
 }
-
 .close-button {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 24px;
+  all: unset;
   cursor: pointer;
-  padding: 0;
+  font-size: 24px;
   width: 30px;
   height: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  color: var(--text-secondary);
+  transition: background 0.2s, color 0.2s;
 }
-
 .close-button:hover {
-  background-color: var(--bg-primary);
+  background: var(--bg-primary);
   color: var(--text-primary);
 }
 
+/* content area */
 .dialog-content {
   padding: 48px;
   color: var(--text-primary);
 }
 
-/* Scrollbar styling for the dialog content */
-.dialog-container::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Support for :has() fallback for browsers that don't support it */
+.dialog-content.no-padding {
+  padding: 0;
 }
 
+/* scrollbar styling */
+.dialog-container::-webkit-scrollbar {
+  width: 8px;
+}
 .dialog-container::-webkit-scrollbar-track {
   background: var(--bg-secondary);
 }
-
 .dialog-container::-webkit-scrollbar-thumb {
-  background-color: var(--bg-tertiary);
+  background: var(--bg-tertiary);
   border-radius: 4px;
 }
-
 .dialog-container::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-primary);
+  background: var(--accent-primary);
 }

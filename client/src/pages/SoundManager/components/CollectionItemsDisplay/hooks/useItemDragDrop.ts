@@ -28,6 +28,7 @@ export function useItemDragDrop({
   useUpdateItemPosition,
   calculateDropTarget,
 }: UseItemDragDropProps) {
+  
   const [targetIndex, setTargetIndex] = useState<number | undefined>(undefined);
   const internalRef = useRef<HTMLDivElement | null>(null);
   const effectiveRef = containerRef || internalRef;
@@ -43,9 +44,9 @@ export function useItemDragDrop({
   const calculateDropIndex = useCallback((e: React.DragEvent) => {
     if (!calculateDropTarget) return undefined;
     const index = calculateDropTarget(e, effectiveRef.current);
-    if (index !== undefined) {
-      console.log("Calculated drop index:", index);
+    if (index !== undefined && index !== targetIndex) {
       setTargetIndex(index);
+      
     }
     return index;
   }, [calculateDropTarget, effectiveRef]);

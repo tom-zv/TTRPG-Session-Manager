@@ -10,15 +10,37 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
     throw new Error(`Invalid collection type: ${type}`);
   }
   
-  const [result] = await pool.execute(
-    `SELECT c.*, COUNT(cf.audio_file_id) AS item_count
-       FROM ${COLLECTIONS_TABLE} c
-       LEFT JOIN ${COLLECTION_FILES_TABLE} cf ON c.collection_id = cf.collection_id
-       WHERE c.type = ?
-       GROUP BY c.collection_id
-       ORDER BY c.name ASC`,
-    [type]
-  );
+  let query;
+  // Use a different query for SFX collections to count both files and macros
+  if (type === 'sfx') {
+    query = `
+      SELECT c.*, 
+        (
+          SELECT COUNT(cf.audio_file_id) 
+          FROM ${COLLECTION_FILES_TABLE} cf 
+          WHERE cf.collection_id = c.collection_id
+        ) + (
+          SELECT COUNT(cm.macro_id) 
+          FROM ${COLLECTION_SFX_MACROS_TABLE} cm 
+          WHERE cm.collection_id = c.collection_id
+        ) AS item_count
+      FROM ${COLLECTIONS_TABLE} c
+      WHERE c.type = ?
+      GROUP BY c.collection_id
+      ORDER BY c.name ASC
+    `;
+  } else {
+    query = `
+      SELECT c.*, COUNT(cf.audio_file_id) AS item_count
+      FROM ${COLLECTIONS_TABLE} c
+      LEFT JOIN ${COLLECTION_FILES_TABLE} cf ON c.collection_id = cf.collection_id
+      WHERE c.type = ?
+      GROUP BY c.collection_id
+      ORDER BY c.name ASC
+    `;
+  }
+
+  const [result] = await pool.execute(query, [type]);
   return result as RowDataPacket[];
 }
 
@@ -78,13 +100,10 @@ export async function updateCollection(
     fields.push('description = ?');
     params.push(description);
   }
-
-  // Nothing to update
+  
   if (fields.length === 0) {
     return 0;
   }
-
-  // Add WHERE params
   params.push(collectionId, type);
 
   const sql = `
@@ -135,6 +154,7 @@ export async function getCollectionFiles(
   if (type == "sfx") {
     const [macroResults] = await pool.execute(
       `SELECT m.*, cm.position,
+              COUNT(mf.audio_file_id) AS item_count,
               GROUP_CONCAT(
                 CASE 
                   WHEN af.audio_file_id IS NOT NULL THEN JSON_OBJECT(
@@ -153,8 +173,8 @@ export async function getCollectionFiles(
               ) AS files
             FROM sfx_macros m
             JOIN ${COLLECTION_SFX_MACROS_TABLE} cm ON m.macro_id = cm.macro_id
-            LEFT JOIN sfx_macro_files mf ON m.macro_id = mf.collection_id -- Changed to LEFT JOIN
-            LEFT JOIN audio_files af ON mf.audio_file_id = af.audio_file_id -- Changed to LEFT JOIN
+            LEFT JOIN sfx_macro_files mf ON m.macro_id = mf.collection_id 
+            LEFT JOIN audio_files af ON mf.audio_file_id = af.audio_file_id 
             WHERE cm.collection_id = ?
             GROUP BY m.macro_id, cm.position
             ORDER BY cm.position ASC`,
@@ -368,6 +388,14 @@ export async function removeFileFromCollection(
       `UPDATE ${COLLECTION_FILES_TABLE} SET position = position - 1 WHERE collection_id = ? AND position > ? ORDER BY position ASC`,
       [collectionId, currentPosition]
     );
+    
+    // For SFX collections, also update positions in the macros table
+    if (type === 'sfx') {
+      await connection.execute(
+        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position - 1 WHERE collection_id = ? AND position > ? ORDER BY position ASC`,
+        [collectionId, currentPosition]
+      );
+    }
     
     await connection.commit();
     return (deleteResult as ResultSetHeader).affectedRows || 0;
@@ -679,6 +707,57 @@ export async function addMacrosToCollection(
   }
 }
 
+export async function removeMacroFromCollection(
+  collectionId: number, 
+  macroId: number
+): Promise<number> {
+  const connection = await pool.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    // Get the current position of the macro to be removed
+    const [macroRows] = await connection.execute<RowDataPacket[]>(
+      `SELECT position FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ? AND macro_id = ?`,
+      [collectionId, macroId]
+    );
+    
+    if (macroRows.length === 0) {
+      await connection.commit();
+      return 0; // Macro not found
+    }
+    
+    const currentPosition = macroRows[0].position;
+    
+    // Delete the macro
+    const [deleteResult] = await connection.execute(
+      `DELETE FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ? AND macro_id = ?`,
+      [collectionId, macroId]
+    );
+    
+    // Update position for all files and macros that have a higher position
+    // First update macro positions
+    await connection.execute(
+      `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position - 1 WHERE collection_id = ? AND position > ? ORDER BY position ASC`,
+      [collectionId, currentPosition]
+    );
+    
+    // Also update file positions
+    await connection.execute(
+      `UPDATE ${COLLECTION_FILES_TABLE} SET position = position - 1 WHERE collection_id = ? AND position > ? ORDER BY position ASC`,
+      [collectionId, currentPosition]
+    );
+    
+    await connection.commit();
+    return (deleteResult as ResultSetHeader).affectedRows || 0;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 /* Pack endpoints
  *****************/
 
@@ -800,6 +879,7 @@ export default {
   updateFileRangePosition,
   addMacroToCollection,
   addMacrosToCollection,
+  removeMacroFromCollection,
   getAllPacks,
   createPack,
   deletePack,

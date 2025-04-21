@@ -250,9 +250,9 @@ interface DropAreaProps {
 
 export const DropArea: React.FC<DropAreaProps> = ({
   zoneId,
-  className = '',
-  registeredClassName = 'drop-target-registered',
-  activeClassName = 'drop-target-active',
+  className = 'drop-target',
+  registeredClassName = 'registered',
+  activeClassName = 'active',
   children
 }) => {
   const { 

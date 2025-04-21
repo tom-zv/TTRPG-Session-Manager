@@ -5,67 +5,23 @@
 .playlist-panel {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  overflow-y: auto;
-  /* background-color: var(--bg-tertiary); */
-  border-radius: 6px;
-  /* padding: 1rem; */
+  height: 100%;
 }
 
-.panel-header {
-  display: flex;
-  padding: 0.5rem 0rem; 
-  border-bottom: 1px solid var(--border-color);
-  position: relative;
-  align-items: center; 
-}
 
-.panel-header h3 {
-  margin: 0 1rem; 
-  text-align: center;
-  position: relative;
-  color: var(--text-primary);
-  font-size: 1.2rem;
-  font-weight: 600;
-  flex-grow: 1; 
-}
 
-.back-button {
-  background-color: transparent;
-  font-size: 1.8rem;
-  padding: 0;
-  margin-left: 1rem; 
-  color: var(--text-primary);
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0; 
-}
-
-.back-button:hover {
-  background-color: transparent;
-  transform: translateY(-1px);
-}
-
-.play-all-button {
-  background-color: transparent;
-  color: var(--text-primary);
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1.5rem;
-  margin-right: 1rem; 
-  flex-shrink: 0;
-}
-
-.play-all-button:hover {
-  background-color:  transparent;
-  transform: scale(1.05);
-}
 .playlist-panel .collection-items-display thead {
   display: none;
+  min-height: 0;
+}
+
+.playlist-panel .collection-items-display {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.playlist-panel .audio-item-table{
+  overflow-y: auto;
 }
 
 .playlist-panel .audio-item-row {
@@ -98,11 +54,6 @@
 
 .playlist-panel .audio-item-row:not(.playlist):hover .position-number {
   opacity: 0;
-}
-
-.playlist-panel .audio-item-table {
-  background-color: transparent;
-  box-shadow: none;
 }
 
 .playlist-panel .audio-item-table td {
@@ -144,8 +95,53 @@
 }
 
 @keyframes pulse {
-  0% { opacity: 0.6; }
-  50% { opacity: 1; }
-  100% { opacity: 0.6; }
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
 }
 
+/* Specific styling for playlists in the main view */
+.playlist-panel .audio-item-row.playlist {
+  margin-bottom: 2px;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.playlist-panel .audio-item-row.playlist:after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+}
+
+.playlist-panel .audio-item-row.playlist:last-child:after {
+  display: none;
+}
+
+/* Add padding to the left of playlist names */
+.playlist-panel .audio-item-row.playlist .item-name-cell {
+  padding-left: 12px;
+}
+
+.playlist-panel .audio-item-row.playlist.selected {
+  background-color: rgba(53, 114, 227, 0.15);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Hover effect for playlists */
+.playlist-panel .audio-item-row.playlist:hover {
+  transform: translateY(0px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}

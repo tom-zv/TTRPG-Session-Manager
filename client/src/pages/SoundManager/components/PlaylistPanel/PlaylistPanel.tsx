@@ -1,101 +1,153 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useGetCollectionsOfType } from "../../api/collections/useCollectionQueries.js";
 import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
+import { PiMusicNotesPlusFill } from "react-icons/pi";
 import { Audio } from "../AudioService/AudioContext.js";
+import CreateCollectionDialog from "../../components/CollectionView/components/CreateCollectionDialog.js";
+import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionMutations.js";
 
+import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import "./PlaylistPanel.css";
 
-const PlaylistPanel: React.FC = React.memo(() => {
+interface PlaylistPanelProps {
+  onPlaylistCountChange?: (count: number) => void;
+}
 
-  // Get audio context functionality
-  const { toggleAudioItem, isAudioItemPlaying, playlist: { togglePlaylist, currentIndex }} = Audio.useAudio();
-  const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(null);
+const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
+  ({ onPlaylistCountChange }) => {
+    // Get audio context functionality
+    const {
+      toggleAudioItem,
+      isAudioItemPlaying,
+      playlist: { togglePlaylist, currentIndex },
+    } = Audio.useAudio();
+    const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(
+      null
+    );
+    const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const { data: playlistCollection } = useGetCollectionsOfType("playlist");
-  const playlists = playlistCollection?.items || [];
+    const { data: playlistCollection } = useGetCollectionsOfType("playlist");
+    const playlists = playlistCollection?.items || [];
 
-  // Memoize the selected playlist to prevent unnecessary lookups
-  const selectedPlaylist = useMemo(() => 
-    playlists?.find((playlist) => playlist.id === selectedPlaylistId),
-    [playlists, selectedPlaylistId]
-  );
+    const { createCollection } = useCollectionMutations(
+      -1, // Virtual collection ID
+      "playlist",
+      {
+        onAddSuccess: () => {
+          setCreateDialogOpen(false);
+        },
+      }
+    );
 
-  // Function to handle going back to all playlists
-  const handleBackClick = useCallback(() => {
-    setSelectedPlaylistId(null);
-  }, []);
-  
-  // Handle playlist selection
-  const handlePlaylistSelect = useCallback((itemId: number) => {
-    setSelectedPlaylistId(itemId);
-  }, []);
-  
-  // Handle play/pause toggle
-  const handleTogglePlay = useCallback(() => {
-    if (selectedPlaylist) {
-      togglePlaylist(selectedPlaylistId!, currentIndex );
-    }
-  }, [selectedPlaylist, toggleAudioItem]);
+    // Memoize the selected playlist to prevent unnecessary lookups
+    const selectedPlaylist = useMemo(
+      () => playlists?.find((playlist) => playlist.id === selectedPlaylistId),
+      [playlists, selectedPlaylistId]
+    );
 
-  // Don't render if the ItemPanel is active
+    const handleBackClick = useCallback(() => {
+      setSelectedPlaylistId(null);
+    }, []);
 
-  const listViewProps = {
-    collectionType: "playlist" as const,
-    collectionId: -1,
-    view: "list" as const,
-    showToggle: false,
-    showHeaders: false,
-    showPlayButton: true,
-    onItemClick: handlePlaylistSelect,
-    isDragSource: false,
-    isReorderable: false,
-    isDropTarget: false,
-  };
-  
-  const detailViewProps = {
-    collectionType: "playlist" as const,
-    collectionId: selectedPlaylistId!,
-    view: "list" as const,
-    showToggle: false,
-    showHeaders: true,
-    showActions: true,
-    isDragSource: true,
-    isReorderable: true,
-    isDropTarget: true,
-    acceptedDropTypes: ["file"],
-  };
+    const handlePlaylistSelect = useCallback((itemId: number) => {
+      setSelectedPlaylistId(itemId);
+    }, []);
 
-  return (
-    <div className="playlist-panel">
-      {!selectedPlaylistId ? (
-        <>
-          <div className="panel-header">
-            <h3>Playlists</h3>
-          </div>
-          <CollectionItemsDisplay {...listViewProps} />
-        </>
-      ) : selectedPlaylist ? (
-        <>
-          <div className="panel-header">
-            <button className="back-button" onClick={handleBackClick}>
-              ←
-            </button>
-            <h3>{selectedPlaylist.name}</h3>
-            <button
-              className={`play-all-button ${isAudioItemPlaying(selectedPlaylist) ? "playing" : ""}`}
-              onClick={handleTogglePlay}
-              title={isAudioItemPlaying(selectedPlaylist) ? "Pause" : "Play all"}
-            >
-              {isAudioItemPlaying(selectedPlaylist) ? "⏸" : "▶"}
-            </button>
-          </div>
-          <CollectionItemsDisplay {...detailViewProps} />
-          
-        </>
-        
-      ) : null}
-    </div>
-  );
-});
+    const handleTogglePlay = useCallback(() => {
+      if (selectedPlaylist) {
+        togglePlaylist(selectedPlaylistId!, currentIndex);
+      }
+    }, [selectedPlaylist, toggleAudioItem, selectedPlaylistId, currentIndex]);
+
+    const handleOpenCreateDialog = useCallback(() => {
+      setCreateDialogOpen(true);
+    }, []);
+
+    // Use effect to notify parent when playlist count changes
+    useEffect(() => {
+      if (onPlaylistCountChange && playlists) {
+        onPlaylistCountChange(playlists.length);
+      }
+    }, [playlists, onPlaylistCountChange]);
+
+    const listViewProps = {
+      collectionType: "playlist" as const,
+      collectionId: -1,
+      view: "list" as const,
+      showToggle: false,
+      showHeaders: false,
+      showPlayButton: true,
+      onItemClick: handlePlaylistSelect,
+      isDragSource: true,
+      isReorderable: true,
+      isDropTarget: true,
+    };
+
+    const detailViewProps = {
+      collectionType: "playlist" as const,
+      collectionId: selectedPlaylistId!,
+      view: "list" as const,
+      showToggle: false,
+      showHeaders: true,
+      showActions: true,
+      isDragSource: true,
+      isReorderable: true,
+      isDropTarget: true,
+      dropZoneId: DROP_ZONES.SOUND_MANAGER_PLAYLIST,
+      acceptedDropTypes: ["file"],
+    };
+
+    return (
+      <div className="playlist-panel">
+        {!selectedPlaylistId ? (
+          <>
+            <div className="panel-header">
+              <h3>Playlists</h3>
+              <button
+                className="create-collection-button"
+                onClick={handleOpenCreateDialog}
+                title="Create New Playlist"
+              >
+                <PiMusicNotesPlusFill />
+              </button>
+            </div>
+            
+            <CollectionItemsDisplay {...listViewProps} />
+            
+
+            {createDialogOpen && (
+              <CreateCollectionDialog
+                isOpen={createDialogOpen}
+                onClose={() => setCreateDialogOpen(false)}
+                collectionType="playlist"
+                createCollection={createCollection!}
+                isLoading={false}
+              />
+            )}
+          </>
+        ) : selectedPlaylist ? (
+          <>
+            <div className="panel-header">
+              <button className="back-button" onClick={handleBackClick}>
+                ←
+              </button>
+              <h3>{selectedPlaylist.name}</h3>
+              <button
+                className={`play-all-button ${isAudioItemPlaying(selectedPlaylist) ? "playing" : ""}`}
+                onClick={handleTogglePlay}
+                title={
+                  isAudioItemPlaying(selectedPlaylist) ? "Pause" : "Play all"
+                }
+              >
+                {isAudioItemPlaying(selectedPlaylist) ? "⏸" : "▶"}
+              </button>
+            </div>
+            <CollectionItemsDisplay {...detailViewProps} />
+          </>
+        ) : null}
+      </div>
+    );
+  }
+);
 
 export default PlaylistPanel;

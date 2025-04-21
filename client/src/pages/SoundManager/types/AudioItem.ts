@@ -18,12 +18,12 @@ export interface AudioFile extends AudioItemBase {
   fileType: AudioFileType;
   duration: number;
   volume: number;
-  delay?: number; // For macro timing
+  delay?: number;
   fileUrl?: string;
   filePath?: string;
   folderId?: number;
   addedAt?: string;
-  active?: boolean; // Whether the file is active in a collection
+  active?: boolean; 
 }
 
 // Collection specific interface
@@ -31,16 +31,13 @@ export interface AudioCollection extends AudioItemBase {
   type: CollectionType;
   description?: string;
   itemCount?: number;
-  items?: AudioItem[]; // For nested collections or when files are loaded
+  items?: AudioItem[]; 
 }
 
-export interface AudioMacro extends AudioItemBase {
+export interface AudioMacro extends AudioCollection {
   type: "macro";
-  description?: string;
-  itemCount?: number;
-  items?: AudioFile[]; // For nested collections or when files are loaded
-  duration?: number; // Total duration of the macro
-  volume?: number; // Volume for the macro
+  duration?: number; 
+  volume?: number; 
 }
 
 // Union type

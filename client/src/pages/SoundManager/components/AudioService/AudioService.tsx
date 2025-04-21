@@ -428,8 +428,8 @@ export class AudioService {
 
   /* SFX METHODS
   ********************/
-  playMacro(macroId: number): void {
-    const macro = this.getCollectionFromCache('macro', macroId) as AudioMacro;
+  playMacro(macro: AudioMacro): void {
+    
     if (!macro || !macro.items) return;
     
     const timeoutIds: NodeJS.Timeout[] = [];
@@ -455,18 +455,14 @@ export class AudioService {
       timeoutIds.push(timeoutId);
     });
 
-    this.currentMacros.set(macroId, { 
+    this.currentMacros.set(macro.id, { 
       volume: macro.volume || 1, 
       fileIds, 
       timeoutIds, 
       howls 
     });
     
-    this.emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.entries()).map(([id, macro]) => ({
-      id,
-      volume: macro.volume,
-      fileIds: macro.fileIds
-    })));
+    this.emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.keys()));
   }
 
   stopMacro(id: number): void {
@@ -475,22 +471,24 @@ export class AudioService {
       macro.timeoutIds.forEach((timeoutId) => {
         clearTimeout(timeoutId);
       });
+
+      macro.howls.forEach((howl) => {
+        howl.stop();
+        howl.unload();
+      });
+      
       this.currentMacros.delete(id);
-      this.emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.entries()).map(([id, macro]) => ({
-        id,
-        volume: macro.volume,
-        fileIds: macro.fileIds
-      })));
+      this.emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.keys()));
     }
   }
 
-  toggleMacro(macroId: number): boolean {
-    if (this.currentMacros.has(macroId)) {
-      this.stopMacro(macroId);
+  toggleMacro(macro: AudioMacro): boolean {
+    if (this.currentMacros.has(macro.id)) {
+      this.stopMacro(macro.id);
       return false;
     }
     else {
-      this.playMacro(macroId);
+      this.playMacro(macro);
       return true;
     }
   }
@@ -502,11 +500,7 @@ export class AudioService {
         howl.volume(this.volumes.sfx * volume);
       });
       macro.volume = volume;
-      this.emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.entries()).map(([id, macro]) => ({
-        id,
-        volume: macro.volume,
-        fileIds: macro.fileIds
-      })));
+      this.emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.keys()));
     }
   }
   

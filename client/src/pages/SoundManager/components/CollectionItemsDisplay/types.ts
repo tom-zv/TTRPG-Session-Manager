@@ -7,7 +7,7 @@ import { CollectionType } from "../CollectionView/types.js";
 export interface AudioItemActions {
   useAddItems?: (items: AudioItem[], position?: number, isMacro?: boolean) => void;
   //useEditItem?: (X: any) => void;
-  useRemoveItems?: (itemIds: number[]) => void;
+  useRemoveItems?: ((items: AudioItem[]) => void);
   useEditItem?: (itemId: number, data: Partial<AudioItem>) => void;
   useUpdateItemPosition?: ( 
     itemId: number,

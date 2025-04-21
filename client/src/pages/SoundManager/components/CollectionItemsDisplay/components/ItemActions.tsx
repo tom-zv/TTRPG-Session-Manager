@@ -1,6 +1,7 @@
-import React from 'react';
-import { AudioItem, AudioItemActions } from '../types.js';
-import './ItemActions.css';
+import React from "react"; // Remove useState import
+import { AudioItem, AudioItemActions } from "../types.js";
+import { MdEdit } from "react-icons/md";
+import "./ItemActions.css";
 
 interface ItemActionProps {
   icon: React.ReactNode;
@@ -10,8 +11,14 @@ interface ItemActionProps {
   small: boolean;
 }
 
-const ActionButton: React.FC<ItemActionProps> = ({ icon, label, onClick, buttonClass, small }) => {
-  const sizeClass = small ? 'small' : '';
+const ActionButton: React.FC<ItemActionProps> = ({
+  icon,
+  label,
+  onClick,
+  buttonClass,
+  small,
+}) => {
+  const sizeClass = small ? "small" : "";
   return (
     <button
       className={`${buttonClass} ${sizeClass}`}
@@ -26,58 +33,60 @@ const ActionButton: React.FC<ItemActionProps> = ({ icon, label, onClick, buttonC
 interface ItemActionsProps extends AudioItemActions {
   collectionId: number;
   item: AudioItem;
-  selectedItemIds?: number[];
+  selectedItems?: AudioItem[];
   isSmall?: boolean;
+  onEditClick?: (itemId: number) => void; 
 }
 
 const ItemActions: React.FC<ItemActionsProps> = ({
   item,
-  selectedItemIds = [],
+  selectedItems = [],
   useRemoveItems,
-  isSmall = false
+  isSmall = false,
+  onEditClick, 
 }) => {
   // Don't show actions for create buttons
   if (item.isCreateButton) return null;
-  
-  // const handleEditClick = (e: React.MouseEvent) => {
-  //   if (useEditItem) {
-  //     e.stopPropagation();
-  //     //useEditItem(item.id, {}); // Pass needed params here
-  //   }
-  // };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onEditClick) {
+      onEditClick(item.id);
+    }
+  };
 
   const handleRemoveClick = (e: React.MouseEvent) => {
     if (!useRemoveItems) return;
     e.stopPropagation();
 
-    const idsToRemove = selectedItemIds.length > 0 && selectedItemIds.some(id => id == item.id)
-      ? selectedItemIds
-      : [item.id];
+    // If the item is selected, remove all selected items
+    // Otherwise, remove just the clicked item
+    const itemsToRemove =
+      selectedItems.length > 0 && selectedItems.some((si) => si.id == item.id)
+        ? selectedItems
+        : [item];
 
-    useRemoveItems(idsToRemove);
+    useRemoveItems(itemsToRemove);
   };
 
   const containerClass = isSmall ? "item-actions" : "audio-item-controls";
 
   return (
     <div className={containerClass}>
-      
-      {/* {useEditItem && (
-        <ActionButton 
-          icon="⚙" 
-          label="Edit"
-          onClick={handleEditClick}
-          buttonClass="edit-button"
-          small={isSmall}
-        />
-      )} */}
-      
+      <ActionButton
+        icon={<MdEdit />}
+        label="Edit"
+        onClick={handleEditClick}
+        buttonClass="edit-button"
+        small={isSmall}
+      />
+  
       {useRemoveItems && (
-        <ActionButton 
-          icon="×" 
+        <ActionButton
+          icon="×"
           label="Remove"
           onClick={handleRemoveClick}
-          buttonClass="delete-button" 
+          buttonClass="delete-button"
           small={isSmall}
         />
       )}

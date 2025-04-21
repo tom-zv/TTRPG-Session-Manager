@@ -15,7 +15,7 @@
 
 /* Resize handle styling */
 .separator-handle {
-  height: 8px;
+  height: 5px;
   background-color: var(--bg-tertiary);
   cursor: row-resize;
   position: relative;

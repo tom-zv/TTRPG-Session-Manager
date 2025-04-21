@@ -1,23 +1,25 @@
 import React from 'react';
-import { AudioItem, isAudioCollection, AudioItemActions } from '../../types.js';
+import { AudioItem, isAudioCollection, AudioItemActions, AudioCollection } from '../../types.js';
 import { getItemIcon } from '../../utils/getItemIcon.js';
 import ItemActions from '../ItemActions.js';
 
 
 interface StandardItemContentProps extends AudioItemActions {
   item: AudioItem;
-  collectionId: number;
+  parentCollection: AudioCollection;
   showActions: boolean;
   selectedItemIds: number[];
+  onEditItem?: (itemId: number) => void; 
 }
 
 const StandardItemContent: React.FC<StandardItemContentProps> = ({
   item,
-  collectionId,
+  parentCollection,
   showActions,
   selectedItemIds,
   useEditItem,
   useRemoveItems,
+  onEditItem, 
 }) => {
  
   return (
@@ -42,11 +44,12 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
       {showActions && (
         <div className="item-actions">
           <ItemActions
-            collectionId={collectionId}
+            collectionId={parentCollection.id}
             item={item}
-            selectedItemIds={selectedItemIds}
-            useRemoveItems={useRemoveItems} // Use mutation for remove
-            useEditItem={useEditItem} // Pass mutation for edit
+            selectedItems={parentCollection.items?.filter((i) => selectedItemIds.includes(i.id))}
+            useRemoveItems={useRemoveItems} 
+            useEditItem={useEditItem} 
+            onEditClick={onEditItem} 
             isSmall
           />
         </div>

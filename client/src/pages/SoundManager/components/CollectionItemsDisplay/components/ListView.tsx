@@ -4,7 +4,6 @@ import ItemActions from "./ItemActions.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
 import { useItemDragDrop } from "../hooks/useItemDragDrop.js";
 import { calculateTableDropIndex } from "src/utils/tableDropUtils.js";
-import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import { isAudioFile, isAudioMacro } from "../../../types/AudioItem.js";
 import { getItemIcon } from "../utils/getItemIcon.js";
 import { Audio } from "../../../components/AudioService/AudioContext.js";
@@ -20,6 +19,7 @@ interface ListViewProps extends AudioItemActions, DragDropProps {
   showHeaders?: boolean;
   // Event handlers
   onItemSelect?: (e: React.MouseEvent, itemId: number) => void;
+  onEditItem?: (itemId: number) => void;
 }
 
 export const ListView: React.FC<ListViewProps> = ({
@@ -28,6 +28,7 @@ export const ListView: React.FC<ListViewProps> = ({
   showActions = false,
   showHeaders = true,
   onItemSelect,
+  onEditItem,
   useAddItems,
   useRemoveItems,
   useUpdateItemPosition,
@@ -35,6 +36,7 @@ export const ListView: React.FC<ListViewProps> = ({
   isDragSource = false,
   isReorderable = true,
   isDropTarget = false,
+  dropZoneId,
   acceptedDropTypes = [],
 }) => {
   const items = collection.items || [];
@@ -43,24 +45,19 @@ export const ListView: React.FC<ListViewProps> = ({
 
   const tableRef = useRef<HTMLTableElement | null>(null);
 
-  const { 
-    dropAreaProps,
-    dragItemProps,
-    isInsertionPoint,
-  } = useItemDragDrop({
+  const { dropAreaProps, dragItemProps, isInsertionPoint } = useItemDragDrop({
     items,
     selectedItemIds,
     contentType: collection.type === "macro" ? "macro" : "file",
-    isDragSource, 
+    isDragSource,
     isReorderable,
     isDropTarget,
-    dropZoneId: DROP_ZONES.SOUND_MANAGER_CONTENT,
+    dropZoneId,
     acceptedDropTypes,
     containerRef: tableRef,
     useAddItems,
     useUpdateItemPosition,
     calculateDropTarget: calculateTableDropIndex,
-    
   });
 
   let columns: string[] = [];
@@ -92,7 +89,11 @@ export const ListView: React.FC<ListViewProps> = ({
       case "id":
         return <td key={column}>{item.id}</td>;
       case "icon":
-        return <td key={column} className="icon-cell">{getItemIcon(item)}</td>;
+        return (
+          <td key={column} className="icon-cell">
+            {getItemIcon(item)}
+          </td>
+        );
       case "position":
         return (
           <td key={column}>
@@ -115,7 +116,7 @@ export const ListView: React.FC<ListViewProps> = ({
         return (
           <td key={column}>
             <div className="item-name-cell">
-              {item.name}
+              <span className="item-name-text">{item.name}</span>
               {collection.type !== "macro" && item.type === "macro" && (
                 <span className="macro-indicator">Macro</span>
               )}
@@ -125,7 +126,8 @@ export const ListView: React.FC<ListViewProps> = ({
       case "duration":
         return (
           <td key={column}>
-            {(isAudioFile(item) || isAudioMacro(item)) && item.duration &&
+            {(isAudioFile(item) || isAudioMacro(item)) &&
+              item.duration &&
               new Date(item.duration * 1000)
                 .toISOString()
                 .slice(11, 19)
@@ -139,8 +141,11 @@ export const ListView: React.FC<ListViewProps> = ({
             <ItemActions
               collectionId={collection.id}
               item={item}
-              selectedItemIds={selectedItemIds}
-              useRemoveItems={useRemoveItems} 
+              selectedItems={items.filter((i) =>
+                selectedItemIds.includes(i.id)
+              )}
+              useRemoveItems={useRemoveItems}
+              onEditClick={onEditItem}
               isSmall
             />
           </td>
@@ -153,9 +158,7 @@ export const ListView: React.FC<ListViewProps> = ({
   return (
     <div
       {...dropAreaProps}
-      className={`${collection.type === "macro" ? "macro-list-view" : ""} ${
-        isEmpty ? "empty-list-view" : ""
-      }`}
+      className={`audio-item-list-view ${collection.type === "macro" ? "macro-list-view" : ""} ${isEmpty ? "empty-list-view" : ""}`}
     >
       {!isEmpty && (
         <table ref={tableRef} className="audio-item-table">
@@ -189,13 +192,16 @@ export const ListView: React.FC<ListViewProps> = ({
 
             {items.map((item, index) => {
               // Determine if the item is playing based on its type and collection context
-              const isPlaying = audioContext.isAudioItemPlaying(item, collection);
+              const isPlaying = audioContext.isAudioItemPlaying(
+                item,
+                collection
+              );
 
               // Special handling for ambience files - they can be active even when not playing
               const isAmbienceActive =
                 isAudioFile(item) &&
                 item.fileType === "ambience" &&
-                item.active
+                item.active;
 
               // Check if this item is the current track in a playlist, even if it's not playing
               const isCurrentTrack =

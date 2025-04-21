@@ -1,24 +1,71 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import ItemPanel from "./ItemPanel/ItemPanel.js";
 import PlaylistPanel from "./PlaylistPanel/PlaylistPanel.js";
 import SoundManagerLiveView from "./SoundManagerLiveView/SoundManagerLiveView.js";
 import { DropTargetProvider } from "src/components/DropTargetContext/DropTargetContext.js";
 import { ItemPanelProvider } from "./ItemPanel/ItemPanelContext.js";
 import { AudioProvider } from "./AudioService/index.js";
-
-import "./SoundManager.css";
+import {
+  Panel,
+  PanelGroup,
+  PanelResizeHandle,
+  ImperativePanelHandle,
+} from "react-resizable-panels";
 import PlayBar from "./PlayBar/PlayBar.js";
+import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
+import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
+import { usePlaylistPanelSizeCalc } from "../hooks/usePlaylistPanelSizeCalc.js";
+import "./SoundManager.css";
+import "./LeftPanel.css";
 
 const SoundManagerContent: React.FC = () => {
+  const [playlistCount, setPlaylistCount] = useState(0);
+  const playlistPanelRef = React.useRef<ImperativePanelHandle>(null);
+  
+  const { calculatePlaylistPanelSize } = usePlaylistPanelSizeCalc(
+    playlistCount, 
+    playlistPanelRef
+  );
+
+  const handlePlaylistCountChange = useCallback((count: number) => {
+    setPlaylistCount(count);
+  }, []);
+
   return (
     <div className="sound-manager">
       <div className="sound-manager-layout">
         <div className="sound-manager-left-panel">
-          <PlaylistPanel />
-          
-          <ItemPanel />
+          <PanelGroup direction="vertical">
+            {/* Playlist Panel */}
+            <Panel
+              ref={playlistPanelRef}
+              defaultSize={calculatePlaylistPanelSize()}
+              minSize={9}
+              className="panel-with-table" 
+            >
+              <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
+                <PlaylistPanel
+                  onPlaylistCountChange={handlePlaylistCountChange}
+                />
+              </DropArea>
+            </Panel>
 
-          <PlayBar />
+            <PanelResizeHandle className="separator" />
+
+            {/* Item Panel */}
+            <Panel
+              defaultSize={90 - calculatePlaylistPanelSize()}
+              minSize={20}
+              className="panel-with-table"
+            >
+              <ItemPanel />
+            </Panel>
+
+            {/* Play Bar - fixed height, smaller minimum */}
+            <Panel defaultSize={10} minSize={10} maxSize={10}>
+              <PlayBar />
+            </Panel>
+          </PanelGroup>
         </div>
 
         <div className="layout-vertical-separator"></div>

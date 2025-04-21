@@ -1,8 +1,7 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { AudioCollection, CollectionItemsDisplayProps } from "./types.js";
 import GridView from "./components/GridView.js";
 import ListView from "./components/ListView.js";
-//import MacroEditView from "./components/MacroEditView.js"; // todo: re-implement macroEditView 
 import ViewToggle from "./components/ViewToggle.js";
 import StatusMessages from "./components/StatusMessages.js";
 import { useAudioItems } from "./hooks/useAudioItems.js";
@@ -12,6 +11,7 @@ import {
 } from "../../api/collections/useCollectionQueries.js";
 import "./CollectionItemsDisplay.css";
 import { useCollectionMutations } from "./hooks/useCollectionMutations.js";
+import AudioItemEditDialog from "../../components/AudioItemEditDialog/AudioItemEditDialog.js";
 
 /* CollectionItemsDisplay Component
  * This component displays the contents of a collection (audio items) in either grid or list view.
@@ -33,6 +33,8 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
   dropZoneId,
   acceptedDropTypes = [],
 }) => {
+  const [editingItemId, setEditingItemId] = useState<number | null>(null);
+
   const queryResult =
     collectionId == -1
       ? useGetCollectionsOfType(collectionType)
@@ -41,14 +43,16 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
   const { data, isLoading, error } = queryResult;
 
   const collection = useMemo(() => {
-    return (data as AudioCollection) || {
-      items: [],
-      type: collectionType,
-      id: collectionId || -1,
-      name: "",
-    };
+    return (
+      (data as AudioCollection) || {
+        items: [],
+        type: collectionType,
+        id: collectionId || -1,
+        name: "",
+      }
+    );
   }, [data, collectionType, collectionId]);
-    
+
   const items = collection.items || [];
   const {
     viewMode,
@@ -74,6 +78,15 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
   // Check for virtual collections
   const isVirtualCollection = collection.id < 0;
 
+  const handleEditItem = (itemId: number) => {
+    setEditingItemId(itemId);
+  };
+
+  // Handler for closing the edit dialog
+  const handleCloseEditDialog = () => {
+    setEditingItemId(null);
+  };
+
   // Shared props for view components
   const viewProps = useMemo(
     () => ({
@@ -90,12 +103,14 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
       useUpdateItemPosition: updateItemPositionsMutation,
       // Create collection functionality
       createCollection: createCollection,
-      // Drag and drop props 
+      // Drag and drop props
       isDragSource: isDragSource,
       isReorderable: isVirtualCollection ? false : isReorderable,
       isDropTarget: isDropTarget,
       dropZoneId: isVirtualCollection ? null : dropZoneId,
       acceptedDropTypes: acceptedDropTypes,
+
+      onEditItem: handleEditItem,
     }),
     [
       collection,
@@ -157,6 +172,18 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
         <GridView {...viewProps} />
       ) : (
         <ListView {...viewProps} />
+      )}
+
+      {/* Render the edit dialog when an item is being edited */}
+      {editingItemId && (
+        <AudioItemEditDialog
+          isOpen={true}
+          onClose={handleCloseEditDialog}
+          onEditClick={handleEditItem}
+          item={items.find((item) => item.id === editingItemId)!}
+          parentCollectionId={collection.id}
+          parentCollectionType={collection.type}
+        />
       )}
     </div>
   );

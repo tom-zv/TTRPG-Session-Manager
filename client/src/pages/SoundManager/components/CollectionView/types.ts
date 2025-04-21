@@ -7,11 +7,11 @@ export type CollectionType = 'playlist' | 'sfx' | 'ambience' | 'pack' | 'macro';
 // Props for the CollectionView component
 export interface CollectionViewProps extends DragDropProps {
   // Display metadata
-  collectionName: string;
   collectionType: CollectionType;
+  collectionName?: string;
 
   // Data fetching
-  fetchCollections: () => Promise<AudioCollection[]>;
+  fetchCollections?: () => Promise<AudioCollection[]>;
   fetchCollectionItems?: (collectionId: number) => Promise<AudioItem[]>;
   fetchAvailableItems?: (collectionId?: number) => Promise<AudioItem[]>;
 

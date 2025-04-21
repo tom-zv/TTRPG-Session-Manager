@@ -2,6 +2,7 @@ import {
   AudioFile,
   AudioCollection,
   AudioMacro,
+  AudioItem,
 } from "../../types/AudioItem.js";
 
 export type CollectionType = "playlist" | "sfx" | "ambience" | "pack" | "macro";
@@ -15,10 +16,12 @@ export interface CollectionApi {
   getCollectionFiles: (collectionId: number) => Promise<AudioFile[]>;
   addFileToCollection: (collectionId: number, audioFileId: number, position?: number) => Promise<boolean>;
   addFilesToCollection: (collectionId: number, audioFileIds: number[], startPosition?: number) => Promise<boolean>;
-  addToCollection: (collectionId: number, items: number[], position?: number, isMacro?: boolean) => Promise<boolean>;
+  addToCollection: (collectionId: number, items: AudioItem[], position?: number) => Promise<boolean>;
   updateFile: (collectionId: number, fileId: number, params: any) => Promise<boolean>;
-  removeFilesFromCollection: (collectionId: number, audioFileIds: number | number[]) => Promise<boolean>;
+  removeMacroFromCollection?: (collectionId: number, macroId: number) => Promise<boolean>;
+  removeFilesFromCollection: (collectionId: number, audioFiles: AudioItem[]) => Promise<boolean>;
   updatePosition: (collectionId: number, audioFileId: number, targetPosition: number, sourceStartPosition?: number, sourceEndPosition?: number) => Promise<boolean>;
+  
 }
 
 export interface packApi {
@@ -299,58 +302,72 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
   // Unified function to add items to a collection (handles both single and multiple items)
   api.addToCollection = async (
     collectionId: number,
-    itemIds: number[],
+    items: AudioItem[],
     position?: number,
-    isMacro?: boolean
   ): Promise<boolean> => {
-    if (itemIds.length === 0) return true;
+    if (items.length === 0) return true;
 
-    if (isMacro) { 
-      if (itemIds.length === 1) {
-        //console.log(`Adding macro ${items[0]} to collection ${collectionId}...`);
-        const response = await fetch(
-          `/api/audio/collections/sfx/${collectionId}/macros`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              macroId: itemIds[0],
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
-        }
-
-        return true;
+    // Check if we have macros in the items
+    const macroItems = items.filter(item => item.type === "macro");
+    const fileItems = items.filter(item => item.type !== "macro");
+    
+    // Process macros if any exist
+    if (macroItems.length > 0) {
+      if (collectionType !== "sfx") {
+        console.warn("Macros can only be added to SFX collections");
       } else {
-        // Add multiple macros to collection
-        const response = await fetch(
-          `/api/audio/collections/sfx/${collectionId}/macros/batch`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              macroIds: itemIds,
-              startPosition: position,
-            }),
+        // Process macros one by one or in batch
+        if (macroItems.length === 1) {
+          const response = await fetch(
+            `/api/audio/collections/sfx/${collectionId}/macros`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                macroId: macroItems[0].id,
+                position,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
           }
-        );
+        } else {
+          // Add multiple macros to collection
+          const response = await fetch(
+            `/api/audio/collections/sfx/${collectionId}/macros/batch`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                macroIds: macroItems.map(item => item.id),
+                startPosition: position,
+              }),
+            }
+          );
 
-        if (!response.ok) {
-          throw new Error(`HTTP error! Status: ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
         }
-
-        return true;
       }
     }
-
-    if (itemIds.length === 1) {
-      return await api.addFileToCollection(collectionId, itemIds[0], position);
-    } else {
-      return await api.addFilesToCollection(collectionId, itemIds, position);
+    
+    // Process regular files if any exist
+    if (fileItems.length > 0) {
+      if (fileItems.length === 1) {
+        return await api.addFileToCollection(collectionId, fileItems[0].id, position);
+      } else {
+        return await api.addFilesToCollection(
+          collectionId, 
+          fileItems.map(item => item.id), 
+          position
+        );
+      }
     }
+    
+    return true;
   };
 
   api.updateFile = async (
@@ -378,17 +395,15 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Remove files from a collection - batch call for multiple files
-  api.removeFilesFromCollection = async (
-    collectionId: number,
-    audioFileIds: number[],
-    isMacro?: boolean,
-  ): Promise<boolean> => {
-    
-    for (const audioFileId of audioFileIds) {
+  // Add method to remove macros from collections (for SFX collections only)
+  if (collectionType === "sfx") {
+    api.removeMacroFromCollection = async (
+      collectionId: number,
+      macroId: number
+    ): Promise<boolean> => {
       try {
         const response = await fetch(
-          `${API_URL}/${collectionId}/files/${audioFileId}`,
+          `/api/audio/collections/sfx/${collectionId}/macros/${macroId}`,
           {
             method: "DELETE",
           }
@@ -397,9 +412,43 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
+
+        return true;
       } catch (error) {
         console.error(
-          `Error removing file ${audioFileId} from ${collectionType} ${collectionId}:`,
+          `Error removing macro ${macroId} from SFX collection ${collectionId}:`,
+          error
+        );
+        throw error;
+      }
+    };
+  }
+
+  api.removeFilesFromCollection = async (
+    collectionId: number,
+    audioFiles: AudioItem[],
+  ): Promise<boolean> => {
+    
+    for (const file of audioFiles) {
+      try {
+        // Check if this is a macro (for SFX collections)
+        if (file.type === 'macro' && collectionType === 'sfx' && api.removeMacroFromCollection) {
+          await api.removeMacroFromCollection(collectionId, file.id);
+        } else {
+          const response = await fetch(
+            `${API_URL}/${collectionId}/files/${file.id}`,
+            {
+              method: "DELETE",
+            }
+          );
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+          }
+        }
+      } catch (error) {
+        console.error(
+          `Error removing item ${file.id} from ${collectionType} ${collectionId}:`,
           error
         );
         throw error;

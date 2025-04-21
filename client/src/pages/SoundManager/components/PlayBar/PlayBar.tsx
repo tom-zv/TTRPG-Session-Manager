@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Audio } from '../AudioService/AudioContext.js';
 import { useGetCollectionById } from '../../api/collections/useCollectionQueries.js';
-import type { AudioFile } from '../../types/AudioItem.js'; // Import types
+import type { AudioFile } from '../../types/AudioItem.js'; 
 import './PlayBar.css';
 
 interface PlayBarProps {
@@ -39,7 +39,6 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
     currentPlaylistId || 0
   );
 
-  // Derive the current track from the fetched collection data
   const currentTrack = useMemo<AudioFile | undefined>(() => {
     return currentCollection?.items?.[currentIndex] as AudioFile | undefined;
   }, [currentCollection, currentIndex]);

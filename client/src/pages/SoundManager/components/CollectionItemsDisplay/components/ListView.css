@@ -1,11 +1,17 @@
 .audio-item-list-view {
-    width: 100%;
-    overflow-x: auto;
-    border-radius: 8px;
-    background-color: var(--bg-secondary);
-    box-shadow: 0 3px 12px var(--shadow);
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
 }
 
+.table-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  
 .audio-item-table {
     width: 100%;
     max-width: 900px;
@@ -42,18 +48,14 @@
 
 /* Table cells */
 .audio-item-table td {
-    padding: 0.875rem 1.25rem;
     vertical-align: middle;
     border-bottom: 1px solid var(--border-color-light);
     transition: background-color 0.2s ease;
 }
 
-.audio-item-table td:first-child {
+.audio-item-table td {
     padding-left: 1.5rem;
-}
-
-.audio-item-table td:last-child {
-    padding-right: 1.5rem;
+    padding-right: 1rem;
 }
 
 /* Row styling */
@@ -129,10 +131,22 @@
 .item-name-cell {
     display: flex;
     align-items: center;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     gap: 0.75rem;
     font-weight: 500;
+    max-width: 150px;
+    position: relative;
+    overflow: hidden;
+}
+
+.item-name-cell td {
+    padding: 0;
+}
+
+.item-name-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
 }
 
 /* Position cell styling */
@@ -232,6 +246,7 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+
     .audio-item-table th,
     .audio-item-table td {
         padding: 0.75rem;

@@ -3,7 +3,7 @@ import {
   useRemoveFromCollection,
   useUpdateItemPositions,
   useCreateCollection,
-  useDeleteCollections
+  useDeleteCollections,
 } from "../../../api/collections/useCollectionQueries.js";
 import { AudioItem, CollectionType } from "../types.js";
 
@@ -15,19 +15,18 @@ interface MutationCallbacks {
 }
 
 export const useCollectionMutations = (
-  collectionId: number, 
+  collectionId: number,
   collectionType: CollectionType,
-  callbacks?: MutationCallbacks
+  callbacks?: MutationCallbacks,
+  parentInfo?: { type: CollectionType; id: number }
 ) => {
-  const addToCollectionMutation = useAddToCollection(collectionType);
-
-  const removeFromCollectionMutation = useRemoveFromCollection(collectionType);
-  const updatePositionsMutation = useUpdateItemPositions(collectionType);
-  
   const createCollectionMutation = useCreateCollection(collectionType);
   const deleteCollectionsMutation = useDeleteCollections(collectionType);
+  const addToCollectionMutation = useAddToCollection(collectionType);
+  const removeFromCollectionMutation = useRemoveFromCollection(collectionType);
+  const updatePositionsMutation = useUpdateItemPositions(collectionType);
 
-  // Determine if we're in "virtual collection" mode - 
+  // Determine if we're in "virtual collection" mode -
   // This is for displaying all collections of a type.
   const isVirtualCollection = collectionId === -1;
 
@@ -36,61 +35,78 @@ export const useCollectionMutations = (
     return {
       // Create new collection instead of adding items
       addItemsMutation: () => {
-        console.warn("addItemsMutation not available in virtual collection mode - use createCollection instead");
+        console.warn(
+          "addItemsMutation not available in virtual collection mode - use createCollection instead"
+        );
       },
-      
+
       // Delete collections instead of removing items
-      removeItemsMutation: (collectionIds: number[]) => {
+      removeItemsMutation: (items: AudioItem[]) => {
         return deleteCollectionsMutation.mutate(
-          { ids: collectionIds },
+          { ids: items.map((collection) => collection.id) },
           {
             onSuccess: () => callbacks?.onRemoveSuccess?.(),
-            onError: (error) => console.error("Error deleting collections:", error)
+            onError: (error) =>
+              console.error("Error deleting collections:", error),
           }
         );
       },
-      
+
       // Position updates don't make sense for collections list
       updateItemPositionsMutation: () => {
-        console.warn("updateItemPositionsMutation not supported in virtual collection mode");
+        console.warn(
+          "updateItemPositionsMutation not supported in virtual collection mode"
+        );
       },
-      
+
       // Add function to create new collections
       createCollection: (name: string, description?: string) => {
         return createCollectionMutation.mutate(
           { name, description },
           {
             onSuccess: () => callbacks?.onAddSuccess?.(),
-            onError: (error) => console.error("Error creating collection:", error)
+            onError: (error) =>
+              console.error("Error creating collection:", error),
           }
         );
       },
-      
-      isVirtualCollection: true
+
+      isVirtualCollection: true,
     };
   } else {
     // Normal collection mode - handle audio items
     return {
-      addItemsMutation: (audioItems: AudioItem[], position?: number, isMacro?: boolean) => {
+      addItemsMutation: (items: AudioItem[], position?: number) => {
         return addToCollectionMutation.mutate(
-          { collectionId: collectionId!, audioItems, position, isMacro },
+          {
+            collectionId: collectionId!,
+            items,
+            position,
+            parentInfo,
+          },
           {
             onSuccess: () => callbacks?.onAddSuccess?.(),
-            onError: (error) => console.error("Error adding items to collection:", error)
+            onError: (error) =>
+              console.error("Error adding items to collection:", error),
           }
         );
       },
-      
-      removeItemsMutation: (itemIds: number[]) => {
+
+      removeItemsMutation: (items: AudioItem[]) => {
         return removeFromCollectionMutation.mutate(
-          { collectionId: collectionId!, itemIds },
+          {
+            collectionId: collectionId!,
+            items,
+            parentInfo,
+          },
           {
             onSuccess: () => callbacks?.onRemoveSuccess?.(),
-            onError: (error) => console.error("Error removing items from collection:", error)
+            onError: (error) =>
+              console.error("Error removing items from collection:", error),
           }
         );
       },
-      
+
       updateItemPositionsMutation: (
         itemId: number,
         targetPosition: number,
@@ -107,13 +123,13 @@ export const useCollectionMutations = (
           },
           {
             onSuccess: () => callbacks?.onUpdatePositionSuccess?.(),
-            onError: (error) => console.error("Error updating item positions:", error)
+            onError: (error) =>
+              console.error("Error updating item positions:", error),
           }
         );
       },
-      
       createCollection: undefined,
-      isVirtualCollection: false
+      isVirtualCollection: false,
     };
   }
 };

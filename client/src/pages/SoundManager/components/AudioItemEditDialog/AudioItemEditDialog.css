@@ -1,0 +1,110 @@
+.audio-item-edit-form {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 500px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.form-group input[type="text"],
+.form-group input[type="url"],
+.form-group input[type="number"],
+.form-group textarea {
+  padding: 0.75rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(53, 114, 227, 0.2);
+}
+
+.volume-control,
+.delay-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.volume-slider {
+  flex-grow: 1;
+  height: 1.5rem;
+  accent-color: var(--accent-primary);
+}
+
+.volume-value,
+.unit {
+  min-width: 3rem;
+  text-align: right;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.error-message {
+  padding: 0.75rem;
+  border-radius: 4px;
+  background-color: rgba(214, 69, 80, 0.1);
+  color: var(--danger);
+  border-left: 3px solid var(--danger);
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.cancel-button,
+.save-button {
+  padding: 0.6rem 1.25rem;
+  border-radius: 4px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.save-button {
+  background-color: var(--accent-primary);
+  color: white;
+  border: none;
+}
+
+.cancel-button:hover {
+  background-color: var(--border-color-light);
+}
+
+.save-button:hover:not(:disabled) {
+  background-color: var(--accent-secondary);
+}
+
+.save-button:disabled,
+.cancel-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}

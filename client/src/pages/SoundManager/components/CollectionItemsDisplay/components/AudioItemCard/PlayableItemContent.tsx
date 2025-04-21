@@ -1,5 +1,5 @@
 import React, {useCallback, useState, useEffect} from 'react';
-import { AudioItem, isAudioFile, isAudioCollection, AudioItemActions } from '../../types.js';
+import { AudioItem, isAudioFile, isAudioCollection, AudioItemActions, isAudioMacro } from '../../types.js';
 import ItemActions from '../ItemActions.js';
 import type { AudioCollection } from '../../index.js';
 import { Audio } from '../../../AudioService/AudioContext.js';
@@ -12,6 +12,7 @@ interface PlayableItemContentProps extends AudioItemActions {
   selectedItemIds: number[];
   onPlayItem: (itemId: number) => void;
   isPlaying?: boolean;
+  onEditItem?: (itemId: number) => void; 
 }
 
 const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
@@ -21,35 +22,32 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
   selectedItemIds,
   onPlayItem,
   useRemoveItems,
+  onEditItem, // Add this prop
   isPlaying = false,
 }) => {
-  // Initialize volume state safely, defaulting to 1
   const [localVolume, setLocalVolume] = useState<number>(1);
   const { updateAudioItemVolume } = Audio.useAudio()
   
-  // Update local volume when item changes, ensuring it's never undefined
   useEffect(() => {
-    if (isAudioFile(item)) {
-      // Set volume from item if it's a file and volume is defined, otherwise default to 1
+    if (isAudioFile(item) || isAudioMacro(item)) {
       setLocalVolume(item.volume ?? 1); 
     } else {
-      // Reset to default for non-files or if volume becomes undefined
       setLocalVolume(1); 
     }
-  }, [item]); // Depend only on item, as item.volume changes would be part of item changing
+  }, [item]); 
   
   const handleVolumeChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       e.stopPropagation();
       const newVolume = parseFloat(e.target.value);
       setLocalVolume(newVolume);
-      // Ensure updateAudioItemVolume is called correctly
       updateAudioItemVolume(item, newVolume, parentCollection); 
-    }, [item, parentCollection, updateAudioItemVolume]); // Add dependencies
+    }, [item, parentCollection, updateAudioItemVolume]); 
 
   // Helper function to format duration
   const formatDuration = (seconds?: number) => {
-    if (!seconds) return '';
+    if (seconds == undefined) return '';
+    if (seconds === 0) return '0:00';
     const date = new Date(seconds * 1000);
     return date.toISOString().slice(11, 19).replace(/^00:/, '').replace(/^0/, '');
   };
@@ -59,13 +57,15 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
       <div className="playable-item-header">
         <div className="playable-item-title">
           <h4 className="audio-item-name">{item.name}</h4>
-          {isAudioFile(item) && item.duration && (
-            <span className="audio-item-duration">
+
+          {(isAudioFile(item) || isAudioMacro(item)) && item.duration !== undefined && (
+            <span className="audio-item-info">
               {formatDuration(item.duration)}
             </span>
           )}
-          {isAudioCollection(item) && item.itemCount !== undefined && (
-            <span className="audio-item-duration">{item.itemCount} items</span>
+          
+          {(isAudioCollection(item)) && item.itemCount !== undefined && (
+            <span className="audio-item-info">{item.itemCount} items</span>
           )}
         </div>
 
@@ -74,8 +74,9 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
             <ItemActions
               item={item}
               collectionId={parentCollection.id}
-              selectedItemIds={selectedItemIds}
+              selectedItems={parentCollection.items?.filter((i) => selectedItemIds.includes(i.id))}
               useRemoveItems={useRemoveItems}
+              onEditClick={onEditItem} 
               isSmall
             />
           </div>
@@ -93,11 +94,10 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
         <span className="play-icon">{isPlaying ? "◼" : "▶"}</span>
       </button>
 
-      {!isAudioCollection(item) && (
+      {(!isAudioCollection(item) || isAudioMacro(item) ) && (
         <input
         type="range"
         min="0" max="1" step="0.01"
-        // Ensure value is always a number
         value={localVolume} 
         onChange={handleVolumeChange}
         className="volume-slider"

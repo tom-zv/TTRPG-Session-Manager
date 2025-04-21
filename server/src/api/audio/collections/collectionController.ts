@@ -535,6 +535,30 @@ export const addMacrosToCollection = async (req: Request, res: Response) => {
   }
 };
 
+export const deleteMacroFromCollection = async (req: Request, res: Response) => {
+  const collectionId = parseInt(req.params.id);
+  const macroId = parseInt(req.params.macroId);
+  
+  if (isNaN(collectionId) || isNaN(macroId)) {
+    return res.status(400).json({ error: 'Invalid collection ID or macro ID' });
+  }
+  
+  try {
+    const response = await collectionService.removeMacroFromCollection(collectionId, macroId);
+    
+    if (response.success) {
+      res.status(200).json({ message: 'Macro removed from SFX collection successfully' });
+    } else if (response.notFound) {
+      res.status(404).json({ error: response.error });
+    } else {
+      res.status(500).json({ error: response.error });
+    }
+  } catch (error) {
+    console.error(`Error removing macro ${macroId} from SFX collection ${collectionId}:`, error);
+    res.status(500).json({ error: 'Failed to remove macro from SFX collection' });
+  }
+};
+
 /* Pack endpoints
  ******************/
 export const getAllPacks = async (_req: Request, res: Response) => {
@@ -666,6 +690,7 @@ export default {
   updateFile,
   addMacroToCollection,
   addMacrosToCollection,
+  deleteMacroFromCollection,
   getAllPacks,
   createPack,
   deletePack,

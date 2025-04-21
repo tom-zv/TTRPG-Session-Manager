@@ -3,7 +3,7 @@ import AudioService, { AudioEventTypes } from '../AudioService.js';
 import { useDebounce } from 'src/hooks/useDebounce.js';
 import { useUpdateFileVolume } from 'src/pages/SoundManager/api/collections/useFileMutations.js';
 import { useUpdateMacroVolume } from 'src/pages/SoundManager/api/collections/useSfxMutations.js'; 
-import type { AudioFile } from '../../../types/AudioItem.js';
+import type { AudioFile, AudioMacro } from '../../../types/AudioItem.js';
 
 export function useSfxModule() {
   // SFX state
@@ -33,8 +33,8 @@ export function useSfxModule() {
     return AudioService.toggleFile(sound);
   }, []);
   
-  const toggleMacro = useCallback((macroId: number) => {
-    return AudioService.toggleMacro(macroId);
+  const toggleMacro = useCallback((macro: AudioMacro) => {
+    return AudioService.toggleMacro(macro);
   }, []);
 
   const setMasterVolume = useCallback((volume: number) => {

@@ -78,7 +78,7 @@ interface AudioContextType {
     playingSoundIds: number[];
     playingMacroIds: number[];
     toggleFile: (sound: AudioFile) => void;
-    toggleMacro: (macroId: number) => void;
+    toggleMacro: (macro: AudioMacro) => void;
     setVolume: (volume: number) => void;
     setSoundVolume: (
       parentCollectionId: number,
@@ -109,7 +109,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     (item: AudioItem, parentCollection?: AudioCollection): boolean => { 
       if (isAudioCollection(item)) {
         if (isAudioMacro(item)) {
-          return sfx.toggleMacro(item.id);
+          return sfx.toggleMacro(item);
         } else if (isPlaylistCollection(item)) {
           return playlist.togglePlaylist(item.id, 0);
         } else if (isAmbienceCollection(item)) {
@@ -150,6 +150,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     (item: AudioItem, parentCollection?: AudioCollection): boolean => {
       // For collections
       if (isAudioCollection(item)) {
+        if (isAudioMacro(item)) {
+          return sfx.playingMacroIds.some(macro => macro === item.id);
+        } else
         if (isPlaylistCollection(item)) {
           return playlist.currentPlaylistId === item.id && playlist.isPlaying;
         } else if (isAmbienceCollection(item)) {

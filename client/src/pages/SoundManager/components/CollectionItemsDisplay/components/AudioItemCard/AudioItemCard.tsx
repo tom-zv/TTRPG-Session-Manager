@@ -17,6 +17,7 @@ interface AudioItemCardProps extends AudioItemActions {
   dragItemProps: any;
   onSelect: (e: React.MouseEvent, itemId: number) => void;
   onPlayItem: (itemId: number) => void;
+  onEditItem?: (itemId: number) => void;
 }
 
 const AudioItemCard: React.FC<AudioItemCardProps> = ({
@@ -31,8 +32,8 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
   dragItemProps,
   onSelect,
   onPlayItem,
+  onEditItem,
   useRemoveItems,
-  useEditItem,
 }) => {
   const isPlayable = !item.isCreateButton && 
     item.type !== 'pack' && item.type !== 'sfx';
@@ -47,8 +48,6 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
     item.type || '',
     // Special card types
     item.isCreateButton ? 'create-collection-card' : '',
-    // Item capabilities
-    isPlayable ? 'playable-item' : '',
     // Card states
     isSelected ? 'selected' : '',
     isDropTarget ? 'card-drop-target' : '',
@@ -79,17 +78,17 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
           selectedItemIds={selectedItemIds}
           onPlayItem={onPlayItem}
           useRemoveItems={useRemoveItems}
-          useEditItem={useEditItem}
           isPlaying={isPlaying}
+          onEditItem={onEditItem} 
         />
       ) : (
         <StandardItemContent
           item={item}
-          collectionId={collection.id}
+          parentCollection={collection}
           showActions={showActions}
           selectedItemIds={selectedItemIds}
           useRemoveItems={useRemoveItems}
-          useEditItem={useEditItem}
+          onEditItem={onEditItem} 
         />
       )}
     </div>

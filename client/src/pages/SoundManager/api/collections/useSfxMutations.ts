@@ -57,4 +57,30 @@ export const useUpdateMacroVolume = () => {
   });
 };
 
+export const useUpdateMacroFile = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      macroId,
+      fileId,
+      volume,
+      delay,
+      parentInfo,
+    }: {
+      macroId: number;
+      fileId: number;
+      volume: number;
+      delay: number;
+      parentInfo: { type: string; id: number };
+    }) => {
+      void parentInfo; 
+      return await macroApi.updateFile(macroId, fileId, {volume, delay});
+    },
+  
+    onSettled: (_data, _error, vars) => {
+      queryClient.invalidateQueries({queryKey: collectionKeys.collection('sfx', vars.parentInfo.id)});
+    },
+  });
+}
 

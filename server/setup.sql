@@ -91,11 +91,17 @@ CREATE TABLE
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
+CREATE TABLE macro_tags (
+    macro_id INT NOT NULL,
+    tag VARCHAR(64) NOT NULL,
+    PRIMARY KEY (macro_id, tag),
+    FOREIGN KEY (macro_id) REFERENCES sfx_macros(macro_id) ON DELETE CASCADE
+);
+
 CREATE TABLE
   IF NOT EXISTS sfx_macro_files (
     collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
-    tag VARCHAR(64) NOT NULL,
     delay INT DEFAULT 0,
     volume FLOAT DEFAULT 1.0,
     CONSTRAINT pk_sfx_macro_files PRIMARY KEY (collection_id, audio_file_id),
