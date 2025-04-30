@@ -73,6 +73,7 @@
 
 /* Content layouts */
 .collection-detail-view-content {
+  height: 100%;
   width: 100%;
   position: relative;
   transition: all 0.2s ease;

@@ -1,4 +1,4 @@
-import { Folder } from "shared/types/folder.js";
+import { Folder } from "src/components/FolderTree/types.js";
 
 export const buildFolderTree = (flatFolders: Folder[]): Folder[] => {
   const folderMap = new Map<number, Folder>();

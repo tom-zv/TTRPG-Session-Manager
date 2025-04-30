@@ -7,7 +7,6 @@ export function useDebounce<T extends (...args: any[]) => void>(
 ): T {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // memoize the debounced function
   return useCallback((...args: any[]) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);

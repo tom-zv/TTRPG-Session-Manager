@@ -21,7 +21,7 @@
 }
 
 .folder-children {
-  padding-left: 24px;
+  padding-left: 20px;
   position: relative;
 }
 
@@ -31,7 +31,7 @@
   position: absolute;
   left: 10px;
   top: 0;
-  bottom: 8px;
+  bottom: 0;
   width: 1px;
   background-color: var(--border-color-light);
 }
@@ -40,7 +40,7 @@
   display: flex;
   align-items: center;
   cursor: pointer;
-  padding: 2px 10px;
+  padding: 0px 8px 0px 4px;
   border-radius: 4px;
   transition: background-color 0.2s ease;
   user-select: none;

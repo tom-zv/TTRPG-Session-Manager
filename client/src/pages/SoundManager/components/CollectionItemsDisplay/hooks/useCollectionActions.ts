@@ -4,7 +4,7 @@ import {
   useUpdateItemPositions,
   useCreateCollection,
   useDeleteCollections,
-} from "../../../api/collections/useCollectionQueries.js";
+} from "../../../api/collections/index.js";
 import { AudioItem, CollectionType } from "../types.js";
 
 interface MutationCallbacks {

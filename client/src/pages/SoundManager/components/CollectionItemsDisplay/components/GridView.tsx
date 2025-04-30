@@ -4,7 +4,7 @@ import AudioItemCard from "./AudioItemCard/AudioItemCard.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
 import { useItemDragDrop } from "../hooks/useItemDragDrop.js";
 import { calculateGridDropIndex } from "src/utils/gridDropUtils.js";
-import { Audio } from "../../AudioService/AudioContext.js";
+import { Audio } from "../../../services/AudioService/AudioContext.js";
 import { isAudioFile } from "../../../types/AudioItem.js";
 import CreateCollectionDialog from "../../../components/CollectionView/components/CreateCollectionDialog.js";
 import { collectionNameFromType } from "../../../components/CollectionView/hooks/useCollections.js";

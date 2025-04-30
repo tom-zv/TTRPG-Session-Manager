@@ -1,5 +1,5 @@
 import folderModel from "./folderModel.js";
-import { Folder } from 'shared/types/types.js';
+import { Folder } from 'client/src/components/FolderTree/types.js';
 
 export async function getAllFolders(): Promise<Folder[]> {
   return await folderModel.getAllFolders();

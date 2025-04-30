@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Folder } from "shared/types/folder.js";
-import { AudioFile } from "shared/types/audio.js";
+import { Folder, AudioFile } from "src/components/FolderTree/types.js";
 import { handleFolderClick, handleFileClick } from "../utils/ClickHandlers.js";
 import FolderHeader from "./FolderHeader.js";
 import FileDisplay from "./FileDisplay.js";

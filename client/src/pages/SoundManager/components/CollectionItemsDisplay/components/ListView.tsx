@@ -6,7 +6,7 @@ import { useItemDragDrop } from "../hooks/useItemDragDrop.js";
 import { calculateTableDropIndex } from "src/utils/tableDropUtils.js";
 import { isAudioFile, isAudioMacro } from "../../../types/AudioItem.js";
 import { getItemIcon } from "../utils/getItemIcon.js";
-import { Audio } from "../../../components/AudioService/AudioContext.js";
+import { Audio } from "../../../services/AudioService/AudioContext.js";
 
 import "./ListView.css";
 

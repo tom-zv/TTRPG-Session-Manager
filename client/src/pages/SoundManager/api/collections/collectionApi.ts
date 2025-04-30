@@ -152,13 +152,15 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     id: number,
     name?: string,
     description?: string,
-    volume?: number
+    volume?: number,
+    active?: boolean
   ): Promise<boolean> => {
     try {
-      const body: { name?: string; description?: string; volume?: number } = {};
+      const body: { name?: string; description?: string; volume?: number, active?: boolean } = {};
       if (name !== undefined) body.name = name;
       if (description !== undefined) body.description = description;
       if (volume !== undefined) body.volume = volume;
+      if (active !== undefined) body.active = active;
 
       // At least one field must be present
       if (Object.keys(body).length === 0) {
@@ -374,7 +376,14 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     // Edit item properties
     collectionId: number,
     fileId: number,
-    params: { active?: boolean; volume?: number; delay?: number }
+    params: {
+      name?: string;
+      filePath?: string;
+      fileUrl?: string;
+      active?: boolean;
+      volume?: number;
+      delay?: number;
+    }
   ): Promise<boolean> => {
     try {
       const response = await fetch(
@@ -395,7 +404,7 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Add method to remove macros from collections (for SFX collections only)
+  // method to remove macros from collections
   if (collectionType === "sfx") {
     api.removeMacroFromCollection = async (
       collectionId: number,

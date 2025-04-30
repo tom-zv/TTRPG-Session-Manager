@@ -1,5 +1,4 @@
-import { AudioFile } from 'shared/types/audio.js';
-import { Folder } from 'shared/types/folder.js';
+import { AudioFile, Folder } from 'src/components/FolderTree/types.js';
 
 
 // Helper function to get all files from a folder, including from subfolders

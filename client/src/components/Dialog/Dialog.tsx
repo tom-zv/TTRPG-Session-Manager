@@ -16,8 +16,9 @@ export interface DialogProps {
   children: ReactNode;
   /** if true, use the side-panel cutout style; otherwise full-screen overlay */
   sidePanel?: boolean;
-  /** ref for the inner .dialog-content, if you need to attach handlers */
   contentRef?: React.RefObject<HTMLDivElement>;
+  /** additional CSS class to apply to the dialog container */
+  className?: string;
 }
 
 const DRAG_EVENTS = ["dragenter", "dragover", "drop"] as const;
@@ -29,11 +30,12 @@ const Dialog: React.FC<DialogProps> = ({
   children,
   sidePanel = false,
   contentRef,
+  className = '',
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [panelRect, setPanelRect] = useState<DOMRect | null>(null);
 
-  // 1) measure side-panel cutout
+  // measure side-panel cutout
   const measureCutout = useCallback(() => {
     if (!sidePanel) return;
     const el = document.querySelector(".item-panel-container");
@@ -54,7 +56,7 @@ const Dialog: React.FC<DialogProps> = ({
     };
   }, [isOpen, sidePanel, measureCutout]);
 
-  // 2) close on outside click
+  // close on outside click
   const handleOutside = useCallback(
     (e: MouseEvent) => {
       const tgt = e.target as Node;
@@ -81,7 +83,7 @@ const Dialog: React.FC<DialogProps> = ({
     }
   }, [isOpen, handleOutside]);
 
-  // 3) lock scroll
+  // lock scroll
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "auto";
     return () => {
@@ -89,7 +91,7 @@ const Dialog: React.FC<DialogProps> = ({
     };
   }, [isOpen]);
 
-  // 4) block all drag/drop outside, allow inside
+  // block all drag/drop outside, allow inside
   useEffect(() => {
     if (!isOpen) return;
     const blocker = (e: Event) => {
@@ -115,7 +117,7 @@ const Dialog: React.FC<DialogProps> = ({
 
   if (!isOpen) return null;
 
-  // 5) build mask CSS vars
+  // build mask CSS vars
   const cutoutStyle = useMemo<React.CSSProperties>(() => {
     if (!sidePanel || !panelRect) return {};
     return {
@@ -131,7 +133,7 @@ const Dialog: React.FC<DialogProps> = ({
       className={`dialog-overlay${sidePanel ? " side-panel" : ""}`}
       style={cutoutStyle}
     >
-      <div className="dialog-container" ref={dialogRef}>
+      <div className={`dialog-container ${className}`.trim()} ref={dialogRef}>
         <header className="dialog-header">
           <h2>{title}</h2>
           <button className="close-button" onClick={onClose} aria-label="Close">
@@ -139,7 +141,6 @@ const Dialog: React.FC<DialogProps> = ({
           </button>
         </header>
 
-        {/* full-dialog content goes here; overlay/blockers still apply */}
         <div className="dialog-content" ref={contentRef}>
           {children}
         </div>

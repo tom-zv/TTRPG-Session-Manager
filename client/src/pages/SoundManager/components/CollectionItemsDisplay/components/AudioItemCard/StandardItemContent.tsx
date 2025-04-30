@@ -1,15 +1,19 @@
-import React from 'react';
-import { AudioItem, isAudioCollection, AudioItemActions, AudioCollection } from '../../types.js';
-import { getItemIcon } from '../../utils/getItemIcon.js';
-import ItemActions from '../ItemActions.js';
-
+import React from "react";
+import {
+  AudioItem,
+  isAudioCollection,
+  AudioItemActions,
+  AudioCollection,
+} from "../../types.js";
+import { getItemIcon } from "../../utils/getItemIcon.js";
+import ItemActions from "../ItemActions.js";
 
 interface StandardItemContentProps extends AudioItemActions {
   item: AudioItem;
   parentCollection: AudioCollection;
   showActions: boolean;
   selectedItemIds: number[];
-  onEditItem?: (itemId: number) => void; 
+  onEditItem?: (itemId: number) => void;
 }
 
 const StandardItemContent: React.FC<StandardItemContentProps> = ({
@@ -19,20 +23,17 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
   selectedItemIds,
   useEditItem,
   useRemoveItems,
-  onEditItem, 
+  onEditItem,
 }) => {
- 
   return (
-    <div className="audio-item">
+    <div className="audio-item-content">
       <div className="audio-item-header">
-        <span className={`item-icon`}>
-          {getItemIcon(item)}
-        </span>
         <h4 className="audio-item-name">
+          <span className={`item-icon`}>
+            {React.createElement(getItemIcon(item))}
+          </span>
           {item.name}
-          {item.type === "macro" && (
-            <span className="macro-indicator">M</span>
-          )}
+          {item.type === "macro" && <span className="macro-indicator">M</span>}
         </h4>
       </div>
       <div className="audio-item-details">
@@ -46,10 +47,12 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
           <ItemActions
             collectionId={parentCollection.id}
             item={item}
-            selectedItems={parentCollection.items?.filter((i) => selectedItemIds.includes(i.id))}
-            useRemoveItems={useRemoveItems} 
-            useEditItem={useEditItem} 
-            onEditClick={onEditItem} 
+            selectedItems={parentCollection.items?.filter((i) =>
+              selectedItemIds.includes(i.id)
+            )}
+            useRemoveItems={useRemoveItems}
+            useEditItem={useEditItem}
+            onEditClick={onEditItem}
             isSmall
           />
         </div>

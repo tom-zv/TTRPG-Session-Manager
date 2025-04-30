@@ -1,6 +1,7 @@
 /* Common item actions container */
 .item-actions {
     display: flex;
+    margin-top: 2px;
     gap: 0.5rem;
     align-items: center;
     width: fit-content; 

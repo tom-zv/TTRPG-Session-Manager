@@ -8,7 +8,9 @@
     "resolveJsonModule": true,
     "paths": {
       "shared/*": ["../shared/*"],  // Path is relative to client directory
-      "src/*": ["./src/*"]
+      "src/*": ["./src/*"],
+      "client/*": ["../client/*"],
+      
     }
   },
   "include": ["src/**/*.ts", "../shared/**/*.ts"],

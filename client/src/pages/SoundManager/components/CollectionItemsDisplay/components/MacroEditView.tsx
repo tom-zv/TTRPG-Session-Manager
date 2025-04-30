@@ -10,7 +10,7 @@ import { AudioFile, AudioMacro, isAudioFile } from "../../../types/AudioItem.js"
 import { CollectionType } from "../index.js";
 import ItemActions from "./ItemActions.js";
 import { useItemDragDrop } from "../hooks/useItemDragDrop.js";
-import { useCollectionMutations } from "../hooks/useCollectionMutations.js";
+import { useCollectionMutations } from "../hooks/useCollectionActions.js";
 import { useUpdateMacroFile } from "../../../api/collections/useSfxMutations.js";
 import { useSelection } from "src/hooks/useSelection.js";
 import { useDebounce } from "src/hooks/useDebounce.js";

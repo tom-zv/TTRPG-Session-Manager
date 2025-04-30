@@ -13,7 +13,7 @@ export function usePlaylistPanelSizeCalc(
 ) {
   const [measurements, setMeasurements] = useState<PanelMeasurements>({
     itemHeight: 40, // Default fallback values
-    headerHeight: 48,
+    headerHeight: 42,
     panelGroupHeight: window.innerHeight - 40
   });
 
@@ -21,23 +21,22 @@ export function usePlaylistPanelSizeCalc(
   useEffect(() => {
     const updateMeasurements = () => {
       const panelGroup = document.querySelector('.sound-manager .sound-manager-left-panel > div');
-      const playlistHeader = document.querySelector('.sound-manager .playlist-panel-header');
-      const playlistItem = document.querySelector('.sound-manager .playlist-item');
+      const playlistHeader = document.querySelector('.sound-manager .playlist-panel .panel-header');
+      const playlistItem = document.querySelector('.sound-manager .audio-item-row');
       
       const newMeasurements = { ...measurements };
-      
       if (panelGroup instanceof HTMLElement) {
-        newMeasurements.panelGroupHeight = panelGroup.offsetHeight;
+        newMeasurements.panelGroupHeight = panelGroup.getBoundingClientRect().height;
       } else {
-        newMeasurements.panelGroupHeight = window.innerHeight - 40;
+        newMeasurements.panelGroupHeight = window.innerHeight - 40; 
       }
       
       if (playlistHeader instanceof HTMLElement) {
-        newMeasurements.headerHeight = playlistHeader.offsetHeight;
+        newMeasurements.headerHeight = playlistHeader.getBoundingClientRect().height;
       }
       
       if (playlistItem instanceof HTMLElement) {
-        newMeasurements.itemHeight = playlistItem.offsetHeight;
+        newMeasurements.itemHeight = playlistItem.getBoundingClientRect().height;
       }
       
       setMeasurements(newMeasurements);
@@ -66,7 +65,7 @@ export function usePlaylistPanelSizeCalc(
     
     // Calculate percentage needed for all playlists
     const neededPercentage = 
-      ((playlistCount * itemHeight + headerHeight + 1) / panelGroupHeight) * 100;  // +1 for margin, preventing scrollbar
+      ((playlistCount * itemHeight + headerHeight +5 ) / panelGroupHeight) * 100;  // +5 for margin, preventing scrollbar
 
     // Ensure percentage stays within reasonable bounds
     return Math.max(10, Math.min(neededPercentage, 40));

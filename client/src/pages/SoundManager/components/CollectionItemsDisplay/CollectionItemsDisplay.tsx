@@ -10,7 +10,7 @@ import {
   useGetCollectionsOfType,
 } from "../../api/collections/useCollectionQueries.js";
 import "./CollectionItemsDisplay.css";
-import { useCollectionMutations } from "./hooks/useCollectionMutations.js";
+import { useCollectionMutations } from "./hooks/useCollectionActions.js";
 import AudioItemEditDialog from "../../components/AudioItemEditDialog/AudioItemEditDialog.js";
 
 /* CollectionItemsDisplay Component

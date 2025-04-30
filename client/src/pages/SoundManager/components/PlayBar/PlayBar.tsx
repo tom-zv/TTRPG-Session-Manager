@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Audio } from '../AudioService/AudioContext.js';
+import { Audio } from '../../services/AudioService/AudioContext.js';
 import { useGetCollectionById } from '../../api/collections/useCollectionQueries.js';
 import type { AudioFile } from '../../types/AudioItem.js'; 
 import './PlayBar.css';

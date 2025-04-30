@@ -1,6 +1,6 @@
 import { pool } from "../../../db.js";
 import { RowDataPacket } from "mysql2";
-import { Folder } from 'shared/types/types.js';
+import { Folder } from 'client/src/components/FolderTree/types.js';
 
 export async function getAllFolders(): Promise<Folder[]> {
   const [rows] = await pool.execute('SELECT * FROM folders');

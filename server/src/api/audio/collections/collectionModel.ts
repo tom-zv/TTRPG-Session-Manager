@@ -350,6 +350,51 @@ export async function addFilesToCollection(
   }
 }
 
+export async function updateCollectionFile(
+  collectionId: number,
+  audioFileId: number,
+  params: { 
+    active?: boolean;
+    volume?: number;
+    position?: number;
+  }
+): Promise<number> {
+  // Build dynamic query based on provided params
+  const updateFields: string[] = [];
+  const fields: any[] = [];
+  
+  if (params.active !== undefined) {
+    updateFields.push('active = ?');
+    fields.push(params.active);
+  }
+
+  if (params.volume !== undefined) {
+    updateFields.push('volume = ?');
+    fields.push(params.volume);
+  }
+  
+  if (params.position !== undefined) {
+    updateFields.push('position = ?');
+    fields.push(params.position);
+  }
+  
+  // If no fields to update, return early
+  if (updateFields.length === 0) {
+    return 0;
+  }
+  
+  // Add parameters for WHERE clause
+  fields.push(collectionId, audioFileId);
+  
+  const [result] = await pool.execute(
+    `UPDATE ${COLLECTION_FILES_TABLE} SET ${updateFields.join(', ')} 
+     WHERE collection_id = ? AND audio_file_id = ?`,
+    fields
+  );
+  
+  return (result as ResultSetHeader).affectedRows || 0;
+}
+
 export async function removeFileFromCollection(
   type: string,
   collectionId: number, 
@@ -575,6 +620,50 @@ export async function updateFileRangePosition(
   } finally {
     connection.release();
   }
+}
+
+export async function updateAudioFile(
+  audioFileId: number,
+  params: {
+    name?: string;
+    file_path?: string;
+    file_url?: string;
+  }
+): Promise<number> {
+  // Build dynamic query based on provided params
+  const updateFields: string[] = [];
+  const fields: any[] = [];
+  
+  if (params.name !== undefined) {
+    updateFields.push('name = ?');
+    fields.push(params.name);
+  }
+
+  if (params.file_path !== undefined) {
+    updateFields.push('file_path = ?');
+    fields.push(params.file_path);
+  }
+  
+  if (params.file_url !== undefined) {
+    updateFields.push('file_url = ?');
+    fields.push(params.file_url);
+  }
+  
+  // If no fields to update, return early
+  if (updateFields.length === 0) {
+    return 0;
+  }
+  
+  // Add parameter for WHERE clause
+  fields.push(audioFileId);
+  
+  const [result] = await pool.execute(
+    `UPDATE audio_files SET ${updateFields.join(', ')} 
+     WHERE audio_file_id = ?`,
+    fields
+  );
+  
+  return (result as ResultSetHeader).affectedRows || 0;
 }
 
 /* Macro collection management endpoints 
@@ -827,42 +916,7 @@ export async function getPackCollections(packId: number): Promise<RowDataPacket[
   return result as RowDataPacket[];
 }
 
-export async function updateFile(
-  audioFileId: number,
-  updates: { 
-    active?: boolean;
-    volume?: number;
-  }
-): Promise<number> {
-  // Build dynamic query based on provided params
-  const updateFields: string[] = [];
-  const params: any[] = [];
-  
-  if (updates.active !== undefined) {
-    updateFields.push('active = ?');
-    params.push(updates.active);
-  }
 
-  if (updates.volume !== undefined) {
-    updateFields.push('volume = ?');
-    params.push(updates.volume);
-  }
-  
-  // If no fields to update, return early
-  if (updateFields.length === 0) {
-    return 0;
-  }
-  
-  // Complete the params array with the WHERE clause parameter
-  params.push(audioFileId);
-  
-  const [result] = await pool.execute(
-    `UPDATE collection_files SET ${updateFields.join(', ')} WHERE audio_file_id = ?`,
-    params
-  );
-  
-  return (result as ResultSetHeader).affectedRows || 0;
-}
 
 export default {
   getAllCollections,
@@ -874,6 +928,8 @@ export default {
   getCollectionFiles,
   addFileToCollection,
   addFilesToCollection,
+  updateCollectionFile,  
+  updateAudioFile,       
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,
@@ -885,5 +941,4 @@ export default {
   deletePack,
   addCollectionToPack,
   getPackCollections,
-  updateFile
 };

@@ -2,9 +2,9 @@ import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useGetCollectionsOfType } from "../../api/collections/useCollectionQueries.js";
 import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { PiMusicNotesPlusFill } from "react-icons/pi";
-import { Audio } from "../AudioService/AudioContext.js";
+import { Audio } from "../../services/AudioService/AudioContext.js";
 import CreateCollectionDialog from "../../components/CollectionView/components/CreateCollectionDialog.js";
-import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionMutations.js";
+import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionActions.js";
 
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import "./PlaylistPanel.css";

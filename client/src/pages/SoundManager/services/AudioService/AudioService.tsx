@@ -578,8 +578,8 @@ export class AudioService {
 
     this.emit(AudioEventTypes.AMBIENCE_FILE_CHANGE, Array.from(this.currentAmbientFiles.values()).map(({ fileId }) => fileId));
 
-    howl.fade(0, this.volumes.ambience * (file.volume || 1), 1000);
     howl.play();
+    howl.fade(0, this.volumes.ambience * (file.volume || 1), 2000);
     
     return file.id;
   }

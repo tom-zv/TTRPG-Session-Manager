@@ -1,17 +1,20 @@
 /* ===== Base Card Styles ===== */
 .audio-item-card {
-  position: relative;
   border: 1px solid var(--border-color);
   border-radius: 0.5rem;
   background-color: var(--bg-tertiary);
   box-shadow: 0 2px 4px var(--shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   display: flex;
+  flex: 0 0 12%;
   flex-direction: column;
+  margin-inline: 20px;
+  margin-block: 10px;
   height: 120px;
-  width: 100%;
-  padding: 0.75rem;
+  min-width: 180px;
+  padding: 0.25rem 0.625rem 0.625rem 0.625rem;
   overflow: hidden;
+  place-self: center;
 }
 
 .audio-item-card:hover {
@@ -111,24 +114,17 @@
 }
 
 .create-collection-icon {
-  font-size: 1.5rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
   color: var(--text-secondary);
 }
 
 .create-collection-text {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
 }
 
 /* ===== Playable Item Styles ===== */
-
-.playable-audio-item {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  position: relative;
-}
 
 .playable-item-header {
   display: flex;
@@ -151,6 +147,38 @@
   color: var(--text-secondary);
   opacity: 0.9;
 }
+
+.audio-item-content{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+
+.audio-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.audio-item-header .audio-item-name {
+  position: relative;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.audio-item-header .item-icon {
+  position: relative;
+  top: 4px;
+  margin-right: 0.5rem;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
 
 /* ===== Play Button Styles ===== */
 .playable-item-play-button {
@@ -237,40 +265,34 @@
   border-radius: 2px;
 }
 
-.playable-audio-item .volume-slider {
+.audio-item-content .volume-slider {
   position: absolute;
-  bottom: 2px;
-  left: 8px;
-  right: 8px;
-  width: calc(100% - 16px);
-  height: 16px;
+  bottom: 1px;
+  left: 0px;
+  right: 0px;
+  width: calc(100%);
+  height: 6px;
   background-color: transparent;
   -webkit-appearance: none;
   appearance: none;
   outline: none;
-  opacity: 0.7;
-  transition: opacity 0.2s;
-}
-
-.playable-audio-item .volume-slider:hover {
-  opacity: 1;
 }
 
 /* Add volume slider track styling for better appearance */
-.playable-audio-item .volume-slider::-webkit-slider-runnable-track {
+.audio-item-content .volume-slider::-webkit-slider-runnable-track {
   height: 4px;
   background-color: var(--bg-secondary);
   border-radius: 2px;
 }
 
-.playable-audio-item .volume-slider::-moz-range-track {
+.audio-item-content .volume-slider::-moz-range-track {
   height: 4px;
   background-color: var(--bg-secondary);
   border-radius: 2px;
 }
 
 /* Default volume slider thumb */
-.playable-audio-item .volume-slider::-webkit-slider-thumb {
+.audio-item-content .volume-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 12px;
@@ -281,7 +303,7 @@
   transition: background-color 0.2s ease;
 }
 
-.playable-audio-item .volume-slider::-moz-range-thumb {
+.audio-item-content .volume-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
   border-radius: 50%;

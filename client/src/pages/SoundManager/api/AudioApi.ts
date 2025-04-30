@@ -1,5 +1,5 @@
-import { AudioFile } from 'shared/types/audio.js';
-import { Folder } from 'shared/types/folder.js';
+import { AudioFile } from 'src/components/FolderTree/types.js';
+import { Folder } from 'src/components/FolderTree/types.js';
 
 const API_URL = '/api/audio';
 

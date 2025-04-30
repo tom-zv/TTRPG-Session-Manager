@@ -1,6 +1,6 @@
 import fileModel from "./fileModel.js";
 import { QueryResult } from "../../../db.js";
-import { AudioFile } from 'shared/types/types.js';
+import { AudioFile } from 'client/src/components/FolderTree/types.js';
 
 export async function getAllAudioFiles(): Promise<AudioFile[]> {
   return await fileModel.getAllAudioFiles();

@@ -1,6 +1,9 @@
 import collectionModel from './collectionModel.js';
 import macroModel from '../macros/macroModel.js';
 import { pool } from "src/db.js";
+import fs from 'fs/promises';
+import path from 'path';
+import { toAbsolutePath, toRelativePath } from '../../../utils/path-utils.js';
 
 // Interface for standardized service responses
 export interface ServiceResponse<T> {
@@ -312,10 +315,14 @@ export async function updateFile(
   collectionId: number,
   audioFileId: number,
   params: {
-    active?: boolean, 
+    name?: string,
+    file_path?: string,
+    file_url?: string,  
     volume?: number,
     // For macro type
     delay?: number, 
+    // for ambience type
+    active?: boolean, 
   }
 ): Promise<ServiceResponse<void>> {
   try {
@@ -341,18 +348,222 @@ export async function updateFile(
         return { success: false, notFound: true, error: `File not found in collection` };
       }
       
-      // Then update the audio file properties
-      affectedRows = await collectionModel.updateFile(
-        audioFileId,
-        {
-          active: params.active,
-          volume: params.volume,
+      // Track if we need to update the audio_files table
+      let needsAudioFileUpdate = false;
+      const audioFileParams: any = {};
+      
+      // If name is being updated and we have a file on disk, we need to rename the actual file
+      if (params.name) {
+        needsAudioFileUpdate = true;
+        audioFileParams.name = params.name;
+        
+        // Get the current file record to access file_path
+        const [fileRecord] = await pool.execute(
+          `SELECT * FROM audio_files WHERE audio_file_id = ?`,
+          [audioFileId]
+        );
+        
+        const currentFile = (fileRecord as any[])[0];
+        if (currentFile && currentFile.file_path) {
+          try {
+            const currentAbsolutePath = toAbsolutePath(currentFile.file_path);
+            const fileDir = path.dirname(currentAbsolutePath);
+            const fileExt = path.extname(currentAbsolutePath);
+            
+            // Create new file path with the new name but same extension
+            const newFileName = `${params.name}${fileExt}`;
+            const newAbsolutePath = path.join(fileDir, newFileName);
+            
+            // Check if file exists before trying to rename
+            await fs.access(currentAbsolutePath);
+            
+            // Rename the file on disk
+            await fs.rename(currentAbsolutePath, newAbsolutePath);
+            
+            // Update the file_path in params to reflect the new name
+            const newRelativePath = toRelativePath(newAbsolutePath);
+            audioFileParams.file_path = newRelativePath;
+          } catch (fsError) {
+            console.error(`Error renaming file:`, fsError);
+            // Don't fail the whole operation if file renaming fails
+            // Just update the database record without changing the file
+          }
         }
-      );
+      }
+      
+      if (params.file_path) {
+        needsAudioFileUpdate = true;
+        audioFileParams.file_path = params.file_path;
+      }
+      
+      if (params.file_url) {
+        needsAudioFileUpdate = true;
+        audioFileParams.file_url = params.file_url;
+      }
+      
+      // Update audio_files table if needed
+      if (needsAudioFileUpdate) {
+        const audioFileResult = await collectionModel.updateAudioFile(
+          audioFileId,
+          audioFileParams
+        );
+        affectedRows += audioFileResult;
+      }
+      
+      // Update collection_files table properties if needed
+      const collectionFileParams: any = {};
+      if (params.active !== undefined) collectionFileParams.active = params.active;
+      if (params.volume !== undefined) collectionFileParams.volume = params.volume;
+      
+      if (Object.keys(collectionFileParams).length > 0) {
+        const collectionFileResult = await collectionModel.updateCollectionFile(
+          collectionId,
+          audioFileId,
+          collectionFileParams
+        );
+        affectedRows += collectionFileResult;
+      }
     }
     
     if (!affectedRows) {
       return { success: false, error: `No fields were updated` };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error updating file ${audioFileId} in ${type} collection ${collectionId}:`, error);
+    return { success: false, error: `Failed to update file in ${type} collection` };
+  }
+}
+
+export async function updateAudioFile(
+  audioFileId: number,
+  params: {
+    name?: string,
+    file_path?: string,
+    file_url?: string
+  }
+): Promise<ServiceResponse<void>> {
+  try {
+    const audioFileParams: any = {};
+    
+    // If name is being updated and we have a file on disk, we need to rename the actual file
+    if (params.name) {
+      audioFileParams.name = params.name;
+      
+      // Get the current file record to access file_path
+      const [fileRecord] = await pool.execute(
+        `SELECT * FROM audio_files WHERE audio_file_id = ?`,
+        [audioFileId]
+      );
+      
+      const currentFile = (fileRecord as any[])[0];
+      if (currentFile && currentFile.file_path) {
+        try {
+          const currentAbsolutePath = toAbsolutePath(currentFile.file_path);
+          const fileDir = path.dirname(currentAbsolutePath);
+          const fileExt = path.extname(currentAbsolutePath);
+          
+          // Create new file path with the new name but same extension
+          const newFileName = `${params.name}${fileExt}`;
+          const newAbsolutePath = path.join(fileDir, newFileName);
+          
+          // Check if file exists before trying to rename
+          await fs.access(currentAbsolutePath);
+          
+          // Rename the file on disk
+          await fs.rename(currentAbsolutePath, newAbsolutePath);
+          
+          // Update the file_path in params to reflect the new name
+          const newRelativePath = toRelativePath(newAbsolutePath);
+          audioFileParams.file_path = newRelativePath;
+          
+        } catch (fsError) {
+          console.error(`Error renaming file:`, fsError);
+          // Don't fail the whole operation if file renaming fails
+          // Just update the database record without changing the file
+        }
+      }
+    }
+    
+    if (params.file_path !== undefined) {
+      audioFileParams.file_path = params.file_path;
+    }
+    
+    if (params.file_url !== undefined) {
+      audioFileParams.file_url = params.file_url;
+    }
+    
+    if (Object.keys(audioFileParams).length === 0) {
+      return { success: false, error: `No audio file fields to update` };
+    }
+    
+    const affectedRows = await collectionModel.updateAudioFile(
+      audioFileId,
+      audioFileParams
+    );
+    
+    if (!affectedRows) {
+      return { success: false, error: `No audio file fields were updated` };
+    }
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Service error updating audio file ${audioFileId}:`, error);
+    return { success: false, error: `Failed to update audio file` };
+  }
+}
+
+export async function updateCollectionFile(
+  type: string,
+  collectionId: number,
+  audioFileId: number,
+  params: {
+    volume?: number,
+    active?: boolean,
+    delay?: number  // For macro type
+  }
+): Promise<ServiceResponse<void>> {
+  try {
+    let affectedRows = 0;
+    
+    if (type === 'macro') {
+      // For macros, update the macro file properties
+      affectedRows = await macroModel.updateMacroFile(
+        collectionId, 
+        audioFileId, 
+        params.delay, 
+        params.volume
+      );
+    } else {
+      // First, verify the file exists in the collection
+      const [existingFile] = await pool.execute(
+        `SELECT * FROM collection_files WHERE collection_id = ? AND audio_file_id = ?`,
+        [collectionId, audioFileId]
+      );
+      
+      if (!(existingFile as any[])[0]) {
+        return { success: false, notFound: true, error: `File not found in collection` };
+      }
+      
+      // Update collection_files table properties if needed
+      const collectionFileParams: any = {};
+      if (params.active !== undefined) collectionFileParams.active = params.active;
+      if (params.volume !== undefined) collectionFileParams.volume = params.volume;
+      
+      if (Object.keys(collectionFileParams).length > 0) {
+        affectedRows = await collectionModel.updateCollectionFile(
+          collectionId,
+          audioFileId,
+          collectionFileParams
+        );
+      } else {
+        return { success: false, error: `No collection file fields to update` };
+      }
+    }
+    
+    if (!affectedRows) {
+      return { success: false, error: `No collection file fields were updated` };
     }
     
     return { success: true };
@@ -626,6 +837,8 @@ export default {
   updateCollectionFilePosition,
   updateFileRangePosition,
   updateFile,
+  updateAudioFile,
+  updateCollectionFile,
   getAllPacks,
   createPack,
   deletePack,

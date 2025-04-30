@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder } from 'shared/types/folder.js';
+import { Folder } from 'src/components/FolderTree/types.js';
 import { getFolderIcon } from '../utils/icons.js';
 import FileScanButton from './FileScanButton.js';
 

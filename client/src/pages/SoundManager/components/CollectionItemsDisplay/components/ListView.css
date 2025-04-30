@@ -76,7 +76,7 @@
 /* Current Track - the track that is loaded but may not be playing */
 .audio-item-row.current-track {
     background-color: rgba(53, 114, 227, 0.05);
-    border-left: 2px solid var(--accent-primary);
+    box-shadow: inset 3px 0 0 var(--accent-primary);
 }
 
 .audio-item-row.current-track:hover {
@@ -190,7 +190,7 @@
 
 .position-cell:hover .position-play-button {
     opacity: 1;
-    background-color: rgba(53, 114, 227, 0.1);
+    background-color: transparent;
 }
 
 .position-cell:hover .position-number {

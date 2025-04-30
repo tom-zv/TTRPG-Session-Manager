@@ -1,13 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { Folder } from 'shared/types/folder.js';
-import { AudioFile } from 'shared/types/audio.js';
-import FolderDisplay from './FolderDisplay.js';
-import { getAllFolders, getAllAudioFiles } from '../../../pages/SoundManager/api/AudioApi.js';
-import { buildFolderTree } from '../utils/FolderTree.js';
-import { useSelection } from '../../../hooks/useSelection.js';
-import { useDragSource } from '../../../hooks/useDragSource.js';
-import { getFilesFromFolders } from '../utils/DragUtils.js';
-import '../FolderTree.css';
+import React, { useState, useEffect } from "react";
+import { Folder, AudioFile } from "src/components/FolderTree/types.js";
+import { getAllFolders, getAllAudioFiles } from "../../../pages/SoundManager/api/AudioApi.js";
+import { buildFolderTree } from "../utils/FolderTree.js";
+import { getFilesFromFolders } from "../utils/DragUtils.js";
+import { useSelection } from "../../../hooks/useSelection.js";
+import { useDragSource } from "../../../hooks/useDragSource.js";
+import FolderDisplay from "./FolderDisplay.js";
+import "../FolderTree.css";
 
 interface FolderTreeProps {
   showFilesInTree?: boolean;

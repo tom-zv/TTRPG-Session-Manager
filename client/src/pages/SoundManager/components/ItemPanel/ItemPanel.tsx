@@ -6,7 +6,7 @@ import { PiMusicNotesPlusFill } from "react-icons/pi";
 import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { useItemPanel } from "./ItemPanelContext.js";
 import CreateCollectionDialog from "../../components/CollectionView/components/CreateCollectionDialog.js";
-import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionMutations.js";
+import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionActions.js";
 import {
   Panel,
   PanelGroup,
@@ -100,6 +100,7 @@ const ItemPanel: React.FC = () => {
                 ref={macroPanelRef}
                 defaultSize={getDefaultSize()}
                 minSize={15}
+                collapsible={true}
                 className="panel-with-table"
               >
                 <div className="panel-section">

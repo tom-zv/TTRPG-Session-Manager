@@ -4,7 +4,7 @@ import PlaylistPanel from "./PlaylistPanel/PlaylistPanel.js";
 import SoundManagerLiveView from "./SoundManagerLiveView/SoundManagerLiveView.js";
 import { DropTargetProvider } from "src/components/DropTargetContext/DropTargetContext.js";
 import { ItemPanelProvider } from "./ItemPanel/ItemPanelContext.js";
-import { AudioProvider } from "./AudioService/index.js";
+import { AudioProvider } from "../services/AudioService/index.js";
 import {
   Panel,
   PanelGroup,

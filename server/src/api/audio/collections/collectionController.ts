@@ -429,44 +429,66 @@ export const updateFile = async (req: Request, res: Response) => {
   const collectionId = parseInt(req.params.id);
   const audioFileId = parseInt(req.params.fileId);
   
-  // Extract different parameters based on collection type
-  const { active, volume, delay } = req.body;
+  const { name, filePath, fileUrl, active, volume, delay } = req.body;
   
   if (isNaN(collectionId) || isNaN(audioFileId)) {
     return res.status(400).json({ error: 'Invalid parameters' });
   }
   
   try {
-    // Build the params object based on collection type and provided fields
-    const params: any = {};
+    // Organize params into audio file and collection file params
+    const audioFileParams: any = {};
+    const collectionFileParams: any = {};
     
-    if (type === 'macro') {
-      // For macro type, only include delay 
-      if (delay !== undefined) params.delay = delay;
-    } else {
-      // For other types, include active
-      if (active !== undefined) params.active = active;
+    // Audio file params
+    if (name !== undefined) audioFileParams.name = name;
+    if (filePath !== undefined) audioFileParams.file_path = filePath;
+    if (fileUrl !== undefined) audioFileParams.file_url = fileUrl;
+    
+    // Collection file params
+    if (volume !== undefined) collectionFileParams.volume = volume;
+    if (active !== undefined) collectionFileParams.active = active;
+    if (delay !== undefined && type === 'macro') collectionFileParams.delay = delay;
+    
+    let responseAudio, responseCollection;
+    let updateSuccess = false;
+    
+    // Update audio file if needed
+    if (Object.keys(audioFileParams).length > 0) {
+      responseAudio = await collectionService.updateAudioFile(audioFileId, audioFileParams);
+      updateSuccess = responseAudio.success || updateSuccess;
+      
+      // Handle file not found
+      if (!responseAudio.success && responseAudio.notFound) {
+        return res.status(404).json({ error: responseAudio.error });
+      }
     }
-    // For all types, include volume if provided
-    if (volume !== undefined) params.volume = volume;
     
-    // Check if any parameters were provided
-    if (Object.keys(params).length === 0) {
+    // Update collection file if needed
+    if (Object.keys(collectionFileParams).length > 0) {
+      responseCollection = await collectionService.updateCollectionFile(
+        type, collectionId, audioFileId, collectionFileParams
+      );
+      updateSuccess = responseCollection.success || updateSuccess;
+      
+      // Handle file not found in collection
+      if (!responseCollection.success && responseCollection.notFound) {
+        return res.status(404).json({ error: responseCollection.error });
+      }
+    }
+    
+    // Check if any params were provided
+    if (Object.keys(audioFileParams).length === 0 && Object.keys(collectionFileParams).length === 0) {
       return res.status(400).json({ error: 'No update parameters provided' });
     }
     
-    const response = await collectionService.updateFile(
-      type, collectionId, audioFileId, params
-    );
-    
-    if (response.success) {
-      res.status(200).json({ 
-        message: `File updated successfully in ${type} collection` 
+    // Handle update success/failure
+    if (updateSuccess) {
+      res.status(200).json({
+        message: `File updated successfully in ${type} collection`
       });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
     } else {
-      res.status(400).json({ error: response.error });
+      res.status(400).json({ error: 'No fields were updated' });
     }
   } catch (error) {
     console.error(`Error updating file in ${type} collection ${collectionId}:`, error);
