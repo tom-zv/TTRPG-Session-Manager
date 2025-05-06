@@ -377,9 +377,6 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     collectionId: number,
     fileId: number,
     params: {
-      name?: string;
-      filePath?: string;
-      fileUrl?: string;
       active?: boolean;
       volume?: number;
       delay?: number;

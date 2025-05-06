@@ -1,9 +1,7 @@
 import collectionModel from './collectionModel.js';
 import macroModel from '../macros/macroModel.js';
 import { pool } from "src/db.js";
-import fs from 'fs/promises';
-import path from 'path';
-import { toAbsolutePath, toRelativePath } from '../../../utils/path-utils.js';
+import fileService from '../files/fileService.js'; // Add this import to use fileService
 
 // Interface for standardized service responses
 export interface ServiceResponse<T> {
@@ -352,43 +350,9 @@ export async function updateFile(
       let needsAudioFileUpdate = false;
       const audioFileParams: any = {};
       
-      // If name is being updated and we have a file on disk, we need to rename the actual file
       if (params.name) {
         needsAudioFileUpdate = true;
         audioFileParams.name = params.name;
-        
-        // Get the current file record to access file_path
-        const [fileRecord] = await pool.execute(
-          `SELECT * FROM audio_files WHERE audio_file_id = ?`,
-          [audioFileId]
-        );
-        
-        const currentFile = (fileRecord as any[])[0];
-        if (currentFile && currentFile.file_path) {
-          try {
-            const currentAbsolutePath = toAbsolutePath(currentFile.file_path);
-            const fileDir = path.dirname(currentAbsolutePath);
-            const fileExt = path.extname(currentAbsolutePath);
-            
-            // Create new file path with the new name but same extension
-            const newFileName = `${params.name}${fileExt}`;
-            const newAbsolutePath = path.join(fileDir, newFileName);
-            
-            // Check if file exists before trying to rename
-            await fs.access(currentAbsolutePath);
-            
-            // Rename the file on disk
-            await fs.rename(currentAbsolutePath, newAbsolutePath);
-            
-            // Update the file_path in params to reflect the new name
-            const newRelativePath = toRelativePath(newAbsolutePath);
-            audioFileParams.file_path = newRelativePath;
-          } catch (fsError) {
-            console.error(`Error renaming file:`, fsError);
-            // Don't fail the whole operation if file renaming fails
-            // Just update the database record without changing the file
-          }
-        }
       }
       
       if (params.file_path) {
@@ -403,11 +367,11 @@ export async function updateFile(
       
       // Update audio_files table if needed
       if (needsAudioFileUpdate) {
-        const audioFileResult = await collectionModel.updateAudioFile(
+        const audioFileResult = await fileService.updateAudioFile(
           audioFileId,
           audioFileParams
         );
-        affectedRows += audioFileResult;
+        affectedRows += audioFileResult.success ? 1 : 0;
       }
       
       // Update collection_files table properties if needed
@@ -433,84 +397,6 @@ export async function updateFile(
   } catch (error) {
     console.error(`Service error updating file ${audioFileId} in ${type} collection ${collectionId}:`, error);
     return { success: false, error: `Failed to update file in ${type} collection` };
-  }
-}
-
-export async function updateAudioFile(
-  audioFileId: number,
-  params: {
-    name?: string,
-    file_path?: string,
-    file_url?: string
-  }
-): Promise<ServiceResponse<void>> {
-  try {
-    const audioFileParams: any = {};
-    
-    // If name is being updated and we have a file on disk, we need to rename the actual file
-    if (params.name) {
-      audioFileParams.name = params.name;
-      
-      // Get the current file record to access file_path
-      const [fileRecord] = await pool.execute(
-        `SELECT * FROM audio_files WHERE audio_file_id = ?`,
-        [audioFileId]
-      );
-      
-      const currentFile = (fileRecord as any[])[0];
-      if (currentFile && currentFile.file_path) {
-        try {
-          const currentAbsolutePath = toAbsolutePath(currentFile.file_path);
-          const fileDir = path.dirname(currentAbsolutePath);
-          const fileExt = path.extname(currentAbsolutePath);
-          
-          // Create new file path with the new name but same extension
-          const newFileName = `${params.name}${fileExt}`;
-          const newAbsolutePath = path.join(fileDir, newFileName);
-          
-          // Check if file exists before trying to rename
-          await fs.access(currentAbsolutePath);
-          
-          // Rename the file on disk
-          await fs.rename(currentAbsolutePath, newAbsolutePath);
-          
-          // Update the file_path in params to reflect the new name
-          const newRelativePath = toRelativePath(newAbsolutePath);
-          audioFileParams.file_path = newRelativePath;
-          
-        } catch (fsError) {
-          console.error(`Error renaming file:`, fsError);
-          // Don't fail the whole operation if file renaming fails
-          // Just update the database record without changing the file
-        }
-      }
-    }
-    
-    if (params.file_path !== undefined) {
-      audioFileParams.file_path = params.file_path;
-    }
-    
-    if (params.file_url !== undefined) {
-      audioFileParams.file_url = params.file_url;
-    }
-    
-    if (Object.keys(audioFileParams).length === 0) {
-      return { success: false, error: `No audio file fields to update` };
-    }
-    
-    const affectedRows = await collectionModel.updateAudioFile(
-      audioFileId,
-      audioFileParams
-    );
-    
-    if (!affectedRows) {
-      return { success: false, error: `No audio file fields were updated` };
-    }
-    
-    return { success: true };
-  } catch (error) {
-    console.error(`Service error updating audio file ${audioFileId}:`, error);
-    return { success: false, error: `Failed to update audio file` };
   }
 }
 
@@ -837,7 +723,6 @@ export default {
   updateCollectionFilePosition,
   updateFileRangePosition,
   updateFile,
-  updateAudioFile,
   updateCollectionFile,
   getAllPacks,
   createPack,

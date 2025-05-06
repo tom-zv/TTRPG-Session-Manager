@@ -172,7 +172,6 @@ export const GridView: React.FC<GridViewProps> = ({
           onClose={() => setIsCreateDialogOpen(false)}
           collectionType={collection.type as any}
           createCollection={createCollection}
-          isLoading={false}
         />
       )}
     </>

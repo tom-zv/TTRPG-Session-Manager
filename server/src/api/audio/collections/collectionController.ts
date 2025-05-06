@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import collectionService from './collectionService.js';
 import fileService from '../files/fileService.js';
-import { transformAudioFile, transformCollection, transformMacro } from 'src/utils/format-transformers.js';
+import { transformCollectionFile, transformCollection, transformMacro } from 'src/utils/format-transformers.js';
 
 const collectionTypes = ['playlist', 'sfx', 'ambience', 'macro'];
 
@@ -25,10 +25,10 @@ export const getAllCollections = async (req: Request, res: Response) => {
           
           if (type !== 'sfx') {
             // For regular collections, just transform files
-            baseCollection.items = collection.files.map(transformAudioFile);
+            baseCollection.items = collection.files.map(transformCollectionFile);
           } else {
             // For SFX collections, combine files and macros into a unified items array
-            const fileItems = collection.files.map(transformAudioFile);
+            const fileItems = collection.files.map(transformCollectionFile);
             const macroItems = collection.macros.map(transformMacro);
             
             // Combine and sort by position
@@ -97,11 +97,11 @@ export const getCollectionById = async (req: Request, res: Response) => {
       if (response.success) {
         // For regular collections, just transform files
         if (type !== 'sfx') {
-          response.data.items = response.data.files.map(transformAudioFile);
+          response.data.items = response.data.files.map(transformCollectionFile);
         } 
         // For SFX collections, combine files and macros into a unified items array
         else {
-          const fileItems = response.data.files.map(transformAudioFile);
+          const fileItems = response.data.files.map(transformCollectionFile);
           const macroItems = response.data.macros.map(transformMacro);
           
           // Combine and sort by position
@@ -261,7 +261,7 @@ export const addFileToCollection = async (req: Request, res: Response) => {
     
     // Check if audio file exists
     const audioFile = await fileService.getAudioFile(audioFileId);
-    if (!audioFile || audioFile.length === 0) {
+    if (!audioFile) {
       return res.status(404).json({ error: 'Audio file not found' });
     }
     
@@ -429,70 +429,44 @@ export const updateFile = async (req: Request, res: Response) => {
   const collectionId = parseInt(req.params.id);
   const audioFileId = parseInt(req.params.fileId);
   
-  const { name, filePath, fileUrl, active, volume, delay } = req.body;
-  
+  const { active, volume, delay } = req.body;
+
   if (isNaN(collectionId) || isNaN(audioFileId)) {
     return res.status(400).json({ error: 'Invalid parameters' });
   }
-  
+
+  // Collect only collection‐file parameters
+  const collectionFileParams: any = {};
+  if (active !== undefined) collectionFileParams.active = active;
+  if (volume !== undefined) collectionFileParams.volume = volume;
+  if (delay !== undefined && type === 'macro') collectionFileParams.delay = delay;
+
+  if (Object.keys(collectionFileParams).length === 0) {
+    return res.status(400).json({ error: 'No update parameters provided' });
+  }
+
   try {
-    // Organize params into audio file and collection file params
-    const audioFileParams: any = {};
-    const collectionFileParams: any = {};
-    
-    // Audio file params
-    if (name !== undefined) audioFileParams.name = name;
-    if (filePath !== undefined) audioFileParams.file_path = filePath;
-    if (fileUrl !== undefined) audioFileParams.file_url = fileUrl;
-    
-    // Collection file params
-    if (volume !== undefined) collectionFileParams.volume = volume;
-    if (active !== undefined) collectionFileParams.active = active;
-    if (delay !== undefined && type === 'macro') collectionFileParams.delay = delay;
-    
-    let responseAudio, responseCollection;
-    let updateSuccess = false;
-    
-    // Update audio file if needed
-    if (Object.keys(audioFileParams).length > 0) {
-      responseAudio = await collectionService.updateAudioFile(audioFileId, audioFileParams);
-      updateSuccess = responseAudio.success || updateSuccess;
-      
-      // Handle file not found
-      if (!responseAudio.success && responseAudio.notFound) {
-        return res.status(404).json({ error: responseAudio.error });
-      }
-    }
-    
-    // Update collection file if needed
-    if (Object.keys(collectionFileParams).length > 0) {
-      responseCollection = await collectionService.updateCollectionFile(
-        type, collectionId, audioFileId, collectionFileParams
-      );
-      updateSuccess = responseCollection.success || updateSuccess;
-      
-      // Handle file not found in collection
-      if (!responseCollection.success && responseCollection.notFound) {
-        return res.status(404).json({ error: responseCollection.error });
-      }
-    }
-    
-    // Check if any params were provided
-    if (Object.keys(audioFileParams).length === 0 && Object.keys(collectionFileParams).length === 0) {
-      return res.status(400).json({ error: 'No update parameters provided' });
-    }
-    
-    // Handle update success/failure
-    if (updateSuccess) {
-      res.status(200).json({
+    const response = await collectionService.updateCollectionFile(
+      type,
+      collectionId,
+      audioFileId,
+      collectionFileParams
+    );
+
+    if (response.success) {
+      return res.status(200).json({
         message: `File updated successfully in ${type} collection`
       });
+    } else if (response.notFound) {
+      return res.status(404).json({ error: response.error });
     } else {
-      res.status(400).json({ error: 'No fields were updated' });
+      return res.status(400).json({ error: response.error });
     }
   } catch (error) {
     console.error(`Error updating file in ${type} collection ${collectionId}:`, error);
-    res.status(500).json({ error: `Failed to update file in ${type} collection` });
+    return res.status(500).json({
+      error: `Failed to update file in ${type} collection`
+    });
   }
 };
 

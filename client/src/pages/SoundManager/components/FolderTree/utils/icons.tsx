@@ -1,10 +1,21 @@
+import { FaFolderOpen } from "react-icons/fa6";
+import { PiFolderOpenLight } from "react-icons/pi";
+
+import { FaFolderClosed } from "react-icons/fa6";
+import { IoFolderOutline } from "react-icons/io5";
+
+
+
 export const getFolderIcon = (folderType: string, isOpen: boolean, hasContents: boolean) => {
   if (!hasContents) {
-    return '-';
+    if (isOpen) {
+      return <PiFolderOpenLight />;
+    } else return <IoFolderOutline />;
+    
   }
   
   if (isOpen) {
-    return '📂';
+    return <FaFolderOpen/>;
     // Uncomment for folder type specific icons
     // switch (folderType) {
     //   case 'music': return '🎵';
@@ -13,7 +24,7 @@ export const getFolderIcon = (folderType: string, isOpen: boolean, hasContents: 
     //   default: return '📂';
     // }
   } else {
-    return '📁';
+    return <FaFolderClosed/>;
     // Uncomment for folder type specific icons
     // switch (folderType) {
     //   case 'music': return '🎵';

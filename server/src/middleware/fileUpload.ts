@@ -2,6 +2,8 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { rootDir } from '../config/server-config.js';
+import { getFolderPath } from '../api/audio/folders/folderModel.js';
+import { FOLDERS } from '../constants/folders.js';
 
 /**
  * Creates a multer middleware for file uploads
@@ -25,21 +27,43 @@ export function createUploadMiddleware(
 
   // Configure storage
   const storage = multer.diskStorage({
-    destination: (req, _file, cb) => {
-      // Use dynamic subdirectory based on audio type if provided
-      let targetDir = uploadDir;
-      if (req.body && req.body.type) {
-        const typeDir = path.join(uploadDir, req.body.type);
-        if (!fs.existsSync(typeDir)) {
-          fs.mkdirSync(typeDir, { recursive: true });
+    destination: async (req, _file, cb) => {
+      try {
+        // Use dynamic subdirectory based on folder_id if provided
+        let targetDir = uploadDir;
+        
+        // Extract folder_id from request body or use default
+        const folderId = req.body && req.body.folder_id 
+          ? parseInt(req.body.folder_id) 
+          : FOLDERS.UPLOAD;
+
+        // Use folder hierarchy from database
+        const folderPath = await getFolderPath(folderId);
+        if (folderPath) {
+          const folderDir = path.join(uploadDir, folderPath);
+          if (!fs.existsSync(folderDir)) {
+            fs.mkdirSync(folderDir, { recursive: true });
+          }
+          targetDir = folderDir;
         }
-        targetDir = typeDir;
+        // Fallback to type-based directory if needed
+        else if (req.body && req.body.type) {
+          const typeDir = path.join(uploadDir, req.body.type);
+          if (!fs.existsSync(typeDir)) {
+            fs.mkdirSync(typeDir, { recursive: true });
+          }
+          targetDir = typeDir;
+        }
+        
+        cb(null, targetDir);
+      } catch (error) {
+        console.error('Error setting upload destination:', error);
+        cb(null, uploadDir); // Fallback to base upload directory on error
       }
-      cb(null, targetDir);
     },
     filename: (_req, file, cb) => {
       const originalName = file.originalname;
-      cb(null,  originalName);
+      cb(null, originalName);
     }
   });
 

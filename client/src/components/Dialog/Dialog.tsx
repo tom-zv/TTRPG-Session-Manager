@@ -17,11 +17,10 @@ export interface DialogProps {
   /** if true, use the side-panel cutout style; otherwise full-screen overlay */
   sidePanel?: boolean;
   contentRef?: React.RefObject<HTMLDivElement>;
-  /** additional CSS class to apply to the dialog container */
   className?: string;
 }
 
-const DRAG_EVENTS = ["dragenter", "dragover", "drop"] as const;
+const DRAG_EVENTS = ["dragenter", "dragover", "drop", "dragstart"] as const;
 
 const Dialog: React.FC<DialogProps> = ({
   isOpen,
@@ -91,6 +90,17 @@ const Dialog: React.FC<DialogProps> = ({
     };
   }, [isOpen]);
 
+  // build mask CSS vars
+  const cutoutStyle = useMemo<React.CSSProperties>(() => {
+    if (!sidePanel || !panelRect) return {};
+    return {
+      "--cutout-left": `${panelRect.x}px`,
+      "--cutout-top": `${panelRect.y}px`,
+      "--cutout-width": `${panelRect.width}px`,
+      "--cutout-height": `${panelRect.height}px`,
+    } as React.CSSProperties;
+  }, [sidePanel, panelRect]);
+
   // block all drag/drop outside, allow inside
   useEffect(() => {
     if (!isOpen) return;
@@ -117,31 +127,34 @@ const Dialog: React.FC<DialogProps> = ({
 
   if (!isOpen) return null;
 
-  // build mask CSS vars
-  const cutoutStyle = useMemo<React.CSSProperties>(() => {
-    if (!sidePanel || !panelRect) return {};
-    return {
-      "--cutout-left": `${panelRect.x}px`,
-      "--cutout-top": `${panelRect.y}px`,
-      "--cutout-width": `${panelRect.width}px`,
-      "--cutout-height": `${panelRect.height}px`,
-    } as React.CSSProperties;
-  }, [sidePanel, panelRect]);
-
   return (
     <div
       className={`dialog-overlay${sidePanel ? " side-panel" : ""}`}
       style={cutoutStyle}
+      draggable={false}
+      onClick={(e) => e.stopPropagation()} 
     >
-      <div className={`dialog-container ${className}`.trim()} ref={dialogRef}>
-        <header className="dialog-header">
+      <div
+        className={`dialog-container ${className}`.trim()}
+        ref={dialogRef}
+      >
+        <header 
+          className="dialog-header"
+        >
           <h2>{title}</h2>
-          <button className="close-button" onClick={onClose} aria-label="Close">
+          <button 
+            className="close-button" 
+            onClick={onClose} 
+            aria-label="Close"
+          >
             ×
           </button>
         </header>
 
-        <div className="dialog-content" ref={contentRef}>
+        <div 
+          className="dialog-content" 
+          ref={contentRef}
+        >
           {children}
         </div>
       </div>

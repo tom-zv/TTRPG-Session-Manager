@@ -1,7 +1,11 @@
+
+export type AudioType = 'music' | 'sfx' | 'ambience' | 'any';
+export type FolderType = 'music' | 'sfx' | 'ambience' | 'root' | 'any';
+
 export type AudioFile = {
     id: number;
     name: string;
-    audioType: 'music' | 'sfx' | 'ambience';
+    audioType: AudioType;
     duration?: number;
     playOrder: number;
     fileUrl?: string;
@@ -13,8 +17,9 @@ export type AudioFile = {
   export interface Folder {
     id: number;
     name: string;
-    type: string;
+    type: FolderType;
     parentId: number;
     children?: Folder[];
+    files?: AudioFile[];
   }
   

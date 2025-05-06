@@ -1,5 +1,5 @@
 import React from 'react';
-import { AudioFile } from 'src/components/FolderTree/types.js';
+import { AudioFile } from 'src/pages/SoundManager/components/FolderTree/types.js';
 import { getFileIcon } from '../utils/icons.js';
 
 interface FileDisplayProps {

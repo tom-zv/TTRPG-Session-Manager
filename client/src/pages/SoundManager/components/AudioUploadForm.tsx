@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { uploadAudioFile } from '../api/AudioApi.js';
+import { uploadAudioFile } from '../api/fileApi.js';
 import Form, { FormField, FieldError } from '../../../components/Form/Form.js';
 
 interface AudioUploadFormProps {
@@ -59,7 +59,7 @@ const AudioUploadForm: React.FC<AudioUploadFormProps> = ({
     try {
       await uploadAudioFile(
         {
-          title,
+          name: name,
           audioType: type,
           fileUrl: fileUrl || undefined
         },

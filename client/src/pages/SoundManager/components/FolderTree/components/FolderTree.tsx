@@ -1,23 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { Folder, AudioFile } from "src/components/FolderTree/types.js";
-import { getAllFolders, getAllAudioFiles } from "../../../pages/SoundManager/api/AudioApi.js";
+import { Folder, AudioFile } from "src/pages/SoundManager/components/FolderTree/types.js";
+import { getAllFolders} from "src/pages/SoundManager/api/folderApi.js";
+import { getAllAudioFiles } from "src/pages/SoundManager/api/fileApi.js";
 import { buildFolderTree } from "../utils/FolderTree.js";
-import { getFilesFromFolders } from "../utils/DragUtils.js";
-import { useSelection } from "../../../hooks/useSelection.js";
-import { useDragSource } from "../../../hooks/useDragSource.js";
+import { getNestedFiles } from "../utils/DragUtils.js";
+import { useSelection } from "../../../../../hooks/useSelection.js";
+import { useDragSource } from "../../../../../hooks/useDragSource.js";
 import FolderDisplay from "./FolderDisplay.js";
 import "../FolderTree.css";
 
-interface FolderTreeProps {
-  showFilesInTree?: boolean;
-}
 
-const FolderTree: React.FC<FolderTreeProps> = ({
-  showFilesInTree = false,
+
+const FolderTree: React.FC = ({
 }) => {
   // Internal state
-  const [folders, setFolders] = useState<Folder[]>([]);
   const [audioFiles, setAudioFiles] = useState<AudioFile[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [folderTreeKey, setFolderTreeKey] = useState<number>(0);
@@ -58,14 +56,10 @@ const FolderTree: React.FC<FolderTreeProps> = ({
   const selectedFileIds = fileSelection.selectedItems.map(file => file.id);
 
   // Drag source for folders
-  const folderDragSource = useDragSource<AudioFile>({
-    contentType: 'file',
+  const folderDragSource = useDragSource<Folder>({
+    contentType: 'folder',
     mode: 'file-transfer',
     getItemId: file => file.id,
-    getItemsForDrag: (selectedIds) => {
-      // When dragging folders, get all audio files from those folders
-      return getFilesFromFolders(selectedIds, folders, audioFiles);
-    }
   });
   
   // Drag source for individual files
@@ -73,11 +67,6 @@ const FolderTree: React.FC<FolderTreeProps> = ({
     contentType: 'file',
     mode: 'file-transfer',
     getItemId: file => file.id,
-    getItemsForDrag: (selectedIds) => {
-      // Get the selected audio files
-      return audioFiles.filter(file => selectedIds.includes(file.id));
-    },
-    getItemName: (file) => file.name || `Audio #${file.id}`
   });
 
   // Helper function to flatten folder tree
@@ -105,14 +94,16 @@ const FolderTree: React.FC<FolderTreeProps> = ({
       setLoading(true);
       setError(null);
 
-      // Load folders
-      const allFolders = await getAllFolders();
-      const folderTree = buildFolderTree(allFolders);
-      setFolders(folderTree);
-
       // Load audio files
       const files = await getAllAudioFiles();
       setAudioFiles(files);
+
+      // Load folders
+      const allFolders = await getAllFolders();
+      const folderTree = buildFolderTree(allFolders, files);
+      setFolders(folderTree);
+
+      
     } catch (error) {
       console.error("Error loading library data:", error);
       setError("Failed to load audio library. Please try again later.");
@@ -159,17 +150,45 @@ const FolderTree: React.FC<FolderTreeProps> = ({
 
   // Drag handlers
   const handleFolderDragStart = (e: React.DragEvent, folder: Folder) => {
-    folderDragSource.handleDragStart(e, { id: folder.id } as AudioFile, [folder.id]);
+    console.log("Folder drag start:", folder);
+    folder.files = getNestedFiles(folder, folders); // Populate with nested files
+    console.log("Nested files:", folder.files);
+    folderDragSource.handleDragStart(e, [folder]);
   };
   
   const handleFileDragStart = (e: React.DragEvent, file: AudioFile) => {
     // If the file isn't in the selection, start a new drag with just this file
+    console.log("File drag start:", file);
     if (!selectedFileIds.includes(file.id)) {
-      fileDragSource.handleDragStart(e, file, [file.id]);
+      fileDragSource.handleDragStart(e, [file]);
     } else {
       // Otherwise, drag all selected files
-      fileDragSource.handleDragStart(e, file, selectedFileIds);
+      fileDragSource.handleDragStart(e, fileSelection.selectedItems);
     }
+  };
+
+  // Handle folder addition (optimistic or from server)
+  const handleFolderCreated = (newFolder: Folder) => {
+    setFolders(prevFolders => {
+      // Get a flattened array of all folders
+      const flat = flattenFolders(prevFolders);
+      
+      if (newFolder.id > 0) {
+        // If this is a real folder from server, find and replace any temporary version
+        const updatedFolders = flat.map(folder => {
+          // Match by name and parentId since temp folder has negative ID
+          if (folder.id < 0 && folder.name === newFolder.name && folder.parentId === newFolder.parentId) {
+            return newFolder; // Replace with server folder
+          }
+          return folder;
+        });
+        
+        return buildFolderTree(updatedFolders, audioFiles);
+      } else {
+        // For optimistic updates, just add the new folder
+        return buildFolderTree([...flat, newFolder], audioFiles);
+      }
+    });
   };
 
   if (loading) return (
@@ -193,13 +212,12 @@ const FolderTree: React.FC<FolderTreeProps> = ({
         onFileSelect={handleFileSelect}
         selectedFolderIds={selectedFolderIds}
         selectedFileIds={selectedFileIds}
-        audioFiles={audioFiles}
-        showFilesInTree={showFilesInTree}
         onFolderDragStart={handleFolderDragStart}
         onFolderDragEnd={folderDragSource.handleDragEnd}
         onFileDragStart={handleFileDragStart}
         onFileDragEnd={fileDragSource.handleDragEnd}
         onScanComplete={handleScanComplete}
+        onFolderCreated={handleFolderCreated}
       />
     </div>
   );

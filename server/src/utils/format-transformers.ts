@@ -1,19 +1,29 @@
-// Function to transform DB audio item to API response format
+//import { AudioFile } from "client/src/components/FolderTree/types.js";
+//import { AudioFileDB } from "src/api/audio/files/types.js";
+
+// Transform raw database audio file without collection properties
 export function transformAudioFile(dbAudioFile: any) {
   return {
     id: dbAudioFile.audio_file_id,  // DB ID
-    type: "file", 
     audioType: dbAudioFile.audio_type,   // audio type: music, sfx, ambience
     name: dbAudioFile.name, 
-    active: dbAudioFile.active, // Active status
     duration: dbAudioFile.duration,
-    position: dbAudioFile.position,    // Position in collection
     fileUrl: dbAudioFile.file_url,     // Remote URL for playback
     filePath: dbAudioFile.file_path,   // Local path for file access
     folderId: dbAudioFile.folder_id,   
+    addedAt: dbAudioFile.added_at,
+    type: "file"
+  };
+}
+
+// Transform audio file with collection-specific properties
+export function transformCollectionFile(dbAudioFile: any) {
+  return {
+    ...transformAudioFile(dbAudioFile),
     volume: dbAudioFile.volume,
     delay: dbAudioFile.delay,
-    addedAt: dbAudioFile.added_at,
+    position: dbAudioFile.position,
+    active: dbAudioFile.active
   };
 }
 
@@ -28,8 +38,9 @@ export function transformMacro(dbMacro: any) {
       // Parse the entire array at once
       const filesArray = JSON.parse(jsonArrayString);
       
-      // Transform each nested file
+      // Transform each nested file with both file and collection properties
       nestedFiles = filesArray.map((fileObj: any) => ({
+        // Audio file properties
         id: fileObj.audio_file_id,
         type: "file",
         audioType: fileObj.audio_type,
@@ -38,6 +49,7 @@ export function transformMacro(dbMacro: any) {
         filePath: fileObj.file_path,
         folderId: fileObj.folder_id,
         duration: fileObj.duration,
+        // Collection properties
         volume: fileObj.volume,
         delay: fileObj.delay,
       }));
@@ -56,14 +68,14 @@ export function transformMacro(dbMacro: any) {
   return {
     id: dbMacro.macro_id,
     type: "macro",
-    audioType: "sfx", // Macros are always SFX type
+    audioType: "sfx", 
     name: dbMacro.name,
     description: dbMacro.description,
     volume: dbMacro.volume,
-    duration: MacroDuration, // Duration is the longest of the nested files including delay
+    duration: MacroDuration, 
     position: dbMacro.position,
-    itemCount: dbMacro.item_count, // Number of files in the macro
-    items: nestedFiles, // Include the nested items for playback
+    itemCount: dbMacro.item_count, 
+    items: nestedFiles, 
     addedAt: dbMacro.created_at
   };
 }
@@ -71,16 +83,16 @@ export function transformMacro(dbMacro: any) {
 export function transformCollection(dbCollection: any){
   return {
     id: dbCollection.collection_id,
-    type: dbCollection.type, // Collection type: playlist, ambience, sfx, pack
+    type: dbCollection.type, 
     name: dbCollection.name,
     description: dbCollection.description,
     itemCount: dbCollection.item_count, 
-    position: dbCollection.position,  // Position in a pack
+    position: dbCollection.position,  
     items: null as any,
   };
 }
 
-export function transformfolder(dbFolder: any) {
+export function transformFolder(dbFolder: any) {
   return {
     id: dbFolder.folder_id,
     name: dbFolder.name,

@@ -65,14 +65,7 @@
   justify-content: center;
   margin-right: 8px;
   width: 20px;
-}
-
-.folder-icon.open {
-  transform: rotate(0deg);
-}
-
-.folder-icon.closed {
-  transform: rotate(-90deg);
+  font-size: 1.2rem;
 }
 
 .folder-name, .file-name {
@@ -103,8 +96,8 @@
 .folder-separator {
   height: 1px;
   background-color: var(--border-color);
-  margin: 8px 0;
-  opacity: 0.5;
+  margin: 1px 0;
+  opacity: 0.6;
 }
 
 /* Folder type indicators */
@@ -266,4 +259,59 @@
 .folder-tree-toggle-button:hover {
   color: var(--text-primary);
   background-color: transparent;
+}
+
+/* Hide create folder button by default */
+.folder-header .create-button {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Show create folder button on hover */
+.folder-header:hover .create-button {
+  opacity: 1;
+}
+
+.folder-header .icon-button.create-button:hover {
+  background-color: transparent;
+}
+
+.create-file-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.file-source-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.source-toggle-btn {
+  flex: 1;
+  background-color: var(--bg-tertiary);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.source-toggle-btn.active {
+  background-color: var(--accent-primary);
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cancel-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

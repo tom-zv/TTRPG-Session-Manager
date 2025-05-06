@@ -8,7 +8,6 @@ interface CreateCollectionDialogProps {
   onClose: () => void;
   collectionType: CollectionType;
   createCollection: (name: string, description?: string) => void;
-  isLoading?: boolean;
 }
 
 const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
@@ -16,7 +15,6 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
   onClose,
   collectionType,
   createCollection,
-  isLoading = false
 }) => {
   const [newItemName, setNewItemName] = useState('');
   const [newItemDescription, setNewItemDescription] = useState('');
@@ -35,7 +33,6 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
       onClose();
     } catch (error) {
       console.error("Error creating collection:", error);
-      // Error is handled by the mutation already
     }
   };
   
@@ -78,7 +75,6 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
           <button
             className="create-button"
             onClick={handleCreateCollection}
-            disabled={!newItemName || isLoading}
           >
             Create
           </button>

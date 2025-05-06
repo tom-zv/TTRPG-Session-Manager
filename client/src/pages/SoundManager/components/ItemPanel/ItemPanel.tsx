@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from "react";
-import FolderTree from "src/components/FolderTree/index.js";
+import FolderTree from "src/pages/SoundManager/components/FolderTree/index.js";
 import { BsFileEarmarkMusic } from "react-icons/bs";
 import { LuChevronsDown, LuChevronsUp } from "react-icons/lu";
 import { PiMusicNotesPlusFill } from "react-icons/pi";
@@ -82,7 +82,7 @@ const ItemPanel: React.FC = () => {
                 minSize={15}
               >
                 <div className="panel-section folder-tree-section">
-                  <FolderTree showFilesInTree={true} />
+                  <FolderTree />
                 </div>
               </Panel>
             )}
@@ -172,7 +172,6 @@ const ItemPanel: React.FC = () => {
               onClose={() => setCreateMacroDialogOpen(false)}
               collectionType="macro"
               createCollection={createCollection!}
-              isLoading={false}
             />
           )}
         </div>

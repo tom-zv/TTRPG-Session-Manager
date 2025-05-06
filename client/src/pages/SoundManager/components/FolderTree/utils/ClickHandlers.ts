@@ -1,5 +1,5 @@
 import React from "react";
-import { Folder, AudioFile } from "src/components/FolderTree/types.js";
+import { Folder, AudioFile } from "src/pages/SoundManager/components/FolderTree/types.js";
 
 export const handleFolderClick = (
   e: React.MouseEvent,

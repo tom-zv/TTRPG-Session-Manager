@@ -63,7 +63,7 @@ CREATE TABLE
     folder_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     parent_folder_id INT,
-    folder_type ENUM ('music', 'sfx', 'ambience', 'root') NOT NULL,
+    folder_type ENUM ('music', 'sfx', 'ambience', 'root', 'any') NOT NULL DEFAULT 'any',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_folders_parent_folder_id FOREIGN KEY (parent_folder_id) REFERENCES folders (folder_id) ON DELETE CASCADE
   );
@@ -72,7 +72,7 @@ CREATE TABLE
   IF NOT EXISTS audio_files (
     audio_file_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
-    audio_type ENUM ('music', 'sfx', 'ambience') NOT NULL DEFAULT 'music',
+    audio_type ENUM ('music', 'sfx', 'ambience', 'any') NOT NULL DEFAULT 'any',
     duration INT,
     file_url VARCHAR(256),
     file_path VARCHAR(256),
@@ -162,19 +162,24 @@ CREATE TABLE
 INSERT INTO
   folders (name, folder_type)
 VALUES
-  ('audio', 'root');
+  ('audio', 'root'); -- id 1
 
 INSERT INTO
   folders (name, folder_type, parent_folder_id)
 VALUES
-  ('music', 'music', 1);
+  ('music', 'music', 1); -- id 2
 
 INSERT INTO
   folders (name, folder_type, parent_folder_id)
 VALUES
-  ('sfx', 'sfx', 1);
+  ('sfx', 'sfx', 1);  -- id 3
 
 INSERT INTO
   folders (name, folder_type, parent_folder_id)
 VALUES
-  ('ambience', 'ambience', 1);
+  ('ambience', 'ambience', 1);  -- id 4
+
+INSERT INTO
+  folders (name, folder_type, parent_folder_id)
+VALUES
+  ('upload', 'any', 1); -- id 5

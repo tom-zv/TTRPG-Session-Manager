@@ -305,7 +305,7 @@ export async function addFilesToCollection(
           `SELECT MAX(position) as maxPosition FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ?`,
           [collectionId]
         );
-        insertPosition = currentPositions[0]?.maxPosition ? (currentPositions[0].maxPosition + 1) : 1;
+        insertPosition = currentPositions[0]?.maxPosition ? (currentPositions[0].maxPosition + 1) : 0;
       }
     } else {
       // If inserting at a specific position, move all existing items up by the number of files we're adding
@@ -350,6 +350,7 @@ export async function addFilesToCollection(
   }
 }
 
+// Update collection file properties
 export async function updateCollectionFile(
   collectionId: number,
   audioFileId: number,
@@ -622,50 +623,6 @@ export async function updateFileRangePosition(
   }
 }
 
-export async function updateAudioFile(
-  audioFileId: number,
-  params: {
-    name?: string;
-    file_path?: string;
-    file_url?: string;
-  }
-): Promise<number> {
-  // Build dynamic query based on provided params
-  const updateFields: string[] = [];
-  const fields: any[] = [];
-  
-  if (params.name !== undefined) {
-    updateFields.push('name = ?');
-    fields.push(params.name);
-  }
-
-  if (params.file_path !== undefined) {
-    updateFields.push('file_path = ?');
-    fields.push(params.file_path);
-  }
-  
-  if (params.file_url !== undefined) {
-    updateFields.push('file_url = ?');
-    fields.push(params.file_url);
-  }
-  
-  // If no fields to update, return early
-  if (updateFields.length === 0) {
-    return 0;
-  }
-  
-  // Add parameter for WHERE clause
-  fields.push(audioFileId);
-  
-  const [result] = await pool.execute(
-    `UPDATE audio_files SET ${updateFields.join(', ')} 
-     WHERE audio_file_id = ?`,
-    fields
-  );
-  
-  return (result as ResultSetHeader).affectedRows || 0;
-}
-
 /* Macro collection management endpoints 
  ****************************************/
 
@@ -929,7 +886,6 @@ export default {
   addFileToCollection,
   addFilesToCollection,
   updateCollectionFile,  
-  updateAudioFile,       
   removeFileFromCollection,
   updateCollectionFilePosition,
   updateFileRangePosition,

@@ -54,9 +54,6 @@ export function useItemDragDrop({
   const dragSourceResult = useDragSource<AudioItem>({
     contentType: contentType,
     mode: isReorderable ? "reorder" : "file-transfer",
-    getItemsForDrag: (selectedItemIds) => {
-      return items.filter((item) => selectedItemIds.includes(item.id));
-    },
     getItemId: (item) => item.id,
     getItemName: (item) => item.name,
     onDragStart: () => {
@@ -81,13 +78,15 @@ export function useItemDragDrop({
       
       e.stopPropagation();
       
-      const itemsToUse = selectedItemIds.includes(item.id) 
-        ? selectedItemIds 
-        : [item.id];
+      // If clicked item is selected, drag all selected items; otherwise drag just this item
+      const isItemSelected = selectedItemIds.includes(item.id);
+      const itemsToDrag = isItemSelected
+        ? items.filter(item => selectedItemIds.includes(item.id))
+        : [item];
         
-      itemDragSource.handleDragStart(e, item, itemsToUse);
+      itemDragSource.handleDragStart(e, itemsToDrag);
     },
-    [isDragSource, itemDragSource, selectedItemIds]
+    [isDragSource, itemDragSource, items, selectedItemIds]
   );
 
   const handleDragEnd = useCallback(

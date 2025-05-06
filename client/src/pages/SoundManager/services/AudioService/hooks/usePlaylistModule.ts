@@ -1,12 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import AudioService, { AudioEventTypes } from '../AudioService.js';
+import { PlaylistModule } from '../modules/playlistModule.js';
+import { AudioEventTypes, on, off } from '../events.js';
+import { getVolume } from '../volumeStore.js';
+
+// Create a singleton instance of PlaylistModule
+const playlistModule = new PlaylistModule();
 
 export function usePlaylistModule() {
   // Playlist playback state
   const [currentPlaylistId, setCurrentPlaylistId] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playlistVolume, setPlaylistVolume] = useState<number>(AudioService['volumes']?.playlist || 1);
+  const [playlistVolume, setPlaylistVolume] = useState<number>(getVolume('playlist'));
   const [position, setPosition] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   
@@ -17,23 +22,23 @@ export function usePlaylistModule() {
   ***********/
   // Toggle playlist or playlist track; Play, Pause or Resume based on context
   const togglePlaylist = useCallback((collectionId: number, startIndex: number = 0) => {
-    return AudioService.togglePlaylist(collectionId, startIndex);
+    return playlistModule.togglePlaylist(collectionId, startIndex);
   }, []);
     
   const nextTrack = useCallback(() => {
-    AudioService.nextTrack();
+    playlistModule.nextTrack();
   }, []);
   
   const previousTrack = useCallback(() => {
-    AudioService.previousTrack();
+    playlistModule.previousTrack();
   }, []);
   
   const setVolume = useCallback((volume: number) => {
-    AudioService.setVolume('playlist', volume);
+    playlistModule.updateVolume(volume);
   }, []);
   
   const seekToPosition = useCallback((time: number) => {
-    AudioService.seek(time);
+    playlistModule.seek(time);
     setPosition(time); // Optimistic UI update
   }, []);
 
@@ -59,7 +64,7 @@ export function usePlaylistModule() {
     const handleTrackChange = (data: {index: number}) => {
       setCurrentIndex(data.index);
       setPosition(0);
-      setDuration(AudioService.getDuration());
+      setDuration(playlistModule.getDuration());
     };
 
     // Handle play state changes
@@ -67,18 +72,19 @@ export function usePlaylistModule() {
       setIsPlaying(playing);
     };
 
-    // Subscribe to events
-    AudioService.on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-    AudioService.on(AudioEventTypes.PLAYLIST_CHANGE, handlePlaylistChange);
-    AudioService.on(AudioEventTypes.PLAYLIST_TRACK_CHANGE, handleTrackChange);
-    AudioService.on(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChange);
+    // Subscribe to events using the events system
+    on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
+    on(AudioEventTypes.PLAYLIST_CHANGE, handlePlaylistChange);
+    on(AudioEventTypes.PLAYLIST_TRACK_CHANGE, handleTrackChange);
+    on(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChange);
 
-    // Initial sync with AudioService
-    setCurrentPlaylistId(AudioService.getCurrentPlaylistId());
-    setCurrentIndex(AudioService.getCurrentTrackIndex());
-    setPlaylistVolume(AudioService['volumes']?.playlist || 1);
-    setIsPlaying(AudioService.isPlaylistPlaying());
-    setPosition(AudioService.getCurrentPlaylistPosition());
+    // Initial sync with PlaylistModule
+    setCurrentPlaylistId(playlistModule.getCurrentPlaylistId());
+    setCurrentIndex(playlistModule.getCurrentTrackIndex());
+    setPlaylistVolume(getVolume('playlist'));
+    setIsPlaying(playlistModule.isPlaylistPlaying());
+    setPosition(playlistModule.getCurrentPlaylistPosition());
+    setDuration(playlistModule.getDuration());
 
     // Set up position update interval only if currently playing
     const setupPositionInterval = () => {
@@ -88,9 +94,9 @@ export function usePlaylistModule() {
       }
       
       // Only create interval if we're playing
-      if (AudioService.isPlaylistPlaying()) {
+      if (playlistModule.isPlaylistPlaying()) {
         positionIntervalRef.current = setInterval(() => {
-          setPosition(AudioService.getCurrentPlaylistPosition());
+          setPosition(playlistModule.getCurrentPlaylistPosition());
         }, 1000); // Update every second 
       }
     };
@@ -107,15 +113,15 @@ export function usePlaylistModule() {
       }
     };
     
-    AudioService.on(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChangeForInterval);
+    on(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChangeForInterval);
     
     // Cleanup event listeners and interval on unmount
     return () => {
-      AudioService.off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-      AudioService.off(AudioEventTypes.PLAYLIST_CHANGE, handlePlaylistChange);
-      AudioService.off(AudioEventTypes.PLAYLIST_TRACK_CHANGE, handleTrackChange);
-      AudioService.off(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChange);
-      AudioService.off(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChangeForInterval);
+      off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
+      off(AudioEventTypes.PLAYLIST_CHANGE, handlePlaylistChange);
+      off(AudioEventTypes.PLAYLIST_TRACK_CHANGE, handleTrackChange);
+      off(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChange);
+      off(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChangeForInterval);
       
       if (positionIntervalRef.current) {
         clearInterval(positionIntervalRef.current);

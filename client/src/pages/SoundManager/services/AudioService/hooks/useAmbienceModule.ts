@@ -1,5 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
-import AudioService, { AudioEventTypes } from "../AudioService.js";
+import { AudioEventTypes, on, off } from "../events.js";
+import { AmbienceModule } from "../modules/ambienceModule.js";
+import { getVolume } from "../volumeStore.js";
 import type { AudioCollection, AudioFile } from "../../../types/AudioItem.js";
 import {
   useActivateAmbienceFile,
@@ -8,21 +10,23 @@ import {
 import { useUpdateFileVolume } from "../../../api/collections/useFileMutations.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
 
+const ambienceModule = new AmbienceModule();
+
 export function useAmbienceModule() {
   // Ambience state
   const [playingCollectionId, setPlayingCollectionId] = useState<
     number | undefined
   >(undefined);
-  const [playingFileIds, setPlayingFileIds] = useState<number[]>([]);
-  const [volume, setVolume] = useState<number>(
-    AudioService["volumes"].ambience
+  const [playingFileIds, setPlayingFileIds] = useState<number[]>(
+    ambienceModule.playingFileIds
   );
+  const [volume, setVolume] = useState<number>(getVolume("ambience"));
 
   // Get mutation functions
   const activateMutation = useActivateAmbienceFile();
   const deactivateMutation = useDeactivateAmbienceFile();
   const updateVolumeMutation = useUpdateFileVolume("ambience");
-  
+
   // Debounce volume updates to avoid excessive API calls
   const debouncedUpdateVolume = useDebounce(
     (collectionId: number, fileId: number, volume: number) => {
@@ -33,7 +37,7 @@ export function useAmbienceModule() {
 
   // Toggle collection activation (play/stop)
   const toggleCollection = useCallback((collection: AudioCollection) => {
-    const isPlaying = AudioService.toggleAmbienceCollection(collection.id);
+    const isPlaying = ambienceModule.toggleCollection(collection.id);
     return isPlaying;
   }, []);
 
@@ -41,14 +45,14 @@ export function useAmbienceModule() {
   const toggleFileActivation = useCallback(
     (collection: AudioCollection, file: AudioFile) => {
       if (!file.active) {
-        AudioService.activateAmbienceFile(collection.id, file.id);
-        
+        ambienceModule.activateAmbienceFile(collection.id, file.id);
+
         activateMutation.mutate({
           collectionId: collection.id,
           fileId: file.id,
         });
       } else {
-        AudioService.deactivateAmbienceFile(collection.id, file.id);
+        ambienceModule.deactivateAmbienceFile(collection.id, file.id);
 
         deactivateMutation.mutate({
           collectionId: collection.id,
@@ -63,15 +67,15 @@ export function useAmbienceModule() {
   // Set volume for a specific sound
   const setFileVolume = useCallback(
     (collectionId: number, fileId: number, volume: number) => {
-      AudioService.setAmbienceFileVolume(fileId, volume);
+      ambienceModule.setFileVolume(fileId, volume);
       debouncedUpdateVolume(collectionId, fileId, volume);
     },
     [updateVolumeMutation]
-  ); 
+  );
 
   // Set master volume for all ambience
   const setMasterVolume = useCallback((volume: number) => {
-    AudioService.setVolume("ambience", volume);
+    ambienceModule.setMasterVolume(volume);
   }, []);
 
   // Set up event listeners for state changes
@@ -90,30 +94,20 @@ export function useAmbienceModule() {
 
     const handleFileChange = (fileIds: number[]) => {
       setPlayingFileIds(fileIds);
-      console.log("Playing file IDs:", fileIds);
-    }
+    };
     // Subscribe to events
-    AudioService.on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-    AudioService.on(
-      AudioEventTypes.AMBIENCE_COLLECTION_CHANGE,
-      handleCollectionChange
-    );
-    AudioService.on(
-      AudioEventTypes.AMBIENCE_FILE_CHANGE,
-      handleFileChange
-    );
+    on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
+    on(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, handleCollectionChange);
+    on(AudioEventTypes.AMBIENCE_FILE_CHANGE, handleFileChange);
 
     // Initial sync
-    setPlayingCollectionId(AudioService.getCurrentAmbienceCollectionId());
-    setVolume(AudioService["volumes"].ambience);
+    setPlayingCollectionId(ambienceModule.currentCollectionId);
+    setVolume(getVolume("ambience"));
 
     // Cleanup event listeners on unmount
     return () => {
-      AudioService.off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-      AudioService.off(
-        AudioEventTypes.AMBIENCE_COLLECTION_CHANGE,
-        handleCollectionChange
-      );
+      off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
+      off(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, handleCollectionChange);
     };
   }, []);
 

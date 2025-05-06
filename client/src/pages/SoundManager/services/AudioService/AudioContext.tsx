@@ -5,10 +5,10 @@ import React, {
   useEffect,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import AudioService from "./AudioService.js";
-import { usePlaylistModule } from "./modules/usePlaylistModule.js";
-import { useAmbienceModule } from "./modules/useAmbienceModule.js";
-import { useSfxModule } from "./modules/useSfxModule.js";
+import { usePlaylistModule } from "./hooks/usePlaylistModule.js";
+import { useAmbienceModule } from "./hooks/useAmbienceModule.js";
+import { useSfxModule } from "./hooks/useSfxModule.js";
+import { initQueryClient } from "./queryClient.js";
 import {
   AudioCollection,
   AudioFile,
@@ -28,7 +28,7 @@ interface AudioContextType {
   toggleAudioItem: (
     item: AudioItem,
     parentCollection?: AudioCollection
-  ) => boolean;
+  ) => Promise<boolean>;
   // Item status checks
   isAudioItemPlaying: (
     item: AudioItem,
@@ -48,7 +48,7 @@ interface AudioContextType {
     playlistVolume: number;
     position: number;
     duration: number;
-    togglePlaylist: (id: number, startIndex?: number) => boolean;
+    togglePlaylist: (id: number, startIndex?: number) => Promise<boolean>;
     nextTrack: () => void;
     previousTrack: () => void;
     setVolume: (volume: number) => void;
@@ -101,17 +101,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    AudioService.setQueryClient(queryClient);
+    initQueryClient(queryClient);
   }, [queryClient]);
 
   // Universal toggle function that works with any audio item type
   const toggleAudioItem = useCallback(
-    (item: AudioItem, parentCollection?: AudioCollection): boolean => { 
+    async (item: AudioItem, parentCollection?: AudioCollection): Promise<boolean> => { 
       if (isAudioCollection(item)) {
         if (isAudioMacro(item)) {
           return sfx.toggleMacro(item);
         } else if (isPlaylistCollection(item)) {
-          return playlist.togglePlaylist(item.id, 0);
+          return await playlist.togglePlaylist(item.id, 0);
         } else if (isAmbienceCollection(item)) {
           return ambience.toggleCollection(item);
         } else if (isSfxCollection(item)) {
@@ -124,7 +124,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         if (parentCollection) {
           switch (parentCollection.type) {
             case "playlist":
-              return playlist.togglePlaylist(
+              return await playlist.togglePlaylist(
                 parentCollection.id,
                 item.position
               );

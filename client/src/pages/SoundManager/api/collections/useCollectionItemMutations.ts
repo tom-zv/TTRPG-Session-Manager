@@ -2,6 +2,7 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { CollectionType } from "./collectionApi.js";
 import { AudioCollection, AudioItem, isAudioFile } from "../../types/AudioItem.js";
 import { getApiForType, collectionKeys, ParentCollectionInfo } from "./useCollectionQueries.js";
+import { updateAudioFile } from "../fileApi.js"; 
 
 /* useCollectionItemMutations.ts
  * Mutation hooks for managing items within collections using React Query
@@ -128,42 +129,50 @@ export const useUpdateFile = (type: CollectionType) => {
       parentInfo?: ParentCollectionInfo;
     }) => {
       const { collectionId, id: fileId, parentInfo, ...restProps } = vars;
+      const results: boolean[] = [];
+        
+      const collectionParams: Partial<{ active: boolean; volume: number; delay: number; }> = {};
+      const fileParams: Partial<{ name: string; filePath: string; fileUrl: string; }> = {};
       
-      const params: Partial<{ name: string; filePath: string; fileUrl: string; active: boolean; volume: number; delay: number; }> = {};
+      if (restProps.active !== undefined) collectionParams.active = restProps.active;
+      if (restProps.volume !== undefined) collectionParams.volume = restProps.volume;
+      if (restProps.delay !== undefined) collectionParams.delay = restProps.delay;
       
-      if (restProps.name !== undefined) params.name = restProps.name;
-      if (restProps.filePath !== undefined) params.filePath = restProps.filePath;
-      if (restProps.fileUrl !== undefined) params.fileUrl = restProps.fileUrl;
-      if (restProps.active !== undefined) params.active = restProps.active;
-      if (restProps.volume !== undefined) params.volume = restProps.volume;
-      if (restProps.delay !== undefined) params.delay = restProps.delay;
+      if (restProps.name !== undefined) fileParams.name = restProps.name;
+      if (restProps.filePath !== undefined) fileParams.filePath = restProps.filePath;
+      if (restProps.fileUrl !== undefined) fileParams.fileUrl = restProps.fileUrl;
       
-      return await api.updateFile(collectionId, fileId, params);
+      if (Object.keys(collectionParams).length > 0) {
+        const collectionResult = await api.updateFile(collectionId, fileId, collectionParams);
+        results.push(collectionResult);
+      }
+      
+      if (Object.keys(fileParams).length > 0) {
+        const fileResult = await updateAudioFile(fileId, fileParams);
+        results.push(!!fileResult);
+      }
+      
+      return results.every(result => result === true);
     },
+    
     onMutate: async ({ collectionId, id: fileId, name, filePath, fileUrl, active, volume, delay }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: collectionKeys.collection(type, collectionId),
       });
       
-      // Save previous value
       const previousCollection = queryClient.getQueryData(
         collectionKeys.collection(type, collectionId)
       );
       
-      // Optimistic update
       queryClient.setQueryData(
         collectionKeys.collection(type, collectionId),
         (old: AudioCollection | undefined): AudioCollection | undefined => {
           if (!old || !old.items) return old;
-          // Find the item to update
           const itemToUpdate = old.items.find((item) => item.id === fileId);
           if (!itemToUpdate || !isAudioFile(itemToUpdate)) return old;
           
-          // Now TypeScript knows it's an AudioFile
           const updatedItem = { ...itemToUpdate };
           
-          // Update the item with new values
           if (name !== undefined) updatedItem.name = name;
           if (filePath !== undefined) updatedItem.filePath = filePath;
           if (fileUrl !== undefined) updatedItem.fileUrl = fileUrl;
@@ -171,12 +180,10 @@ export const useUpdateFile = (type: CollectionType) => {
           if (volume !== undefined) updatedItem.volume = volume;
           if (delay !== undefined) updatedItem.delay = delay;
           
-          // Create a new array with the updated item
           const updatedItems = old.items.map((item) =>
             item.id === fileId ? updatedItem : item
           );
           
-          // Return the updated collection
           return {
             ...old,
             items: updatedItems,
@@ -185,20 +192,16 @@ export const useUpdateFile = (type: CollectionType) => {
       );
       return { previousCollection };
     },
-    // Rest of implementation remains the same
     onError: (_err, vars, context) => {
-      // Restore previous state
       queryClient.setQueryData(
         collectionKeys.collection(type, vars.collectionId),
         context?.previousCollection
       );
     },
     onSettled: (_data, _err, vars) => {
-      // Invalidate the collection query
       queryClient.invalidateQueries({
         queryKey: collectionKeys.collection(type, vars.collectionId),
       });
-      // Invalidate parent collection if specified
       if (vars.parentInfo) {
         const parentQueryKey = collectionKeys.collection(
           vars.parentInfo.type,
@@ -226,47 +229,37 @@ export const useRemoveFromCollection = (type: CollectionType) => {
       return await api.removeFilesFromCollection(collectionId, items);
     },
     onMutate: async ({ collectionId, items }) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({
         queryKey: collectionKeys.collection(type, collectionId),
       });
 
-      // Save previous value
       const previousCollection = queryClient.getQueryData(
         collectionKeys.collection(type, collectionId)
       );
 
-      // Create a Set of IDs for efficient lookup
       const itemIdsToRemove = new Set(items.map((item) => item.id));
 
-      // Optimistic update with position adjustment
       queryClient.setQueryData(
         collectionKeys.collection(type, collectionId),
         (old: AudioCollection | undefined): AudioCollection | undefined => {
           if (!old || !old.items) return old;
 
-          // Find items being removed using the Set of IDs
           const itemsToRemove = old.items.filter((item) =>
             itemIdsToRemove.has(item.id)
           );
 
-          // Get positions of removed items for shifting remaining items
           const removedPositions = itemsToRemove
-            .map((item) => item.position ?? 0) // Use nullish coalescing for safety
-            .sort((a, b) => a - b); // Sort positions numerically
+            .map((item) => item.position ?? 0)
+            .sort((a, b) => a - b);
 
-          // Filter out removed items using the Set of IDs
           const remainingItems = old.items.filter(
             (item) => !itemIdsToRemove.has(item.id)
           );
 
-          // Adjust positions of remaining items
-          // Create a mutable copy for position updates
           const updatedRemainingItems = remainingItems.map((item) => ({
             ...item,
           }));
 
-          // Store how many items have been removed *before* a given position
           const removedCountBefore: { [key: number]: number } = {};
           let count = 0;
           for (
@@ -280,7 +273,6 @@ export const useRemoveFromCollection = (type: CollectionType) => {
             removedCountBefore[i] = count;
           }
 
-          // Adjust positions based on how many items were removed before them
           updatedRemainingItems.forEach((item) => {
             const originalPos = item.position ?? 0;
             const removedBefore = removedCountBefore[originalPos] ?? 0;
@@ -289,14 +281,13 @@ export const useRemoveFromCollection = (type: CollectionType) => {
             }
           });
 
-          // Sort by the newly adjusted position
           updatedRemainingItems.sort(
             (a, b) => (a.position ?? 0) - (b.position ?? 0)
           );
 
           return {
             ...old,
-            items: updatedRemainingItems, // Use the updated items
+            items: updatedRemainingItems,
           };
         }
       );
@@ -304,7 +295,6 @@ export const useRemoveFromCollection = (type: CollectionType) => {
       return { previousCollection };
     },
     onError: (_err, vars, context) => {
-      // Restore previous state
       queryClient.setQueryData(
         collectionKeys.collection(type, vars.collectionId),
         context?.previousCollection
@@ -315,7 +305,6 @@ export const useRemoveFromCollection = (type: CollectionType) => {
         queryKey: collectionKeys.collection(type, vars.collectionId),
       });
 
-      // Invalidate parent collection if specified
       if (vars.parentInfo) {
         const parentQueryKey = collectionKeys.collection(
           vars.parentInfo.type,
