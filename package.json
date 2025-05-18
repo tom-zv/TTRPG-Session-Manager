@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Manage session audio, track combat &  access campaign notes in one App.",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "start": "concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:server": "cd server && npm start",
@@ -16,7 +17,12 @@
     "build:server": "cd server && npm run build",
     "install:all": "npm install && npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
-    "install:client": "cd client && npm install"
+    "install:client": "cd client && npm install",
+    "lint": "eslint .",
+    "lint:client": "cd client && npm run lint",
+    "lint:server": "cd server && npm run lint",
+    "lint:all": "npm run lint && npm run lint:client && npm run lint:server",
+    "lint:fix": "eslint . --fix"
   },
   "repository": {
     "type": "git",
@@ -24,8 +30,17 @@
   },
   "author": "Tom zayev",
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.27.0",
     "concurrently": "^9.1.2",
-    "typescript": "^5.3.0"
+    "eslint": "^9.27.0",
+    "eslint-import-resolver-typescript": "^4.3.5",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.32.1"
   },
   "bugs": {
     "url": "https://github.com/tom-zv/TTRPG-Session-Manager/issues"
