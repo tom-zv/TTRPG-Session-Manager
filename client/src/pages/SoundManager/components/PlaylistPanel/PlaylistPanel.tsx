@@ -14,10 +14,9 @@ interface PlaylistPanelProps {
 }
 
 const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
-  ({ onPlaylistCountChange }) => {
+  function PlaylistPanel({ onPlaylistCountChange }) {
     // Get audio context functionality
     const {
-      toggleAudioItem,
       isAudioItemPlaying,
       playlist: { togglePlaylist, currentIndex },
     } = Audio.useAudio();
@@ -27,7 +26,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     const { data: playlistCollection } = useGetCollectionsOfType("playlist");
-    const playlists = playlistCollection?.items || [];
+    const playlists = useMemo(() => playlistCollection?.items || [], [playlistCollection]);
 
     const { createCollection } = useCollectionMutations(
       -1, // Virtual collection ID
@@ -57,7 +56,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
       if (selectedPlaylist) {
         togglePlaylist(selectedPlaylistId!, currentIndex);
       }
-    }, [selectedPlaylist, toggleAudioItem, selectedPlaylistId, currentIndex]);
+    }, [selectedPlaylist, togglePlaylist, selectedPlaylistId, currentIndex]);
 
     const handleOpenCreateDialog = useCallback(() => {
       setCreateDialogOpen(true);
@@ -121,7 +120,6 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
                 onClose={() => setCreateDialogOpen(false)}
                 collectionType="playlist"
                 createCollection={createCollection!}
-                isLoading={false}
               />
             )}
           </>
@@ -149,5 +147,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
     );
   }
 );
+
+PlaylistPanel.displayName = "PlaylistPanel";
 
 export default PlaylistPanel;

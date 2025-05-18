@@ -18,10 +18,14 @@ interface SelectionOptions<T> {
 export function useSelection<T>(options: SelectionOptions<T>) {
   // Track selected items
   const [selectedItems, setSelectedItems] = useState<T[]>([]);
-  
   // Track last selected item ID for range select functionality
   const [lastSelectedId, setLastSelectedId] = useState<number | string | null>(null);
   
+  // Check if an item is selected
+  const isSelected = useCallback((item: T) => {
+    return selectedItems.some(i => options.getItemId(i) === options.getItemId(item));
+  }, [selectedItems, options]);
+
   // Handle item selection
   const handleSelect = useCallback((
     item: T, 
@@ -112,7 +116,7 @@ export function useSelection<T>(options: SelectionOptions<T>) {
         onSelectionChange(newSelection);
       }
     }
-  }, [selectedItems, lastSelectedId, options]);
+  }, [selectedItems, isSelected, lastSelectedId, options]);
   
   // Clear selection
   const clearSelection = useCallback(() => {
@@ -124,10 +128,7 @@ export function useSelection<T>(options: SelectionOptions<T>) {
     }
   }, [options]);
   
-  // Check if an item is selected
-  const isSelected = useCallback((item: T) => {
-    return selectedItems.some(i => options.getItemId(i) === options.getItemId(item));
-  }, [selectedItems, options.getItemId]);
+  
 
   return {
     selectedItems,

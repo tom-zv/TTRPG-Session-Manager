@@ -24,6 +24,14 @@ const FileDisplay: React.FC<FileDisplayProps> = ({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
+        }
+      }}
+      role="button"
+      tabIndex={0}
       data-type={file.audioType || 'default'}
     >
       <div className="file-header">

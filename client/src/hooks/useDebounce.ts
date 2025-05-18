@@ -1,13 +1,13 @@
 // filepath: client/src/hooks/useDebounce.ts
 import { useRef, useCallback } from 'react';
 
-export function useDebounce<T extends (...args: any[]) => void>(
-  callback: T,
+export function useDebounce<Args extends unknown[]>(
+  callback: (...args: Args) => void,
   delay: number
-): T {
+): (...args: Args) => void {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  return useCallback((...args: any[]) => {
+  return useCallback((...args: Args) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
     }
@@ -15,5 +15,5 @@ export function useDebounce<T extends (...args: any[]) => void>(
       callback(...args);
       timerRef.current = null;
     }, delay);
-  }, [callback, delay]) as T;
+  }, [callback, delay]);
 }

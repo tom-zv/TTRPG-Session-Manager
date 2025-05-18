@@ -26,9 +26,10 @@ export async function createAudioFile(
   type: string,
   file_path: string | null,
   file_url: string | null,
-  folder_id: number | null
+  folder_id: number | null,
+  duration?: number | null,
 ): Promise<QueryResult> {
-  return await fileModel.insertAudioFile(name, type, file_path, file_url, folder_id);
+  return await fileModel.insertAudioFile(name, type, file_path, file_url, folder_id, duration);
 }
 
 export async function updateAudioFile(
@@ -40,7 +41,7 @@ export async function updateAudioFile(
   }
 ): Promise<ServiceResponse<void>> {
   try {
-    const audioFileParams: any = {};
+    const audioFileParams: typeof params = {};
     
     // If name is being updated and we have a file on disk, we need to rename the actual file
     if (params.name) {

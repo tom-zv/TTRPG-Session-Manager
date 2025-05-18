@@ -34,14 +34,26 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
   const [isCreateFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [isCreateFileDialogOpen, setCreateFileDialogOpen] = useState(false);
 
+  const handleKeyDown = (e: React.KeyboardEvent): void => {
+    // Trigger click handler on Enter or Space
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick?.(e as unknown as React.MouseEvent);
+    }
+  };
+
   return (
     <div
       className={`folder-header ${isSelected ? "selected" : ""}`}
       draggable
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       data-type={folder.type}
+      role="button"
+      tabIndex={0}
+      aria-expanded={isOpen}
     >
       <span
         className={`folder-icon ${hasContents ? (isOpen ? "open" : "closed") : ""}`}

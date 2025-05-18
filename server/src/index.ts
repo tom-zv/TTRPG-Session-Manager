@@ -4,14 +4,10 @@ import ytDlp from 'yt-dlp-exec';
 import { serverConfig } from './config/server-config.js';
 import audioRoutes from './api/audio/audioRoutes.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { serverRoot } from './utils/path-utils.js';
 
 // Initialize Express app
 const app = express();
-
-// Define __dirname since it's not available in ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 // Middleware Configuration
 // -----------------------
@@ -27,7 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 // Static File Serving
 // -----------------
 // Serve static audiofiles from the public directory
-app.use('/audio', express.static(path.join(__dirname, '../public/audio')));
+app.use('/audio', express.static(path.join(serverRoot, 'public/audio')));
 
 // API Routes
 // ---------
@@ -72,11 +68,11 @@ app.get('/api/audio/youtube-audio', async (req, res) => {
 // ----------------------
 // Serve static files from the React app in production
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../../client/dist')));
+  app.use(express.static(path.join(serverRoot, '../client/dist')));
   
   // Handle any requests that don't match the API routes
   app.get('*', (_req, res) => {
-    res.sendFile(path.join(__dirname, '../../client/dist/index.html'));
+    res.sendFile(path.join(serverRoot, '../client/dist/index.html'));
   });
 }
 

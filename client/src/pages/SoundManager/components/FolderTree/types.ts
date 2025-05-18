@@ -7,7 +7,6 @@ export type AudioFile = {
     name: string;
     audioType: AudioType;
     duration?: number;
-    playOrder: number;
     fileUrl?: string;
     filePath?: string;
     folderId?: number;

@@ -7,24 +7,24 @@ import {
 } from 'src/utils/dragDropUtils.js';
 
 /**
- * This context provider enables making any element a drop target by passing
+ * This context provider enables making unknown element a drop target by passing
  * the necessary drop-area props via context. It decouples the component that contains
  * the drop-handling logic from the component that renders the drop area, eliminating
  * the need to drill props through intermediate components.
  */
 
-type DropHandler<T = any, D = any> = (items: T[], context: DropContext<D>) => Promise<void>;
+type DropHandler<T = unknown, D = unknown> = (items: T[], context: DropContext<D>) => Promise<void>;
 
 // Context type definitions
 interface DropTargetContextType {
-  registerDropHandler: <T, D = any>(
+  registerDropHandler: <T, D = unknown>(
     zoneId: string,
     acceptedTypes: string[],
     handler: DropHandler<T, D>,
     options?: {
       initialDestination?: D;
       initialIndex?: number;
-      transformItems?: (sourceItems: any[]) => T[];
+      transformItems?: (sourceItems: unknown[]) => T[];
       calculateDropIndex?: (e: React.DragEvent) => number | undefined;
       onError?: (error: Error) => void;
     }
@@ -43,10 +43,10 @@ interface DropTargetContextType {
 }
 
 // Info stored for each drop zone
-interface DropHandlerInfo<D = any> {
+interface DropHandlerInfo<T = unknown, D = unknown> {
   zoneId: string;
   acceptedTypes: string[];
-  handler: DropHandler<any, D>;
+  handler: DropHandler<T, D>;
   dropHandlers: DropHandlers;
   isActive: boolean;      
   isDraggingOver: boolean;
@@ -54,7 +54,7 @@ interface DropHandlerInfo<D = any> {
   destination?: D;
   index?: number;
   initialIndex?: number;
-  transformItems?: (sourceItems: any[]) => any[];
+  transformItems?: (sourceItems: unknown[]) => T[];
   calculateDropIndex?: (e: React.DragEvent) => number | undefined;
   onError?: (error: Error) => void;
 }
@@ -63,18 +63,19 @@ const DropTargetContext = createContext<DropTargetContextType | null>(null);
 
 export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Store all drop handlers by zone ID
-  const handlersRef = useRef<Record<string, DropHandlerInfo>>({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handlersRef = useRef<Record<string, DropHandlerInfo<any, any>>>({});
   const [, forceUpdate] = useState({});
 
   // Register a new drop zone and create its complete set of handlers
-  const registerDropHandler = useCallback(<T, D = any>(
+  const registerDropHandler = useCallback(<T, D = unknown>(
     zoneId: string,
     acceptedTypes: string[],
     handler: DropHandler<T, D>,
     options?: {
       initialDestination?: D;
       initialIndex?: number;
-      transformItems?: (sourceItems: any[]) => T[];
+      transformItems?: (sourceItems: unknown[]) => T[];
       calculateDropIndex?: (e: React.DragEvent) => number | undefined;
       onError?: (error: Error) => void;
     }
@@ -93,10 +94,10 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     };
     
-    const getCurrentContext = () => {
+    const getCurrentContext = (): { destination?: D; index?: number } => {
       const zone = handlersRef.current[zoneId];
       return {
-        destination: zone?.destination,
+        destination: zone?.destination as D | undefined,
         index: zone?.index
       };
     };
@@ -202,7 +203,17 @@ export const DropTargetProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const handleDrop = useCallback(async (zoneId: string, e: React.DragEvent) => {
     const zone = handlersRef.current[zoneId];
     if (zone) {  
+      // Force reset the drag state completely
+      zone.isDraggingOver = false;
+      zone.dragCount = 0;
+      
+      // Important: Force the update first to ensure visual feedback clears immediately
+      forceUpdate({});
+      
+      // Now process the drop
       await zone.dropHandlers.onDrop(e);
+      
+      // Ensure state is still reset after async operation
       zone.isDraggingOver = false;
       zone.dragCount = 0;
       forceUpdate({});

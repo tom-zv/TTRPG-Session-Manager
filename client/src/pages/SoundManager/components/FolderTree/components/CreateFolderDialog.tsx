@@ -59,7 +59,12 @@ const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Create Folder">
-      <div className="create-folder-dialog" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="create-folder-dialog"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+        role="presentation"
+      >
         <input
           type="text"
           value={folderName}
