@@ -12,22 +12,24 @@ export async function getAudioFile(id: number): Promise<AudioFileDB> {
     'SELECT * FROM audio_files WHERE audio_file_id = ?', 
     [id]
   );
-  return rows as AudioFileDB & RowDataPacket[];
+  // Return first row or null if no results
+  return (rows as RowDataPacket[])[0] as AudioFileDB;
 }
 
 export async function insertAudioFile(
-  name: string,
+  name: string | null,
   type: string,
   file_path: string | null,
   file_url: string | null,
-  folder_id: number | null
+  folder_id: number | null,
+  duration?: number | null
 ): Promise<ResultSetHeader> {
   const query = `INSERT INTO audio_files 
-  (name, audio_type, file_path, file_url, folder_id) VALUES (?,?,?,?,?)`;
+  (name, audio_type, file_path, file_url, folder_id, duration) VALUES (?,?,?,?,?,?)`;
 
   const [result] = await pool.execute(
     query, 
-    [name, type, file_path, file_url, folder_id]
+    [name, type, file_path, file_url, folder_id, duration]
   );
   
   return result as ResultSetHeader;
@@ -39,11 +41,12 @@ export async function updateAudioFile(
     name?: string;
     file_path?: string;
     file_url?: string;
+    duration?: number;
   }
 ): Promise<number> {
   // Build dynamic query based on provided params
   const updateFields: string[] = [];
-  const fields: any[] = [];
+  const fields: (string | number)[] = [];
   
   console.log('updateAudioFile MODEL params:', params);
 
@@ -60,6 +63,11 @@ export async function updateAudioFile(
   if (params.file_url !== undefined) {
     updateFields.push('file_url = ?');
     fields.push(params.file_url);
+  }
+
+  if (params.duration !== undefined){
+    updateFields.push("duration = ?");
+    fields.push(params.duration);
   }
   
   // If no fields to update, return early
@@ -79,9 +87,18 @@ export async function updateAudioFile(
   return (result as ResultSetHeader).affectedRows || 0;
 }
 
+export async function deleteAudioFile(id: number): Promise<ResultSetHeader> {
+  const [result] = await pool.execute(
+    'DELETE FROM audio_files WHERE audio_file_id = ?', 
+    [id]
+  );
+  return result as ResultSetHeader;
+}
+
 export default {
   getAllAudioFiles,
   getAudioFile,
   insertAudioFile,
-  updateAudioFile
+  updateAudioFile,
+  deleteAudioFile,
 };

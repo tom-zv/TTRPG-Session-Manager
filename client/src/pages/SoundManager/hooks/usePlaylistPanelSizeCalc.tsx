@@ -24,7 +24,11 @@ export function usePlaylistPanelSizeCalc(
       const playlistHeader = document.querySelector('.sound-manager .playlist-panel .panel-header');
       const playlistItem = document.querySelector('.sound-manager .audio-item-row');
       
-      const newMeasurements = { ...measurements };
+      const newMeasurements: PanelMeasurements = {
+        panelGroupHeight: window.innerHeight - 40,
+        headerHeight: 42,
+        itemHeight: 40,
+      };
       if (panelGroup instanceof HTMLElement) {
         newMeasurements.panelGroupHeight = panelGroup.getBoundingClientRect().height;
       } else {

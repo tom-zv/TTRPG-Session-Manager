@@ -70,7 +70,7 @@ export function useAmbienceModule() {
       ambienceModule.setFileVolume(fileId, volume);
       debouncedUpdateVolume(collectionId, fileId, volume);
     },
-    [updateVolumeMutation]
+    [debouncedUpdateVolume]
   );
 
   // Set master volume for all ambience

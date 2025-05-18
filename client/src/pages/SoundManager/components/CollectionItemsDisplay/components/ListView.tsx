@@ -29,9 +29,9 @@ export const ListView: React.FC<ListViewProps> = ({
   showHeaders = true,
   onItemSelect,
   onEditItem,
-  useAddItems,
-  useRemoveItems,
-  useUpdateItemPosition,
+  addItems,
+  removeItems,
+  updateItemPosition,
   // Drag and drop control props
   isDragSource = false,
   isReorderable = true,
@@ -55,8 +55,8 @@ export const ListView: React.FC<ListViewProps> = ({
     dropZoneId,
     acceptedDropTypes,
     containerRef: tableRef,
-    useAddItems,
-    useUpdateItemPosition,
+    addItems,
+    updateItemPosition,
     calculateDropTarget: calculateTableDropIndex,
   });
 
@@ -91,7 +91,10 @@ export const ListView: React.FC<ListViewProps> = ({
       case "icon":
         return (
           <td key={column} className="icon-cell">
-            {getItemIcon(item)}
+            {(() => {
+              const IconComponent = getItemIcon(item);
+              return <IconComponent />;
+            })()}
           </td>
         );
       case "position":
@@ -144,7 +147,7 @@ export const ListView: React.FC<ListViewProps> = ({
               selectedItems={items.filter((i) =>
                 selectedItemIds.includes(i.id)
               )}
-              useRemoveItems={useRemoveItems}
+              removeItems={removeItems}
               onEditClick={onEditItem}
               isSmall
             />

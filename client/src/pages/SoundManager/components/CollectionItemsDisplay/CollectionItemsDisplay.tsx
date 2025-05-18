@@ -6,8 +6,7 @@ import ViewToggle from "./components/ViewToggle.js";
 import StatusMessages from "./components/StatusMessages.js";
 import { useAudioItems } from "./hooks/useAudioItems.js";
 import {
-  useGetCollectionById,
-  useGetCollectionsOfType,
+  useCollectionQuery
 } from "../../api/collections/useCollectionQueries.js";
 import "./CollectionItemsDisplay.css";
 import { useCollectionMutations } from "./hooks/useCollectionActions.js";
@@ -35,12 +34,7 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
 }) => {
   const [editingItemId, setEditingItemId] = useState<number | null>(null);
 
-  const queryResult =
-    collectionId == -1
-      ? useGetCollectionsOfType(collectionType)
-      : useGetCollectionById(collectionType, collectionId);
-
-  const { data, isLoading, error } = queryResult;
+  const { data, isLoading, error } = useCollectionQuery(collectionType, collectionId);
 
   const collection = useMemo(() => {
     return (
@@ -97,10 +91,10 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
       showActions,
       showHeaders,
       // Event handlers
-      useAddItems: addItemsMutation,
-      useRemoveItems: removeItemsMutation,
+      addItems: addItemsMutation, 
+      removeItems: removeItemsMutation, 
       onItemSelect: isSelectable ? handleItemSelection : undefined,
-      useUpdateItemPosition: updateItemPositionsMutation,
+      updateItemPosition: updateItemPositionsMutation, 
       // Create collection functionality
       createCollection: createCollection,
       // Drag and drop props

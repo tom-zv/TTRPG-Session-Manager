@@ -82,3 +82,15 @@ export const useGetCollectionById = (
     ...options,
   });
 };
+
+
+export function useCollectionQuery(
+  type: CollectionType,
+  id: number,
+  options = {}
+) {
+  const allQuery = useGetCollectionsOfType(type, options);
+  const singleQuery = useGetCollectionById(type, id, options);
+  
+  return id === -1 ? allQuery : singleQuery;
+}

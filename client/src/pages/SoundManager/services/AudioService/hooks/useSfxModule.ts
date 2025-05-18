@@ -1,19 +1,23 @@
-import { useState, useCallback, useEffect } from 'react';
-import { sfxModule } from '../modules/sfxModule.js';
+import { useState, useCallback, useEffect } from "react";
+import { sfxModule } from "../modules/sfxModule.js";
 import { AudioEventTypes, on, off } from "../events.js";
-import { useDebounce } from 'src/hooks/useDebounce.js';
-import { useUpdateFileVolume } from 'src/pages/SoundManager/api/collections/useFileMutations.js';
-import { useUpdateMacroVolume } from 'src/pages/SoundManager/api/collections/useSfxMutations.js'; 
-import type { AudioFile, AudioMacro } from '../../../types/AudioItem.js';
+import { useDebounce } from "src/hooks/useDebounce.js";
+import { useUpdateFileVolume } from "src/pages/SoundManager/api/collections/useFileMutations.js";
+import { useUpdateMacroVolume } from "src/pages/SoundManager/api/collections/useSfxMutations.js";
+import type { AudioFile, AudioMacro } from "../../../types/AudioItem.js";
 
 export function useSfxModule() {
   // SFX state
   const [masterVolume, setVolume] = useState<number>(sfxModule.volume);
-  const [playingSoundIds, setPlayingSoundIds] = useState<number[]>(sfxModule.playingSoundIds);
-  const [playingMacroIds, setPlayingMacroIds] = useState<number[]>(sfxModule.playingMacroIds);
-  
-  const updateVolumeMutation = useUpdateFileVolume('sfx');
-  const updateMacroVolumeMutation = useUpdateMacroVolume(); 
+  const [playingSoundIds, setPlayingSoundIds] = useState<number[]>(
+    sfxModule.playingSoundIds
+  );
+  const [playingMacroIds, setPlayingMacroIds] = useState<number[]>(
+    sfxModule.playingMacroIds
+  );
+
+  const updateVolumeMutation = useUpdateFileVolume("sfx");
+  const updateMacroVolumeMutation = useUpdateMacroVolume();
 
   // Debounce volume updates to avoid excessive API calls
   const debouncedUpdateVolume = useDebounce(
@@ -33,7 +37,7 @@ export function useSfxModule() {
   const toggleFile = useCallback((sound: AudioFile) => {
     return sfxModule.toggleFile(sound);
   }, []);
-  
+
   const toggleMacro = useCallback((macro: AudioMacro) => {
     return sfxModule.toggleMacro(macro);
   }, []);
@@ -41,25 +45,31 @@ export function useSfxModule() {
   const setMasterVolume = useCallback((volume: number) => {
     sfxModule.setMasterVolume(volume);
   }, []);
-  
-  const setSoundVolume = useCallback((parentCollectionId : number, id: number, volume: number) => {
-    sfxModule.setSfxFileVolume(id, volume);
-    debouncedUpdateVolume(parentCollectionId, id, volume);
-  }, []);
-  
-  const setMacroVolume = useCallback((id: number, volume: number) => {
-    sfxModule.setMacroVolume(id, volume);
-    debouncedUpdateMacroVolume(id, volume);
-  }, [updateMacroVolumeMutation]); 
-  
+
+  const setSoundVolume = useCallback(
+    (parentCollectionId: number, id: number, volume: number) => {
+      sfxModule.setSfxFileVolume(id, volume);
+      debouncedUpdateVolume(parentCollectionId, id, volume);
+    },
+    [debouncedUpdateVolume]
+  );
+
+  const setMacroVolume = useCallback(
+    (id: number, volume: number) => {
+      sfxModule.setMacroVolume(id, volume);
+      debouncedUpdateMacroVolume(id, volume);
+    },
+    [debouncedUpdateMacroVolume]
+  );
+
   // Set up event listeners for state changes
   useEffect(() => {
-      // Handle volume changes
-      const handleVolumeChange = (data: { category: string, volume: number }) => {
-        if (data.category === 'sfx') {
-          setVolume(data.volume);
-        }
-      };
+    // Handle volume changes
+    const handleVolumeChange = (data: { category: string; volume: number }) => {
+      if (data.category === "sfx") {
+        setVolume(data.volume);
+      }
+    };
 
     // Handle active sound changes
     const handleSfxFileChange = (fileIds: number[]) => {
@@ -80,7 +90,7 @@ export function useSfxModule() {
     setVolume(sfxModule.volume);
     setPlayingSoundIds(sfxModule.playingSoundIds);
     setPlayingMacroIds(sfxModule.playingMacroIds);
-    
+
     // Cleanup event listeners on unmount
     return () => {
       off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
@@ -88,7 +98,7 @@ export function useSfxModule() {
       off(AudioEventTypes.SFX_MACRO_CHANGE, handleSfxMacroChange);
     };
   }, []);
-  
+
   return {
     // State
     volume: masterVolume,

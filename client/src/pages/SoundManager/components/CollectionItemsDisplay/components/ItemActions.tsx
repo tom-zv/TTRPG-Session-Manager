@@ -41,7 +41,7 @@ interface ItemActionsProps extends AudioItemActions {
 const ItemActions: React.FC<ItemActionsProps> = ({
   item,
   selectedItems = [],
-  useRemoveItems,
+  removeItems,
   isSmall = false,
   onEditClick, 
 }) => {
@@ -56,7 +56,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
   };
 
   const handleRemoveClick = (e: React.MouseEvent) => {
-    if (!useRemoveItems) return;
+    if (!removeItems) return;
     e.stopPropagation();
 
     // If the item is selected, remove all selected items
@@ -66,7 +66,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
         ? selectedItems
         : [item];
 
-    useRemoveItems(itemsToRemove);
+    removeItems(itemsToRemove);
   };
 
   const containerClass = isSmall ? "item-actions" : "audio-item-controls";
@@ -81,7 +81,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
         small={isSmall}
       />
   
-      {useRemoveItems && (
+      {removeItems && (
         <ActionButton
           icon="×"
           label="Remove"

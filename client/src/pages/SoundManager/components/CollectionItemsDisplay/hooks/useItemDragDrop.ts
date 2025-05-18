@@ -3,15 +3,17 @@ import { useRef, useState, useCallback, useEffect, useMemo } from "react";
 import { useDragSource } from "src/hooks/useDragSource.js";
 import { useDropTarget } from "src/hooks/useDropTarget.js";
 import { useDropTargetContext } from "src/hooks/useDropTargetContext.js";
-import { AudioItem, AudioItemActions } from "../types.js";
+import { AudioItem } from "../types.js";
 import { DropContext } from 'src/utils/dragDropUtils.js';
 import { DragDropProps } from "src/types/dragDropProps.js";
 
-interface UseItemDragDropProps extends AudioItemActions, DragDropProps {
+interface UseItemDragDropProps extends DragDropProps {
   items: AudioItem[];
   selectedItemIds: number[];
   contentType: string;
   containerRef?: React.RefObject<HTMLElement>;
+  addItems?: (items: AudioItem[], position?: number, isMacro?: boolean) => void;
+  updateItemPosition?: (itemId: number, targetPosition: number, sourceStartPosition?: number, sourceEndPosition?: number) => void;
 }
 
 export function useItemDragDrop({
@@ -24,8 +26,8 @@ export function useItemDragDrop({
   dropZoneId = null,
   acceptedDropTypes = [],
   containerRef,
-  useAddItems,
-  useUpdateItemPosition,
+  addItems, 
+  updateItemPosition, 
   calculateDropTarget,
 }: UseItemDragDropProps) {
   
@@ -49,7 +51,7 @@ export function useItemDragDrop({
       
     }
     return index;
-  }, [calculateDropTarget, effectiveRef]);
+  }, [targetIndex, calculateDropTarget, effectiveRef]);
 
   const dragSourceResult = useDragSource<AudioItem>({
     contentType: contentType,
@@ -102,21 +104,21 @@ export function useItemDragDrop({
 
   const handleDrop = useCallback(
     async (items: AudioItem[], context: DropContext<unknown>) => {
-      if (useAddItems) {
-        useAddItems(items, context.index, context.isMacro);
+      if (addItems) { // Changed from useAddItems
+        addItems(items, context.index, context.isMacro);
       }
     },
-    [useAddItems]
+    [addItems]
   );
 
   const dropTargetResult = useDropTarget<AudioItem>({
-    acceptedTypes: ["file","macro"],
+    acceptedTypes: ["file","macro"],  // todo accept folder
     onItemsDropped: async (items, context) => {
       if (!isDropTarget) return;
       
       const { index, mode } = context;
 
-      if (mode === "reorder" && useUpdateItemPosition && items.length > 0) {
+      if (mode === "reorder" && updateItemPosition && items.length > 0) { // Changed from useUpdateItemPosition
         const sourceStartPosition = items[0].position;
         const sourceEndPosition = items[items.length - 1].position;
 
@@ -126,22 +128,21 @@ export function useItemDragDrop({
         }
 
         if (items.length > 1) {
-          useUpdateItemPosition(
+          updateItemPosition( // Changed from useUpdateItemPosition
             items[0].id,
             index!,
             sourceStartPosition,
             sourceEndPosition
           );
         } else {
-          useUpdateItemPosition(
+          updateItemPosition( // Changed from useUpdateItemPosition
             items[0].id,
             index!
           );
         }
-      } else if (mode === "file-transfer" && useAddItems) {
+      } else if (mode === "file-transfer" && addItems) { // Changed from useAddItems
         if (items.length > 0) {
-          // Pass full items instead of just mapping to IDs
-          useAddItems(items, index);
+          addItems(items, index); // Changed from useAddItems
         }
         setTargetIndex(undefined);
       }
@@ -149,7 +150,7 @@ export function useItemDragDrop({
     calculateDropIndex,
   });
 
-  let dropAreaProps = isDropTarget ? dropTargetResult.dropAreaProps : {};
+  const dropAreaProps = isDropTarget ? dropTargetResult.dropAreaProps : {};
 
   const registrationOptions = useMemo(() => ({
     calculateDropIndex: calculateDropIndex,

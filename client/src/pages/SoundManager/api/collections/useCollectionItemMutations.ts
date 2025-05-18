@@ -128,7 +128,7 @@ export const useUpdateFile = (type: CollectionType) => {
       delay?: number;
       parentInfo?: ParentCollectionInfo;
     }) => {
-      const { collectionId, id: fileId, parentInfo, ...restProps } = vars;
+      const { collectionId, id: fileId, ...restProps } = vars;
       const results: boolean[] = [];
         
       const collectionParams: Partial<{ active: boolean; volume: number; delay: number; }> = {};

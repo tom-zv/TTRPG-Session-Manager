@@ -68,7 +68,11 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
   const resetForm = () => {
     setFileName("");
     setFileUrl("");
-    type ? setFileType(type) : setFileType('any');
+    if (type) {
+      setFileType(type);
+    } else {
+      setFileType('any');
+    }
     setFile(null);
     setUrlInputActive(false);
     if (fileInputRef.current) {
@@ -140,7 +144,7 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!fileName || (urlInputActive ? !fileUrl : !file)}
+            disabled={(urlInputActive ? !fileUrl : !file)}
             className="create-btn"
             type="button"
           >
