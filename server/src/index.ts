@@ -1,13 +1,19 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import ytDlp from 'yt-dlp-exec';
 import { serverConfig } from './config/server-config.js';
 import audioRoutes from './api/audio/audioRoutes.js';
 import path from 'path';
 import { serverRoot } from './utils/path-utils.js';
+import { initSocketServer } from './socket/index.js';
 
 // Initialize Express app
 const app = express();
+const httpServer = http.createServer(app);
+
+// Initialize Socket.IO with the HTTP server
+initSocketServer(httpServer);
 
 // Middleware Configuration
 // -----------------------
@@ -76,8 +82,8 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-// Start the server
-app.listen(serverConfig.port, () => {
+// Start the server using the HTTP server
+httpServer.listen(serverConfig.port, () => {
   console.log(`Server running on port ${serverConfig.port}`);
 });
 
