@@ -1,5 +1,5 @@
 import React from "react";
-import { Folder, AudioFile } from "src/pages/SoundManager/components/FolderTree/types.js";
+import { Folder, AudioFileUI } from "src/pages/SoundManager/components/FolderTree/types.js";
 
 export const handleFolderClick = (
   e: React.MouseEvent,
@@ -28,9 +28,9 @@ export const handleFolderClick = (
 
 export const handleFileClick = (
   e: React.MouseEvent,
-  file: AudioFile,
+  file: AudioFileUI,
   onFileSelect?: (
-    file: AudioFile,
+    file: AudioFileUI,
     isMultiSelect: boolean,
     isShiftSelect: boolean
   ) => void

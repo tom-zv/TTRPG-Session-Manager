@@ -6,8 +6,8 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { AudioFile, AudioMacro, isAudioFile } from "../../../types/AudioItem.js";
-import { CollectionType } from "../index.js";
+import { AudioFile, AudioMacro, isAudioFile } from "src/pages/SoundManager/types/AudioItem.js";
+import { CollectionType } from "shared/audio/types.js";
 import ItemActions from "./ItemActions.js";
 import { useItemDragDrop } from "../hooks/useItemDragDrop.js";
 import { useCollectionMutations } from "../hooks/useCollectionActions.js";
@@ -98,7 +98,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
     isDropTarget: true,
     acceptedDropTypes: ["file"],
     containerRef: tableRef,
-    useAddItems: addItemsMutation,
+    addItems: addItemsMutation,
   });
 
   useEffect(() => {
@@ -379,7 +379,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                         collectionId={macro.id}
                         item={item}
                         selectedItems={selectedItems}
-                        useRemoveItems={removeItemsMutation}
+                        removeItems={removeItemsMutation}
                         onEditClick={onEditClick}
                         isSmall
                       />

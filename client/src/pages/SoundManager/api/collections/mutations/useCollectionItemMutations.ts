@@ -1,8 +1,8 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { CollectionType } from "./collectionApi.js";
-import { AudioCollection, AudioItem, isAudioFile } from "../../types/AudioItem.js";
-import { getApiForType, collectionKeys, ParentCollectionInfo } from "./useCollectionQueries.js";
-import { updateAudioFile } from "../fileApi.js"; 
+import { AudioCollection, AudioItem, isAudioFile } from "../../../types/AudioItem.js";
+import { CollectionType } from "shared/audio/types.js";
+import { getApiForType, collectionKeys, ParentCollectionInfo } from "../useCollectionQueries.js";
+import { updateAudioFile } from "../../fileApi.js"; 
 
 /* useCollectionItemMutations.ts
  * Mutation hooks for managing items within collections using React Query
@@ -121,8 +121,8 @@ export const useUpdateFile = (type: CollectionType) => {
       id: number;
       collectionId: number;
       name?: string;
-      filePath?: string;
-      fileUrl?: string;
+      path?: string;
+      url?: string;
       active?: boolean;
       volume?: number;
       delay?: number;
@@ -132,15 +132,15 @@ export const useUpdateFile = (type: CollectionType) => {
       const results: boolean[] = [];
         
       const collectionParams: Partial<{ active: boolean; volume: number; delay: number; }> = {};
-      const fileParams: Partial<{ name: string; filePath: string; fileUrl: string; }> = {};
+      const fileParams: Partial<{ name: string; path: string; url: string; }> = {};
       
       if (restProps.active !== undefined) collectionParams.active = restProps.active;
       if (restProps.volume !== undefined) collectionParams.volume = restProps.volume;
       if (restProps.delay !== undefined) collectionParams.delay = restProps.delay;
       
       if (restProps.name !== undefined) fileParams.name = restProps.name;
-      if (restProps.filePath !== undefined) fileParams.filePath = restProps.filePath;
-      if (restProps.fileUrl !== undefined) fileParams.fileUrl = restProps.fileUrl;
+      if (restProps.path !== undefined) fileParams.path = restProps.path;
+      if (restProps.url !== undefined) fileParams.url = restProps.url;
       
       if (Object.keys(collectionParams).length > 0) {
         const collectionResult = await api.updateFile(collectionId, fileId, collectionParams);
@@ -155,7 +155,7 @@ export const useUpdateFile = (type: CollectionType) => {
       return results.every(result => result === true);
     },
     
-    onMutate: async ({ collectionId, id: fileId, name, filePath, fileUrl, active, volume, delay }) => {
+    onMutate: async ({ collectionId, id: fileId, name, path, url, active, volume, delay }) => {
       await queryClient.cancelQueries({
         queryKey: collectionKeys.collection(type, collectionId),
       });
@@ -174,8 +174,8 @@ export const useUpdateFile = (type: CollectionType) => {
           const updatedItem = { ...itemToUpdate };
           
           if (name !== undefined) updatedItem.name = name;
-          if (filePath !== undefined) updatedItem.filePath = filePath;
-          if (fileUrl !== undefined) updatedItem.fileUrl = fileUrl;
+          if (path !== undefined) updatedItem.path = path;
+          if (url !== undefined) updatedItem.url = url;
           if (active !== undefined) updatedItem.active = active;
           if (volume !== undefined) updatedItem.volume = volume;
           if (delay !== undefined) updatedItem.delay = delay;
@@ -314,6 +314,29 @@ export const useRemoveFromCollection = (type: CollectionType) => {
           queryKey: parentQueryKey,
         });
       }
+    },
+  });
+};
+
+// Update a collections file volume
+export const useUpdateFileVolume = (type: CollectionType) => {
+  const api = getApiForType(type);
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      collectionId, fileId, volume,
+    }: {
+      collectionId: number;
+      fileId: number;
+      volume: number;
+    }) => {
+      return await api.updateFile(collectionId, fileId, { volume });
+    },
+    onSuccess: (_data, { collectionId }) => {
+      queryClient.invalidateQueries({
+        queryKey: collectionKeys.collection(type, collectionId),
+      });
     },
   });
 };

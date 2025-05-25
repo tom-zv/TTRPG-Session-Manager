@@ -315,3 +315,132 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Error and download status styling - updated */
+.download-status {
+  margin-top: 6px;
+  font-size: 0.85em;
+  padding: 0 4px;
+}
+
+.job-error, .file-errors {
+  background-color: rgba(214, 69, 80, 0.1);
+  border-left: 2px solid var(--danger);
+  padding: 6px 8px;
+  margin: 4px 0;
+  border-radius: 4px;
+}
+
+.error-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  font-weight: 500;
+  font-size: 0.85em;
+}
+
+.error-header i {
+  color: var(--danger);
+  margin-right: 6px;
+  font-size: 0.9em;
+}
+
+.error-header span {
+  flex-grow: 1;
+  color: var(--text-primary);
+}
+
+.retry-button, .toggle-details-button, .retry-file-button {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  cursor: pointer;
+  font-size: 0.75em;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
+}
+
+.retry-button:hover, .toggle-details-button:hover, .retry-file-button:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color-light);
+}
+
+.folder-error-text {
+  color: var(--danger);
+  font-size: 0.85em;
+  margin-bottom: 3px;
+}
+
+.error-list {
+  list-style: none;
+  padding-left: 8px;
+  margin-top: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.error-item {
+  padding: 5px 6px;
+  margin-bottom: 4px;
+  background-color: var(--bg-tertiary);
+  border-radius: 3px;
+  border-left: 1px solid var(--danger);
+}
+
+.error-file-info {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 3px;
+}
+
+.error-file-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  font-size: 0.85em;
+}
+
+.error-file-url {
+  font-size: 0.75em;
+  color: var(--text-secondary);
+  word-break: break-all;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.download-progress {
+  color: var(--accent-secondary);
+  display: flex;
+  align-items: center;
+  font-size: 0.85em;
+  padding: 2px 0;
+}
+
+.retry-file-button {
+  padding: 0px 5px;
+  height: 20px;
+  align-self: flex-end;
+}
+
+.dismiss-button {
+  margin-left: auto;
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.dismiss-button:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border-color: var(--border-color-light);
+}
+
+.dismiss-button:active {
+  transform: translateY(1px);
+}

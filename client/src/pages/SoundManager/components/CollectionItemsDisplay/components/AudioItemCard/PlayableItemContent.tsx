@@ -27,8 +27,8 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
   showActions,
   selectedItemIds,
   onPlayItem,
-  useRemoveItems,
-  onEditItem, // Add this prop
+  removeItems,
+  onEditItem,
   isPlaying = false,
 }) => {
   const [localVolume, setLocalVolume] = useState<number>(1);
@@ -95,7 +95,7 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
               selectedItems={parentCollection.items?.filter((i) =>
                 selectedItemIds.includes(i.id)
               )}
-              useRemoveItems={useRemoveItems}
+              removeItems={removeItems}
               onEditClick={onEditItem}
               isSmall
             />

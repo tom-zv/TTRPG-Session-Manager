@@ -43,7 +43,7 @@ export class AmbienceModule {
 
   // Internal method to actually play an ambience sound
   private async playAmbienceSound(file: AudioFile): Promise<number | undefined> {
-    let audioSrc = resolveAudioPath(file.filePath) || await resolveAudioUrl(file.fileUrl) || "";
+    const audioSrc = resolveAudioPath(file.path) || await resolveAudioUrl(file.url) || "";
 
     if (!audioSrc) {
       console.warn(`Could not resolve audio source for ambience file ${file.name || file.id}`);
@@ -53,7 +53,7 @@ export class AmbienceModule {
     const howl = new Howl({
       src: [audioSrc],
       volume: (file.volume !== undefined ? file.volume : 1) * getVolume('ambience'),
-      html5: file.fileUrl ? true : false,
+      html5: file.url ? true : false,
       loop: true,
     });
 

@@ -1,6 +1,12 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { collectionKeys } from "./useCollectionQueries.js";
-import { ambienceApi } from "./collectionApi.js";
+import { collectionKeys } from "../useCollectionQueries.js";
+import { ambienceApi } from "../collectionApi.js";
+import { AudioCollection } from "../../../types/AudioItem.js";
+
+// Define a context type to reuse
+type MutationContext = {
+  previousCollection?: AudioCollection;
+};
 
 export const useActivateAmbienceFile = () => {
   const queryClient = useQueryClient();
@@ -21,9 +27,9 @@ export const useActivateAmbienceFile = () => {
         queryKey: collectionKeys.collection("ambience", collectionId),
       });
 
-      const previousCollection = queryClient.getQueryData<{
-        items?: Array<{ id: number; active: boolean }>;
-      }>(collectionKeys.collection("ambience", collectionId));
+      const previousCollection = queryClient.getQueryData<AudioCollection>(
+        collectionKeys.collection("ambience", collectionId)
+      );
 
       if (previousCollection) {
         queryClient.setQueryData(
@@ -40,7 +46,7 @@ export const useActivateAmbienceFile = () => {
       return { previousCollection };
     },
 
-    onError: (_err, { collectionId }, context: any) => {
+    onError: (_err, { collectionId }, context?: MutationContext) => {
       if (context?.previousCollection) {
         queryClient.setQueryData(
           collectionKeys.collection("ambience", collectionId),
@@ -76,9 +82,9 @@ export const useDeactivateAmbienceFile = () => {
         queryKey: collectionKeys.collection("ambience", collectionId),
       });
 
-      const previousCollection = queryClient.getQueryData<{
-        items?: Array<{ id: number; active: boolean }>;
-      }>(collectionKeys.collection("ambience", collectionId));
+      const previousCollection = queryClient.getQueryData<AudioCollection>(
+        collectionKeys.collection("ambience", collectionId)
+      );
 
       if (previousCollection) {
         queryClient.setQueryData(
@@ -95,7 +101,7 @@ export const useDeactivateAmbienceFile = () => {
       return { previousCollection };
     },
 
-    onError: (_err, { collectionId }, context: any) => {
+    onError: (_err, { collectionId }, context?: MutationContext) => {
       if (context?.previousCollection) {
         queryClient.setQueryData(
           collectionKeys.collection("ambience", collectionId),

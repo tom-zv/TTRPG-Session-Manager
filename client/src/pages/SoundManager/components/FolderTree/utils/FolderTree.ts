@@ -1,7 +1,7 @@
 import { Folder } from "src/pages/SoundManager/components/FolderTree/types.js";
-import { AudioFile } from "src/pages/SoundManager/components/FolderTree/types.js";
+import { AudioFileUI } from "src/pages/SoundManager/components/FolderTree/types.js";
 
-export const buildFolderTree = (flatFolders: Folder[], audioFiles: AudioFile[]): Folder[] => {
+export const buildFolderTree = (flatFolders: Folder[], audioFiles: AudioFileUI[]): Folder[] => {
   const folderMap = new Map<number, Folder>();
 
   // Initialize folders with empty children and files arrays

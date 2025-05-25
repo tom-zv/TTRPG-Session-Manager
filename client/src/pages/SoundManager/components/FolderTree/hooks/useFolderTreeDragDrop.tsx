@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Folder, AudioFile } from "../types.js";
+import { Folder, AudioFileUI } from "../types.js";
 import { useDragSource } from "../../../../../hooks/useDragSource.js";
 import { getNestedFiles } from "../utils/DragUtils.js";
 
@@ -13,7 +13,7 @@ export function useFolderTreeDragDrop({
 }: {
   flatFolders: Folder[];
   selectedFileIds: number[];
-  selectedItems: AudioFile[];
+  selectedItems: AudioFileUI[];
 }) {
   // Drag source for folders
   const folderDragSource = useDragSource<Folder>({
@@ -23,7 +23,7 @@ export function useFolderTreeDragDrop({
   });
 
   // Drag source for individual files
-  const fileDragSource = useDragSource<AudioFile>({
+  const fileDragSource = useDragSource<AudioFileUI>({
     contentType: "file",
     mode: "file-transfer",
     getItemId: (file) => file.id,
@@ -52,7 +52,7 @@ export function useFolderTreeDragDrop({
 
   // File drag handler - handles both single files and selections
   const handleFileDragStart = useCallback(
-    (e: React.DragEvent, file: AudioFile) => {
+    (e: React.DragEvent, file: AudioFileUI) => {
       console.log("File drag start:", file);
 
       // If clicking on a file that's not in the current selection,

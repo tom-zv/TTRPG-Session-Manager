@@ -8,9 +8,9 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "paths": {
-      "shared/*": ["../shared/*"],  // Path is relative to client directory
+      "shared/*": ["../shared/*"],
       "src/*": ["./src/*"]
     }
   },
-  "include": ["src", "../shared/types","vite.config.ts"]
+  "include": ["src", "../shared", "vite.config.ts"]
 }

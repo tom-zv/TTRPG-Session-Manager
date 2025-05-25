@@ -4,9 +4,9 @@ import {
   sfxApi,
   ambienceApi,
   macroApi,
-  CollectionType,
   CollectionApi,
 } from "./collectionApi.js";
+import { CollectionType } from "shared/audio/types.js";
 import { AudioCollection } from "../../types/AudioItem.js";
 
 /* useCollectionQueries.ts

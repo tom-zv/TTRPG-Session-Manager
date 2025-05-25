@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import collectionService from './collectionService.js';
 import fileService from '../files/fileService.js';
-import { transformCollectionFile, transformCollection, transformMacro } from 'src/utils/format-transformers.js';
+import { transformAudioFileToDTO, transformCollection, transformMacro } from 'src/utils/format-transformers.js';
 
 const collectionTypes = ['playlist', 'sfx', 'ambience', 'macro'];
 
@@ -20,15 +20,15 @@ export const getAllCollections = async (req: Request, res: Response) => {
       response = await collectionService.getAllCollectionsWithFiles(type);
       if (response.success) {
         // Transform the collections with their items
-        response.data = response.data ? response.data.map((collection: any) => {
+        response.data = response.data ? response.data.map((collection) => {
           const baseCollection = transformCollection(collection);
           
           if (type !== 'sfx') {
             // For regular collections, just transform files
-            baseCollection.items = collection.files.map(transformCollectionFile);
+            baseCollection.items = collection.files.map(transformAudioFileToDTO);
           } else {
             // For SFX collections, combine files and macros into a unified items array
-            const fileItems = collection.files.map(transformCollectionFile);
+            const fileItems = collection.files.map(transformAudioFileToDTO);
             const macroItems = collection.macros.map(transformMacro);
             
             // Combine and sort by position
@@ -97,11 +97,11 @@ export const getCollectionById = async (req: Request, res: Response) => {
       if (response.success) {
         // For regular collections, just transform files
         if (type !== 'sfx') {
-          response.data.items = response.data.files.map(transformCollectionFile);
+          response.data.items = response.data.files.map(transformAudioFileToDTO);
         } 
         // For SFX collections, combine files and macros into a unified items array
         else {
-          const fileItems = response.data.files.map(transformCollectionFile);
+          const fileItems = response.data.files.map(transformAudioFileToDTO);
           const macroItems = response.data.macros.map(transformMacro);
           
           // Combine and sort by position
@@ -436,7 +436,7 @@ export const updateFile = async (req: Request, res: Response) => {
   }
 
   // Collect only collection‐file parameters
-  const collectionFileParams: any = {};
+  const collectionFileParams: {active?: boolean, volume?: number, delay?: number} = {};
   if (active !== undefined) collectionFileParams.active = active;
   if (volume !== undefined) collectionFileParams.volume = volume;
   if (delay !== undefined && type === 'macro') collectionFileParams.delay = delay;

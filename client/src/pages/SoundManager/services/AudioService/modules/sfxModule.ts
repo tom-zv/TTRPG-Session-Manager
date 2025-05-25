@@ -17,12 +17,12 @@ export class SfxModule {
 
   // Play a single SFX file
   async playFile(file: AudioFile): Promise<void> {
-    const audioSrc = resolveAudioPath(file.filePath) || await resolveAudioUrl(file.fileUrl) || "";
+    const audioSrc = resolveAudioPath(file.path) || await resolveAudioUrl(file.url) || "";
 
     const howl = new Howl({
       src: [audioSrc],
       volume: getVolume("sfx") * (file.volume ?? 1),
-      html5: file.fileUrl ? true : false,
+      html5: file.url ? true : false,
       onend: () => {
         this.currentFiles.delete(file.id);
         emit(
@@ -84,7 +84,7 @@ export class SfxModule {
 
       fileIds.push(sound.id);
 
-      const audioSrc = resolveAudioPath(sound.filePath) || await resolveAudioUrl(sound.fileUrl) || "";
+      const audioSrc = resolveAudioPath(sound.path) || await resolveAudioUrl(sound.url) || "";
       
       if (!audioSrc) {
         console.warn(`Could not resolve audio source for ${sound.name || sound.id} in macro ${macro.name}`);
@@ -94,7 +94,7 @@ export class SfxModule {
       const howl = new Howl({
         src: [audioSrc],
         volume: (sound.volume ?? 1) * getVolume("sfx"),
-        html5: sound.fileUrl ? true : false,
+        html5: sound.url ? true : false,
       });
 
       howls.push(howl);

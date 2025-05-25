@@ -5,7 +5,8 @@ import {
   useCreateCollection,
   useDeleteCollections,
 } from "../../../api/collections/index.js";
-import { AudioItem, CollectionType } from "../types.js";
+import { CollectionType } from "shared/audio/types.js";
+import { AudioItem } from "../types.js";
 
 interface MutationCallbacks {
   onMutationComplete?: () => void;

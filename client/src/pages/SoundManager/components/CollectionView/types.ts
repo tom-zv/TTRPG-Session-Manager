@@ -1,8 +1,7 @@
 import type { AudioCollection, AudioItem } from "../../types/index.js";
 import type { DragDropProps } from "src/types/index.js";
 export * from "../../types/index.js";
-
-export type CollectionType = 'playlist' | 'sfx' | 'ambience' | 'pack' | 'macro';
+import { CollectionType } from "shared/audio/types.js";
 
 // Props for the CollectionView component
 export interface CollectionViewProps extends DragDropProps {
@@ -22,12 +21,12 @@ export interface CollectionViewProps extends DragDropProps {
 
   // Item operations
   onAddItems?: (collectionId: number, itemIds: number[], position?: number) => Promise<boolean>;
-  onEditItem?: (collectionId: number, itemId: number, params: any) => Promise<boolean>;
+  onEditItem?: (collectionId: number, itemId: number, params: Partial<AudioCollection>) => Promise<boolean>;
   onRemoveItems?: (collectionId: number, itemIds: number[]) => Promise<boolean>;
   onUpdateItemPosition?: (
     collectionId: number,
-    itemId: number, // Changed from audioFileId for consistency
-    targetPosition: number, // Changed from newPosition for consistency
+    itemId: number, 
+    targetPosition: number, 
     sourceStartPosition?: number,
     sourceEndPosition?: number,
   ) => Promise<boolean>;
@@ -35,7 +34,7 @@ export interface CollectionViewProps extends DragDropProps {
   // UI state
   itemDisplayView?: 'list' | 'grid';
   isEditing?: boolean;
-  dropZoneId?: string | null; // Add dropZoneId
-  acceptedDropTypes?: string[]; // Add acceptedDropTypes
+  dropZoneId?: string | null;
+  acceptedDropTypes?: string[]; 
 }
 

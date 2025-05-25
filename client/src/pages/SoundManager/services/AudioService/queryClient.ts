@@ -1,13 +1,11 @@
 import { QueryClient } from '@tanstack/react-query';
-import { AudioCollection, AudioMacro } from '../../types/AudioItem.js';
+import { AudioCollection, AudioMacro } from 'src/pages/SoundManager/types/AudioItem.js';
 import { collectionKeys } from '../../api/collections/useCollectionQueries.js';
 
 export let queryClient = new QueryClient();
-let initialized = false;
 
 export function initQueryClient(client: QueryClient) {
   queryClient = client;
-  initialized = true;
 }
 
 export function getCollectionFromCache(

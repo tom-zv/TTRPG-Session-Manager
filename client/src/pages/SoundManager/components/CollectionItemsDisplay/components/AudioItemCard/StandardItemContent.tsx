@@ -21,8 +21,8 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
   parentCollection,
   showActions,
   selectedItemIds,
-  useEditItem,
-  useRemoveItems,
+  editItem,
+  removeItems,
   onEditItem,
 }) => {
   return (
@@ -50,8 +50,8 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
             selectedItems={parentCollection.items?.filter((i) =>
               selectedItemIds.includes(i.id)
             )}
-            useRemoveItems={useRemoveItems}
-            useEditItem={useEditItem}
+            removeItems={removeItems}
+            editItem={editItem}
             onEditClick={onEditItem}
             isSmall
           />

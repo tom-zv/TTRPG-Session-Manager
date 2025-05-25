@@ -59,7 +59,7 @@ interface AudioContextType {
   ambience: {
     playingCollectionId: number | undefined;
     volume: number;
-    toggleCollection: (collection: AudioCollection) => boolean;
+    toggleCollection: (collection: AudioCollection) => Promise<boolean>;
     toggleFileActivation: (
       collection: AudioCollection,
       file: AudioFile
@@ -111,7 +111,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         if (isAudioMacro(item)) {
           return sfx.toggleMacro(item);
         } else if (isPlaylistCollection(item)) {
-          return await playlist.togglePlaylist(item.id, 0);
+          return playlist.togglePlaylist(item.id, 0);
         } else if (isAmbienceCollection(item)) {
           return ambience.toggleCollection(item);
         } else if (isSfxCollection(item)) {
@@ -124,7 +124,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         if (parentCollection) {
           switch (parentCollection.type) {
             case "playlist":
-              return await playlist.togglePlaylist(
+              return playlist.togglePlaylist(
                 parentCollection.id,
                 item.position
               );
