@@ -158,10 +158,10 @@
 .folder-item.dragging, .file-item.dragging {
   opacity: 0.5;
 }
-
+/* 
 .folder-item.drop-target, .file-item.drop-target {
   background-color: rgba(40, 42, 201, 0.1);
-}
+} */
 
 .dragging-multi::after {
   content: attr(data-count);
@@ -261,13 +261,13 @@
   background-color: transparent;
 }
 
-/* Hide create folder button by default */
+/* Hide buttons */
+.file-header .icon-button,
 .folder-header .create-button {
   opacity: 0;
   transition: opacity 0.2s ease;
 }
-
-/* Show create folder button on hover */
+.file-item .icon-button:hover,
 .folder-header:hover .create-button {
   opacity: 1;
 }

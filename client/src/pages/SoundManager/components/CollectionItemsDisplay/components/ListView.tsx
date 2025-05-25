@@ -164,57 +164,51 @@ export const ListView: React.FC<ListViewProps> = ({
       className={`audio-item-list-view ${collection.type === "macro" ? "macro-list-view" : ""} ${isEmpty ? "empty-list-view" : ""}`}
     >
       {!isEmpty && (
-        <table ref={tableRef} className="audio-item-table">
-          <thead>
-            <tr>
-              {showHeaders &&
-                columns.map((column) => {
-                  if (column === "position") return <th key={column}>#</th>;
-                  if (column === "actions" && !showActions) return null;
-                  if (column === "actions")
+        <div className="table-wrapper">
+          <table ref={tableRef} className="audio-item-table">
+            <thead>
+              <tr>
+                {showHeaders &&
+                  columns.map((column) => {
+                    if (column === "position") return <th key={column}>#</th>;
+                    if (column === "actions" && !showActions) return null;
+                    if (column === "actions")
+                      return (
+                        <th key={column} className="actions-column">
+                          Actions
+                        </th>
+                      );
                     return (
-                      <th key={column} className="actions-column">
-                        Actions
+                      <th key={column}>
+                        {column.charAt(0).toUpperCase() + column.slice(1)}
                       </th>
                     );
-                  return (
-                    <th key={column}>
-                      {column.charAt(0).toUpperCase() + column.slice(1)}
-                    </th>
-                  );
-                })}
-            </tr>
-          </thead>
-          <tbody>
-            {/* Insert marker for the first position */}
-            {isInsertionPoint(0) && (
-              <tr className="insert-marker">
-                <td colSpan={columns.length}></td>
+                  })}
               </tr>
-            )}
+            </thead>
+            <tbody>
+              {items.map((item, index) => {
+                // Determine if the item is playing based on its type and collection context
+                const isPlaying = audioContext.isAudioItemPlaying(
+                  item,
+                  collection
+                );
 
-            {items.map((item, index) => {
-              // Determine if the item is playing based on its type and collection context
-              const isPlaying = audioContext.isAudioItemPlaying(
-                item,
-                collection
-              );
+                // Special handling for ambience files - they can be active even when not playing
+                const isAmbienceActive =
+                  isAudioFile(item) &&
+                  item.fileType === "ambience" &&
+                  item.active;
 
-              // Special handling for ambience files - they can be active even when not playing
-              const isAmbienceActive =
-                isAudioFile(item) &&
-                item.fileType === "ambience" &&
-                item.active;
+                // Check if this item is the current track in a playlist, even if it's not playing
+                const isCurrentTrack =
+                  collection.type === "playlist" &&
+                  audioContext.playlist?.currentPlaylistId === collection.id &&
+                  audioContext.playlist?.currentIndex === item.position;
 
-              // Check if this item is the current track in a playlist, even if it's not playing
-              const isCurrentTrack =
-                collection.type === "playlist" &&
-                audioContext.playlist?.currentPlaylistId === collection.id &&
-                audioContext.playlist?.currentIndex === item.position;
-
-              return (
-                <React.Fragment key={`${item.type}-${item.id}`}>
+                return (
                   <tr
+                    key={`${item.type}-${item.id}`}
                     {...(() => {
                       const dragProps = dragItemProps(item);
                       const combinedClassName = `
@@ -232,21 +226,38 @@ export const ListView: React.FC<ListViewProps> = ({
                       onItemSelect ? onItemSelect(e, item.id) : undefined
                     }
                     aria-selected={selectedItemIds.includes(item.id)}
+                    data-item-index={index}
                   >
                     {columns.map((column) => renderCell(column, item))}
                   </tr>
-
-                  {/* Insert marker after this row */}
-                  {isInsertionPoint(index + 1) && (
-                    <tr className="insert-marker">
-                      <td colSpan={columns.length}></td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })}
-          </tbody>
-        </table>
+                );
+              })}
+            </tbody>
+          </table>
+          
+          {/* Absolutely positioned insert markers */}
+          {Array.from({ length: items.length + 1 }, (_, index) => {
+            if (!isInsertionPoint(index)) return null;
+            
+            return (
+              <div
+                key={`insert-marker-${index}`}
+                className="insert-marker-line"
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  height: '2px',
+                  backgroundColor: 'var(--accent-primary)',
+                  zIndex: 10,
+                  top: index === 0 
+                    ? `${tableRef.current?.querySelector('thead')?.offsetHeight || 0}px`
+                    : `${(tableRef.current?.querySelector(`[data-item-index="${index - 1}"]`) as HTMLElement)?.offsetTop + (tableRef.current?.querySelector(`[data-item-index="${index - 1}"]`) as HTMLElement)?.offsetHeight || 0}px`
+                }}
+              />
+            );
+          })}
+        </div>
       )}
       {isEmpty && isDropTarget && (
         <div ref={tableRef} className="empty-table-drop-area"></div>

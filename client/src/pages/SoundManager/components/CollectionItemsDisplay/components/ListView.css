@@ -217,18 +217,13 @@
 }
 
 /* Drag and drop insertion marker */
-.insert-marker {
-    height: 3px;
-    background-color: var(--accent-primary);
-    transition: all 0.15s ease;
+.table-wrapper {
+  position: relative;
 }
 
-.insert-marker td {
-    padding: 0;
-}
-
-.audio-item-table tbody tr.insert-marker:hover {
-    background-color: var(--accent-primary);
+.insert-marker-line {
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(53, 114, 227, 0.3);
 }
 
 .empty-list-view {

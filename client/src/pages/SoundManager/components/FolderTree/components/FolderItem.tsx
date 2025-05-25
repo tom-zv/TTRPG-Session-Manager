@@ -1,41 +1,17 @@
 import React, { useState } from "react";
-import { Folder, AudioFile } from "src/pages/SoundManager/components/FolderTree/types.js";
-import { handleFolderClick, handleFileClick } from "../utils/ClickHandlers.js";
-import { useDropTarget } from "src/hooks/useDropTarget.js";
+import { Folder } from "../types.js";
+import { handleFolderClick } from "../utils/ClickHandlers.js";
+import { useDropTarget } from "../../../../../hooks/useDropTarget.js";
 import FolderHeader from "./FolderHeader.js";
 import FileDisplay from "./FileDisplay.js";
 import FolderDisplay from "./FolderDisplay.js";
 
 interface FolderItemProps {
   folder: Folder;
-  onFolderSelect: (folder: Folder) => void;
-  onFileSelect: (file: AudioFile) => void;
-  selectedFolderIds?: number[];
-  selectedFileIds?: number[];
-  showFilesInTree?: boolean;
   level?: number;
-  onFolderDragStart?: (e: React.DragEvent, folder: Folder) => void;
-  onFolderDragEnd?: (e: React.DragEvent) => void;
-  onFileDragStart?: (e: React.DragEvent, file: AudioFile) => void;
-  onFileDragEnd?: (e: React.DragEvent) => void;
-  onScanComplete?: () => void;
-  onFolderCreated?: (folder: Folder) => void;
 }
 
-const FolderItem: React.FC<FolderItemProps> = ({
-  folder,
-  onFolderSelect,
-  onFileSelect,
-  selectedFolderIds = [],
-  selectedFileIds = [],
-  level = 0,
-  onFolderDragStart,
-  onFolderDragEnd,
-  onFileDragStart,
-  onFileDragEnd,
-  onScanComplete,
-  onFolderCreated
-}) => {
+const FolderItem: React.FC<FolderItemProps> = ({ folder, level = 0 }) => {
   const [isOpen, setIsOpen] = useState(level === 0); // Auto-expand root level
   
   const hasChildren = folder.children && folder.children.length > 0;
@@ -56,7 +32,6 @@ const FolderItem: React.FC<FolderItemProps> = ({
       <div {...{...dropAreaProps, className: `folder-item ${dropAreaProps.className || ''}`}}>
         <FolderHeader
           folder={folder}
-          isSelected={selectedFolderIds?.includes(folder.id)}
           isOpen={isOpen}
           hasContents={hasChildren || hasFiles}
           onClick={(e) =>
@@ -65,13 +40,8 @@ const FolderItem: React.FC<FolderItemProps> = ({
               folder,
               isOpen,
               setIsOpen,
-              onFolderSelect
             )
           }
-          onDragStart={(e) => onFolderDragStart && onFolderDragStart(e, folder)}
-          onDragEnd={onFolderDragEnd}
-          onScanComplete={onScanComplete}
-          onFolderCreated={onFolderCreated}
         />
 
         {isOpen && (
@@ -80,17 +50,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
             {hasChildren && folder.children && (
               <FolderDisplay
                 folders={folder.children}
-                onFolderSelect={onFolderSelect}
-                onFileSelect={onFileSelect}
-                selectedFolderIds={selectedFolderIds}
-                selectedFileIds={selectedFileIds}
                 level={level + 1}
-                onFolderDragStart={onFolderDragStart}
-                onFolderDragEnd={onFolderDragEnd}
-                onFileDragStart={onFileDragStart}
-                onFileDragEnd={onFileDragEnd}
-                onScanComplete={onScanComplete}
-                onFolderCreated={onFolderCreated}
               />
             )}
 
@@ -104,16 +64,6 @@ const FolderItem: React.FC<FolderItemProps> = ({
                 <FileDisplay
                   key={`file-${file.id}`}
                   file={file}
-                  isSelected={selectedFileIds.includes(file.id)}
-                  onClick={(e) =>
-                    handleFileClick(
-                      e,
-                      file,
-                      onFileSelect
-                    )
-                  }
-                  onDragStart={(e) => onFileDragStart && onFileDragStart(e, file)}
-                  onDragEnd={onFileDragEnd}
                 />
               ))}
           </ul>

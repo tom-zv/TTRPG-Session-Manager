@@ -1,33 +1,40 @@
 import React from 'react';
-import { AudioFile } from 'src/pages/SoundManager/components/FolderTree/types.js';
+import { AudioFile } from '../types.js';
 import { getFileIcon } from '../utils/icons.js';
+import { handleFileClick } from '../utils/ClickHandlers.js';
+import { useFolderTree } from '../context/FolderTreeContext.js';
 
 interface FileDisplayProps {
   file: AudioFile;
-  isSelected?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: (e: React.DragEvent) => void;
-  onClick?: (e: React.MouseEvent) => void;
 }
 
-const FileDisplay: React.FC<FileDisplayProps> = ({
-  file,
-  isSelected,
-  onDragStart,
-  onDragEnd,
-  onClick
-}) => {
+const FileDisplay: React.FC<FileDisplayProps> = ({ file }) => {
+  const { 
+    selectedFileIds, 
+    handleFileSelect,
+    handleFileDragStart,
+    handleFileDragEnd
+  } = useFolderTree();
+  
+  const isSelected = selectedFileIds.includes(file.id);
+
+  const handleEditFile = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Implement file editing functionality
+    console.log('Edit file:', file.name);
+  };
+
   return (
     <div 
       className={`file-item ${isSelected ? 'selected' : ''}`}
       draggable
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
-      onClick={onClick}
+      onDragStart={(e) => handleFileDragStart(e, file)}
+      onDragEnd={handleFileDragEnd}
+      onClick={(e) => handleFileClick(e, file, handleFileSelect)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
+          handleFileClick(e as unknown as React.MouseEvent, file, handleFileSelect);
         }
       }}
       role="button"
@@ -38,12 +45,19 @@ const FileDisplay: React.FC<FileDisplayProps> = ({
         <span className="file-icon">
           {getFileIcon(file.audioType || 'default')}
         </span>
-        <span className="file-name">
+        <span className="file-name" title={file.name}>
           {file.name}
         </span>
+        <button
+          className="icon-button"
+          onClick={handleEditFile}
+          title="Edit file"
+        >
+          ✏️
+        </button>
       </div>
     </div>
   );
 };
 
-export default FileDisplay;
+export default React.memo(FileDisplay);
