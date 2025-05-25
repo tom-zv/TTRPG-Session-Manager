@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Folder } from "src/pages/SoundManager/components/FolderTree/types.js";
+import { Folder } from "../types.js";
 import { getFolderIcon } from "../utils/icons.js";
 import { TbFolderPlus } from "react-icons/tb";
 import { LuFilePlus2 } from "react-icons/lu";
-
+import { useFolderTree } from "../context/FolderTreeContext.js";
 import FileScanButton from "./FileScanButton.js";
 import CreateFolderDialog from "./CreateFolderDialog.js";
 import CreateFileDialog from "./CreateFileDialog.js";
@@ -12,25 +12,25 @@ interface FolderHeaderProps {
   folder: Folder;
   isOpen: boolean;
   hasContents: boolean;
-  isSelected?: boolean;
   onClick?: (e: React.MouseEvent) => void;
-  onDragStart?: (e: React.DragEvent) => void;
-  onDragEnd?: (e: React.DragEvent) => void;
-  onScanComplete?: () => void;
-  onFolderCreated?: (folder: Folder) => void;
 }
 
 const FolderHeader: React.FC<FolderHeaderProps> = ({
   folder,
-  isSelected,
   isOpen,
   hasContents,
   onClick,
-  onDragStart,
-  onDragEnd,
-  onScanComplete,
-  onFolderCreated,
 }) => {
+  // Get data and handlers from context
+  const { 
+    selectedFolderIds, 
+    handleFolderDragStart, 
+    handleFolderDragEnd,
+    handleFolderCreated, 
+    reload 
+  } = useFolderTree();
+  
+  const isSelected = selectedFolderIds.includes(folder.id);
   const [isCreateFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [isCreateFileDialogOpen, setCreateFileDialogOpen] = useState(false);
 
@@ -48,8 +48,8 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
       draggable
       onClick={onClick}
       onKeyDown={handleKeyDown}
-      onDragStart={onDragStart}
-      onDragEnd={onDragEnd}
+      onDragStart={(e) => handleFolderDragStart(e, folder)}
+      onDragEnd={handleFolderDragEnd}
       data-type={folder.type}
       role="button"
       tabIndex={0}
@@ -61,7 +61,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         {getFolderIcon(folder.type, isOpen, hasContents)}
       </span>
       <span className="folder-name">{folder.name}</span>
-
+      
       <button
         className="icon-button create-button"
         onClick={(e) => {
@@ -83,7 +83,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
       </button>
       
       {folder.type === "root" && (
-        <FileScanButton onScanComplete={onScanComplete} />
+        <FileScanButton onScanComplete={reload} />
       )}
 
       <CreateFolderDialog
@@ -91,7 +91,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         onClose={() => setCreateFolderDialogOpen(false)}
         parentFolderId={folder.id}
         folderType={folder.type}
-        onFolderCreated={onFolderCreated}
+        onFolderCreated={handleFolderCreated}
       />
 
       <CreateFileDialog
