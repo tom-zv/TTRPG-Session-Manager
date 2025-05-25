@@ -4,83 +4,140 @@ import {
   AudioMacro,
   AudioItem,
 } from "../../types/AudioItem.js";
+import { CollectionType } from "shared/audio/types.js";
 
-export type CollectionType = "playlist" | "sfx" | "ambience" | "pack" | "macro";
 
-export interface CollectionApi {
-  getAllCollections: (includeFiles?: boolean) => Promise<AudioCollection[] | AudioMacro[]>;
-  getCollectionById: (id: number, includeFiles?: boolean) => Promise<AudioCollection | AudioMacro>;
-  createCollection: (name: string, description?: string) => Promise<number>;
-  updateCollection: (id: number, name?: string, description?: string, volume?: number) => Promise<boolean>;
-  deleteCollection: (id: number) => Promise<boolean>;
-  getCollectionFiles: (collectionId: number) => Promise<AudioFile[]>;
-  addFileToCollection: (collectionId: number, audioFileId: number, position?: number) => Promise<boolean>;
-  addFilesToCollection: (collectionId: number, audioFileIds: number[], startPosition?: number) => Promise<boolean>;
-  addToCollection: (collectionId: number, items: AudioItem[], position?: number) => Promise<boolean>;
-  updateFile: (collectionId: number, fileId: number, params: any) => Promise<boolean>;
-  removeMacroFromCollection?: (collectionId: number, macroId: number) => Promise<boolean>;
-  removeFilesFromCollection: (collectionId: number, audioFiles: AudioItem[]) => Promise<boolean>;
-  updatePosition: (collectionId: number, audioFileId: number, targetPosition: number, sourceStartPosition?: number, sourceEndPosition?: number) => Promise<boolean>;
-  
+import {
+  transformDtoToAudioMacro,
+  transformDtoToAudioCollection,
+  MacroApiResponse,
+  CollectionApiResponse
+} from "./transformers.js";
+
+// ----------------------
+// COLLECTION API FACTORY
+// ----------------------
+
+
+export interface UpdateFileParams {
+  active?: boolean;
+  volume?: number;
+  delay?: number;
 }
 
-export interface packApi {
+export interface CollectionApi {
+  getAllCollections: (
+    includeFiles?: boolean
+  ) => Promise<AudioCollection[] | AudioMacro[]>;
+  getCollectionById: (
+    id: number,
+    includeFiles?: boolean
+  ) => Promise<AudioCollection | AudioMacro>;
+  createCollection: (name: string, description?: string) => Promise<number>;
+  updateCollection: (
+    id: number,
+    name?: string,
+    description?: string,
+    volume?: number,
+    active?: boolean
+  ) => Promise<boolean>;
+  deleteCollection: (id: number) => Promise<boolean>;
+  getCollectionFiles: (collectionId: number) => Promise<AudioFile[]>;
+  addFileToCollection: (
+    collectionId: number,
+    audioFileId: number,
+    position?: number
+  ) => Promise<boolean>;
+  addFilesToCollection: (
+    collectionId: number,
+    audioFileIds: number[],
+    startPosition?: number
+  ) => Promise<boolean>;
+  addToCollection: (
+    collectionId: number,
+    items: AudioItem[],
+    position?: number
+  ) => Promise<boolean>;
+  updateFile: (
+    collectionId: number,
+    fileId: number,
+    params: UpdateFileParams
+  ) => Promise<boolean>;
+  removeMacroFromCollection?: (
+    collectionId: number,
+    macroId: number
+  ) => Promise<boolean>;
+  removeFilesFromCollection: (
+    collectionId: number,
+    audioFiles: AudioItem[]
+  ) => Promise<boolean>;
+  updateFilePosition: (
+    collectionId: number,
+    audioFileId: number,
+    targetPosition: number
+  ) => Promise<boolean>;
+  updateFileRangePosition: (
+    collectionId: number,
+    sourceStartPosition: number,
+    sourceEndPosition: number,
+    targetPosition: number
+  ) => Promise<boolean>;
+  updatePosition(
+    collectionId: number,
+    fileId: number,
+    targetPosition: number
+  ): Promise<boolean>;
+  updatePosition(
+    collectionId: number,
+    sourceStart: number,
+    sourceEnd: number,
+    targetPosition: number
+  ): Promise<boolean>;
+}
+
+export interface PackApi {
   getAllCollections: () => Promise<AudioCollection[]>;
   getAllPacks: () => Promise<AudioCollection[]>;
   createPack: (name: string, description?: string) => Promise<number>;
   deletePack: (id: number) => Promise<boolean>;
-  addCollectionToPack: (packId: number, collectionId: number) => Promise<boolean>;
+  addCollectionToPack: (
+    packId: number,
+    collectionId: number
+  ) => Promise<boolean>;
   getPackCollections: (packId: number) => Promise<AudioCollection[]>;
 }
 
-// Factory function to create a collection API for a specific type
-export function createCollectionApi(collectionType: CollectionType): CollectionApi {
-  // Base URL for the collection type
+export function createCollectionApi(
+  collectionType: CollectionType
+): CollectionApi {
   let API_URL = `/api/audio/collections/${collectionType}`;
   if (collectionType === "macro") {
     API_URL = `/api/audio/macro`;
   }
 
-  // Create the API object first so we can reference its methods
-  const api = {} as any;
+  const api = {} as CollectionApi;
 
-  // Get all collections of the specified type
+  // ----------------------
+  // getAllCollections
+  // ----------------------
   api.getAllCollections = async (): Promise<
     AudioCollection[] | AudioMacro[]
   > => {
-    
     try {
       const url = `${API_URL}?includeFiles=true`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      const items = await response.json();
-      
+      const items: (CollectionApiResponse | MacroApiResponse)[] =
+        await response.json();
+
       if (collectionType === "macro") {
-        // Handle macro-specific mapping
-        return items.map((item: any) => ({
-          id: item.id,
-          type: "macro", 
-          name: item.name,
-          description: item.description || undefined,
-          volume: item.volume || 1.0,
-          itemCount: item.itemCount || 0,
-          position: item.position || 0,
-          duration: item.duration || 0, 
-          items: item.items || [], 
-        }));
+        return (items as MacroApiResponse[]).map(transformDtoToAudioMacro);
       } else {
-        // Standard collection mapping
-        return items.map((collection: any) => ({
-          id: collection.id,
-          type: collectionType,
-          name: collection.name,
-          description: collection.description || undefined,
-          itemCount: collection.itemCount || 0,
-          position: collection.position || 0,
-          items: collection.items || [], // Include items when present
-        }));
+        return (items as CollectionApiResponse[]).map((dto) =>
+          transformDtoToAudioCollection(dto, collectionType)
+        );
       }
     } catch (error) {
       console.error(`Error fetching ${collectionType} collections:`, error);
@@ -88,7 +145,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Get a collection by ID, optionally with its files
+  // ----------------------
+  // getCollectionById
+  // ----------------------
   api.getCollectionById = async (
     id: number,
     includeFiles: boolean = true
@@ -97,23 +156,20 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
       const response = await fetch(
         `${API_URL}/${id}?includeFiles=${includeFiles}`
       );
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
-      const data = await response.json();
+      const data: CollectionApiResponse | MacroApiResponse =
+        await response.json();
 
       if (collectionType === "macro") {
-        // Add macro-specific type annotation
-        return {
-          ...data,
-          type: "macro",
-        } as AudioMacro;
+        return transformDtoToAudioMacro(data as MacroApiResponse);
+      } else {
+        return transformDtoToAudioCollection(
+          data as CollectionApiResponse,
+          collectionType
+        );
       }
-
-      return data;
-
     } catch (error) {
       console.error(
         `Error fetching ${collectionType} collection with ID ${id}:`,
@@ -123,7 +179,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Create a new collection
+  // ----------------------
+  // createCollection
+  // ----------------------
   api.createCollection = async (
     name: string,
     description?: string
@@ -134,11 +192,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description }),
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       const result = await response.json();
       return result.id;
     } catch (error) {
@@ -147,7 +203,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Update an existing collection
+  // ----------------------
+  // updateCollection
+  // ----------------------
   api.updateCollection = async (
     id: number,
     name?: string,
@@ -156,13 +214,17 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     active?: boolean
   ): Promise<boolean> => {
     try {
-      const body: { name?: string; description?: string; volume?: number, active?: boolean } = {};
+      const body: {
+        name?: string;
+        description?: string;
+        volume?: number;
+        active?: boolean;
+      } = {};
       if (name !== undefined) body.name = name;
       if (description !== undefined) body.description = description;
       if (volume !== undefined) body.volume = volume;
       if (active !== undefined) body.active = active;
 
-      // At least one field must be present
       if (Object.keys(body).length === 0) {
         throw new Error("No update parameters provided");
       }
@@ -172,11 +234,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(`Error updating ${collectionType} ${id}:`, error);
@@ -184,17 +244,17 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Delete a collection
+  // ----------------------
+  // deleteCollection
+  // ----------------------
   api.deleteCollection = async (id: number): Promise<boolean> => {
     try {
       const response = await fetch(`${API_URL}/${id}`, {
         method: "DELETE",
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(`Error deleting ${collectionType} ${id}:`, error);
@@ -202,36 +262,18 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  /* Collection file endpoints
-   *******************************/
-
-  // Get files in a collection
+  // ----------------------
+  // getCollectionFiles
+  // ----------------------
   api.getCollectionFiles = async (
     collectionId: number
   ): Promise<AudioFile[]> => {
     try {
       const collection = await api.getCollectionById(collectionId, true);
-
-      if (!collection.items) {
-        return [];
-      }
-
-      // Convert to AudioItem format for AudioItemList component
-      return collection.items.map((item: AudioFile) => ({
-        id: item.id,
-        name: item.name,
-        position: item.position,
-        type: item.type,
-        fileType: item.fileType,
-        duration: item.duration,
-        volume: item.volume,
-        delay: item.delay,
-        fileUrl: item.fileUrl,
-        filePath: item.filePath,
-        folderId: item.folderId,
-        addedAt: item.addedAt,
-        active: item.active,
-      }));
+      const fileItems = (collection.items ?? []).filter(
+        (item): item is AudioFile => item.type === "file"
+      );
+      return fileItems;
     } catch (error) {
       console.error(
         `Error fetching files for ${collectionType} ${collectionId}:`,
@@ -241,7 +283,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Add a file to a collection
+  // ----------------------
+  // addFileToCollection
+  // ----------------------
   api.addFileToCollection = async (
     collectionId: number,
     audioFileId: number,
@@ -256,11 +300,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
           position: position !== undefined ? position : null,
         }),
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(
@@ -271,7 +313,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Add files to a collection (batch operation)
+  // ----------------------
+  // addFilesToCollection
+  // ----------------------
   api.addFilesToCollection = async (
     collectionId: number,
     audioFileIds: number[],
@@ -286,11 +330,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
           startPosition: startPosition !== undefined ? startPosition : null,
         }),
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(
@@ -301,24 +343,25 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Unified function to add items to a collection (handles both single and multiple items)
+  // ----------------------
+  // addToCollection (macro + file)
+  // ----------------------
   api.addToCollection = async (
     collectionId: number,
     items: AudioItem[],
-    position?: number,
+    position?: number
   ): Promise<boolean> => {
     if (items.length === 0) return true;
 
-    // Check if we have macros in the items
-    const macroItems = items.filter(item => item.type === "macro");
-    const fileItems = items.filter(item => item.type !== "macro");
-    
-    // Process macros if any exist
+    // Separate macros vs. files
+    const macroItems = items.filter((item) => item.type === "macro");
+    const fileItems = items.filter((item) => item.type !== "macro");
+
+    // Process macros first
     if (macroItems.length > 0) {
       if (collectionType !== "sfx") {
         console.warn("Macros can only be added to SFX collections");
       } else {
-        // Process macros one by one or in batch
         if (macroItems.length === 1) {
           const response = await fetch(
             `/api/audio/collections/sfx/${collectionId}/macros`,
@@ -331,56 +374,55 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
               }),
             }
           );
-
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
         } else {
-          // Add multiple macros to collection
           const response = await fetch(
             `/api/audio/collections/sfx/${collectionId}/macros/batch`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                macroIds: macroItems.map(item => item.id),
+                macroIds: macroItems.map((item) => item.id),
                 startPosition: position,
               }),
             }
           );
-
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
         }
       }
     }
-    
-    // Process regular files if any exist
+
+    // Process file items next
     if (fileItems.length > 0) {
       if (fileItems.length === 1) {
-        return await api.addFileToCollection(collectionId, fileItems[0].id, position);
+        return await api.addFileToCollection(
+          collectionId,
+          fileItems[0].id,
+          position
+        );
       } else {
         return await api.addFilesToCollection(
-          collectionId, 
-          fileItems.map(item => item.id), 
+          collectionId,
+          fileItems.map((item) => item.id),
           position
         );
       }
     }
-    
+
     return true;
   };
 
+  // ----------------------
+  // updateFile (edit file properties)
+  // ----------------------
   api.updateFile = async (
-    // Edit item properties
     collectionId: number,
     fileId: number,
-    params: {
-      active?: boolean;
-      volume?: number;
-      delay?: number;
-    }
+    params: UpdateFileParams
   ): Promise<boolean> => {
     try {
       const response = await fetch(
@@ -401,7 +443,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // method to remove macros from collections
+  // ----------------------
+  // removeMacroFromCollection (only for SFX)
+  // ----------------------
   if (collectionType === "sfx") {
     api.removeMacroFromCollection = async (
       collectionId: number,
@@ -414,11 +458,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
             method: "DELETE",
           }
         );
-
         if (!response.ok) {
           throw new Error(`HTTP error! Status: ${response.status}`);
         }
-
         return true;
       } catch (error) {
         console.error(
@@ -430,15 +472,20 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     };
   }
 
+  // ----------------------
+  // removeFilesFromCollection
+  // ----------------------
   api.removeFilesFromCollection = async (
     collectionId: number,
-    audioFiles: AudioItem[],
+    audioFiles: AudioItem[]
   ): Promise<boolean> => {
-    
     for (const file of audioFiles) {
       try {
-        // Check if this is a macro (for SFX collections)
-        if (file.type === 'macro' && collectionType === 'sfx' && api.removeMacroFromCollection) {
+        if (
+          file.type === "macro" &&
+          collectionType === "sfx" &&
+          api.removeMacroFromCollection
+        ) {
           await api.removeMacroFromCollection(collectionId, file.id);
         } else {
           const response = await fetch(
@@ -447,7 +494,6 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
               method: "DELETE",
             }
           );
-
           if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
           }
@@ -463,7 +509,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     return true;
   };
 
-  // Update position of a file in a collection
+  // ----------------------
+  // updateFilePosition
+  // ----------------------
   api.updateFilePosition = async (
     collectionId: number,
     audioFileId: number,
@@ -478,11 +526,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
           body: JSON.stringify({ targetPosition }),
         }
       );
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(
@@ -493,7 +539,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Move a range of files to a new position in the collection
+  // ----------------------
+  // updateFileRangePosition
+  // ----------------------
   api.updateFileRangePosition = async (
     collectionId: number,
     sourceStartPosition: number,
@@ -513,11 +561,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
           }),
         }
       );
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(
@@ -528,7 +574,9 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     }
   };
 
-  // Unified function to update positions (handles both single and range updates)
+  // ----------------------
+  // updatePosition (single‐vs‐range dispatcher)
+  // ----------------------
   api.updatePosition = async (
     collectionId: number,
     audioFileId: number,
@@ -536,7 +584,6 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
     sourceStartPosition?: number,
     sourceEndPosition?: number
   ): Promise<boolean> => {
-    // Determine if this is a range update or single file update
     if (sourceStartPosition !== undefined && sourceEndPosition !== undefined) {
       return await api.updateFileRangePosition(
         collectionId,
@@ -556,21 +603,33 @@ export function createCollectionApi(collectionType: CollectionType): CollectionA
   return api as CollectionApi;
 }
 
-export const packApi = {
-  // Get all collections of all types
+// ----------------------
+// PACK API IMPLEMENTATION
+// ----------------------
+
+export const packApi: PackApi = {
   getAllCollections: async (): Promise<AudioCollection[]> => {
     try {
       const response = await fetch(`/api/audio/collections`);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      const collections = await response.json();
-      return collections.map((collection: any) => ({
-        id: collection.collection_id,
-        name: collection.name,
-        description: collection.description || undefined,
-        type: collection.type,
-        itemCount: collection.itemCount || 0,
+      const collections: {
+        collection_id: number;
+        name: string;
+        description?: string;
+        type: string;
+        itemCount?: number;
+      }[] = await response.json();
+
+      return collections.map((c) => ({
+        id: c.collection_id,
+        name: c.name,
+        description: c.description || undefined,
+        type: c.type as CollectionType,
+        itemCount: c.itemCount ?? 0,
+        position: 0,
+        items: [],
       }));
     } catch (error) {
       console.error("Error fetching collections:", error);
@@ -578,20 +637,26 @@ export const packApi = {
     }
   },
 
-  // Get all packs with their collections
   getAllPacks: async (): Promise<AudioCollection[]> => {
     try {
       const response = await fetch(`/api/audio/collections/pack`);
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      const packs = await response.json();
+      const packs: {
+        pack_id: number;
+        name: string;
+        description?: string;
+      }[] = await response.json();
 
-      return packs.map((pack: any) => ({
-        id: pack.pack_id,
-        name: pack.name,
-        description: pack.description || undefined,
+      return packs.map((p) => ({
+        id: p.pack_id,
+        name: p.name,
+        description: p.description || undefined,
         type: "pack",
+        itemCount: 0,
+        position: 0,
+        items: [],
       }));
     } catch (error) {
       console.error("Error fetching packs:", error);
@@ -599,7 +664,6 @@ export const packApi = {
     }
   },
 
-  // Create a new pack
   createPack: async (name: string, description?: string): Promise<number> => {
     try {
       const response = await fetch(`/api/audio/collections/pack`, {
@@ -607,12 +671,10 @@ export const packApi = {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, description }),
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
-      const result = await response.json();
+      const result: { pack_id: number } = await response.json();
       return result.pack_id;
     } catch (error) {
       console.error(`Error creating pack:`, error);
@@ -620,17 +682,14 @@ export const packApi = {
     }
   },
 
-  // Delete a pack
   deletePack: async (id: number): Promise<boolean> => {
     try {
       const response = await fetch(`/api/audio/collections/pack/${id}`, {
         method: "DELETE",
       });
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(`Error deleting pack ${id}:`, error);
@@ -643,23 +702,17 @@ export const packApi = {
     collectionId: number
   ): Promise<boolean> => {
     try {
-      //console.log(`Adding collection ${collectionId} to pack ${packId}...`);
-
       const response = await fetch(
         `/api/audio/collections/pack/${packId}/collections`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            collectionId,
-          }),
+          body: JSON.stringify({ collectionId }),
         }
       );
-
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-
       return true;
     } catch (error) {
       console.error(
@@ -678,13 +731,22 @@ export const packApi = {
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
-      const collections = await response.json();
+      const collections: {
+        collection_id: number;
+        name: string;
+        description?: string;
+        type: string;
+        itemCount?: number;
+      }[] = await response.json();
 
-      return collections.map((collection: any) => ({
-        id: collection.collection_id,
-        name: collection.name,
-        description: collection.description || undefined,
-        type: collection.type,
+      return collections.map((c) => ({
+        id: c.collection_id,
+        name: c.name,
+        description: c.description || undefined,
+        type: c.type as CollectionType,
+        itemCount: c.itemCount ?? 0,
+        position: 0,
+        items: [],
       }));
     } catch (error) {
       console.error(`Error fetching collections for pack ${packId}:`, error);
@@ -693,7 +755,7 @@ export const packApi = {
   },
 };
 
-// Create pre-configured APIs for each collection type
+// Pre‐configured APIs for convenience:
 export const playlistApi = createCollectionApi("playlist");
 export const sfxApi = createCollectionApi("sfx");
 export const ambienceApi = createCollectionApi("ambience");

@@ -197,7 +197,7 @@ export const ListView: React.FC<ListViewProps> = ({
                 // Special handling for ambience files - they can be active even when not playing
                 const isAmbienceActive =
                   isAudioFile(item) &&
-                  item.fileType === "ambience" &&
+                  item.audioType === "ambience" &&
                   item.active;
 
                 // Check if this item is the current track in a playlist, even if it's not playing

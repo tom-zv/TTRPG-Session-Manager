@@ -13,6 +13,7 @@ interface FolderHeaderProps {
   isOpen: boolean;
   hasContents: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  setIsOpen?: React.Dispatch<React.SetStateAction<boolean>>; 
 }
 
 const FolderHeader: React.FC<FolderHeaderProps> = ({
@@ -20,6 +21,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
   isOpen,
   hasContents,
   onClick,
+  setIsOpen,
 }) => {
   // Get data and handlers from context
   const { 
@@ -27,6 +29,9 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
     handleFolderDragStart, 
     handleFolderDragEnd,
     handleFolderCreated, 
+    handleFileCreated,
+    initializeDownloadProgress,
+    handleFileDownloadError,
     reload 
   } = useFolderTree();
   
@@ -64,9 +69,11 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
       
       <button
         className="icon-button create-button"
+        name="Create File"
         onClick={(e) => {
           e.stopPropagation();
           setCreateFileDialogOpen(true);
+          setIsOpen?.(true); 
         }}
       >
         <LuFilePlus2 />
@@ -77,6 +84,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         onClick={(e) => {
           e.stopPropagation();
           setCreateFolderDialogOpen(true);
+          setIsOpen?.(true);
         }}
       >
         <TbFolderPlus />
@@ -99,6 +107,9 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         onClose={() => setCreateFileDialogOpen(false)}
         folderId={folder.id}
         type={folder.type === "root" ? "any" : folder.type}
+        onFileCreated={handleFileCreated}
+        onFileDownload={initializeDownloadProgress}
+        onFileDownloadError={handleFileDownloadError}
       />
       
     </div>

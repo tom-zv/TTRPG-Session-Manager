@@ -7,8 +7,8 @@ import { AudioItem } from '../types.js';
 export function getItemIcon(item: AudioItem): IconType {
   switch (item.type) {
     case 'file':
-      return item.fileType === 'music' ? BsMusicNote : 
-             item.fileType === 'sfx' ? BsSoundwave : AiTwotoneSound;
+      return item.audioType === 'music' ? BsMusicNote : 
+             item.audioType === 'sfx' ? BsSoundwave : AiTwotoneSound;
     case 'playlist': return BsHeadphones;
     case 'sfx': return AiTwotoneSound;
     case 'ambience': return FaLeaf;

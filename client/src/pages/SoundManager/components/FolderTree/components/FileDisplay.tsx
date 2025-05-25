@@ -1,11 +1,11 @@
 import React from 'react';
-import { AudioFile } from '../types.js';
+import { AudioFileUI } from '../types.js';
 import { getFileIcon } from '../utils/icons.js';
 import { handleFileClick } from '../utils/ClickHandlers.js';
 import { useFolderTree } from '../context/FolderTreeContext.js';
 
 interface FileDisplayProps {
-  file: AudioFile;
+  file: AudioFileUI;
 }
 
 const FileDisplay: React.FC<FileDisplayProps> = ({ file }) => {

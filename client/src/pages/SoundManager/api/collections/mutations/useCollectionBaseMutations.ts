@@ -1,7 +1,7 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { CollectionType } from "./collectionApi.js";
-import { AudioCollection } from "../../types/AudioItem.js";
-import { getApiForType, collectionKeys } from "./useCollectionQueries.js";
+import { CollectionType } from "shared/audio/types.js";
+import { AudioCollection } from "../../../types/AudioItem.js";
+import { getApiForType, collectionKeys } from "../useCollectionQueries.js";
 
 /* useCollectionBaseMutations.ts
  * Mutation hooks for basic CRUD operations on collections using React Query
@@ -28,7 +28,7 @@ export const useCreateCollection = (type: CollectionType) => {
         collectionKeys.type(type)
       );
       // Optimistic update
-      queryClient.setQueryData(collectionKeys.type(type), (old: any) => {
+      queryClient.setQueryData(collectionKeys.type(type), (old: AudioCollection) => {
         // If old is undefined, initialize with a new virtual collection
         if (!old) {
           return {
@@ -146,7 +146,7 @@ export const useDeleteCollections = (type: CollectionType) => {
         collectionKeys.type(type)
       );
       // Optimistic update - remove collections with matching ids
-      queryClient.setQueryData(collectionKeys.type(type), (old: any) => {
+      queryClient.setQueryData(collectionKeys.type(type), (old: AudioCollection) => {
         if (!old) return [];
 
         // If old is a virtual collection with items array
@@ -154,7 +154,7 @@ export const useDeleteCollections = (type: CollectionType) => {
           return {
             ...old,
             items: old.items.filter(
-              (collection: any) => !ids.includes(collection.id)
+              (collection) => !ids.includes(collection.id)
             ),
           };
         }

@@ -76,9 +76,9 @@ CREATE TABLE
     duration INT,
     file_url VARCHAR(256),
     file_path VARCHAR(256),
-    folder_id INT,
+    folder_id INT NOT NULL DEFAULT 1,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_audio_files_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET NULL
+    CONSTRAINT fk_audio_files_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET DEFAULT
   );
 
 -- SFX macros 
@@ -91,7 +91,7 @@ CREATE TABLE
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
-CREATE TABLE macro_tags (
+CREATE TABLE IF NOT EXISTS macro_tags (
     macro_id INT NOT NULL,
     tag VARCHAR(64) NOT NULL,
     PRIMARY KEY (macro_id, tag),
@@ -111,7 +111,7 @@ CREATE TABLE
 
 -- Collections
 CREATE TABLE
-  collections (
+  IF NOT EXISTS collections (
     collection_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     description TEXT,
@@ -119,7 +119,7 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  collection_files (
+  IF NOT EXISTS collection_files (
     collection_id INT NOT NULL,
     audio_file_id INT NOT NULL,
     active BOOLEAN DEFAULT FALSE,
@@ -131,7 +131,7 @@ CREATE TABLE
   );
 
 CREATE TABLE 
-  collection_sfx_macros (
+  IF NOT EXISTS collection_sfx_macros (
     collection_id INT NOT NULL,
     macro_id INT NOT NULL,
     position INT NOT NULL,

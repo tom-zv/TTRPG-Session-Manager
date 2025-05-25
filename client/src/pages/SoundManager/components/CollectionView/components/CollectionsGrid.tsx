@@ -1,5 +1,5 @@
 import React from 'react';
-import { CollectionType } from '../types.js';
+import { CollectionType } from "shared/audio/types.js";
 import { DragDropProps } from 'src/types/dragDropProps.js';
 import { CollectionItemsDisplay } from '../../CollectionItemsDisplay/CollectionItemsDisplay.js';
 import './CollectionsGrid.css';

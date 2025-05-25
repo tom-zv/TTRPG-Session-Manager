@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { Audio } from '../../services/AudioService/AudioContext.js';
 import { useGetCollectionById } from '../../api/collections/useCollectionQueries.js';
-import type { AudioFile } from '../../types/AudioItem.js'; 
+import type { AudioFile } from 'src/pages/SoundManager/types/AudioItem.js'; 
 import './PlayBar.css';
 
 interface PlayBarProps {
@@ -158,5 +158,7 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
 }, (prevProps, nextProps) => {
   return prevProps.className === nextProps.className;
 });
+
+PlayBar.displayName = 'PlayBar';
 
 export default PlayBar;

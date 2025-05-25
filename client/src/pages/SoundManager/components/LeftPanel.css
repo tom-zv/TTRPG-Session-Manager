@@ -141,11 +141,17 @@
     font-size: 0.9rem;
 }
 
-/* === PlayBar Styling === */
-.play-bar {
-    min-height: 65px;
-    height: 100%;
-    padding: 0.5rem;
+.panel-group-container {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.play-bar-container {
+    height: 100px; /* Fixed height for the play bar */
+    border-top: 1px solid var(--border-color-light);
+    flex-shrink: 0;
 }
 
 /* === FolderTree Styling === */

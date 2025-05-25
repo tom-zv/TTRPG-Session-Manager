@@ -71,6 +71,14 @@ export async function getFolderPath(folderId: number | null): Promise<string> {
   return pathParts.join('/');
 }
 
+export async function getFolderType(folder_id: number) : Promise<string>{
+    const [rows] = await pool.execute(
+      'SELECT folder_type from folders WHERE folder_id = ?', [folder_id]
+    )
+
+    return (rows as RowDataPacket[])[0].folder_type;
+}
+
 export default {
   getAllFolders,
   getFolderById,

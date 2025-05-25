@@ -371,11 +371,11 @@ export async function updateFile(
           audioFileId,
           audioFileParams
         );
-        affectedRows += audioFileResult.success ? 1 : 0;
+        affectedRows += audioFileResult ? 1 : 0;
       }
       
       // Update collection_files table properties if needed
-      const collectionFileParams: any = {};
+      const collectionFileParams: {active?: boolean, volume?: number } = {};
       if (params.active !== undefined) collectionFileParams.active = params.active;
       if (params.volume !== undefined) collectionFileParams.volume = params.volume;
       

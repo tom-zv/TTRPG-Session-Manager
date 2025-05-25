@@ -6,8 +6,8 @@ import type { AudioCollection, AudioFile } from "../../../types/AudioItem.js";
 import {
   useActivateAmbienceFile,
   useDeactivateAmbienceFile,
-} from "../../../api/collections/useAmbienceMutations.js";
-import { useUpdateFileVolume } from "../../../api/collections/useFileMutations.js";
+} from "../../../api/collections/mutations/useAmbienceMutations.js";
+import { useUpdateFileVolume } from "src/pages/SoundManager/api/collections/mutations/useCollectionItemMutations.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
 
 const ambienceModule = new AmbienceModule();

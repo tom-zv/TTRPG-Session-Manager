@@ -1,11 +1,11 @@
-import { AudioFile, Folder } from "src/pages/SoundManager/components/FolderTree/types.js";
+import { AudioFileUI, Folder } from "src/pages/SoundManager/components/FolderTree/types.js";
 
 // Helper function to get all files from a folder, including from subfolders
 export const getNestedFiles = (
   folder: Folder,
   allFolders: Folder[]
-): AudioFile[] => {
-  const result: AudioFile[] = [];
+): AudioFileUI[] => {
+  const result: AudioFileUI[] = [];
 
   result.push(...(folder.files || []));
 
@@ -24,8 +24,8 @@ export const getNestedFiles = (
 export const getFilesFromFolders = (
   folderIds: number[],
   allFolders: Folder[]
-): AudioFile[] => {
-  const result: AudioFile[] = [];
+): AudioFileUI[] => {
+  const result: AudioFileUI[] = [];
 
   // Find each folder and get its files
   folderIds.forEach((id) => {
@@ -58,14 +58,14 @@ export const findFolderById = (
 };
 
 // Get all file IDs from a collection of audio files
-export const getFileIds = (files: AudioFile[]): number[] => {
+export const getFileIds = (files: AudioFileUI[]): number[] => {
   return files.map((file) => file.id);
 };
 
 // Helper to filter files by audio type
 export const filterFilesByType = (
-  files: AudioFile[],
+  files: AudioFileUI[],
   type: "music" | "sfx" | "ambience"
-): AudioFile[] => {
+): AudioFileUI[] => {
   return files.filter((file) => file.audioType === type);
 };

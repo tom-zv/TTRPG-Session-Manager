@@ -1,7 +1,7 @@
 import { AudioItem } from "../../types/AudioItem.js";
 export * from "../../types/AudioItem.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
-import { CollectionType } from "../CollectionView/types.js";
+import { CollectionType } from "shared/audio/types.js";
 
 // Audio Item Actions
 export interface AudioItemActions {

@@ -1,37 +1,52 @@
 import React, { createContext, useContext, ReactNode } from "react";
-import { Folder, AudioFile } from "../types.js";
+import { Folder, AudioFileUI } from "../types.js";
 import { useFolderTreeData } from "../hooks/useFolderTreeData.js";
 import { useFolderTreeSelection } from "../hooks/useFolderTreeSelection.js";
 import { useFolderTreeDragDrop } from "../hooks/useFolderTreeDragDrop.js";
+import { NestedProgressMap } from "../hooks/useDownloadProgress.js";
 
-// Define the shape of our context value
 interface FolderTreeContextValue {
   // Data and loading state
-  flatAudioFiles: AudioFile[];
+  flatAudioFiles: AudioFileUI[];
   flatFolders: Folder[];
   folderTree: Folder[];
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
-  
+
   // Selection state and handlers
   selectedFolderIds: number[];
   selectedFileIds: number[];
-  handleFolderSelect: (folder: Folder, isMultiSelect?: boolean, isShiftSelect?: boolean) => void;
-  handleFileSelect: (file: AudioFile, isMultiSelect?: boolean, isShiftSelect?: boolean) => void;
+  handleFolderSelect: (
+    folder: Folder,
+    isMultiSelect?: boolean,
+    isShiftSelect?: boolean
+  ) => void;
+  handleFileSelect: (
+    file: AudioFileUI,
+    isMultiSelect?: boolean,
+    isShiftSelect?: boolean
+  ) => void;
   fileSelection: {
-    selectedItems: AudioFile[];
+    selectedItems: AudioFileUI[];
     clearSelection: () => void;
   };
-  
+
   // Drag and drop handlers
   handleFolderDragStart: (e: React.DragEvent, folder: Folder) => void;
   handleFolderDragEnd: (e: React.DragEvent) => void;
-  handleFileDragStart: (e: React.DragEvent, file: AudioFile) => void;
+  handleFileDragStart: (e: React.DragEvent, file: AudioFileUI) => void;
   handleFileDragEnd: (e: React.DragEvent) => void;
-  
+
   // Folder management
   handleFolderCreated: (folder: Folder) => void;
+
+  // File management
+  handleFileCreated: (file: AudioFileUI) => void;
+  initializeDownloadProgress: (jobId: string, fileId: number) => void;
+  handleFileDownloadError: ( jobId: string, folderId: number, error: string) => void;
+  dismissDownloadProgress: (jobId: string, folderId: number) => void;
+  folderDownloadProgress: NestedProgressMap
 }
 
 const FolderTreeContext = createContext<FolderTreeContextValue | undefined>(undefined);
@@ -41,10 +56,15 @@ export const FolderTreeProvider: React.FC<{ children: ReactNode }> = ({ children
     flatAudioFiles,
     flatFolders,
     folderTree,
+    folderDownloadProgress,
     loading,
     error,
     reload,
-    handleFolderCreated
+    handleFolderCreated,
+    handleFileCreated,
+    initializeDownloadProgress,
+    handleFileDownloadError,
+    dismissDownloadProgress
   } = useFolderTreeData();
 
 
@@ -75,6 +95,7 @@ export const FolderTreeProvider: React.FC<{ children: ReactNode }> = ({ children
     flatAudioFiles,
     flatFolders,
     folderTree,
+    folderDownloadProgress,
     loading,
     error,
     reload,
@@ -87,7 +108,11 @@ export const FolderTreeProvider: React.FC<{ children: ReactNode }> = ({ children
     handleFolderDragEnd,
     handleFileDragStart,
     handleFileDragEnd,
-    handleFolderCreated
+    handleFolderCreated,
+    handleFileCreated,
+    initializeDownloadProgress,
+    handleFileDownloadError,
+    dismissDownloadProgress
   };
 
   return (

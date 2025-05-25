@@ -35,37 +35,39 @@ const SoundManagerContent: React.FC = () => {
     <div className="sound-manager">
       <div className="sound-manager-layout">
         <div className="sound-manager-left-panel">
-          <PanelGroup direction="vertical">
-            {/* Playlist Panel */}
-            <Panel
-              ref={playlistPanelRef}
-              defaultSize={calculatePlaylistPanelSize()}
-              minSize={9}
-              className="panel-with-table" 
-            >
-              <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
-                <PlaylistPanel
-                  onPlaylistCountChange={handlePlaylistCountChange}
-                />
-              </DropArea>
-            </Panel>
+          <div className="panel-group-container">
+            <PanelGroup direction="vertical">
+              {/* Playlist Panel */}
+              <Panel
+                ref={playlistPanelRef}
+                defaultSize={calculatePlaylistPanelSize()}
+                minSize={9}
+                className="panel-with-table" 
+              >
+                <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
+                  <PlaylistPanel
+                    onPlaylistCountChange={handlePlaylistCountChange}
+                  />
+                </DropArea>
+              </Panel>
 
-            <PanelResizeHandle className="separator" />
+              <PanelResizeHandle className="separator" />
 
-            {/* Item Panel */}
-            <Panel
-              defaultSize={90 - calculatePlaylistPanelSize()}
-              minSize={20}
-              className="panel-with-table"
-            >
-              <ItemPanel />
-            </Panel>
-
-            {/* Play Bar - fixed height, smaller minimum */}
-            <Panel defaultSize={10} minSize={10} maxSize={10}>
-              <PlayBar />
-            </Panel>
-          </PanelGroup>
+              {/* Item Panel */}
+              <Panel
+                defaultSize={100 - calculatePlaylistPanelSize()}
+                minSize={20}
+                className="panel-with-table"
+              >
+                <ItemPanel />
+              </Panel>
+            </PanelGroup>
+          </div>
+          
+          {/* Fixed Play Bar */}
+          <div className="play-bar-container">
+            <PlayBar />
+          </div>
         </div>
 
         <div className="layout-vertical-separator"></div>

@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
-import { AudioItem, AudioCollection, CollectionType } from "../types.js";
+import { AudioItem, AudioCollection } from "../types.js";
+import { CollectionType } from "shared/audio/types.js";
 
 interface UseCollectionsProps {
   // Display metadata
@@ -120,7 +121,7 @@ export const useCollections = ({
           setSelectedCollection((prev) =>
             prev ? { ...prev, items: items } : null
           );
-        } catch (err) {
+        } catch {
           // Error handling
         }
       }

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { collectionNameFromType } from '../hooks/useCollections.js';
-import { CollectionType } from '../types.js';
+import { CollectionType } from "shared/audio/types.js";
 import './CreateCollectionDialog.css';
 
 interface CreateCollectionDialogProps {
