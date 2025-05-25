@@ -47,8 +47,6 @@ export async function updateAudioFile(
   // Build dynamic query based on provided params
   const updateFields: string[] = [];
   const fields: (string | number)[] = [];
-  
-  console.log('updateAudioFile MODEL params:', params);
 
   if (params.name !== undefined) {
     updateFields.push('name = ?');

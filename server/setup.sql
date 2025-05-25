@@ -76,9 +76,9 @@ CREATE TABLE
     duration INT,
     file_url VARCHAR(256),
     file_path VARCHAR(256),
-    folder_id INT,
+    folder_id INT NOT NULL,
     added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_audio_files_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET NULL
+    CONSTRAINT fk_audio_files_folder_id FOREIGN KEY (folder_id) REFERENCES folders (folder_id) ON DELETE SET 1
   );
 
 -- SFX macros 

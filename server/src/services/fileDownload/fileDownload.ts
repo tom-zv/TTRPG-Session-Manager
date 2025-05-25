@@ -1,0 +1,109 @@
+import { Worker } from "worker_threads";
+import { randomUUID } from "crypto";
+import { emitAudioDownloadProgress, emitAudioDownloadFailed, emitAudioDownloadItemFailed } from "../../socket/namespaces/download/audio.js";
+import { FileData } from "./downloadFunctions.js";
+import { fileURLToPath } from "url";
+
+const activeJobs = new Map();
+
+function generateJobId(): string {
+  return randomUUID();
+}
+
+/**
+ * Downloads audio file in a TypeScript worker thread
+ * 
+ * Uses a JS resolver pattern to enable TypeScript in worker threads:
+ * - JS resolver registers tsx compiler and imports TS worker
+ * - Worker performs download in background thread
+ */
+export async function downloadAudioFile(fileData: FileData): Promise<string> {
+  if (!fileData.file_url) {
+    throw new Error(`missing file_url`);
+  }
+
+  const jobId = generateJobId();
+  
+  // JS resolver enables TypeScript execution in worker thread
+  const resolverPath = fileURLToPath(new URL('./downloadWorker.resolver.js', import.meta.url));
+  // Actual TypeScript worker implementation, rel to resolver
+  const scriptPath = fileURLToPath(new URL('./downloadWorker.ts', import.meta.url));
+  
+  const worker = new Worker(resolverPath, {
+    workerData: { scriptPath, jobId, fileData }
+  });
+
+  // Store reference to worker
+  activeJobs.set(jobId, {
+    worker,
+    status: "running",
+    fileData,
+  });
+
+  // Handle worker messages and cleanup
+  worker.on("message", (message) => {
+    // Progress from batch downloads
+    if (message.type === "progress") {
+      emitAudioDownloadProgress(jobId, message.file, message.index, message.total);
+    } else if (message.type === "item-error") {
+      // Emit individual item failure to client
+      emitAudioDownloadItemFailed(
+        jobId, 
+        message.folderId, 
+        message.index, 
+        message.total, 
+        message.error, 
+        message.title, 
+        message.url
+      );
+    } else if (message.type === "complete") {
+      emitAudioDownloadProgress(jobId, message.file, message.index, message.total);
+      activeJobs.set(jobId, { ...activeJobs.get(jobId), status: "completed" });
+    } else if (message.type === "error") {
+      // Handle worker-level errors
+      console.error(`Job ${jobId} worker error:`, message.error);
+      emitAudioDownloadFailed(jobId, message.folderId || 0, message.error.message || 'Unknown error');
+      activeJobs.set(jobId, {
+        ...activeJobs.get(jobId),
+        status: "failed",
+        error: message.error,
+      });
+    }
+  });
+
+  worker.on("error", (err) => {
+    console.error(`Job ${jobId} error:`, err);
+    emitAudioDownloadFailed(jobId, 0, err.message);
+    activeJobs.set(jobId, {
+      ...activeJobs.get(jobId),
+      status: "failed",
+      error: err,
+    });
+    setTimeout(
+      () => {
+        activeJobs.delete(jobId);
+      },
+      1000 * 60 * 60
+    );
+  });
+
+  worker.on("exit", (code) => {
+    if (code !== 0) {
+      console.error(`Job ${jobId} exited with code ${code}`);
+      emitAudioDownloadFailed(jobId, 0, `Worker process exited with code ${code}`);
+      activeJobs.set(jobId, {
+        ...activeJobs.get(jobId),
+        status: "failed",
+        error: new Error(`Worker process exited with code ${code}`),
+      });
+    }
+    setTimeout(
+      () => {
+        activeJobs.delete(jobId);
+      },
+      1000 * 60 * 60
+    );
+  });
+
+  return jobId;
+}

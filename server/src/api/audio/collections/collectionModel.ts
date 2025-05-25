@@ -89,8 +89,8 @@ export async function updateCollection(
     throw new Error(`Invalid collection type: ${type}`);
   }
 
-  const fields: string[] = [];
-  const params: any[] = [];
+  const fields = [];
+  const params = [];
 
   if (name !== undefined) {
     fields.push('name = ?');
@@ -134,7 +134,7 @@ export async function deleteCollection(type: string, collectionId: number): Prom
 export async function getCollectionFiles(
   type: string,
   collectionId: number
-): Promise<any> {
+): Promise<{ files: RowDataPacket[], macros: RowDataPacket[] }> {
   if (!["playlist", "sfx", "ambience"].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
@@ -184,7 +184,7 @@ export async function getCollectionFiles(
     macros = macroResults as RowDataPacket[];
   }
 
-  return { files, macros };
+  return { files: files as RowDataPacket[], macros };
 }
 
 export async function addFileToCollection(
@@ -244,18 +244,18 @@ export async function addFileToCollection(
       }
     }
     
-    let result;
+    
     // Insert new entry
-    [result] = await connection.execute(
+    const [result] = await connection.execute(
       `INSERT INTO ${COLLECTION_FILES_TABLE} (collection_id, audio_file_id, position) VALUES (?, ?, ?)`,
       [collectionId, audioFileId, position]
     );
     
     await connection.commit();
     return (result as ResultSetHeader).affectedRows || 0;
-  } catch (error: any) {
+  } catch (error: unknown) {
     await connection.rollback();
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
       return -1; // Special code to indicate duplicate entry
     }
     throw error;
@@ -362,7 +362,7 @@ export async function updateCollectionFile(
 ): Promise<number> {
   // Build dynamic query based on provided params
   const updateFields: string[] = [];
-  const fields: any[] = [];
+  const fields = [];
   
   if (params.active !== undefined) {
     updateFields.push('active = ?');
@@ -393,7 +393,7 @@ export async function updateCollectionFile(
     fields
   );
   
-  return (result as ResultSetHeader).affectedRows || 0;
+  return ((result as unknown) as ResultSetHeader).affectedRows || 0;
 }
 
 export async function removeFileFromCollection(
@@ -672,9 +672,9 @@ export async function addMacroToCollection(
     
     await connection.commit();
     return (result as ResultSetHeader).affectedRows || 0;
-  } catch (error: any) {
+  } catch (error: unknown) {
     await connection.rollback();
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
       return -1; // Special code to indicate duplicate entry
     }
     throw error;
@@ -850,8 +850,8 @@ export async function addCollectionToPack(
     
     await connection.commit();
     return (result as ResultSetHeader).affectedRows || 0;
-  } catch (error: any) {
-    if (error.code === 'ER_DUP_ENTRY') {
+  } catch (error: unknown) {
+    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
       return -1; // Special code to indicate duplicate entry
     }
     await connection.rollback();

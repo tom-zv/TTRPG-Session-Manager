@@ -1,7 +1,7 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { CollectionType } from "./collectionApi.js";
-import { AudioCollection, AudioItem } from "../../types/AudioItem.js";
-import { getApiForType, collectionKeys } from "./useCollectionQueries.js";
+import { CollectionType } from "../collectionApi.js";
+import { AudioCollection, AudioItem } from "src/pages/SoundManager/types/AudioItem.js";
+import { getApiForType, collectionKeys } from "../useCollectionQueries.js";
 
 /* useCollectionPositionMutations.ts
  * Mutation hooks for managing positions of items within collections using React Query
@@ -26,13 +26,22 @@ export const useUpdateItemPositions = (type: CollectionType) => {
       sourceStartPosition?: number;
       sourceEndPosition?: number;
     }) => {
-      return await api.updatePosition(
-        collectionId,
-        itemId,
-        targetPosition,
-        sourceStartPosition,
-        sourceEndPosition
-      );
+      
+      if (sourceStartPosition !== undefined && sourceEndPosition !== undefined) {
+        // Range update
+        return await api.updatePosition(
+          collectionId,
+          sourceStartPosition,
+          sourceEndPosition,
+          targetPosition
+        );
+      } else {
+        return await api.updatePosition(
+          collectionId,
+          itemId,
+          targetPosition
+        );
+      }
     },
     onMutate: async ({
       collectionId,

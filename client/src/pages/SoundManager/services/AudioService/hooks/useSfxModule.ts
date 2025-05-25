@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { sfxModule } from "../modules/sfxModule.js";
 import { AudioEventTypes, on, off } from "../events.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
-import { useUpdateFileVolume } from "src/pages/SoundManager/api/collections/useFileMutations.js";
+import { useUpdateFileVolume } from "src/pages/SoundManager/api/collections/mutations/useCollectionItemMutations.js";
 import { useUpdateMacroVolume } from "src/pages/SoundManager/api/collections/useSfxMutations.js";
 import type { AudioFile, AudioMacro } from "../../../types/AudioItem.js";
 

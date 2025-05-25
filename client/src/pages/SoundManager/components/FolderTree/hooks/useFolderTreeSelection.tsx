@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { Folder, AudioFile } from "../types.js";
+import { Folder, AudioFileUI } from "../types.js";
 import { useSelection } from "../../../../../hooks/useSelection.js";
 
 /**
@@ -10,11 +10,11 @@ export function useFolderTreeSelection({
   flatAudioFiles,
   flatFolders
 }: {
-  flatAudioFiles: AudioFile[];
+  flatAudioFiles: AudioFileUI[];
   flatFolders: Folder[];
 }) {
   // Create file selection hook instance with circular reference to folder selection
-  const fileSelection = useSelection<AudioFile>({
+  const fileSelection = useSelection<AudioFileUI>({
     getItemId: (file) => file.id,
     onSelectionChange: (selectedFiles) => {
       // When files are selected, clear folder selection
@@ -79,7 +79,7 @@ export function useFolderTreeSelection({
 
   const handleFileSelect = useCallback(
     (
-      file: AudioFile,
+      file: AudioFileUI,
       isMultiSelect: boolean = false,
       isShiftSelect: boolean = false
     ) => {

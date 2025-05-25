@@ -70,10 +70,10 @@ export class PlaylistModule {
     }
 
     // Resolve audio source, handling special URLs like YouTube
-    const audioSrc = resolveAudioPath(track.filePath) || await resolveAudioUrl(track.fileUrl) || "";
+    const audioSrc = resolveAudioPath(track.path) || await resolveAudioUrl(track.url) || "";
 
     if (!audioSrc) {
-      console.error(`Could not resolve audio source for track: ${track.name || track.id} (URL: ${track.fileUrl}, Path: ${track.filePath}). Skipping.`);
+      console.error(`Could not resolve audio source for track: ${track.name || track.id} (URL: ${track.url}, Path: ${track.path}). Skipping.`);
       
       setTimeout(() => this.nextTrack(), 100);
       return;
@@ -83,7 +83,7 @@ export class PlaylistModule {
     const howlOptions: HowlOptions = {
       src: [audioSrc],
       volume: getVolume("playlist"),
-      html5: !!track.fileUrl, 
+      html5: !!track.url, 
       onend: () => {
         this.nextTrack();
       },
@@ -108,7 +108,7 @@ export class PlaylistModule {
     };
 
     // Conditionally add format for YouTube URLs, as they often lack extensions
-    if (track.fileUrl && (track.fileUrl.includes("youtube.com") || track.fileUrl.includes("youtu.be"))) {
+    if (track.url && (track.url.includes("youtube.com") || track.url.includes("youtu.be"))) {
       howlOptions.format = ['m4a', 'mp4'];
     }
 

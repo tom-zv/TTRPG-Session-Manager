@@ -1,5 +1,5 @@
 // File-specific types
-export type AudioFileType = "music" | "sfx" | "ambience";
+export type AudioType = "music" | "sfx" | "ambience" | "any";
 
 // Collection-specific types
 export type CollectionType = "playlist" | "sfx" | "ambience" | "pack" | "macro";
@@ -15,12 +15,12 @@ export interface AudioItemBase {
 // Audio file specific interface
 export interface AudioFile extends AudioItemBase {
   type: "file";
-  fileType: AudioFileType;
+  audioType: AudioType;
   duration: number;
-  volume: number;
+  volume?: number;
   delay?: number;
-  fileUrl?: string;
-  filePath?: string;
+  url?: string;
+  path?: string;
   folderId?: number;
   addedAt?: string;
   active?: boolean; 

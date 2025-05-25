@@ -1,12 +1,15 @@
 import Dialog from "src/components/Dialog/Dialog.js";
 import { createAudioFile } from "src/pages/SoundManager/api/fileApi.js";
 import { useState, useRef } from "react";
-import { AudioType } from "../types.js";
+import { AudioFileUI, AudioType } from "../types.js";
 
 type CreateFileDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   folderId: number;
+  onFileCreated: (file: AudioFileUI) => void;
+  onFileDownload: (jobId: string, folderId: number, error?: string) => void;
+  onFileDownloadError: (jobId: string, folderId: number, error: string) => void;
   type?: "music" | "sfx" | "ambience" | "any";
 };
 
@@ -15,9 +18,12 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
   onClose,
   folderId,
   type,
+  onFileDownload,
+  onFileCreated,
+  onFileDownloadError
 }) => {
   const [fileName, setFileName] = useState<string>("");
-  const [fileUrl, setFileUrl] = useState<string>("");
+  const [url, setUrl] = useState<string>("");
   const [fileType, setFileType] = useState<AudioType>(type || "any");
   const [file, setFile] = useState<File | null>(null);
   const [urlInputActive, setUrlInputActive] = useState<boolean>(false);
@@ -28,7 +34,7 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
       setFile(e.target.files[0]);
       if (!fileName) {
         // Use the file name as default if no name is provided
-        setFileName(e.target.files[0].name.split('.').slice(0, -1).join('.'));
+        setFileName(e.target.files[0].name.split(".").slice(0, -1).join("."));
       }
     }
   };
@@ -42,36 +48,56 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
           fileInputRef.current.value = "";
         }
       } else {
-        setFileUrl("");
+        setUrl("");
       }
       setUrlInputActive(useUrl);
     }
   };
 
   const handleSubmit = async () => {
-    try {
-      const audioData = {
-        name: fileName,
-        audioType: fileType,
-        folderId,
-        fileUrl: urlInputActive ? fileUrl : undefined
-      };
+    const audioData = {
+      name: fileName,
+      audioType: fileType,
+      folderId,
+      url: urlInputActive ? url : undefined,
+    };
 
-      await createAudioFile(audioData, urlInputActive ? undefined : file || undefined);
+    try {
+      const response = await createAudioFile(
+        audioData,
+        urlInputActive ? undefined : file || undefined
+      );
+
+      if (response && response.jobId) {
+        onFileDownload(response.jobId, folderId);
+      } else if (response && response.id && response.id > 0) {
+        const newFile: AudioFileUI = {
+          id: response.id,
+          name: fileName,
+          audioType: fileType,
+          folderId: folderId,
+          url: urlInputActive ? url : undefined,
+        };
+        onFileCreated(newFile);
+      }
+    } catch (error) {
+      //client-side jobId for HTTP errors
+      const clientJobId = `error-${Date.now()}`;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      onFileDownloadError(clientJobId, folderId, errorMessage);
+    } finally {
       resetForm();
       onClose();
-    } catch (error) {
-      console.error("Error creating audio file:", error);
     }
   };
 
   const resetForm = () => {
     setFileName("");
-    setFileUrl("");
+    setUrl("");
     if (type) {
       setFileType(type);
     } else {
-      setFileType('any');
+      setFileType("any");
     }
     setFile(null);
     setUrlInputActive(false);
@@ -112,8 +138,8 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
           <input
             key="url-input"
             type="url"
-            value={fileUrl}
-            onChange={(e) => setFileUrl(e.target.value)}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
             placeholder="Enter file URL"
             className="file-url-input"
           />
@@ -144,7 +170,7 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={(urlInputActive ? !fileUrl : !file)}
+            disabled={urlInputActive ? !url : !file}
             className="create-btn"
             type="button"
           >

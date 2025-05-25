@@ -1,7 +1,7 @@
 // AudioItemEditDialog.tsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { useUpdateCollection } from "../../api/collections/useCollectionBaseMutations.js";
-import { useUpdateFile } from "../../api/collections/useCollectionItemMutations.js";
+import { useUpdateCollection } from "../../api/collections/mutations/useCollectionBaseMutations.js";
+import { useUpdateFile } from "../../api/collections/mutations/useCollectionItemMutations.js";
 import Dialog from "../../../../components/Dialog/Dialog.js";
 import MacroEditView from "../CollectionItemsDisplay/components/MacroEditView.js";
 import { CollectionType } from "../../types/index.js";
@@ -32,7 +32,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   parentCollectionType,
   parentCollectionId,
 }) => {
-  const [formData, setFormData] = useState<Record<string, any>>({});
+  const [formData, setFormData] = useState<Record<string, string | undefined>>({});
   const [error, setError] = useState<string | null>(null);
 
   const dirtyFields = useRef<Set<string>>(new Set());
@@ -41,10 +41,10 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   useEffect(() => {
     if (!item) return;
     dirtyFields.current.clear();
-    const initial: Record<string, any> = { name: item.name };
+    const initial: Record<string, string | undefined> = { name: item.name };
     if (isAudioFile(item)) {
-      initial.fileUrl = item.fileUrl;
-      initial.filePath = item.filePath;
+      initial.url = item.url;
+      initial.path = item.path;
     }
     if (isAudioCollection(item)) {
       initial.description = item.description;
@@ -69,7 +69,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       setError(null);
       
       // Build payload based on dirty fields
-      const payload: Record<string, any> = { id: item.id, collectionId: parentCollectionId };
+      const payload: Record<string, string | number | boolean | {type: CollectionType, id: number} | undefined> = { id: item.id, collectionId: parentCollectionId };
       
       // Only include fields that were edited
       Array.from(dirtyFields.current).forEach(field => {
@@ -80,7 +80,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       if (isAudioCollection(item)) {
         updateCollection.mutate(payload as { id: number; name?: string; description?: string });
       } else if (isAudioFile(item)) {
-        updateAudioFile.mutate(payload as { id: number; collectionId: number; name?: string; filePath?: string; fileUrl?: string; active?: boolean; volume?: number; delay?: number; parentInfo?: any });
+        updateAudioFile.mutate(payload as { id: number; collectionId: number; name?: string; path?: string; url?: string; active?: boolean; volume?: number; delay?: number; parentInfo?: {type: CollectionType, id: number} });
       }
       
       onClose();
@@ -166,14 +166,14 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
                   label="File URL"
                   name="fileUrl"
                   type="url"
-                  value={formData.fileUrl || ""}
+                  value={formData.url || ""}
                   onChange={handleChange}
                 />
 
                 <EditableField
                   label="File path (Relative)"
-                  name="filePath"
-                  value={formData.filePath || ""}
+                  name="path"
+                  value={formData.path || ""}
                   onChange={handleChange}
                 />
               </div>

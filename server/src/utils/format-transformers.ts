@@ -1,52 +1,59 @@
-//import { AudioFile } from "client/src/components/FolderTree/types.js";
-//import { AudioFileDB } from "src/api/audio/files/types.js";
+import {
+  AudioFileDB,
+  CollectionAudioFileDB,
+  CollectionDB,
+  FolderDB,
+  MacroDB,
+} from "src/api/audio/files/types.js";
+import {
+  FolderDTO,
+  AudioFileDTO,
+  AudioMacroDTO,
+  AudioCollectionDTO,
+} from "shared/DTO/index.js";
 
 // Transform raw database audio file without collection properties
-export function transformAudioFile(dbAudioFile: any) {
+export function transformAudioFileToDTO(
+  source: AudioFileDB | CollectionAudioFileDB
+): AudioFileDTO {
   return {
-    id: dbAudioFile.audio_file_id,  // DB ID
-    audioType: dbAudioFile.audio_type,   // audio type: music, sfx, ambience
-    name: dbAudioFile.name, 
-    duration: dbAudioFile.duration,
-    fileUrl: dbAudioFile.file_url,     // Remote URL for playback
-    filePath: dbAudioFile.file_path,   // Local path for file access
-    folderId: dbAudioFile.folder_id,   
-    addedAt: dbAudioFile.added_at,
-    type: "file"
+    type: "audio",
+    id: source.audio_file_id,
+    name: source.name ?? "",
+    url: source.file_url ?? undefined,
+    path: source.file_path ?? undefined,
+    folderId: source.folder_id,
+    addedAt: source.added_at ?? undefined,
+    audioType: source.audio_type,
+    duration: source.duration ?? 0,
+
+    position: (source as CollectionAudioFileDB).position,
+    volume: (source as CollectionAudioFileDB).volume,
+    delay: (source as CollectionAudioFileDB).delay,
+    active: (source as CollectionAudioFileDB).active,
   };
 }
 
-// Transform audio file with collection-specific properties
-export function transformCollectionFile(dbAudioFile: any) {
-  return {
-    ...transformAudioFile(dbAudioFile),
-    volume: dbAudioFile.volume,
-    delay: dbAudioFile.delay,
-    position: dbAudioFile.position,
-    active: dbAudioFile.active
-  };
-}
-
-export function transformMacro(dbMacro: any) {
+export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
   // Parse the files field if it exists
-  let nestedFiles = [];
-  if (dbMacro.files) {
+  let nestedFiles: AudioFileDTO[] = [];
+  if (macroDB.files) {
     try {
       // Convert the comma-separated JSON objects into a proper JSON array
-      const jsonArrayString = '[' + dbMacro.files + ']';
-      
+      const jsonArrayString = "[" + macroDB.files + "]";
+
       // Parse the entire array at once
       const filesArray = JSON.parse(jsonArrayString);
-      
+
       // Transform each nested file with both file and collection properties
-      nestedFiles = filesArray.map((fileObj: any) => ({
+      nestedFiles = filesArray.map((fileObj: CollectionAudioFileDB) => ({
         // Audio file properties
         id: fileObj.audio_file_id,
         type: "file",
         audioType: fileObj.audio_type,
         name: fileObj.name,
-        fileUrl: fileObj.file_url,
-        filePath: fileObj.file_path,
+        url: fileObj.file_url,
+        path: fileObj.file_path,
         folderId: fileObj.folder_id,
         duration: fileObj.duration,
         // Collection properties
@@ -58,45 +65,44 @@ export function transformMacro(dbMacro: any) {
       nestedFiles = [];
     }
   }
-  
+
   let MacroDuration = 0;
   for (const file of nestedFiles) {
-    let fileDuration = (file.duration || 0) + (file.delay || 0) / 1000;
+    const fileDuration = (file.duration || 0) + (file.delay || 0) / 1000;
     MacroDuration = Math.max(MacroDuration, fileDuration);
   }
 
   return {
-    id: dbMacro.macro_id,
+    id: macroDB.macro_id,
     type: "macro",
-    audioType: "sfx", 
-    name: dbMacro.name,
-    description: dbMacro.description,
-    volume: dbMacro.volume,
-    duration: MacroDuration, 
-    position: dbMacro.position,
-    itemCount: dbMacro.item_count, 
-    items: nestedFiles, 
-    addedAt: dbMacro.created_at
+    name: macroDB.name,
+    description: macroDB.description ?? undefined,
+    volume: macroDB.volume,
+    duration: MacroDuration,
+    position: macroDB.position,
+    itemCount: macroDB.item_count,
+    items: nestedFiles,
   };
 }
 
-export function transformCollection(dbCollection: any){
+export function transformCollection(
+  collectionDB: CollectionDB
+): AudioCollectionDTO {
   return {
-    id: dbCollection.collection_id,
-    type: dbCollection.type, 
-    name: dbCollection.name,
-    description: dbCollection.description,
-    itemCount: dbCollection.item_count, 
-    position: dbCollection.position,  
-    items: null as any,
+    id: collectionDB.collection_id,
+    type: collectionDB.type,
+    name: collectionDB.name,
+    description: collectionDB.description ?? undefined,
+    itemCount: collectionDB.item_count,
+    position: collectionDB.position,
   };
 }
 
-export function transformFolder(dbFolder: any) {
+export function transformFolder(folderDB: FolderDB): FolderDTO {
   return {
-    id: dbFolder.folder_id,
-    name: dbFolder.name,
-    type: dbFolder.folder_type,
-    parentId: dbFolder.parent_folder_id
+    id: folderDB.folder_id,
+    name: folderDB.name,
+    type: folderDB.folder_type,
+    parentId: folderDB.parent_folder_id,
   };
 }

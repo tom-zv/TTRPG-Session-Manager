@@ -1,6 +1,5 @@
 import { Server as HttpServer } from 'http';
-import { Server} from 'socket.io';
-import { setupAudioNamespace } from './namespaces/audio.js';
+import { Server, Socket, Namespace} from 'socket.io';
 
 // Socket.IO server instance
 let io: Server | null = null;
@@ -19,7 +18,7 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
     }
   });
   
-  setupAudioNamespace(io.of('/audio'));
+  setupDownloadNamespace(io.of('/download'));
   
   console.log('Socket.IO server initialized');
   
@@ -34,4 +33,10 @@ export const getSocketIO = (): Server => {
     throw new Error('Socket.IO not initialized. Call initSocketServer first.');
   }
   return io;
+};
+
+const setupDownloadNamespace = (namespace: Namespace): void => {
+    namespace.on("connection", (socket: Socket) => {
+      console.log(`Client connected to download namespace: ${socket.id}`);
+    });
 };

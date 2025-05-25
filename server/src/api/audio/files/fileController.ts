@@ -1,49 +1,49 @@
 import fileService from "./fileService.js";
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { scanAudioFiles } from "../../../utils/file-scanner.js";
-import { transformAudioFile } from "../../../utils/format-transformers.js";
+import { transformAudioFileToDTO } from "../../../utils/format-transformers.js";
 import fs from "fs";
 import path from "path";
-import { downloadAudioFile } from "src/middleware/fileDownload.js";
+import { downloadAudioFile } from "src/services/fileDownload/fileDownload.js";
 import { getFolderPath } from "../folders/folderModel.js";
-import { FOLDERS } from '../../../constants/folders.js';
-import * as mm from 'music-metadata';
+import { FOLDERS } from "../../../constants/folders.js";
+import * as mm from "music-metadata";
+import { ValidationError, NotFoundError } from "src/errors/HttpErrors.js";
 
 // Get all audio files
-export const getAllAudioFiles = async (_req: Request, res: Response) => {
+export const getAllAudioFiles = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const dbAudioFiles = await fileService.getAllAudioFiles();
-
-    // Transform each DB record to match the frontend format
-    const audioFiles = dbAudioFiles.map((file) => transformAudioFile(file));
-
+    const audioFiles = dbAudioFiles.map((file) => transformAudioFileToDTO(file));
     res.status(200).json(audioFiles);
   } catch (error) {
-    console.error("Error getting all audio files:", error);
-    res.status(500).json({ error: "Failed to retrieve audio files" });
+    next(error);
   }
 };
 
 // Get audio file by ID
-export const getAudioFile = async (req: Request, res: Response) => {
+export const getAudioFile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
-      return res.status(400).json({ error: "Invalid ID format" });
+      throw new ValidationError("Invalid ID format");
     }
 
     const audioFile = await fileService.getAudioFile(id);
     if (!audioFile) {
-      return res.status(404).json({ error: "Audio file not found" });
+      throw new NotFoundError();
     }
 
     // Transform to frontend format
-    const transformedFile = transformAudioFile(audioFile);
-
+    const transformedFile = transformAudioFileToDTO(audioFile);
     res.status(200).json(transformedFile);
+
   } catch (error) {
-    console.error("Error getting audio file by ID:", error);
-    res.status(500).json({ error: "Failed to retrieve audio file" });
+    next(error);
   }
 };
 
@@ -52,212 +52,131 @@ function isValidAudioUrl(url: string): boolean {
   try {
     // First check if it's a valid URL
     new URL(url);
-    
+
     // Check if it's a known audio/video platform
     if (
-      url.includes('youtube.com') || 
-      url.includes('youtu.be') || 
-      url.includes('soundcloud.com') ||
-      url.includes('spotify.com') ||
-      url.includes('bandcamp.com')
+      url.includes("youtube.com") ||
+      url.includes("youtu.be") ||
+      url.includes("soundcloud.com") ||
+      url.includes("spotify.com") ||
+      url.includes("bandcamp.com")
     ) {
       return true;
     }
-    
+
     // Check if URL points to an audio file extension
-    const audioExtensions = ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac'];
-    return audioExtensions.some(ext => url.toLowerCase().endsWith(ext));
+    const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"];
+    return audioExtensions.some((ext) => url.toLowerCase().endsWith(ext));
   } catch {
     return false;
   }
 }
 
 function getAudioType(mimeType: string | undefined): string {
-  if (!mimeType) return 'unknown';
-  
-  if (mimeType.includes('mp3')) return 'mp3';
-  if (mimeType.includes('wav')) return 'wav';
-  if (mimeType.includes('ogg')) return 'ogg';
-  if (mimeType.includes('flac')) return 'flac';
-  if (mimeType.includes('m4a') || mimeType.includes('mp4')) return 'm4a';
-  if (mimeType.includes('aac')) return 'aac';
-  
-  return 'audio';
+  if (!mimeType) return "unknown";
+
+  if (mimeType.includes("mp3")) return "mp3";
+  if (mimeType.includes("wav")) return "wav";
+  if (mimeType.includes("ogg")) return "ogg";
+  if (mimeType.includes("flac")) return "flac";
+  if (mimeType.includes("m4a") || mimeType.includes("mp4")) return "m4a";
+  if (mimeType.includes("aac")) return "aac";
+
+  return "audio";
 }
 
 // Create a new audio file
-export const createAudioFile = async (req: Request, res: Response) => {
-  console.log(`[FILE CREATION] Starting audio file creation process`);
+export const createAudioFile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    let { name, type, folder_id } = req.body;
-    const { file_url } = req.body;
+    // Extract and normalize input parameters
+    const {folder_id: folderIdRaw, file_url} = req.body;
+    let { name, type, } = req.body;
+    const folder_id = folderIdRaw ? parseInt(folderIdRaw) : FOLDERS.UPLOAD;
+    let file_path: string | null = null;
+    let duration: number | null = null;
 
-    console.log(`[FILE CREATION] Request data - Name: ${name}, Type: ${type}, URL: ${file_url}, Folder: ${folder_id}`);
-    console.log(`[FILE CREATION] File upload present: ${req.file ? 'Yes' : 'No'}`);
-    
-    // Set default folder ID if not provided
-    folder_id = folder_id ? parseInt(folder_id) : FOLDERS.UPLOAD;
-    console.log(`[FILE CREATION] Using folder ID: ${folder_id}`);
-    
-    // Validate file URL if provided
-    if (file_url) {
-      console.log(`[FILE CREATION] Validating URL: ${file_url}`);
-      if (!isValidAudioUrl(file_url)) {
-        console.log(`[FILE CREATION] Invalid URL format: ${file_url}`);
-        return res.status(400).json({
-          success: false,
-          message: "Invalid audio URL format or unsupported audio source",
-          field: "file_url"
-        });
-      }
+    // Validate URL if provided
+    if (file_url && !isValidAudioUrl(file_url)) {
+      throw new ValidationError("Invalid URL");
     }
-    
-    // Handle file upload if present
-    let file_path = null;
-    let duration = null;
 
+    // Process uploaded file if present
     if (req.file) {
-      console.log(`[FILE CREATION] Processing uploaded file: ${req.file.originalname} (${req.file.mimetype}, ${req.file.size} bytes)`);
-      
-      // Validate file MIME type
-      if (!req.file.mimetype.startsWith('audio/')) {
-        console.log(`[FILE CREATION] Invalid file type rejected: ${req.file.mimetype}`);
-        // Clean up the invalid file
-        try {
-          fs.unlinkSync(req.file.path);
-          console.log(`[FILE CREATION] Cleaned up invalid file: ${req.file.path}`);
-        } catch (err) {
-          console.error("[FILE CREATION] Error removing invalid file:", err);
-        }
-        
-        return res.status(400).json({
-          success: false,
-          message: "Uploaded file is not a valid audio file",
-          field: "audioFile"
-        });
+      // Verify audio MIME type
+      if (!req.file.mimetype.startsWith("audio/")) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+        throw new ValidationError("Uploaded file is not a valid audio file");
       }
+
+      // Set default values from file metadata
+      type = type || getAudioType(req.file.mimetype);
+      name = name || path.parse(req.file.originalname).name;
       
-      // If type not provided, determine from mimetype
-      if (!type) {
-        type = getAudioType(req.file.mimetype);
-      }
-      
-      // If name not provided, extract from filename (without extension)
-      if (!name) {
-        name = path.parse(req.file.originalname).name;
-      }
-      
-      // Extract audio metadata including duration
-      try {
-        console.log(`[FILE CREATION] Extracting audio metadata from: ${req.file.path}`);
-        const metadata = await mm.parseFile(req.file.path);
-        
-        if (metadata && metadata.format && metadata.format.duration) {
-          duration = metadata.format.duration;
-          console.log(`[FILE CREATION] Extracted duration: ${duration} seconds`);
-        } else {
-          console.log(`[FILE CREATION] No duration found in metadata`);
-        }
-      } catch (metadataErr) {
-        console.error(`[FILE CREATION] Error extracting metadata:`, metadataErr);
-        // Continue without duration if extraction fails
-      }
-      
-      // Get the folder path for building the correct relative path
+      // Extract duration from file
+      const meta = await mm.parseFile(req.file.path);
+      duration = meta.format?.duration ?? null;
+
+      // Construct the file path
       const folderPath = await getFolderPath(folder_id);
-      console.log(`[FILE CREATION] Using folder path: ${folderPath || 'default'}`);
-      
-      // Store relative path from public directory
-      // If folder path was used, include it in the file_path
-      if (folderPath && folderPath !== '') {
-        file_path = `/audio/${folderPath}/${req.file.filename}`;
-      } else {
-        file_path = `/audio/${type}/${req.file.filename}`;
-      }
-      console.log(`[FILE CREATION] File saved with path: ${file_path}`);
-    } else {
-      // Set default type if not provided
-      type = type || 'any';
+      const segment = folderPath ? `${folderPath}` : type;
+      file_path = `/audio/${segment}/${req.file.filename}`;
     }
 
-    // At least one of file_path or file_url must be provided
-    if (!file_path && !file_url) {
-      console.log(`[FILE CREATION] Error: Neither file nor URL provided`);
-      return res.status(400).json({
-        success: false,
-        message: "Either a file or a URL must be provided",
-        fields: ["file", "file_url"]
-      });
+    // Require either a file upload or URL
+    if (!req.file && !file_url) {
+      throw new ValidationError("Either a file upload or a URL must be provided");
     }
 
-    console.log(`[FILE CREATION] Creating DB record - Name: ${name || 'null'}, Type: ${type}, Path: ${file_path}, URL: ${file_url || 'none'}, Duration: ${duration || 'null'}`);
-    const result = await fileService.createAudioFile(
-      name,
-      type,
-      file_path,
-      file_url || null,
-      folder_id,
-      duration
+    // Store in database
+    const fileData = {
+      name: name,
+      file_path: file_path,
+      file_url: file_url ?? null,
+      folder_id: folder_id,
+      duration: duration
+    };
+    
+    // Initiate background download for URL-only entries 
+    if (file_url && !file_path ) {
+      const jobId = await downloadAudioFile(fileData).catch((err) =>
+        console.error(`[FILE CREATION] Download failed: ${err.message}`)
+      );
+      // return 202 Accepted to indicate processing (download) initiated.
+      return res.status(202).json({jobId});
+    }
+    
+    const { insertId } = await fileService.createAudioFile(
+      fileData
     );
-
-    // Get the inserted ID
-    const audioFileId = result.insertId;
-    console.log(`[FILE CREATION] DB record created with ID: ${audioFileId}`);
-
-    // If we have a URL and no uploaded file, download and cache it
-    if (file_url && !file_path && audioFileId) {
-      console.log(`[FILE CREATION] Initiating async download for URL: ${file_url}`);
-      // Start download process without waiting (async)
-      downloadAudioFile(audioFileId)
-        .then(() => console.log(`[FILE CREATION] Successfully downloaded audio from ${file_url}`))
-        .catch(err => console.error(`[FILE CREATION] Error downloading audio file: ${err.message}`));
-    }
-
-    console.log(`[FILE CREATION] Audio file creation completed successfully`);
-    // Return a consistent response structure
-    res.status(201).json({ 
-      success: true, 
-      message: "Audio file created successfully",
-      data: {
-        id: audioFileId || null
-      }
-    });
+    return res.status(201).json({ id: insertId });
+    
   } catch (error) {
-    console.error("[FILE CREATION] Error creating audio file:", error);
-
-    // If there was an uploaded file and an error occurred, delete the file
-    if (req.file && req.file.path) {
-      try {
-        fs.unlinkSync(req.file.path);
-        console.log(`[FILE CREATION] Cleaned up uploaded file after error: ${req.file.path}`);
-      } catch (unlinkErr) {
-        console.error(
-          "[FILE CREATION] Error deleting uploaded file after failed creation:",
-          unlinkErr
-        );
-      }
+    // Clean up uploaded file on error
+    if (req.file?.path) {
+      fs.unlink(req.file.path, () => {});
     }
-
-    res.status(500).json({ 
-      success: false,
-      message: "Failed to create audio file" 
-    });
+    return next(error);
   }
 };
 
+
 // Update an audio file
-export const updateAudioFile = async (req: Request, res: Response) => {
+export const updateAudioFile = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
-      return res.status(400).json({ error: "Invalid ID format" });
+      throw new ValidationError("Invalid ID format");
     }
 
     const { name, file_path, file_url } = req.body;
 
     // Check if any update params provided
     if (!name && file_path === undefined && file_url === undefined) {
-      return res.status(400).json({ error: "No update parameters provided" });
+      throw new ValidationError("No update parameters provided");
     }
 
     const response = await fileService.updateAudioFile(id, {
@@ -266,20 +185,20 @@ export const updateAudioFile = async (req: Request, res: Response) => {
       file_url,
     });
 
-    if (response.success) {
-      res.status(200).json({ message: "Audio file updated successfully" });
-    } else {
-      res.status(response.notFound ? 404 : 400).json({ error: response.error });
-    }
+    res.status(200).json(response); 
   } catch (error) {
-    console.error("Error updating audio file:", error);
-    res.status(500).json({ error: "Failed to update audio file" });
+    next(error);
   }
 };
 
-export const scan = async (_req: Request, res: Response) => {
-  scanAudioFiles();
-  res.status(200).json({ message: "Scan initiated" });
+// Fix scan to use next
+export const scan = async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    await scanAudioFiles();
+    res.status(200).json();
+  } catch (error) {
+    next(error);
+  }
 };
 
 export default {

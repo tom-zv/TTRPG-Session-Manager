@@ -32,9 +32,9 @@ export const GridView: React.FC<GridViewProps> = ({
   selectedItemIds = [],
   // Action handlers
   onItemSelect,
-  useAddItems,
-  useRemoveItems,
-  useEditItem,
+  addItems,
+  removeItems,
+  editItem,
   onEditItem, 
   // Collection creation
   createCollection,
@@ -45,19 +45,17 @@ export const GridView: React.FC<GridViewProps> = ({
   acceptedDropTypes = [],
 }) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const items = collection.items || [];
 
   const gridRef = useRef<HTMLDivElement>(
     null
   ) as React.MutableRefObject<HTMLDivElement | null>;
   const audioContext = Audio.useAudio();
 
-
   const {
     dropAreaProps,
     dragItemProps,
   } = useItemDragDrop({
-    items,
+    items: collection.items || [],
     selectedItemIds,
     contentType: collection.type === "macro" ? "macro" : "file",
     isDragSource: false,
@@ -65,13 +63,13 @@ export const GridView: React.FC<GridViewProps> = ({
     dropZoneId,
     acceptedDropTypes,
     containerRef: gridRef,
-    useAddItems,
+    addItems,
     calculateDropTarget: calculateGridDropIndex,
   });
 
   const { className: dropClassName, ...restDropProps } = dropAreaProps as {
     className?: string;
-    [key: string]: any;
+    [key: string]: unknown;
   };
   
   const gridClasses = ['audio-item-grid', dropClassName]
@@ -79,8 +77,9 @@ export const GridView: React.FC<GridViewProps> = ({
     .join(' ');
 
   const handleItemSelect = useCallback(
-    (e: React.MouseEvent, itemId: number) => {
-      if (onItemSelect) {
+    (e: React.MouseEvent | React.KeyboardEvent, itemId: number) => {
+      if (onItemSelect && 'button' in e) {
+        // Only call onItemSelect for MouseEvents
         onItemSelect(e, itemId);
       }
     },
@@ -89,16 +88,16 @@ export const GridView: React.FC<GridViewProps> = ({
 
   const handlePlayItem = useCallback(
     (itemId: number) => {
-      const item = items.find((item) => item.id === itemId);
+      const item = collection.items?.find((item) => item.id === itemId);
       if (!item) return;
 
       audioContext.toggleAudioItem(item, collection);
     },
-    [items, audioContext, collection]
+    [collection, audioContext]
   );
 
   // Handle special case for the create button
-  const handleCreateButtonClick = useCallback((e: React.MouseEvent) => {
+  const handleCreateButtonClick = useCallback((e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     setIsCreateDialogOpen(true);
   }, []);
@@ -117,7 +116,7 @@ export const GridView: React.FC<GridViewProps> = ({
   return (
     <>
       <div ref={gridRef} className={gridClasses} {...restDropProps}>
-        {items.map((item) => {
+        {collection.items?.map((item) => {
           //const isDropTarget = cardTargetIndex === index;
           const isSelected = selectedItemIds.includes(item.id);
           // Determine if the item is playing based on its type and collection context
@@ -141,8 +140,8 @@ export const GridView: React.FC<GridViewProps> = ({
               dragItemProps={itemDragProps}
               onSelect={handleItemSelect}
               onPlayItem={handlePlayItem}
-              useRemoveItems={useRemoveItems}
-              useEditItem={useEditItem}
+              removeItems={removeItems}
+              editItem={editItem}
               onEditItem={onEditItem} 
             />
           );
@@ -160,8 +159,8 @@ export const GridView: React.FC<GridViewProps> = ({
             dragItemProps={{}}
             onSelect={handleCreateButtonClick}
             onPlayItem={() => {}}
-            useRemoveItems={useRemoveItems}
-            useEditItem={useEditItem}
+            removeItems={removeItems}
+            editItem={editItem}
           />
         )}
       </div>
@@ -170,7 +169,7 @@ export const GridView: React.FC<GridViewProps> = ({
         <CreateCollectionDialog
           isOpen={isCreateDialogOpen}
           onClose={() => setIsCreateDialogOpen(false)}
-          collectionType={collection.type as any}
+          collectionType={collection.type}
           createCollection={createCollection}
         />
       )}

@@ -2,8 +2,6 @@ import React, { useMemo } from "react";
 import { useGetCollectionById } from "../../../api/collections/useCollectionQueries.js";
 import type { CollectionType } from "../types.js";
 import CollectionItemsDisplay from "../../CollectionItemsDisplay/CollectionItemsDisplay.js";
-// Import the cog icon from React Icons
-import { FaCog } from "react-icons/fa";
 import "./CollectionDetail.css";
 
 interface CollectionDetailProps {
