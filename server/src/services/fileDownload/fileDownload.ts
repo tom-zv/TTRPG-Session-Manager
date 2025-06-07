@@ -19,8 +19,8 @@ function generateJobId(): string {
  * - Worker performs download in background thread
  */
 export async function downloadAudioFile(fileData: FileData): Promise<string> {
-  if (!fileData.file_url) {
-    throw new Error(`missing file_url`);
+  if (!fileData.url) {
+    throw new Error(`missing url`);
   }
 
   const jobId = generateJobId();

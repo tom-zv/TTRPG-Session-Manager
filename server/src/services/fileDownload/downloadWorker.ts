@@ -27,7 +27,7 @@ async function executeDownload() {
     );
     fs.mkdirSync(absoluteOutputPath, { recursive: true });
 
-    const url = fileData.file_url;
+    const url = fileData.url;
 
     let downloadedFileData = null;
     

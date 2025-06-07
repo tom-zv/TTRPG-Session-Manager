@@ -16,14 +16,14 @@ export async function getAudioFile(id: number): Promise<AudioFileDB> {
 
 export async function createAudioFile({
   name,
-  file_path,
-  file_url,
+  rel_path,
+  url,
   folder_id,
   duration,
 }: {
   name: string;
-  file_path: string | null;
-  file_url: string | null;
+  rel_path: string | null;
+  url: string | null;
   folder_id: number;
   duration?: number | null;
 }): Promise<{ insertId: number }> {
@@ -33,8 +33,8 @@ export async function createAudioFile({
   return await fileModel.insertAudioFile(
     name,
     type,
-    file_path,
-    file_url,
+    rel_path,
+    url,
     folder_id,
     duration
   );
@@ -44,8 +44,8 @@ export async function updateAudioFile(
   audioFileId: number,
   params: {
     name?: string;
-    file_path?: string;
-    file_url?: string;
+    rel_path?: string;
+    url?: string;
   }
 ): Promise<AudioFileDB> {
   const audioFileParams: typeof params = {};
@@ -54,13 +54,13 @@ export async function updateAudioFile(
   if (params.name) {
     audioFileParams.name = params.name;
 
-    // Get the current file record to access file_path
+    // Get the current file record to access rel_path
     const fileRecord = await fileModel.getAudioFile(audioFileId);
 
     const currentFile = fileRecord;
-    if (currentFile && currentFile.file_path) {
+    if (currentFile && currentFile.rel_path) {
       try {
-        const currentAbsolutePath = toAbsolutePath(currentFile.file_path);
+        const currentAbsolutePath = toAbsolutePath(currentFile.rel_path);
         const fileDir = path.dirname(currentAbsolutePath);
         const fileExt = path.extname(currentAbsolutePath);
 
@@ -73,9 +73,9 @@ export async function updateAudioFile(
 
         await fs.rename(currentAbsolutePath, newAbsolutePath);
 
-        // Update the file_path in params to reflect the new name
+        // Update the rel_path in params to reflect the new name
         const newRelativePath = toRelativePath(newAbsolutePath);
-        audioFileParams.file_path = newRelativePath;
+        audioFileParams.rel_path = newRelativePath;
       } catch (fsError) {
         console.error(`Error renaming file:`, fsError);
         // Don't fail the whole operation if file renaming fails
@@ -83,12 +83,12 @@ export async function updateAudioFile(
     }
   }
 
-  if (params.file_path !== undefined) {
-    audioFileParams.file_path = params.file_path;
+  if (params.rel_path !== undefined) {
+    audioFileParams.rel_path = params.rel_path;
   }
 
-  if (params.file_url !== undefined) {
-    audioFileParams.file_url = params.file_url;
+  if (params.url !== undefined) {
+    audioFileParams.url = params.url;
   }
 
   if (Object.keys(audioFileParams).length === 0) {

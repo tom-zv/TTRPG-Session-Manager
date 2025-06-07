@@ -1,15 +1,15 @@
-import { pool } from "../../../db.js";
+import { audioPool } from "../../../db.js";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { AudioFileDB } from './types.js';
 
 export async function getAllAudioFiles(): Promise<AudioFileDB[]> {
-  const [rows] = await pool.execute('SELECT * FROM audio_files');
+  const [rows] = await audioPool.execute('SELECT * FROM files');
   return rows as AudioFileDB[] & RowDataPacket[];
 }
 
 export async function getAudioFile(id: number): Promise<AudioFileDB> {
-  const [rows] = await pool.execute(
-    'SELECT * FROM audio_files WHERE audio_file_id = ?', 
+  const [rows] = await audioPool.execute(
+    'SELECT * FROM files WHERE id = ?', 
     [id]
   );
   // Return first row or null if no results
@@ -19,17 +19,17 @@ export async function getAudioFile(id: number): Promise<AudioFileDB> {
 export async function insertAudioFile(
   name: string | null,
   type: string,
-  file_path: string | null,
-  file_url: string | null,
+  rel_path: string | null,
+  url: string | null,
   folder_id: number | null,
   duration?: number | null
 ): Promise<ResultSetHeader> {
-  const query = `INSERT INTO audio_files 
-  (name, audio_type, file_path, file_url, folder_id, duration) VALUES (?,?,?,?,?,?)`;
+  const query = `INSERT INTO files 
+  (name, audio_type, rel_path, url, folder_id, duration) VALUES (?,?,?,?,?,?)`;
 
-  const [result] = await pool.execute(
+  const [result] = await audioPool.execute(
     query, 
-    [name, type, file_path, file_url, folder_id, duration]
+    [name, type, rel_path, url, folder_id, duration]
   );
   
   return result as ResultSetHeader;
@@ -39,8 +39,8 @@ export async function updateAudioFile(
   audioFileId: number,
   params: {
     name?: string;
-    file_path?: string;
-    file_url?: string;
+    rel_path?: string;
+    url?: string;
     duration?: number;
   }
 ): Promise<number> {
@@ -53,14 +53,14 @@ export async function updateAudioFile(
     fields.push(params.name);
   }
 
-  if (params.file_path !== undefined) {
-    updateFields.push('file_path = ?');
-    fields.push(params.file_path);
+  if (params.rel_path !== undefined) {
+    updateFields.push('rel_path = ?');
+    fields.push(params.rel_path);
   }
   
-  if (params.file_url !== undefined) {
-    updateFields.push('file_url = ?');
-    fields.push(params.file_url);
+  if (params.url !== undefined) {
+    updateFields.push('url = ?');
+    fields.push(params.url);
   }
 
   if (params.duration !== undefined){
@@ -76,9 +76,9 @@ export async function updateAudioFile(
   // Add parameter for WHERE clause
   fields.push(audioFileId);
   
-  const [result] = await pool.execute(
-    `UPDATE audio_files SET ${updateFields.join(', ')} 
-     WHERE audio_file_id = ?`,
+  const [result] = await audioPool.execute(
+    `UPDATE files SET ${updateFields.join(', ')} 
+     WHERE id = ?`,
     fields
   );
   
@@ -86,8 +86,8 @@ export async function updateAudioFile(
 }
 
 export async function deleteAudioFile(id: number): Promise<ResultSetHeader> {
-  const [result] = await pool.execute(
-    'DELETE FROM audio_files WHERE audio_file_id = ?', 
+  const [result] = await audioPool.execute(
+    'DELETE FROM files WHERE id = ?', 
     [id]
   );
   return result as ResultSetHeader;

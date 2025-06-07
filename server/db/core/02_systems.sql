@@ -1,0 +1,14 @@
+CREATE TABLE
+  IF NOT EXISTS core.systems (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    slug VARCHAR(32) NOT NULL UNIQUE, -- e.g. 'dnd5e', 'pathfinder2'
+    name VARCHAR(64) NOT NULL -- e.g. 'D&D 5E', 'Pathfinder 2E'
+  );
+
+CREATE TABLE
+  IF NOT EXISTS tags (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(64) NOT NULL UNIQUE,
+    color VARCHAR(7) DEFAULT '#777777',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );

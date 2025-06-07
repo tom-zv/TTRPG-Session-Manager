@@ -1,6 +1,8 @@
+import { AudioFolderType } from "../types.js";
+
 export interface FolderDB {
-    folder_id: number;
+    id: number;
     name: string;
-    folder_type: string;
-    parent_folder_id: number;
+    folder_type: AudioFolderType;
+    parent_id: number;
   }

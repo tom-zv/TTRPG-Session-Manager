@@ -36,7 +36,7 @@ export const emitAudioDownloadProgress = (
   };
 
   console.log(
-    `[SOCKET] Emitting download status for file ID: ${audioFile.audio_file_id}`
+    `[SOCKET] Emitting download status for file ID: ${audioFile.id}`
   );
 
   io.of("/download").emit(AudioEventTypes.FILE_DOWNLOAD_STATUS, event);
