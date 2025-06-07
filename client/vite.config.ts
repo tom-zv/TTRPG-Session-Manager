@@ -22,10 +22,12 @@ export default defineConfig({
     }
   },
   build: {
-    rollupOptions: {
-      input: {
-        main: './src/app/main.tsx',
-      },
-    },
+    outDir: 'dist',
+  
+    // rollupOptions: {
+    //   input: {
+    //     main: './src/app/main.tsx',
+    //   },
+    // },
   },
 });

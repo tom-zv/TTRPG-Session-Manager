@@ -34,7 +34,7 @@ export async function createAudioFile(audioData: Partial<AudioFileUI>, file?: Fi
   formData.append('type', audioData.audioType || 'any');
   
   if (audioData.url) {
-    formData.append('file_url', audioData.url);
+    formData.append('url', audioData.url);
   }
   
   if (audioData.folderId) {
@@ -73,10 +73,10 @@ export async function updateAudioFile(id: number, audioData: Partial<AudioFileUI
       params.name = audioData.name;
     }
     if (audioData.path) {
-      params.file_path = audioData.path;
+      params.rel_path = audioData.path;
     }
     if (audioData.url) {
-      params.file_url = audioData.url;
+      params.url = audioData.url;
     }
     
     const response = await fetch(`${API_URL}/files/${id}`, {

@@ -113,7 +113,7 @@ export const getCollectionById = async (req: Request, res: Response) => {
         delete response.data.files;
         delete response.data.macros;
     
-        response.data.id = response.data.collection_id; // Rename for consistency
+        response.data.id = response.data.collection_id; 
         delete response.data.collection_id;
       }
     } else {

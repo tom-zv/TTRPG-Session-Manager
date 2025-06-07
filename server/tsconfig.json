@@ -10,7 +10,6 @@
       "shared/*": ["../shared/*"],
       "src/*": ["./src/*"],
       "client/*": ["../client/*"],
-      
     }
   },
   "include": ["src/**/*.ts", "../shared/**/*.ts"],

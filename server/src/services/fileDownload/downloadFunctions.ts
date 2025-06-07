@@ -26,7 +26,7 @@ interface YtPlaylistResponse extends YtResponse {
 
 export interface FileData {
   name: string;
-  file_url: string;
+  url: string;
   folder_id: number;
 }
 
@@ -132,11 +132,11 @@ async function processDownloadedYtAudio(
  * Downloads and processes a YouTube playlist
  */
 export async function downloadYouTubePlaylist(fileData: FileData, folderPath: string): Promise<void> {
-  if (!fileData.file_url) {
+  if (!fileData.url) {
     return;
   }
 
-  const playlistInfo = (await ytDlp(fileData.file_url, {
+  const playlistInfo = (await ytDlp(fileData.url, {
     dumpSingleJson: true,
     skipDownload: true,
     flatPlaylist: true,
@@ -183,8 +183,8 @@ export async function downloadYouTubePlaylist(fileData: FileData, folderPath: st
         // Insert into DB
         const { insertId: fileId } = await fileService.createAudioFile({
           name: processedFile.name,
-          file_path: processedFile.path,
-          file_url: videoUrl,
+          rel_path: processedFile.path,
+          url: videoUrl,
           folder_id: fileData.folder_id,
           duration: processedFile.duration,
         });
@@ -231,7 +231,7 @@ export async function downloadYouTubePlaylist(fileData: FileData, folderPath: st
  * Downloads and processes a single YouTube video
  */
 export async function downloadYouTubeSingle(fileData: FileData, folderPath: string) {
-  if (!fileData.file_url) return;
+  if (!fileData.url) return;
 
   const safeName = fileData.name ? sanitizeFilename(fileData.name) : "";
 
@@ -240,7 +240,7 @@ export async function downloadYouTubeSingle(fileData: FileData, folderPath: stri
     : `${folderPath}/%(title)s.%(ext)s`;
 
   const processedFile = await processDownloadedYtAudio(
-    fileData.file_url,
+    fileData.url,
     outputFormat,
     {
       title: safeName || "",
@@ -249,8 +249,8 @@ export async function downloadYouTubeSingle(fileData: FileData, folderPath: stri
 
   const res = await fileService.createAudioFile({
     name: processedFile.name,
-    file_path: processedFile.path,
-    file_url: fileData.file_url,
+    rel_path: processedFile.path,
+    url: fileData.url,
     folder_id: fileData.folder_id,
     duration: processedFile.duration,
   });
@@ -265,9 +265,9 @@ export async function downloadYouTubeSingle(fileData: FileData, folderPath: stri
  * Downloads and processes a file from a direct URL
  */
 export async function downloadDirectUrl(fileData: FileData, folderPath: string) {
-  if (!fileData.file_url) return;
+  if (!fileData.url) return;
 
-  const res = await fetch(fileData.file_url);
+  const res = await fetch(fileData.url);
 
   if (!res.ok) {
     throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
@@ -283,7 +283,7 @@ export async function downloadDirectUrl(fileData: FileData, folderPath: string) 
     }
     // Fallback to URL path
     if (!rawFilename) {
-      const parts = new URL(fileData.file_url).pathname.split("/");
+      const parts = new URL(fileData.url).pathname.split("/");
       const last = parts[parts.length - 1];
       if (last && last !== "/") rawFilename = last;
     }
@@ -316,22 +316,15 @@ export async function downloadDirectUrl(fileData: FileData, folderPath: string) 
   const meta = await mm.parseFile(filepath);
   const duration = meta.format?.duration;
 
-  const relFilePath = path.join(
+  const rel_path = path.join(
     path.dirname(relativePathFromAbsolute(filepath)),
     filename
   );
 
-  const updateData: { name?: string; file_path: string; duration?: number } = {
-    file_path: relFilePath,
-    ...(duration !== undefined && { duration }),
-  };
-
-  if (!fileData.name) updateData.name = filename;
-
   const createRes = await fileService.createAudioFile({
     name: filename,
-    file_path: relFilePath,
-    file_url: fileData.file_url,
+    rel_path,
+    url: fileData.url,
     folder_id: fileData.folder_id,
     duration: duration,
   });

@@ -93,14 +93,14 @@ export const createAudioFile = async (
 ) => {
   try {
     // Extract and normalize input parameters
-    const {folder_id: folderIdRaw, file_url} = req.body;
+    const {folder_id: folderIdRaw, url} = req.body;
     let { name, type, } = req.body;
     const folder_id = folderIdRaw ? parseInt(folderIdRaw) : FOLDERS.UPLOAD;
-    let file_path: string | null = null;
+    let rel_path: string | null = null;
     let duration: number | null = null;
 
     // Validate URL if provided
-    if (file_url && !isValidAudioUrl(file_url)) {
+    if (url && !isValidAudioUrl(url)) {
       throw new ValidationError("Invalid URL");
     }
 
@@ -123,25 +123,25 @@ export const createAudioFile = async (
       // Construct the file path
       const folderPath = await getFolderPath(folder_id);
       const segment = folderPath ? `${folderPath}` : type;
-      file_path = `/audio/${segment}/${req.file.filename}`;
+      rel_path = `/audio/${segment}/${req.file.filename}`;
     }
 
     // Require either a file upload or URL
-    if (!req.file && !file_url) {
+    if (!req.file && !url) {
       throw new ValidationError("Either a file upload or a URL must be provided");
     }
 
     // Store in database
     const fileData = {
       name: name,
-      file_path: file_path,
-      file_url: file_url ?? null,
+      rel_path,
+      url: url ?? null,
       folder_id: folder_id,
       duration: duration
     };
     
     // Initiate background download for URL-only entries 
-    if (file_url && !file_path ) {
+    if (url && !rel_path ) {
       const jobId = await downloadAudioFile(fileData).catch((err) =>
         console.error(`[FILE CREATION] Download failed: ${err.message}`)
       );
@@ -172,17 +172,17 @@ export const updateAudioFile = async (req: Request, res: Response, next: NextFun
       throw new ValidationError("Invalid ID format");
     }
 
-    const { name, file_path, file_url } = req.body;
+    const { name, rel_path, url } = req.body;
 
     // Check if any update params provided
-    if (!name && file_path === undefined && file_url === undefined) {
+    if (!name && rel_path === undefined && url === undefined) {
       throw new ValidationError("No update parameters provided");
     }
 
     const response = await fileService.updateAudioFile(id, {
       name,
-      file_path,
-      file_url,
+      rel_path,
+      url,
     });
 
     res.status(200).json(response); 

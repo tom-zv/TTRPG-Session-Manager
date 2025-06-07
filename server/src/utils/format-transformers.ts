@@ -18,10 +18,10 @@ export function transformAudioFileToDTO(
 ): AudioFileDTO {
   return {
     type: "audio",
-    id: source.audio_file_id,
+    id: source.id,
     name: source.name ?? "",
-    url: source.file_url ?? undefined,
-    path: source.file_path ?? undefined,
+    url: source.url ?? undefined,
+    path: source.rel_path ?? undefined,
     folderId: source.folder_id,
     addedAt: source.added_at,
     audioType: source.audio_type,
@@ -48,12 +48,12 @@ export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
       // Transform each nested file with both file and collection properties
       nestedFiles = filesArray.map((fileObj: CollectionAudioFileDB) => ({
         // Audio file properties
-        id: fileObj.audio_file_id,
+        id: fileObj.id,
         type: "file",
         audioType: fileObj.audio_type,
         name: fileObj.name,
-        url: fileObj.file_url,
-        path: fileObj.file_path,
+        url: fileObj.url,
+        path: fileObj.rel_path,
         folderId: fileObj.folder_id,
         duration: fileObj.duration,
         // Collection properties
@@ -73,7 +73,7 @@ export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
   }
 
   return {
-    id: macroDB.macro_id,
+    id: macroDB.id,
     type: "macro",
     name: macroDB.name,
     description: macroDB.description ?? undefined,
@@ -89,7 +89,7 @@ export function transformCollection(
   collectionDB: CollectionDB
 ): AudioCollectionDTO {
   return {
-    id: collectionDB.collection_id,
+    id: collectionDB.id,
     type: collectionDB.type,
     name: collectionDB.name,
     description: collectionDB.description ?? undefined,
@@ -100,9 +100,9 @@ export function transformCollection(
 
 export function transformFolder(folderDB: FolderDB): FolderDTO {
   return {
-    id: folderDB.folder_id,
+    id: folderDB.id,
     name: folderDB.name,
     type: folderDB.folder_type,
-    parentId: folderDB.parent_folder_id,
+    parentId: folderDB.parent_id,
   };
 }

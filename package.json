@@ -12,7 +12,8 @@
     "dev:server": "cd server && cross-env NODE_ENV=development npm run dev",
     "dev:server:watch": "cd server && cross-env NODE_ENV=development npm run dev:watch",
     "dev:client": "cd client && cross-env NODE_ENV=development npm run dev",
-    "build:all": "cross-env NODE_ENV=production npm run build:client && npm run build:server",
+    "build:shared": "cd shared && tsc && tsc-alias",
+    "build:all": "cross-env NODE_ENV=production npm run build:shared && npm run build:client && npm run build:server",
     "build:client": "cd client && cross-env NODE_ENV=production npm run build",
     "build:server": "cd server && cross-env NODE_ENV=production npm run build",
     "install:all": "npm install && npm run install:server && npm run install:client",
@@ -40,6 +41,7 @@
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "tsc-alias": "^1.8.16",
     "typescript": "^5.3.0",
     "typescript-eslint": "^8.32.1"
   },

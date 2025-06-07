@@ -1,12 +1,13 @@
-import { AudioType } from "shared/audio/types.js";
+import type { AudioType, AudioFolderType } from "../types.js";
+
 
 export interface AudioFileDB {
-  audio_file_id: number;
+  id: number;
   name: string | null; 
   audio_type: AudioType; 
   duration: number | null; 
-  file_url: string | null;
-  file_path: string | null;
+  url: string | null;
+  rel_path: string | null;
   folder_id: number;
   added_at: string; 
 }
@@ -20,7 +21,7 @@ export interface CollectionAudioFileDB extends AudioFileDB {
 }
 
 export interface MacroDB {
-  macro_id: number;
+  id: number;
   name: string;
   description: string | null;
   volume: number; 
@@ -32,7 +33,7 @@ export interface MacroDB {
 }
 
 export interface CollectionDB {
-  collection_id: number;
+  id: number;
   name: string;
   description: string | null;
   type: "playlist" | "sfx" | "ambience";
@@ -42,9 +43,9 @@ export interface CollectionDB {
 }
 
 export interface FolderDB {
-  folder_id: number;
+  id: number;
   name: string;
-  parent_folder_id: number | null;
-  folder_type: "music" | "sfx" | "ambience" | "root" | "any";
+  parent_id: number | null;
+  folder_type: AudioFolderType;
   created_at?: string; 
 }

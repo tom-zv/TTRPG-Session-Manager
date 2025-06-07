@@ -1,6 +1,6 @@
 import collectionModel from './collectionModel.js';
 import macroModel from '../macros/macroModel.js';
-import { pool } from "src/db.js";
+import { audioPool } from "src/db.js";
 import fileService from '../files/fileService.js'; // Add this import to use fileService
 
 // Interface for standardized service responses
@@ -314,8 +314,8 @@ export async function updateFile(
   audioFileId: number,
   params: {
     name?: string,
-    file_path?: string,
-    file_url?: string,  
+    rel_path?: string,
+    url?: string,  
     volume?: number,
     // For macro type
     delay?: number, 
@@ -337,8 +337,8 @@ export async function updateFile(
     } else {
       // For other collection types, update the audio file properties
       // First, verify the file exists in the collection
-      const [existingFile] = await pool.execute(
-        `SELECT * FROM collection_files WHERE collection_id = ? AND audio_file_id = ?`,
+      const [existingFile] = await audioPool.execute(
+        `SELECT * FROM collection_files WHERE collection_id = ? AND file_id = ?`,
         [collectionId, audioFileId]
       );
       
@@ -346,7 +346,7 @@ export async function updateFile(
         return { success: false, notFound: true, error: `File not found in collection` };
       }
       
-      // Track if we need to update the audio_files table
+      // Track if we need to update the files table
       let needsAudioFileUpdate = false;
       const audioFileParams: any = {};
       
@@ -355,17 +355,17 @@ export async function updateFile(
         audioFileParams.name = params.name;
       }
       
-      if (params.file_path) {
+      if (params.rel_path) {
         needsAudioFileUpdate = true;
-        audioFileParams.file_path = params.file_path;
+        audioFileParams.rel_path = params.rel_path;
       }
       
-      if (params.file_url) {
+      if (params.url) {
         needsAudioFileUpdate = true;
-        audioFileParams.file_url = params.file_url;
+        audioFileParams.url = params.url;
       }
       
-      // Update audio_files table if needed
+      // Update files table if needed
       if (needsAudioFileUpdate) {
         const audioFileResult = await fileService.updateAudioFile(
           audioFileId,
@@ -423,8 +423,8 @@ export async function updateCollectionFile(
       );
     } else {
       // First, verify the file exists in the collection
-      const [existingFile] = await pool.execute(
-        `SELECT * FROM collection_files WHERE collection_id = ? AND audio_file_id = ?`,
+      const [existingFile] = await audioPool.execute(
+        `SELECT * FROM collection_files WHERE collection_id = ? AND file_id = ?`,
         [collectionId, audioFileId]
       );
       
@@ -533,8 +533,8 @@ export const addCollectionToPack = async (
     }
     
     // Verify the collection exists (without checking specific type)
-    const collections = await pool.execute(
-      `SELECT collection_id FROM collections WHERE collection_id = ?`,
+    const collections = await audioPool.execute(
+      `SELECT id FROM collections WHERE id = ?`,
       [collectionId]
     );
     
@@ -657,10 +657,10 @@ export async function getAllCollectionsWithFiles(type: string): Promise<ServiceR
       collections.map(async (collection: any) => {
         let result;
         if (type === 'macro') {
-          const files = await macroModel.getMacroFiles(collection.collection_id);
+          const files = await macroModel.getMacroFiles(collection.id);
           result = { files, macros: [] };
         } else {
-          result = await collectionModel.getCollectionFiles(type, collection.collection_id);
+          result = await collectionModel.getCollectionFiles(type, collection.id);
         }
         
         return {
