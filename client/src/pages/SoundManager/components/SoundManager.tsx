@@ -15,8 +15,7 @@ import PlayBar from "./PlayBar/PlayBar.js";
 import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import { usePlaylistPanelSizeCalc } from "../hooks/usePlaylistPanelSizeCalc.js";
-import "./SoundManager.css";
-import "./LeftPanel.css";
+import "../../../styles/pages/sound-manager.css";
 
 const SoundManagerContent: React.FC = () => {
   const [playlistCount, setPlaylistCount] = useState(0);
