@@ -1,0 +1,82 @@
+/* Interactive and component state styles */
+
+/* Focus states for buttons and icon buttons */
+.btn:focus-visible,
+.icon-button:focus-visible {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 2px;
+}
+
+/* Disabled buttons */
+.btn:disabled,
+button:disabled {
+  background-color: var(--border-color-light);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Additional button variant */
+.btn-muted {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-muted:hover:not(:disabled) {
+  background-color: var(--border-color-light);
+}
+
+/* Disabled form controls */
+.form-control:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: var(--bg-tertiary);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Tooltip component */
+.tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip-text {
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-duration) ease;
+  z-index: 10;
+}
+
+.tooltip:hover .tooltip-text,
+.tooltip:focus-visible .tooltip-text {
+  opacity: 1;
+}
+
+/* Modal transitions */
+.modal {
+  transition: transform var(--transition-duration) ease,
+    opacity var(--transition-duration) ease;
+  transform: translateY(-10px);
+  opacity: 0;
+}
+
+.modal-overlay.show .modal {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+@media (max-width: 600px) {
+  .modal {
+    width: 95%;
+  }
+}

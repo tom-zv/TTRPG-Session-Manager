@@ -41,8 +41,8 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
       <div className="modal">
         <div className="modal-header">
           <h2>Create New {collectionName.slice(0, -1)}</h2>
-          <button 
-            className="close-button"
+          <button
+            className="icon-button close-button"
             onClick={onClose}
           >
             ×
@@ -73,13 +73,13 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
         </div>
         <div className="modal-footer">
           <button
-            className="create-button"
+            className="btn btn-primary"
             onClick={handleCreateCollection}
           >
             Create
           </button>
           <button
-            className="cancel-button"
+            className="btn btn-muted"
             onClick={onClose}
           >
             Cancel
