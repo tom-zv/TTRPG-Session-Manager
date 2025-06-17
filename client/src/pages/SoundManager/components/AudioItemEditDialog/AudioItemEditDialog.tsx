@@ -1,7 +1,7 @@
 // AudioItemEditDialog.tsx
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useUpdateCollection } from "../../api/collections/mutations/useCollectionBaseMutations.js";
-import { useUpdateFile } from "../../api/collections/mutations/useCollectionItemMutations.js";
+import { useUpdateCollectionFile } from "../../api/collections/mutations/useCollectionItemMutations.js";
 import Dialog from "../../../../components/Dialog/Dialog.js";
 import MacroEditView from "../CollectionItemsDisplay/components/MacroEditView.js";
 import { CollectionType } from "shared/audio/types.js";
@@ -15,6 +15,7 @@ import {
 import "./AudioItemEditDialog.css";
 import EditableField from "../../../../components/EditableField/EditableField.js";
 
+//TODO: folderTree edit sync - folder tree doesnt use react query, causing desync
 interface AudioItemEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -62,7 +63,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   };
 
   const updateCollection = useUpdateCollection(parentCollectionType as CollectionType);
-  const updateAudioFile = useUpdateFile(parentCollectionType as CollectionType);
+  const updateAudioFile = useUpdateCollectionFile(parentCollectionType as CollectionType);
 
   const handleSave = async () => {
     try {
@@ -137,7 +138,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
         />
       ) : (
         <div className="audio-item-edit-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="alert alert-danger">{error}</div>}
 
           <EditableField
             label="Name"
@@ -181,10 +182,10 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
           )}
 
           <div className="form-actions">
-            <button className="button button-secondary" onClick={onClose}>
+            <button className="btn btn-muted" onClick={onClose}>
               Cancel
             </button>
-            <button className="button button-primary" onClick={handleSave}>
+            <button className="btn btn-primary" onClick={handleSave}>
               Save Changes
             </button>
           </div>

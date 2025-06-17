@@ -18,7 +18,6 @@ import {
 // COLLECTION API FACTORY
 // ----------------------
 
-
 export interface UpdateFileParams {
   active?: boolean;
   volume?: number;
@@ -45,12 +44,12 @@ export interface CollectionApi {
   getCollectionFiles: (collectionId: number) => Promise<AudioFile[]>;
   addFileToCollection: (
     collectionId: number,
-    audioFileId: number,
+    fileId: number,
     position?: number
   ) => Promise<boolean>;
   addFilesToCollection: (
     collectionId: number,
-    audioFileIds: number[],
+    fileIds: number[],
     startPosition?: number
   ) => Promise<boolean>;
   addToCollection: (
@@ -73,7 +72,7 @@ export interface CollectionApi {
   ) => Promise<boolean>;
   updateFilePosition: (
     collectionId: number,
-    audioFileId: number,
+    fileId: number,
     targetPosition: number
   ) => Promise<boolean>;
   updateFileRangePosition: (
@@ -93,18 +92,6 @@ export interface CollectionApi {
     sourceEnd: number,
     targetPosition: number
   ): Promise<boolean>;
-}
-
-export interface PackApi {
-  getAllCollections: () => Promise<AudioCollection[]>;
-  getAllPacks: () => Promise<AudioCollection[]>;
-  createPack: (name: string, description?: string) => Promise<number>;
-  deletePack: (id: number) => Promise<boolean>;
-  addCollectionToPack: (
-    packId: number,
-    collectionId: number
-  ) => Promise<boolean>;
-  getPackCollections: (packId: number) => Promise<AudioCollection[]>;
 }
 
 export function createCollectionApi(
@@ -211,20 +198,17 @@ export function createCollectionApi(
     name?: string,
     description?: string,
     volume?: number,
-    active?: boolean
   ): Promise<boolean> => {
     try {
       const body: {
         name?: string;
         description?: string;
         volume?: number;
-        active?: boolean;
       } = {};
       if (name !== undefined) body.name = name;
       if (description !== undefined) body.description = description;
       if (volume !== undefined) body.volume = volume;
-      if (active !== undefined) body.active = active;
-
+    
       if (Object.keys(body).length === 0) {
         throw new Error("No update parameters provided");
       }
@@ -288,7 +272,7 @@ export function createCollectionApi(
   // ----------------------
   api.addFileToCollection = async (
     collectionId: number,
-    audioFileId: number,
+    fileId: number,
     position?: number
   ): Promise<boolean> => {
     try {
@@ -296,7 +280,7 @@ export function createCollectionApi(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          audioFileId,
+          fileId,
           position: position !== undefined ? position : null,
         }),
       });
@@ -306,7 +290,7 @@ export function createCollectionApi(
       return true;
     } catch (error) {
       console.error(
-        `Error adding file ${audioFileId} to ${collectionType} ${collectionId}:`,
+        `Error adding file ${fileId} to ${collectionType} ${collectionId}:`,
         error
       );
       throw error;
@@ -318,7 +302,7 @@ export function createCollectionApi(
   // ----------------------
   api.addFilesToCollection = async (
     collectionId: number,
-    audioFileIds: number[],
+    fileIds: number[],
     startPosition?: number
   ): Promise<boolean> => {
     try {
@@ -326,7 +310,7 @@ export function createCollectionApi(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          audioFileIds,
+          fileIds: fileIds,
           startPosition: startPosition !== undefined ? startPosition : null,
         }),
       });
@@ -352,7 +336,7 @@ export function createCollectionApi(
     position?: number
   ): Promise<boolean> => {
     if (items.length === 0) return true;
-
+    
     // Separate macros vs. files
     const macroItems = items.filter((item) => item.type === "macro");
     const fileItems = items.filter((item) => item.type !== "macro");
@@ -514,12 +498,12 @@ export function createCollectionApi(
   // ----------------------
   api.updateFilePosition = async (
     collectionId: number,
-    audioFileId: number,
+    fileId: number,
     targetPosition: number
   ): Promise<boolean> => {
     try {
       const response = await fetch(
-        `${API_URL}/${collectionId}/files/${audioFileId}/position`,
+        `${API_URL}/${collectionId}/files/${fileId}/position`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
@@ -532,7 +516,7 @@ export function createCollectionApi(
       return true;
     } catch (error) {
       console.error(
-        `Error updating position for file ${audioFileId} in ${collectionType} ${collectionId}:`,
+        `Error updating position for file ${fileId} in ${collectionType} ${collectionId}:`,
         error
       );
       throw error;
@@ -579,7 +563,7 @@ export function createCollectionApi(
   // ----------------------
   api.updatePosition = async (
     collectionId: number,
-    audioFileId: number,
+    fileId: number,
     targetPosition: number,
     sourceStartPosition?: number,
     sourceEndPosition?: number
@@ -594,7 +578,7 @@ export function createCollectionApi(
     } else {
       return await api.updateFilePosition(
         collectionId,
-        audioFileId,
+        fileId,
         targetPosition
       );
     }
@@ -602,158 +586,6 @@ export function createCollectionApi(
 
   return api as CollectionApi;
 }
-
-// ----------------------
-// PACK API IMPLEMENTATION
-// ----------------------
-
-export const packApi: PackApi = {
-  getAllCollections: async (): Promise<AudioCollection[]> => {
-    try {
-      const response = await fetch(`/api/audio/collections`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const collections: {
-        collection_id: number;
-        name: string;
-        description?: string;
-        type: string;
-        itemCount?: number;
-      }[] = await response.json();
-
-      return collections.map((c) => ({
-        id: c.collection_id,
-        name: c.name,
-        description: c.description || undefined,
-        type: c.type as CollectionType,
-        itemCount: c.itemCount ?? 0,
-        position: 0,
-        items: [],
-      }));
-    } catch (error) {
-      console.error("Error fetching collections:", error);
-      throw error;
-    }
-  },
-
-  getAllPacks: async (): Promise<AudioCollection[]> => {
-    try {
-      const response = await fetch(`/api/audio/collections/pack`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const packs: {
-        pack_id: number;
-        name: string;
-        description?: string;
-      }[] = await response.json();
-
-      return packs.map((p) => ({
-        id: p.pack_id,
-        name: p.name,
-        description: p.description || undefined,
-        type: "pack",
-        itemCount: 0,
-        position: 0,
-        items: [],
-      }));
-    } catch (error) {
-      console.error("Error fetching packs:", error);
-      throw error;
-    }
-  },
-
-  createPack: async (name: string, description?: string): Promise<number> => {
-    try {
-      const response = await fetch(`/api/audio/collections/pack`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description }),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const result: { pack_id: number } = await response.json();
-      return result.pack_id;
-    } catch (error) {
-      console.error(`Error creating pack:`, error);
-      throw error;
-    }
-  },
-
-  deletePack: async (id: number): Promise<boolean> => {
-    try {
-      const response = await fetch(`/api/audio/collections/pack/${id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return true;
-    } catch (error) {
-      console.error(`Error deleting pack ${id}:`, error);
-      throw error;
-    }
-  },
-
-  addCollectionToPack: async (
-    packId: number,
-    collectionId: number
-  ): Promise<boolean> => {
-    try {
-      const response = await fetch(
-        `/api/audio/collections/pack/${packId}/collections`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ collectionId }),
-        }
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      return true;
-    } catch (error) {
-      console.error(
-        `Error adding collection ${collectionId} to pack ${packId}:`,
-        error
-      );
-      throw error;
-    }
-  },
-
-  getPackCollections: async (packId: number): Promise<AudioCollection[]> => {
-    try {
-      const response = await fetch(
-        `/api/audio/collections/pack/${packId}/collections`
-      );
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const collections: {
-        collection_id: number;
-        name: string;
-        description?: string;
-        type: string;
-        itemCount?: number;
-      }[] = await response.json();
-
-      return collections.map((c) => ({
-        id: c.collection_id,
-        name: c.name,
-        description: c.description || undefined,
-        type: c.type as CollectionType,
-        itemCount: c.itemCount ?? 0,
-        position: 0,
-        items: [],
-      }));
-    } catch (error) {
-      console.error(`Error fetching collections for pack ${packId}:`, error);
-      throw error;
-    }
-  },
-};
 
 // Pre‐configured APIs for convenience:
 export const playlistApi = createCollectionApi("playlist");

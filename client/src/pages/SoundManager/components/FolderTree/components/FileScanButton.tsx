@@ -1,5 +1,6 @@
 import React from "react";
 import AudioApi from "src/pages/SoundManager/api/AudioApi.js";
+import { VscSync } from "react-icons/vsc";
 
 interface FileScanButtonProps {
   onScanComplete?: () => Promise<void>;
@@ -17,8 +18,10 @@ const FileScanButton: React.FC<FileScanButtonProps> = ({ onScanComplete }) => {
   };
 
   return (
-    <button className="scan-button" onClick={handleScanClick}>
-      Scan
+    <button className="icon-button scan-button" onClick={handleScanClick}
+      title="Scan for new files"
+    >
+      <VscSync />
     </button>
   );
 };

@@ -48,17 +48,8 @@
 }
 
 .control-btn {
-  border: none;
   background: var(--bg-secondary);
-  cursor: pointer;
   font-size: 1.1rem;
-  width: 0px;
-  height: 0px;
-  padding: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
   color: var(--text-primary);
   opacity: 0.8;
   transition: background-color 0.2s, transform 0.1s ease;
@@ -79,7 +70,6 @@
   width: 35px;
   height: 20px;
   margin-bottom: 2px;
-  border: none;
   background: var(--bg-secondary);
 }
 
@@ -96,47 +86,8 @@
   flex: 0 0 auto; /* Don't grow or shrink */
 }
 
-.volume-slider {
-  width: 100%;
-  height: auto;
-  cursor: pointer;
-  appearance: none;
+.volume-control .volume-slider {
   margin-bottom: -1px;
-  /* background: var(--border-color); */
-  border-radius: 2px;
-  border: none;
-  outline: none;
-}
-
-.volume-slider::-webkit-slider-runnable-track {
-  height: 1px;
-  border-radius: 2px;
-  background-color: var(--border-color-light);
-}
-
-.volume-slider::-webkit-slider-thumb {
-  appearance: none;
-  margin-top: -5px;
-  width: 12px;
-  height: 12px;
-  background: var(--accent-primary);
-  border-radius: 50%;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.volume-slider::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: var(--accent-primary);
-  border-radius: 50%;
-  cursor: pointer;
-  border: none;
-  transition: background 0.2s;
-}
-
-.volume-slider::-moz-range-thumb:hover {
-  background: var(--accent-secondary);
 }
 
 .seek-container {
@@ -144,8 +95,9 @@
   align-items: center;
   width: 100%;
   flex-basis: 100%; /* Force the seek container to occupy a full row */
-  margin-top: 0.7rem; 
+  margin-top: 0.3rem; 
   gap: 0;
+  position: relative; /* Added for progress positioning */
 }
 
 .time-display {
@@ -158,26 +110,42 @@
 
 .seek-bar {
   flex: 1;
-  height: 3px;
+  height: auto;
   cursor: pointer;
+  -webkit-appearance: none;
   appearance: none;
-  border-radius: 2px;
   outline: none;
   border: none;
-  /* background: var(--border-color-light); */
+  background: transparent;
+  --seek-progress: 0%; /* Custom property to track progress */
 }
 
 .seek-bar::-webkit-slider-runnable-track {
-  height: 1px;
+  height: 2px;
   border-radius: 2px;
-  background-color: var(--border-color-light);
+  background: linear-gradient(to right, 
+    var(--accent-primary) 0%, 
+    var(--accent-primary) var(--seek-progress), 
+    var(--border-color-light) var(--seek-progress), 
+    var(--border-color-light) 100%);
+}
+
+.seek-bar::-moz-range-track {
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(to right, 
+    var(--accent-primary) 0%, 
+    var(--accent-primary) var(--seek-progress), 
+    var(--border-color-light) var(--seek-progress), 
+    var(--border-color-light) 100%);
 }
 
 .seek-bar::-webkit-slider-thumb {
+  -webkit-appearance: none;
   appearance: none;
   margin-top: -5px;
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   background: var(--accent-primary);
   border-radius: 50%;
   cursor: pointer;
@@ -185,13 +153,18 @@
 }
 
 .seek-bar::-moz-range-thumb {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   background: var(--accent-primary);
   border-radius: 50%;
   cursor: pointer;
   border: none;
   transition: background 0.2s;
+}
+
+.seek-bar::-moz-range-thumb:hover,
+.seek-bar::-webkit-slider-thumb:hover {
+  background-color: var(--accent-secondary);
 }
 
 /* responsive adjustments */

@@ -5,8 +5,8 @@ import { TbFolderPlus } from "react-icons/tb";
 import { LuFilePlus2 } from "react-icons/lu";
 import { useFolderTree } from "../context/FolderTreeContext.js";
 import FileScanButton from "./FileScanButton.js";
-import CreateFolderDialog from "./CreateFolderDialog.js";
-import CreateFileDialog from "./CreateFileDialog.js";
+import CreateFolderDialog from "./dialogs/CreateFolderDialog.js";
+import CreateFileDialog from "./dialogs/CreateFileDialog.js";
 
 interface FolderHeaderProps {
   folder: Folder;
@@ -38,20 +38,24 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
   const [isCreateFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [isCreateFileDialogOpen, setCreateFileDialogOpen] = useState(false);
 
-  const handleKeyDown = (e: React.KeyboardEvent): void => {
-    // Trigger click handler on Enter or Space
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onClick?.(e as unknown as React.MouseEvent);
-    }
-  };
-
   return (
     <div
       className={`folder-header ${isSelected ? "selected" : ""}`}
       draggable
       onClick={onClick}
-      onKeyDown={handleKeyDown}
+      onKeyDown={(e) => {
+        // Prevent space/enter triggering folder toggle when typing in input fields
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || 
+            target.isContentEditable) {
+          return; 
+        }
+        
+        if (onClick && (e.key === "Enter" || e.key === " ")) {
+          e.preventDefault();
+          onClick(e as unknown as React.MouseEvent);
+        }
+      }}
       onDragStart={(e) => handleFolderDragStart(e, folder)}
       onDragEnd={handleFolderDragEnd}
       data-type={folder.type}
@@ -68,11 +72,10 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
       
       <button
         className="icon-button create-button"
-        name="Create File"
+        title="Create File"
         onClick={(e) => {
           e.stopPropagation();
           setCreateFileDialogOpen(true);
-          setIsOpen?.(true); 
         }}
       >
         <LuFilePlus2 />
@@ -80,10 +83,10 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
 
       <button
         className="icon-button create-button"
+        title="Create Folder"
         onClick={(e) => {
           e.stopPropagation();
           setCreateFolderDialogOpen(true);
-          setIsOpen?.(true);
         }}
       >
         <TbFolderPlus />
@@ -98,7 +101,10 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         onClose={() => setCreateFolderDialogOpen(false)}
         parentFolderId={folder.id}
         folderType={folder.type}
-        onFolderCreated={handleFolderCreated}
+        onFolderCreated={(f) => {
+          setIsOpen?.(true);
+          handleFolderCreated?.(f);
+        }}
       />
 
       <CreateFileDialog

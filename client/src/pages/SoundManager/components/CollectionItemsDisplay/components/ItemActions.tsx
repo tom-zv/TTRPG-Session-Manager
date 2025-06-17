@@ -1,31 +1,30 @@
-import React from "react"; // Remove useState import
+import React, { useEffect, useRef, useState } from "react";
 import { AudioItem, AudioItemActions } from "../types.js";
-import { MdEdit } from "react-icons/md";
+import { MdEdit, MdClose, MdMoreVert } from "react-icons/md";
 import "./ItemActions.css";
 
-interface ItemActionProps {
+interface DropdownItemProps {
   icon: React.ReactNode;
   label: string;
   onClick: (e: React.MouseEvent) => void;
-  buttonClass: string;
-  small: boolean;
+  itemType: "edit" | "delete";
 }
 
-const ActionButton: React.FC<ItemActionProps> = ({
+const DropdownItem: React.FC<DropdownItemProps> = ({
   icon,
   label,
   onClick,
-  buttonClass,
-  small,
+  itemType,
 }) => {
-  const sizeClass = small ? "small" : "";
   return (
     <button
-      className={`${buttonClass} ${sizeClass}`}
+      type="button"
+      className={`dropdown-item dropdown-item--${itemType}`}
       onClick={onClick}
       aria-label={label}
     >
       <span>{icon}</span>
+      <span>{label}</span>
     </button>
   );
 };
@@ -35,7 +34,7 @@ interface ItemActionsProps extends AudioItemActions {
   item: AudioItem;
   selectedItems?: AudioItem[];
   isSmall?: boolean;
-  onEditClick?: (itemId: number) => void; 
+  onEditClick?: (itemId: number) => void;
 }
 
 const ItemActions: React.FC<ItemActionsProps> = ({
@@ -43,13 +42,14 @@ const ItemActions: React.FC<ItemActionsProps> = ({
   selectedItems = [],
   removeItems,
   isSmall = false,
-  onEditClick, 
+  onEditClick,
 }) => {
-  // Don't show actions for create buttons
-  if (item.isCreateButton) return null;
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsOpen(false);
     if (onEditClick) {
       onEditClick(item.id);
     }
@@ -58,6 +58,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
   const handleRemoveClick = (e: React.MouseEvent) => {
     if (!removeItems) return;
     e.stopPropagation();
+    setIsOpen(false);
 
     // If the item is selected, remove all selected items
     // Otherwise, remove just the clicked item
@@ -69,26 +70,63 @@ const ItemActions: React.FC<ItemActionsProps> = ({
     removeItems(itemsToRemove);
   };
 
-  const containerClass = isSmall ? "item-actions" : "audio-item-controls";
+  const toggleDropdown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOpen(!isOpen);
+  };
 
-  return (
-    <div className={containerClass}>
-      <ActionButton
-        icon={<MdEdit />}
-        label="Edit"
-        onClick={handleEditClick}
-        buttonClass="edit-button"
-        small={isSmall}
-      />
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Don't show actions for create buttons
+  if (item.isCreateButton) return null;
   
-      {removeItems && (
-        <ActionButton
-          icon="×"
-          label="Remove"
-          onClick={handleRemoveClick}
-          buttonClass="delete-button"
-          small={isSmall}
-        />
+  return (
+    <div className="item-actions" ref={dropdownRef}>
+      <button
+        className={`dropdown-toggle ${isSmall ? "dropdown-toggle--small" : ""} ${isOpen ? 'active' : ''}`}
+        onClick={toggleDropdown}
+        aria-label="Open actions menu"
+        aria-expanded={isOpen}
+      >
+        <MdMoreVert />
+      </button>
+
+      {isOpen && (
+        <div className="dropdown-menu">
+          <DropdownItem
+            icon={<MdEdit />}
+            label="Edit"
+            onClick={handleEditClick}
+            itemType="edit"
+          />
+
+          {removeItems && (
+            <DropdownItem
+              icon={<MdClose />}
+              label="Remove"
+              onClick={handleRemoveClick}
+              itemType="delete"
+            />
+          )}
+        </div>
       )}
     </div>
   );

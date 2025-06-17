@@ -78,7 +78,7 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
         </div>
 
         {/* <div className="collection-edit">
-          <button className="edit-button" aria-label="Edit collection">
+          <button className=>
             <FaCog />
           </button>
         </div> */}

@@ -19,11 +19,11 @@
     "install:all": "npm install && npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
     "install:client": "cd client && npm install",
-    "lint": "eslint .",
-    "lint:client": "cd client && npm run lint",
-    "lint:server": "cd server && npm run lint",
-    "lint:all": "npm run lint && npm run lint:client && npm run lint:server",
-    "lint:fix": "eslint . --fix"
+    "lint": "eslint --config ./eslint.config.js .",
+    "lint:client": "eslint --config ./client/eslint.config.js ./client/",
+    "lint:server": "eslint --config ./server/eslint.config.js ./server/",
+    "lint:all": "npm run lint:client && npm run lint:server",
+    "lint:fix": "npm run lint:client -- --fix && npm run lint:server -- --fix"
   },
   "repository": {
     "type": "git",

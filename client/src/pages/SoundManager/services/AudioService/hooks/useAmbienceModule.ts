@@ -45,8 +45,9 @@ export function useAmbienceModule() {
   const toggleFileActivation = useCallback(
     (collection: AudioCollection, file: AudioFile) => {
       if (!file.active) {
-        ambienceModule.activateAmbienceFile(collection.id, file.id);
-
+        
+        ambienceModule.activateAmbienceFile(collection.id, file);
+        
         activateMutation.mutate({
           collectionId: collection.id,
           fileId: file.id,

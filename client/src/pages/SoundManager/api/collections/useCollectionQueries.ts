@@ -36,8 +36,8 @@ export const getApiForType = (type: CollectionType): CollectionApi => {
 
 /* Query keys, organized in a hierarchical structure,
  *
- *     all                 specific type               specific collection                specific collection items
- * ['collections'] --> ['collections', 'type'] --> ['collections', 'type', 'id'] --> ['collections', 'type', 'id', 'items']
+ *     all                 specific type               specific collection    
+ * ['collections'] --> ['collections', 'type'] --> ['collections', 'type', 'id'] 
  */
 export const collectionKeys = {
   all: ["collections"] as const,
@@ -54,7 +54,6 @@ export const useGetCollectionsOfType = (type: CollectionType, options = {}) => {
     queryKey: collectionKeys.type(type),
     queryFn: async () => {
       const collections = await api.getAllCollections();
-
       // Transform the array of collections into a virtual collection object
       return {
         id: -1,

@@ -34,6 +34,27 @@ export async function createFolder(name: string, parentFolderId: number, folderT
   }
 }
 
+export async function updateFolder(id: number, name: string): Promise<Folder> {
+  try {
+    const response = await fetch(`${API_URL}/folders/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name })
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Error updating folder:", error);
+    throw error;
+  }
+}
+
 export default {
-  getAllFolders
+  getAllFolders,
+  createFolder,
+  updateFolder
 };

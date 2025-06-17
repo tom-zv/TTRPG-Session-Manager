@@ -1,88 +1,60 @@
-import { useState, useCallback, useEffect, RefObject } from "react";
+import { useLayoutEffect, useRef, RefObject } from "react";
 import { ImperativePanelHandle } from "react-resizable-panels";
 
-interface PanelMeasurements {
-  itemHeight: number;
-  headerHeight: number;
-  panelGroupHeight: number;
-}
+const MIN_PERCENTAGE = 10;
+const MAX_PERCENTAGE = 40;
 
 export function usePlaylistPanelSizeCalc(
-  playlistCount: number,
+  itemCount: number,
   panelRef: RefObject<ImperativePanelHandle>
 ) {
-  const [measurements, setMeasurements] = useState<PanelMeasurements>({
-    itemHeight: 40, // Default fallback values
-    headerHeight: 42,
-    panelGroupHeight: window.innerHeight - 40
-  });
+  const rafRef = useRef<number>();
+  const listenerRef = useRef<(e?: Event) => void>();
 
-  // Measure actual DOM elements after render
-  useEffect(() => {
-    const updateMeasurements = () => {
-      const panelGroup = document.querySelector('.sound-manager .sound-manager-left-panel > div');
-      const playlistHeader = document.querySelector('.sound-manager .playlist-panel .panel-header');
-      const playlistItem = document.querySelector('.sound-manager .audio-item-row');
-      
-      const newMeasurements: PanelMeasurements = {
-        panelGroupHeight: window.innerHeight - 40,
-        headerHeight: 42,
-        itemHeight: 40,
-      };
-      if (panelGroup instanceof HTMLElement) {
-        newMeasurements.panelGroupHeight = panelGroup.getBoundingClientRect().height;
-      } else {
-        newMeasurements.panelGroupHeight = window.innerHeight - 40; 
+  useLayoutEffect(() => {
+    let cancelled = false;
+
+    const measureAndResize = () => {
+      const panelGroupElement = document.querySelector<HTMLElement>(
+        ".sound-manager .sound-manager-left-panel > div"
+      );
+      const headerElement = document.querySelector<HTMLElement>(
+        ".sound-manager .playlist-panel .panel-header"
+      );
+      const itemElement = document.querySelector<HTMLElement>(
+        ".sound-manager .audio-item-row"
+      );
+      if (!panelGroupElement ||!headerElement ||!itemElement ||!panelRef.current) {
+        if (!cancelled)
+          rafRef.current = requestAnimationFrame(measureAndResize);
+        return;
       }
-      
-      if (playlistHeader instanceof HTMLElement) {
-        newMeasurements.headerHeight = playlistHeader.getBoundingClientRect().height;
-      }
-      
-      if (playlistItem instanceof HTMLElement) {
-        newMeasurements.itemHeight = playlistItem.getBoundingClientRect().height;
-      }
-      
-      setMeasurements(newMeasurements);
+
+      const panelGroupHeight = panelGroupElement.getBoundingClientRect().height;
+      const headerHeight = headerElement.getBoundingClientRect().height;
+      const itemHeigh = itemElement.getBoundingClientRect().height;
+
+      const neededPercentage =
+        ((headerHeight + itemHeigh * itemCount) / panelGroupHeight) * 100;
+      const percentage = Math.max(
+        MIN_PERCENTAGE,
+        Math.min(MAX_PERCENTAGE, neededPercentage)
+      );
+
+      panelRef.current.resize(percentage);
     };
 
-    // Initial measurement
-    updateMeasurements();
+    listenerRef.current = measureAndResize;
 
-    // Handle window resize
-    window.addEventListener('resize', updateMeasurements);
-    
-    // Use ResizeObserver for more accurate measurements
-    const resizeObserver = new ResizeObserver(updateMeasurements);
-    const panelGroup = document.querySelector('.sound-manager .sound-manager-left-panel > div');
-    if (panelGroup) resizeObserver.observe(panelGroup);
-    
+    rafRef.current = requestAnimationFrame(measureAndResize);
+
+    window.addEventListener("resize", measureAndResize);
+
     return () => {
-      window.removeEventListener('resize', updateMeasurements);
-      resizeObserver.disconnect();
+      cancelled = true;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (listenerRef.current)
+        window.removeEventListener("resize", listenerRef.current);
     };
-  }, []);
-
-  // Function to calculate ideal size based on playlist count and measured dimensions
-  const calculatePlaylistPanelSize = useCallback(() => {
-    const { itemHeight, headerHeight, panelGroupHeight } = measurements;
-    
-    // Calculate percentage needed for all playlists
-    const neededPercentage = 
-      ((playlistCount * itemHeight + headerHeight +5 ) / panelGroupHeight) * 100;  // +5 for margin, preventing scrollbar
-
-    // Ensure percentage stays within reasonable bounds
-    return Math.max(10, Math.min(neededPercentage, 40));
-  }, [playlistCount, measurements]);
-
-  // Apply the calculated size whenever it changes
-  useEffect(() => {
-    if (panelRef.current) {
-      panelRef.current.resize(calculatePlaylistPanelSize());
-    }
-  }, [calculatePlaylistPanelSize, panelRef]);
-
-  return {
-    calculatePlaylistPanelSize
-  };
+  }, [itemCount, panelRef]);
 }

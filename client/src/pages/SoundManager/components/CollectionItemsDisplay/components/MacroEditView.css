@@ -99,22 +99,6 @@
     margin-left: 5px;
 }
 
-.save-indicator {
-    position: absolute;
-    right: -12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--accent-primary);
-    font-size: 8px;
-    animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-    0% { opacity: 0.5; }
-    50% { opacity: 1; }
-    100% { opacity: 0.5; }
-}
-
 .audio-item-row.saving {
     background-color: rgba(53, 114, 227, 0.05);
 }

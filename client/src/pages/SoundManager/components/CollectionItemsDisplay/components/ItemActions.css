@@ -2,95 +2,117 @@
 .item-actions {
     display: flex;
     margin-top: 2px;
-    gap: 0.5rem;
+    gap: 0.3rem;
     align-items: center;
-    width: fit-content; 
+    width: fit-content;
+    position: relative;
 }
 
-.audio-item-controls {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-}
-
-/* Play button styling */
-.play-button {
-    background-color: var(--bg-secondary);
-    color: var(--accent-primary);
-    border: none;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    border-radius: 4px;
-    font-size: 1rem;
-    transition: all 0.2s ease;
-    position: relative; 
-    z-index: 2; 
-}
-
-.play-button:hover {
-    background: var(--bg-tertiary);
-    transform: translateY(-1px);
-}
-
-.play-button small {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-}
-
-/* Edit/Delete button styling */
-.edit-button, 
-.delete-button {
+/* Dropdown toggle button (three dots) */
+.dropdown-toggle {
     background: transparent;
     color: var(--text-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.25rem 0.25rem;
-    font-size: 1rem;
+    font-size: 1.4rem;
     transition: all 0.2s ease;
-    position: relative; 
-    z-index: 2; 
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 50%;
 }
 
-.delete-button.small {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0rem 0.2rem;
-    font-size: 1.1rem;
-}
-
-.edit-button.small {
-    background: transparent;
-    color: var(--text-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 0.1rem 0.1rem;
-    
-}
-
-.edit-button.small svg{
-    position: relative;
-    top: 2px;
-    font-size: 14px;
-}
-
-
-
-.edit-button:hover,
-.edit-button.small:hover {
-    background: var(--bg-tertiary);
+.dropdown-toggle:hover {
+    transform: scale(1.2);
+    background-color: transparent;
     color: var(--accent-primary);
-    border-color: var(--accent-primary);
 }
 
-.delete-button:hover,
-.delete-button.small:hover {
-    background: rgba(214, 69, 80, 0.1);
+/* Smaller toggle version */
+.dropdown-toggle--small {
+    font-size: 1.2rem;
+}
+
+/* Dropdown menu with modern, sleek style */
+.dropdown-menu {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: rgba(25, 28, 36, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    min-width: 160px;
+    z-index: 100; /* Increased z-index to ensure it draws over other elements */
+    overflow: hidden;
+    animation: dropdownFade 0.2s ease-out;
+    transform-origin: top right;
+}
+
+/* Dropdown fade-in animation */
+@keyframes dropdownFade {
+    from {
+        opacity: 0;
+        transform: translateY(-5px) scale(0.97);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* Dropdown items */
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0.6rem;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, transform 0.1s;
+    color: var(--text-primary);
+    background-color: transparent;
+    font-weight: 500;
+    font-size: 0.95rem;
+    border: none;
+    position: relative;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05); /* Separator line */
+}
+
+/* Remove border from last item */
+.dropdown-item:last-child {
+    border-bottom: none;
+}
+
+.dropdown-item span:first-child {
+    display: flex;
+    align-items: center;
+    font-size: 1.1rem;
+    transition: transform 0.2s;
+}
+
+.dropdown-item:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.dropdown-item:hover span:first-child {
+    transform: scale(1.1);
+}
+
+/* Specific hover colors for edit & delete */
+.dropdown-item--edit:hover {
+    color: var(--accent-primary);
+}
+
+.dropdown-item--edit:hover span:first-child {
+    color: var(--accent-primary);
+    filter: drop-shadow(0 0 3px rgba(var(--accent-primary-rgb), 0.3));
+}
+
+.dropdown-item--delete:hover {
+    background-color: rgba(var(--danger-rgb), 0.12);
     color: var(--danger);
-    border-color: var(--danger);
+}
+
+.dropdown-item--delete:hover span:first-child {
+    color: var(--danger);
+    filter: drop-shadow(0 0 3px rgba(var(--danger-rgb), 0.3));
 }

@@ -1,6 +1,6 @@
 import { getYTAudioURL } from '../../../api/AudioApi.js';
 
-let baseAudioPath: string = "http://localhost:3000/audio";
+let baseAudioPath: string = "http://localhost:3000";
 
 /**
  * Set the base audio path for resolving relative paths
@@ -46,7 +46,6 @@ export async function resolveAudioUrl(
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
     try {
       const resolved = await getYTAudioURL(url);
-      console.log("Resolved YouTube URL:", resolved);
       return resolved;
     } catch (error) {
       console.error("Error resolving YouTube URL:", error);

@@ -175,7 +175,7 @@ export async function downloadAudioUrls(
 export async function updateAudioFile(
   id: number,
   audioData: Partial<AudioFileUI>
-): Promise<number> {
+): Promise<AudioFileUI> {
   try {
     const params: Record<string, string> = {};
 
@@ -200,7 +200,9 @@ export async function updateAudioFile(
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
+
     return await response.json();
+
   } catch (error) {
     console.error(`Error updating audio file with ID ${id}:`, error);
     throw error;

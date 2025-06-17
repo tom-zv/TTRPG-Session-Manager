@@ -68,7 +68,7 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
     <div className="audio-item-content">
       <div className="audio-item-header">
         <div className="playable-item-title">
-          <h4 className="audio-item-name">
+          <h4 className="audio-item-name" title={item.name}>
             {/* <span className={`item-icon`}>
               {React.createElement(getItemIcon(item))}
             </span> */}

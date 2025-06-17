@@ -1,0 +1,391 @@
+.sound-manager {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0rem;
+}
+
+.sound-manager-layout {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  background-color: var(--bg-primary);
+  box-shadow: 0 2px 4px var(--shadow);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  min-height: 70vh;
+}
+
+.debug-editing-mode-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background-color: var(--bg-secondary);
+  border: none;
+  color: var(--text-secondary);
+  padding: 0.5rem;
+  cursor: pointer;
+  z-index: 40;
+}
+
+/* Play bar positioning */
+.sound-manager-left-panel .play-bar {
+  height: 100%;
+}
+
+.sound-manager-left-panel .audio-item-table {
+  max-width: 320px;
+}
+
+.layout-horizontal-separator {
+  width: 100%;
+  height: 4px;
+  background-color: var(--border-color-light);
+  position: relative;
+}
+
+.layout-vertical-separator {
+  margin-left: 0;
+  width: 1px;
+  background-color: var(--border-color-light);
+  position: relative;
+}
+
+.sound-manager-main-panel {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  height: 100%;
+}
+
+.content-inner {
+  /* padding-inline: 4rem; */
+  flex: 1;
+}
+
+.selected-folder-info {
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .sound-manager-layout {
+    flex-direction: column;
+  }
+
+  .sound-manager-left-panel {
+    flex: none;
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .layout-separator {
+    display: none;
+    /* Hide separator on mobile */
+  }
+}
+
+/* === Left Panel Container Structure === */
+.sound-manager-left-panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 320px;
+  overflow: hidden;
+  border-right: 1px solid var(--border-color-light);
+  height: 100%;
+}
+
+.sound-manager-left-panel [data-panel] {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* transition: flex 0.3s ease-out;  */
+}
+
+/* === Panel Header Styling === */
+.panel-header {
+  display: flex;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  background-color: var(--bg-hover);
+  transition: background-color 0.25s, height 0.25s;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-align: center;
+  color: var(--text-primary);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.panel-header-actions {
+  position: absolute;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 5;
+}
+
+.panel-header .icon {
+  font-size: 1.4rem;
+}
+
+.panel-header.collapsed{
+  background-color: var(--bg-tertiary);
+  transition: height 0.5s;
+}
+
+.panel-header.collapsed h3{
+  color: var(--text-secondary)
+}
+
+/* === Panel Content Sections === */
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+/* === Resize Handle Styling === */
+.separator {
+  width: 100%;
+  height: 1px;
+  background-color: var(--border-color-light);
+  position: relative;
+}
+
+.separator-handle {
+  height: 8px;
+  background-color: var(--bg-tertiary);
+  cursor: row-resize;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid var(--border-color-light);
+  border-bottom: 1px solid var(--border-color-light);
+  z-index: 20;
+}
+
+.separator-handle:hover {
+  background-color: var(--bg-hover);
+}
+
+.separator-handle .drag-handle {
+  width: 30px;
+  height: 4px;
+  background-color: var(--border-color);
+  border-radius: 2px;
+}
+
+/* === Create Button Styling === */
+.create-collection-button {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: none;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.create-collection-button:hover {
+  background-color: transparent;
+  transform: scale(1.05);
+}
+
+/* === Panels with tables === */
+.panel-with-table .drop-target {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.panel-with-table .audio-item-row {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.panel-with-table .audio-item-row:hover {
+  background-color: rgba(53, 114, 227, 0.08);
+}
+
+.panel-with-table .audio-item-table td {
+  padding: 0.5rem;
+  border-bottom: none;
+}
+
+.panel-group-container {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.play-bar-container {
+  height: 100px;
+  /* Fixed height for the play bar */
+  border-top: 1px solid var(--border-color-light);
+  flex-shrink: 0;
+}
+
+/* === Panel Toggle Buttons === */
+.panel-toggle-button {
+  font-size: 1.2rem;
+  margin-top: 5px;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+
+.panel-toggle-button:hover {
+  background-color: transparent;
+  transform: translateY(-1px);
+}
+
+
+/* === Playlist Panel Specific === */
+
+.play-all-button {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-size: 1.5rem;
+  margin-right: 0.5rem;
+}
+
+.play-all-button:hover {
+  transform: scale(1.05);
+}
+
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.6;
+  }
+}
+
+/* === Item Panel Specific === */
+.item-panel-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.item-panel-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+.item-panel-group {
+  height: 100%;
+}
+
+/* === Collapsible section styles === */
+.collapsed-info-bar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+.collapse-btn {
+  position: absolute;
+  right: 15px;
+  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  padding: 5px 15px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 10%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: transform 0.3s ease;
+  z-index: 11;
+}
+
+.collapse-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+/* === Collapsible macro content transition === */
+.macro-content-container {
+  transition: max-height 0.3s cubic-bezier(0.4,0,0.2,1), opacity 0.3s cubic-bezier(0.4,0,0.2,1);
+  max-height: 500px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.macro-content-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* === Media Queries === */
+@media (max-width: 768px) {
+  .sound-manager-layout {
+    flex-direction: column;
+  }
+
+  .sound-manager-left-panel {
+    flex: none;
+    max-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+}
+
+/* Define CSS variables for playlist item sizing */
+:root {
+  --playlist-item-height: 40px;
+  --playlist-header-height: 48px; 
+  --playlist-padding: 10px;
+}

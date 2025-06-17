@@ -29,6 +29,4 @@ export interface CollectionItemsDisplayProps extends AudioItemActions, DragDropP
   showToggle?: boolean;
   showActions?: boolean;
   showPlayButton?: boolean;
-  // Customization
-  renderSpecialItem?: (item: AudioItem) => React.ReactNode;
 }

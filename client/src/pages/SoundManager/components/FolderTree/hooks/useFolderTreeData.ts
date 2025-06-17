@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { Folder, AudioFileUI } from "../types.js";
 import { getAllFolders } from "src/pages/SoundManager/api/folderApi.js";
-import { getAllAudioFiles } from "src/pages/SoundManager/api/fileApi.js";
+import { getAllAudioFiles } from "src/pages/SoundManager/api/files/fileApi.js";
 import { buildFolderTree } from "../utils/FolderTree.js";
 import { useDownloadProgress } from "./useDownloadProgress.js";
+
 
 // Type definitions
 type FolderMap = Record<number, Folder>;
@@ -29,6 +30,8 @@ export function useFolderTreeData() {
     );
   }
 
+  // TODO: introduce folder/file re-ordering
+  //  - make sure to handle 'type' changes 
   // --- File operations ---
   const handleFileCreated = useCallback((file: AudioFileUI) => {
     setAudioFilesById((prev) => ({ ...prev, [file.id]: file }));
@@ -37,13 +40,11 @@ export function useFolderTreeData() {
   const handleFileUpdated = useCallback((file: AudioFileUI) => {
     setAudioFilesById((prev) => ({
       ...prev,
-
       [file.id]: file,
     }));
   }, []);
 
   // --- Download progress integration ---
-
   const {
     folderDownloadProgress,
     initializeDownloadProgress,
@@ -80,6 +81,7 @@ export function useFolderTreeData() {
         getAllFolders(),
       ]);
 
+
       setAudioFilesById(normalizeAudioFiles(files));
       setFoldersById(normalizeFolders(allFolders));
     } catch (error) {
@@ -97,29 +99,10 @@ export function useFolderTreeData() {
 
   // --- Folder operations ---
   const handleFolderCreated = useCallback((newFolder: Folder) => {
-    setFoldersById((prev) => {
-      // If it's a server-confirmed folder, replace temp ones
-      if (newFolder.id > 0) {
-        const byId = { ...prev };
-        // Find matching temp folder
-        for (const id in byId) {
-          const f = byId[id];
-          if (
-            f.id < 0 &&
-            f.name === newFolder.name &&
-            f.parentId === newFolder.parentId
-          ) {
-            delete byId[id];
-            byId[newFolder.id] = newFolder;
-            break;
-          }
-        }
-        return byId;
-      } else {
-        // Optimistic add
-        return { ...prev, [newFolder.id]: newFolder };
-      }
-    });
+    setFoldersById((prev) => ({
+      ...prev,
+      [newFolder.id]: newFolder,
+    }));
   }, []);
 
   const handleFolderDeleted = useCallback(
@@ -174,12 +157,14 @@ export function useFolderTreeData() {
     loading,
     error,
 
+
     // Operations
     reload: loadData,
     handleFolderCreated,
     handleFolderDeleted,
     handleFileCreated,
     handleFileUpdated,
+
 
     // Download management
     initializeDownloadProgress,

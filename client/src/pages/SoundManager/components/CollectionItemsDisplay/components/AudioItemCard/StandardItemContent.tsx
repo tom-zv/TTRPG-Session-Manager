@@ -28,35 +28,36 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
   return (
     <div className="audio-item-content">
       <div className="audio-item-header">
-        <h4 className="audio-item-name">
+        <h4 className="audio-item-name" title={item.name}>
           <span className={`item-icon`}>
             {React.createElement(getItemIcon(item))}
           </span>
           {item.name}
           {item.type === "macro" && <span className="macro-indicator">M</span>}
         </h4>
+
+        {showActions && (
+          <div className="item-actions">
+            <ItemActions
+              collectionId={parentCollection.id}
+              item={item}
+              selectedItems={parentCollection.items?.filter((i) =>
+                selectedItemIds.includes(i.id)
+              )}
+              removeItems={removeItems}
+              editItem={editItem}
+              onEditClick={onEditItem}
+              isSmall
+            />
+          </div>
+        )}
       </div>
+
       <div className="audio-item-details">
         {isAudioCollection(item) && item.itemCount !== undefined && (
           <span className="item-count">{item.itemCount} items</span>
         )}
       </div>
-
-      {showActions && (
-        <div className="item-actions">
-          <ItemActions
-            collectionId={parentCollection.id}
-            item={item}
-            selectedItems={parentCollection.items?.filter((i) =>
-              selectedItemIds.includes(i.id)
-            )}
-            removeItems={removeItems}
-            editItem={editItem}
-            onEditClick={onEditItem}
-            isSmall
-          />
-        </div>
-      )}
     </div>
   );
 };

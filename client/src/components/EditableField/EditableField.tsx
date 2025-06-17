@@ -72,7 +72,14 @@ const EditableField: React.FC<EditableFieldProps> = ({
         ) : (
           <div 
             className="editable-field-display" 
+            role="button"
+            tabIndex={0}
             onClick={() => setIsEditing(true)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                setIsEditing(true);
+              }
+            }}
           >
             <span className="editable-field-text">
               {value || <span className="editable-field-placeholder">Click to edit {label.toLowerCase()}</span>}

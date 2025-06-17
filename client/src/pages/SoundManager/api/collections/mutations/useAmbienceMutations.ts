@@ -5,7 +5,7 @@ import { AudioCollection } from "../../../types/AudioItem.js";
 
 // Define a context type to reuse
 type MutationContext = {
-  previousCollection?: AudioCollection;
+  previousCollections?: AudioCollection<AudioCollection>;
 };
 
 export const useActivateAmbienceFile = () => {
@@ -19,45 +19,54 @@ export const useActivateAmbienceFile = () => {
       collectionId: number;
       fileId: number;
     }) => {
-      return await ambienceApi.updateFile(collectionId, fileId, { active: true });
+      return await ambienceApi.updateFile(collectionId, fileId, {
+        active: true,
+      });
     },
 
     onMutate: async ({ collectionId, fileId }) => {
       await queryClient.cancelQueries({
-        queryKey: collectionKeys.collection("ambience", collectionId),
+        queryKey: collectionKeys.type("ambience"),
       });
 
-      const previousCollection = queryClient.getQueryData<AudioCollection>(
-        collectionKeys.collection("ambience", collectionId)
-      );
+      const previousCollections = queryClient.getQueryData<AudioCollection<AudioCollection>>(
+          collectionKeys.type("ambience")
+        );
 
-      if (previousCollection) {
+      
+      if (previousCollections) { 
         queryClient.setQueryData(
-          collectionKeys.collection("ambience", collectionId),
+          collectionKeys.type("ambience"),
           {
-            ...previousCollection,
-            items: previousCollection.items?.map((item) =>
-              item.id === fileId ? { ...item, active: true } : item
-            ),
-          }
+          ...previousCollections,
+          items: previousCollections.items?.map((collection) =>
+          collection.id === collectionId
+            ? {
+                ...collection,
+                items: collection.items?.map((item) =>
+                  item.id === fileId ? { ...item, active: true } : item
+                ),
+              }
+            : collection
+        )}
         );
       }
 
-      return { previousCollection };
+      return { previousCollections };
     },
 
-    onError: (_err, { collectionId }, context?: MutationContext) => {
-      if (context?.previousCollection) {
+    onError: (context?: MutationContext) => {
+      if (context?.previousCollections) {
         queryClient.setQueryData(
-          collectionKeys.collection("ambience", collectionId),
-          context.previousCollection
+          collectionKeys.type("ambience"),
+          context.previousCollections
         );
       }
     },
 
-    onSettled: (_data, _error, { collectionId }) => {
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection("ambience", collectionId),
+        queryKey: collectionKeys.type("ambience"),
       });
     },
   });
@@ -74,47 +83,54 @@ export const useDeactivateAmbienceFile = () => {
       collectionId: number;
       fileId: number;
     }) => {
-      return await ambienceApi.updateFile(collectionId, fileId, { active: false });
+      return await ambienceApi.updateFile(collectionId, fileId, {
+        active: false,
+      });
     },
 
     onMutate: async ({ collectionId, fileId }) => {
       await queryClient.cancelQueries({
-        queryKey: collectionKeys.collection("ambience", collectionId),
+        queryKey: collectionKeys.type("ambience"),
       });
 
-      const previousCollection = queryClient.getQueryData<AudioCollection>(
-        collectionKeys.collection("ambience", collectionId)
+      const previousCollections = queryClient.getQueryData<AudioCollection<AudioCollection>>(
+        collectionKeys.type("ambience")
       );
 
-      if (previousCollection) {
+      if (previousCollections) { 
         queryClient.setQueryData(
-          collectionKeys.collection("ambience", collectionId),
+          collectionKeys.type("ambience"),
           {
-            ...previousCollection,
-            items: previousCollection.items?.map((item) =>
-              item.id === fileId ? { ...item, active: false } : item
-            ),
-          }
+          ...previousCollections,
+          items: previousCollections.items?.map((collection) =>
+          collection.id === collectionId
+            ? {
+                ...collection,
+                items: collection.items?.map((item) =>
+                  item.id === fileId ? { ...item, active: true } : item
+                ),
+              }
+            : collection
+        )}
         );
       }
 
-      return { previousCollection };
+      return { previousCollections };
     },
 
-    onError: (_err, { collectionId }, context?: MutationContext) => {
-      if (context?.previousCollection) {
+    onError: (context?: MutationContext) => {
+      if (context?.previousCollections) {
         queryClient.setQueryData(
-          collectionKeys.collection("ambience", collectionId),
-          context.previousCollection
+          collectionKeys.type("ambience"),
+          context.previousCollections
         );
       }
     },
 
-    onSettled: (_data, _error, { collectionId }) => {
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection("ambience", collectionId),
+        queryKey: collectionKeys.type("ambience"),
       });
     },
   });
 };
-

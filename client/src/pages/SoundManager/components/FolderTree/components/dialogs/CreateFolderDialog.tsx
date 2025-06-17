@@ -1,13 +1,13 @@
 import { useState } from "react";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { createFolder } from "src/pages/SoundManager/api/folderApi.js";
-import { Folder } from "../types.js";
+import { Folder } from "../../types.js";
 
 type CreateFolderDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   parentFolderId: number;
-  folderType: Folder['type'];
+  folderType: Folder["type"];
   onFolderCreated?: (folder: Folder) => void;
 };
 
@@ -32,23 +32,16 @@ const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
     setError(null);
 
     try {
-      const tempId = -Date.now(); // negative timestamp as temp ID
-      const optimisticFolder: Folder = {
-        id: tempId,
-        name: folderName,
-        type: folderType,
-        parentId: parentFolderId,
-        children: []
-      };
-
-      onFolderCreated?.(optimisticFolder);
-      
       setFolderName("");
       onClose();
 
-      const createdFolder = await createFolder(folderName, parentFolderId, folderType);
-      
+      const createdFolder = await createFolder(
+        folderName,
+        parentFolderId,
+        folderType
+      );
       onFolderCreated?.(createdFolder);
+      
     } catch (error) {
       console.error("Error creating folder:", error);
       setError("Failed to create folder. Please try again.");
@@ -62,7 +55,6 @@ const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
       <div
         className="create-folder-dialog"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
         role="presentation"
       >
         <input
@@ -76,15 +68,15 @@ const CreateFolderDialog: React.FC<CreateFolderDialogProps> = ({
           placeholder="Enter folder name"
           disabled={isCreating}
         />
-        
+
         {error && <div className="error-message">{error}</div>}
-        
+
         <div className="dialog-buttons">
-          <button 
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onClose();
-            }} 
+            }}
             disabled={isCreating}
           >
             Cancel

@@ -13,11 +13,16 @@ import {
   PanelResizeHandle,
   ImperativePanelHandle,
 } from "react-resizable-panels";
-import './ItemPanel.css';
+import "./ItemPanel.css";
 
 const ItemPanel: React.FC = () => {
-  const { itemPanelOptions, isPanelVisible, togglePanelVisibility } =
-    useItemPanel();
+  const {
+    itemPanelOptions,
+    isPanelVisible,
+    togglePanelVisibility,
+    isMacroPanelCollapsed,
+    toggleMacroPanel,
+  } = useItemPanel();
   const [createMacroDialogOpen, setCreateMacroDialogOpen] = useState(false);
 
   // Refs for collapsible panels
@@ -53,26 +58,29 @@ const ItemPanel: React.FC = () => {
 
   return (
     <div className="item-panel-container">
-      <div className="panel-header">
+      <div className={`panel-header${!isPanelVisible ? " collapsed" : ""}`}>
         <h3>
           <BsFileEarmarkMusic />
           Item Panel
         </h3>
-        {/* Toggle button to show the panel */}
-        <button
-          className="toggle-button"
-          onClick={togglePanelVisibility}
-          title= {isPanelVisible? "Hide panel" : "Show panel"}
-          aria-label="Show panel"
-        >
-          <span className="icon">
-            {isPanelVisible ? <LuChevronsUp /> : <LuChevronsDown />}
-          </span>
-        </button>
+        <div className="panel-header-actions">
+          <button
+            className="panel-toggle-button"
+            onClick={togglePanelVisibility}
+            title={isPanelVisible ? "Hide panel" : "Show panel"}
+            aria-label="Show panel"
+          >
+            <span className="icon">
+              {isPanelVisible ? <LuChevronsUp /> : <LuChevronsDown />}
+            </span>
+          </button>
+        </div>
       </div>
 
-      {isPanelVisible && visiblePanelCount > 0 && (
-        <div className="item-panel-content">
+      <div
+        className={`item-panel-content ${!isPanelVisible ? "collapsed" : ""}`}
+      >
+        {visiblePanelCount > 0 && (
           <PanelGroup direction="vertical" className="item-panel-group">
             {/* Files Panel */}
             {itemPanelOptions.showFiles && (
@@ -100,31 +108,65 @@ const ItemPanel: React.FC = () => {
                 ref={macroPanelRef}
                 defaultSize={getDefaultSize()}
                 minSize={15}
-                collapsible={true}
-                className="panel-with-table"
+                className="panel-with-table macro-panel"
               >
-                <div className="panel-section">
-                  <div className="panel-header">
+                <div className="panel-section macro-panel-section">
+                  <div
+                    className={`panel-header${
+                      isMacroPanelCollapsed ? " collapsed" : ""
+                    }`}
+                  >
                     <h3>Macros</h3>
-                    <button
-                      className="create-collection-button"
-                      onClick={handleOpenCreateMacroDialog}
-                      title="Create New Macro"
-                    >
-                      <PiMusicNotesPlusFill />
-                    </button>
+
+                    <div className="panel-header-actions">
+                    
+                      <button
+                        className="create-collection-button"
+                        onClick={handleOpenCreateMacroDialog}
+                        title="Create New Macro"
+                      >
+                        <PiMusicNotesPlusFill />
+                      </button>
+
+                      <button
+                        className="panel-toggle-button"
+                        onClick={toggleMacroPanel}
+                        title={
+                          isMacroPanelCollapsed
+                            ? "Expand macros"
+                            : "Hide macros"
+                        }
+                        aria-label="Toggle macros visibility"
+                      >
+                        <span className="icon">
+                          {isMacroPanelCollapsed ? (
+                            <LuChevronsDown />
+                          ) : (
+                            <LuChevronsUp />
+                          )}
+                        </span>
+                      </button>
+                      
+                    </div>
                   </div>
-                  <CollectionItemsDisplay
-                    collectionType="macro"
-                    collectionId={-1}
-                    view="list"
-                    showToggle={false}
-                    showActions={false}
-                    showHeaders={false}
-                    isSelectable={true}
-                    isDragSource={true}
-                    isReorderable={false}
-                  />
+                  {/* Content container that collapses */}
+                  <div
+                    className={`macro-content-container ${
+                      isMacroPanelCollapsed ? "collapsed" : ""
+                    }`}
+                  >
+                    <CollectionItemsDisplay
+                      collectionType="macro"
+                      collectionId={-1}
+                      view="list"
+                      showToggle={false}
+                      showActions={true}
+                      showHeaders={false}
+                      isSelectable={true}
+                      isDragSource={true}
+                      isReorderable={false}
+                    />
+                  </div>
                 </div>
               </Panel>
             )}
@@ -164,18 +206,18 @@ const ItemPanel: React.FC = () => {
               </Panel>
             )}
           </PanelGroup>
+        )}
 
-          {/* Dialog for creating macros */}
-          {createMacroDialogOpen && (
-            <CreateCollectionDialog
-              isOpen={createMacroDialogOpen}
-              onClose={() => setCreateMacroDialogOpen(false)}
-              collectionType="macro"
-              createCollection={createCollection!}
-            />
-          )}
-        </div>
-      )}
+        {/* Dialog for creating macros */}
+        {createMacroDialogOpen && (
+          <CreateCollectionDialog
+            isOpen={createMacroDialogOpen}
+            onClose={() => setCreateMacroDialogOpen(false)}
+            collectionType="macro"
+            createCollection={createCollection!}
+          />
+        )}
+      </div>
     </div>
   );
 };

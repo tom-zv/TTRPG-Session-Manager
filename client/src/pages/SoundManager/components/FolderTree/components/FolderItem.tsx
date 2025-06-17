@@ -7,6 +7,7 @@ import FileDisplay from "./FileDisplay.js";
 import FolderDisplay from "./FolderDisplay.js";
 import { useFolderTree } from "../context/FolderTreeContext.js";
 import { DownloadProgress } from "../hooks/useDownloadProgress.js";
+import { FaCheck } from "react-icons/fa";
 
 
 interface FolderItemProps {
@@ -126,7 +127,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                 dismissDownloadProgress(jobId, folder.id);
                               }}
                             >
-                              <i className="fas fa-times"></i>
+                             <FaCheck />
                             </button>
                           </div>
                           <div className="folder-error-text">
@@ -172,7 +173,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                 dismissDownloadProgress(jobId, folder.id);
                               }}
                             >
-                              <i className="fas fa-times"></i>
+                              <FaCheck />
                             </button>
                           </div>
 
@@ -236,12 +237,12 @@ const FolderItem: React.FC<FolderItemProps> = ({
                                 dismissDownloadProgress(jobId, folder.id);
                               }}
                             >
-                              <i className="fas fa-times"></i>
+                              <FaCheck />
                             </button>
                           </div>
-                          <div className="complete-message">
+                          {/* <div className="complete-message">
                             Successfully downloaded {progress.total} files to folder &quot;{folder.name}&quot;
-                          </div>
+                          </div> */}
                         </div>
                       ) : (
                         <span className="download-progress">
