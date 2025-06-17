@@ -2,13 +2,12 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { AudioCollection, AudioItem, isAudioFile } from "../../../types/AudioItem.js";
 import { CollectionType } from "shared/audio/types.js";
 import { getApiForType, collectionKeys, ParentCollectionInfo } from "../useCollectionQueries.js";
-import { updateAudioFile } from "../../fileApi.js"; 
+import { updateAudioFile } from "../../files/fileApi.js"; 
 
 /* useCollectionItemMutations.ts
  * Mutation hooks for managing items within collections using React Query
  ****************************************************************************************************************/
 
-// Add items to a collection
 export const useAddToCollection = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
@@ -112,7 +111,10 @@ export const useAddToCollection = (type: CollectionType) => {
   });
 };
 
-export const useUpdateFile = (type: CollectionType) => {
+/**
+ * Update file in a collection context
+ */
+export const useUpdateCollectionFile = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
   

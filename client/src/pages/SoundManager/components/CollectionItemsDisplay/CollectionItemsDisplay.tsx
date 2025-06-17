@@ -59,7 +59,7 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
     initialView: view,
     onItemClick,
   });
-
+  
   const {
     addItemsMutation,
     removeItemsMutation,

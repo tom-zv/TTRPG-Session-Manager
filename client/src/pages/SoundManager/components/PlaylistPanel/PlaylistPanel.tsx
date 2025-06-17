@@ -1,20 +1,22 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
+import { ImperativePanelHandle } from "react-resizable-panels";
 import { useGetCollectionsOfType } from "../../api/collections/useCollectionQueries.js";
 import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { PiMusicNotesPlusFill } from "react-icons/pi";
 import { Audio } from "../../services/AudioService/AudioContext.js";
 import CreateCollectionDialog from "../../components/CollectionView/components/CreateCollectionDialog.js";
 import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionActions.js";
-
+import { usePlaylistPanelSizeCalc } from "../../hooks/usePlaylistPanelSizeCalc.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import "./PlaylistPanel.css";
+import { AudioCollection } from "../CollectionItemsDisplay/types.js";
 
 interface PlaylistPanelProps {
-  onPlaylistCountChange?: (count: number) => void;
+  panelRef: React.RefObject<ImperativePanelHandle>;
 }
 
 const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
-  function PlaylistPanel({ onPlaylistCountChange }) {
+  function PlaylistPanel({ panelRef }) {
     // Get audio context functionality
     const {
       isAudioItemPlaying,
@@ -26,7 +28,10 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
     const { data: playlistCollection } = useGetCollectionsOfType("playlist");
-    const playlists = useMemo(() => playlistCollection?.items || [], [playlistCollection]);
+    const playlists = useMemo(
+      () => playlistCollection?.items || [],
+      [playlistCollection]
+    );
 
     const { createCollection } = useCollectionMutations(
       -1, // Virtual collection ID
@@ -42,15 +47,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
     const selectedPlaylist = useMemo(
       () => playlists?.find((playlist) => playlist.id === selectedPlaylistId),
       [playlists, selectedPlaylistId]
-    );
-
-    const handleBackClick = useCallback(() => {
-      setSelectedPlaylistId(null);
-    }, []);
-
-    const handlePlaylistSelect = useCallback((itemId: number) => {
-      setSelectedPlaylistId(itemId);
-    }, []);
+    ) as AudioCollection | undefined;
 
     const handleTogglePlay = useCallback(() => {
       if (selectedPlaylist) {
@@ -58,16 +55,15 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
       }
     }, [selectedPlaylist, togglePlaylist, selectedPlaylistId, currentIndex]);
 
-    const handleOpenCreateDialog = useCallback(() => {
-      setCreateDialogOpen(true);
+    const handlePlaylistSelect = useCallback((itemId: number) => {
+      setSelectedPlaylistId(itemId);
     }, []);
 
-    // Use effect to notify parent when playlist count changes
-    useEffect(() => {
-      if (onPlaylistCountChange && playlists) {
-        onPlaylistCountChange(playlists.length);
-      }
-    }, [playlists, onPlaylistCountChange]);
+    const isDetail = selectedPlaylistId !== null;
+    const itemCount = isDetail
+      ? selectedPlaylist?.items?.length || 0
+      : playlists.length;
+    usePlaylistPanelSizeCalc(itemCount, panelRef);
 
     const listViewProps = {
       collectionType: "playlist" as const,
@@ -102,17 +98,18 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
           <>
             <div className="panel-header">
               <h3>Playlists</h3>
-              <button
-                className="create-collection-button"
-                onClick={handleOpenCreateDialog}
-                title="Create New Playlist"
-              >
-                <PiMusicNotesPlusFill />
-              </button>
+              <div className="panel-header-actions">
+                <button
+                  className="create-collection-button"
+                  onClick={() => setCreateDialogOpen(true)}
+                  title="Create New Playlist"
+                >
+                  <PiMusicNotesPlusFill />
+                </button>
+              </div>
             </div>
-            
+
             <CollectionItemsDisplay {...listViewProps} />
-            
 
             {createDialogOpen && (
               <CreateCollectionDialog
@@ -126,12 +123,17 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
         ) : selectedPlaylist ? (
           <>
             <div className="panel-header">
-              <button className="back-button" onClick={handleBackClick}>
+              <button
+                className="back-button"
+                onClick={() => setSelectedPlaylistId(null)}
+              >
                 ←
               </button>
               <h3>{selectedPlaylist.name}</h3>
               <button
-                className={`play-all-button ${isAudioItemPlaying(selectedPlaylist) ? "playing" : ""}`}
+                className={`play-all-button ${
+                  isAudioItemPlaying(selectedPlaylist) ? "playing" : ""
+                }`}
                 onClick={handleTogglePlay}
                 title={
                   isAudioItemPlaying(selectedPlaylist) ? "Pause" : "Play all"

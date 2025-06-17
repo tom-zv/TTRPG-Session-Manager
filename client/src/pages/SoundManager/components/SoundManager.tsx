@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from "react";
+import React from "react";
 import ItemPanel from "./ItemPanel/ItemPanel.js";
 import PlaylistPanel from "./PlaylistPanel/PlaylistPanel.js";
-import SoundManagerLiveView from "./SoundManagerLiveView/SoundManagerLiveView.js";
+import SoundCollectionsPanel from "./SoundCollectionsPanel/SoundCollectionsPanel.js";
 import { DropTargetProvider } from "src/components/DropTargetContext/DropTargetContext.js";
 import { ItemPanelProvider } from "./ItemPanel/ItemPanelContext.js";
 import { AudioProvider } from "../services/AudioService/index.js";
@@ -14,23 +14,10 @@ import {
 import PlayBar from "./PlayBar/PlayBar.js";
 import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
-import { usePlaylistPanelSizeCalc } from "../hooks/usePlaylistPanelSizeCalc.js";
-import "./SoundManager.css";
-import "./LeftPanel.css";
+import "./sound-manager.css";
 
 const SoundManagerContent: React.FC = () => {
-  const [playlistCount, setPlaylistCount] = useState(0);
   const playlistPanelRef = React.useRef<ImperativePanelHandle>(null);
-  
-  const { calculatePlaylistPanelSize } = usePlaylistPanelSizeCalc(
-    playlistCount, 
-    playlistPanelRef
-  );
-
-  const handlePlaylistCountChange = useCallback((count: number) => {
-    setPlaylistCount(count);
-  }, []);
-
   return (
     <div className="sound-manager">
       <div className="sound-manager-layout">
@@ -40,13 +27,13 @@ const SoundManagerContent: React.FC = () => {
               {/* Playlist Panel */}
               <Panel
                 ref={playlistPanelRef}
-                defaultSize={calculatePlaylistPanelSize()}
+                defaultSize={50}
                 minSize={9}
                 className="panel-with-table" 
               >
                 <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
                   <PlaylistPanel
-                    onPlaylistCountChange={handlePlaylistCountChange}
+                    panelRef={playlistPanelRef}
                   />
                 </DropArea>
               </Panel>
@@ -55,7 +42,7 @@ const SoundManagerContent: React.FC = () => {
 
               {/* Item Panel */}
               <Panel
-                defaultSize={100 - calculatePlaylistPanelSize()}
+                defaultSize={50}
                 minSize={20}
                 className="panel-with-table"
               >
@@ -72,8 +59,8 @@ const SoundManagerContent: React.FC = () => {
 
         <div className="layout-vertical-separator"></div>
 
-        <div className="sound-manager-main-area">
-          <SoundManagerLiveView />
+        <div className="sound-manager-main-panel">
+          <SoundCollectionsPanel />
         </div>
       </div>
     </div>

@@ -1,19 +1,40 @@
 import { getYTAudioURL } from '../../../api/AudioApi.js';
 
-let baseAudioPath: string = "http://localhost:3000/audio";
+// Default to empty but will be updated from server
+let basePath: string = "";
+
+/**
+ * Initialize the audio path resolver
+ * Fetches server configuration to set the correct base URL
+ */
+export async function initializeAudioPathResolver(): Promise<void> {
+  try {
+    const response = await fetch('/api/system/server-info');
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    
+    const serverInfo = await response.json();
+    basePath = serverInfo.baseUrl;  // /Audio is appended to rel file paths
+  } catch (error) {
+    console.error('Failed to get server info, using fallback URL:', error);
+    // Fallback to a reasonable default based on current origin
+    basePath = `${window.location.origin}`;
+  }
+}
 
 /**
  * Set the base audio path for resolving relative paths
  */
 export function setBaseAudioPath(path: string): void {
-  baseAudioPath = path;
+  basePath = path;
 }
 
 /**
  * Get the current base audio path
  */
 export function getBaseAudioPath(): string {
-  return baseAudioPath;
+  return basePath;
 }
 
 /**
@@ -32,7 +53,7 @@ export function resolveAudioPath(relativePath: string | undefined | null): strin
   }
 
   // Join the base path with the relative path
-  return `${baseAudioPath}/${relativePath}`;
+  return `${basePath}/${relativePath}`;
 }
 
 /**
@@ -46,7 +67,6 @@ export async function resolveAudioUrl(
   if (url.includes("youtube.com") || url.includes("youtu.be")) {
     try {
       const resolved = await getYTAudioURL(url);
-      console.log("Resolved YouTube URL:", resolved);
       return resolved;
     } catch (error) {
       console.error("Error resolving YouTube URL:", error);

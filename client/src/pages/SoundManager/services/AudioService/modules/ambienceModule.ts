@@ -11,28 +11,23 @@ export class AmbienceModule {
   } | null = null;
 
   private currentAmbientFiles: Map<
-    number, 
+    number,
     {
       howl: Howl;
       volume: number;
     }
   > = new Map();
 
-  async activateAmbienceFile(collectionId: number, fileId: number): Promise<void> {
+  async activateAmbienceFile(collectionId: number, file: AudioFile): Promise<void> {
     // Check if the collection is currently playing
     if (this.currentAmbienceCollection?.collectionId === collectionId) {
-      const collection = getCollectionFromCache('ambience', collectionId);
-      if (collection) {
-        const item = collection.items?.find((item) => item.id === fileId);
-        if (item && isAudioFile(item)) {
-          await this.playAmbienceSound(item);
-        }
+      if (isAudioFile(file)) {
+        await this.playAmbienceSound(file);
       }
     }
   }
 
   deactivateAmbienceFile(collectionId: number, fileId: number): void {
-    // Check if the collection is currently playing
     if (this.currentAmbienceCollection?.collectionId === collectionId) {
       const sound = this.currentAmbientFiles.get(fileId);
       if (sound) {
@@ -42,37 +37,46 @@ export class AmbienceModule {
   }
 
   // Internal method to actually play an ambience sound
-  private async playAmbienceSound(file: AudioFile): Promise<number | undefined> {
-    const audioSrc = resolveAudioPath(file.path) || await resolveAudioUrl(file.url) || "";
+  private async playAmbienceSound(
+    file: AudioFile
+  ): Promise<number | undefined> {
+    const audioSrc =
+      resolveAudioPath(file.path) || (await resolveAudioUrl(file.url)) || "";
 
     if (!audioSrc) {
-      console.warn(`Could not resolve audio source for ambience file ${file.name || file.id}`);
+      console.warn(
+        `Could not resolve audio source for ambience file ${
+          file.name || file.id
+        }`
+      );
       return undefined;
     }
 
     const howl = new Howl({
       src: [audioSrc],
-      volume: (file.volume !== undefined ? file.volume : 1) * getVolume('ambience'),
-      html5: file.url ? true : false,
+      volume:
+        (file.volume !== undefined ? file.volume : 1) * getVolume("ambience"),
+      html5: true,
       loop: true,
     });
 
     this.currentAmbientFiles.set(file.id, {
       howl,
-      volume: getVolume('ambience') * (file.volume || 1),
+      volume: getVolume("ambience") * (file.volume || 1),
     });
 
-    emit(AudioEventTypes.AMBIENCE_FILE_CHANGE, [...this.currentAmbientFiles.keys()])
-    
+    emit(AudioEventTypes.AMBIENCE_FILE_CHANGE, [
+      ...this.currentAmbientFiles.keys(),
+    ]);
 
     howl.play();
-    howl.fade(0, getVolume('ambience') * (file.volume || 1), 2000);
-    
+    howl.fade(0, getVolume("ambience") * (file.volume || 1), 2000);
+
     return file.id;
   }
 
   // Internal method to actually stop an ambience sound
-  private stopAmbienceSound(id: number): void { 
+  private stopAmbienceSound(id: number): void {
     const sound = this.currentAmbientFiles.get(id);
     if (sound) {
       this.currentAmbientFiles.delete(id);
@@ -82,7 +86,9 @@ export class AmbienceModule {
         sound.howl.stop();
         sound.howl.unload();
       });
-      emit(AudioEventTypes.AMBIENCE_FILE_CHANGE, [...this.currentAmbientFiles.keys()]);
+      emit(AudioEventTypes.AMBIENCE_FILE_CHANGE, [
+        ...this.currentAmbientFiles.keys(),
+      ]);
     }
   }
 
@@ -94,20 +100,20 @@ export class AmbienceModule {
   async playAmbienceCollection(collectionId: number): Promise<void> {
     // First stop any currently playing ambience sounds
     this.stopAmbienceCollection();
-    const collection = getCollectionFromCache('ambience', collectionId);
+    const collection = getCollectionFromCache("ambience", collectionId);
     if (!collection || !collection.items) return;
-    
+
     this.currentAmbienceCollection = {
       collectionId: collectionId,
     };
-  
+
     // Play all active ambience items from the collection
     for (const item of collection.items) {
       if (isAudioFile(item) && item.active) {
         await this.playAmbienceSound(item);
       }
     }
-    
+
     // Emit event that ambience collection has changed
     emit(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, collection.id);
   }
@@ -118,7 +124,7 @@ export class AmbienceModule {
     });
 
     this.currentAmbienceCollection = null;
-    
+
     // Emit event that ambience collection has been stopped
     emit(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, null);
   }
@@ -126,12 +132,12 @@ export class AmbienceModule {
   // Toggle ambience collection by ID
   async toggleCollection(collectionId: number): Promise<boolean> {
     if (!collectionId) return false;
-    
+
     // If this collection is already playing, stop it
     if (this.currentAmbienceCollection?.collectionId === collectionId) {
       this.stopAmbienceCollection();
       return false;
-    } else { 
+    } else {
       // Otherwise, play the new collection
       await this.playAmbienceCollection(collectionId);
       return true;
@@ -143,16 +149,16 @@ export class AmbienceModule {
 
     const sound = this.currentAmbientFiles.get(id);
     if (sound) {
-      sound.howl.volume(volume * getVolume('ambience'));
-      sound.volume = volume * getVolume('ambience');
+      sound.howl.volume(volume * getVolume("ambience"));
+      sound.volume = volume * getVolume("ambience");
     }
   }
 
   setMasterVolume(volume: number): void {
     if (volume < 0 || volume > 1) return;
 
-    const prevMasterVolume = getVolume('ambience');
-    setVolume('ambience', volume);
+    const prevMasterVolume = getVolume("ambience");
+    setVolume("ambience", volume);
 
     // Update all currently playing ambience sounds
     this.currentAmbientFiles.forEach((sound) => {
@@ -173,6 +179,6 @@ export class AmbienceModule {
   }
 
   get volume(): number {
-    return getVolume('ambience');
+    return getVolume("ambience");
   }
 }

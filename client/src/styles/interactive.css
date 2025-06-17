@@ -1,0 +1,108 @@
+/* Interactive and component state styles */
+
+/* ===== Z-Index Layering System =====
+ * The application uses a standardized z-index layering system:
+ * 
+ * 1-9:     Base Layer - Basic UI elements, content
+ * 10-99:   Component Layer - UI components, tooltips, handles, etc.
+ * 100-499: Navigation Layer - Navbar, important UI controls
+ * 500-999: Overlay Layer - Popovers, dropdowns
+ * 1000+:   Modal Layer - Dialogs, critical notifications
+ */
+
+/* === Navigation Buttons === */
+.back-button {
+  background-color: transparent;
+  font-size: 1.5rem;
+  padding: 0;
+  margin-left: 0.5rem;
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: transparent;
+  transform: translateY(-1px);
+}
+
+/* Tooltip component */
+.tooltip {
+  position: relative;
+  cursor: help;
+}
+
+.tooltip-text {
+  position: absolute;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-duration) ease;
+  z-index: 50;
+}
+
+.tooltip:hover .tooltip-text,
+.tooltip:focus-visible .tooltip-text {
+  opacity: 1;
+}
+
+/* === Volume Slider === */
+.volume-slider {
+  width: 100%;
+  height: auto;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: transparent;
+  border: none;
+  outline: none;
+}
+
+/* Track styling */
+.volume-slider::-webkit-slider-runnable-track {
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--border-color-light);
+}
+
+.volume-slider::-moz-range-track {
+  height: 2px;
+  border-radius: 2px;
+  background-color: var(--border-color-light);
+}
+
+/* Thumb styling */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  margin-top: -5px;
+  background-color: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background-color: var(--accent-primary);
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+.volume-slider::-moz-range-thumb:hover,
+.volume-slider::-webkit-slider-thumb:hover {
+  background-color: var(--accent-secondary);
+}

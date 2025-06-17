@@ -23,11 +23,11 @@ export interface AudioFile extends AudioItemBase {
 }
 
 // Collection specific interface
-export interface AudioCollection extends AudioItemBase {
+export interface AudioCollection<T extends AudioItem = AudioItem> extends AudioItemBase {
   type: CollectionType;
   description?: string;
   itemCount?: number;
-  items?: AudioItem[]; 
+  items?: T[]; 
 }
 
 export interface AudioMacro extends AudioCollection {

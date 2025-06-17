@@ -8,11 +8,20 @@
   height: 100%;
 }
 
+.playlist-panel .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+  height: 42px;
+  white-space: nowrap;
+}
 
-
-.playlist-panel .collection-items-display thead {
-  display: none;
-  min-height: 0;
+.playlist-panel .panel-header h3 {
+  margin: 0;
+  line-height: 1.2; 
 }
 
 .playlist-panel .collection-items-display {
@@ -22,18 +31,12 @@
   overflow-x: hidden;
 }
 
-.playlist-panel .audio-item-table{
-  overflow-y: auto;
+.playlist-panel .collection-items-display thead {
+  display: none;
 }
 
 .playlist-panel .audio-item-row {
   cursor: pointer;
-  transition: all 0.2s ease;
-  background-color: var(--bg-secondary);
-}
-
-.playlist-panel .audio-item-row:hover {
-  background-color: rgba(53, 114, 227, 0.08);
 }
 
 .playlist-panel .audio-item-row:hover .item-actions .play-button {
@@ -56,58 +59,6 @@
 
 .playlist-panel .audio-item-row:not(.playlist):hover .position-number {
   opacity: 0;
-}
-
-.playlist-panel .audio-item-table td {
-  padding: 0.6rem 0.8rem;
-}
-
-.playlist-panel .audio-item-table th {
-  padding: 0.6rem 0.8rem;
-  background-color: rgba(53, 114, 227, 0.05);
-  color: var(--text-secondary);
-}
-
-.playlist-panel .audio-item-table th,
-.playlist-panel .audio-item-table td {
-  padding-left: 0.5rem;
-  padding-right: 0.5rem;
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
-  box-sizing: border-box;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.playlist-panel .audio-item-row.playing {
-  background-color: rgba(53, 114, 227, 0.2);
-  position: relative;
-}
-
-.playlist-panel .audio-item-row.playing::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0;
-  height: 100%;
-  width: 3px;
-  background-color: var(--accent-primary);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
-  }
 }
 
 /* Specific styling for playlists in the main view */

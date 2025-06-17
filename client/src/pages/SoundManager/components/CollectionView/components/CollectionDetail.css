@@ -52,25 +52,6 @@
   color: var(--text-secondary);
 }
 
-.edit-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  border-radius: 4px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-}
-
-.edit-button:hover {
-  background-color: transparent;
-}
-
-.edit-button svg {
-  font-size: 18px;
-}
-
 /* Content layouts */
 .collection-detail-view-content {
   height: 100%;
@@ -93,8 +74,6 @@
 .collection-detail-view-list .audio-item-table {
   margin-bottom: 0;
 }
-
-
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
@@ -119,9 +98,4 @@
     margin-bottom: 0;
   }
   
-  .back-button {
-    width: 100%;
-  }
-  
-
 }

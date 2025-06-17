@@ -1,5 +1,5 @@
 import React, { useState, useRef } from "react";
-import CollectionView from "../../components/CollectionView/CollectionView.js";
+import CollectionView from "../CollectionView/CollectionView.js";
 import {
   Panel,
   PanelGroup,
@@ -8,9 +8,10 @@ import {
 } from "react-resizable-panels";
 import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
-import "./SoundManagerLiveView.css";
+import "./SoundCollectionsPanel.css";
+import { AmbienceCollapsed } from "./AmbienceCollapsedView.js";
 
-const SoundManagerLiveView: React.FC = () => {
+const SoundCollectionsPanel: React.FC = () => {
   const [isAmbienceCollapsed, setIsAmbienceCollapsed] = useState(false);
   const ambiencePanelRef = useRef<ImperativePanelHandle>(null);
 
@@ -27,7 +28,7 @@ const SoundManagerLiveView: React.FC = () => {
   };
 
   return (
-    <div className="sound-manager-live-view">
+    <div className="SoundCollectionsPanel">
       <PanelGroup direction="vertical">
         <Panel defaultSize={60} minSize={25}>
           <DropArea
@@ -56,39 +57,31 @@ const SoundManagerLiveView: React.FC = () => {
         <Panel
           ref={ambiencePanelRef}
           defaultSize={40}
-          minSize={18}
+          minSize={20}
           collapsible={true}
           onCollapse={() => setIsAmbienceCollapsed(true)}
           onExpand={() => setIsAmbienceCollapsed(false)}
-          collapsedSize={10}
+          collapsedSize={20}
         >
-          <div
-            className={`ambience-section ${
-              isAmbienceCollapsed ? "collapsed" : ""
-            }`}
+          <DropArea
+            zoneId={DROP_ZONES.SOUND_MANAGER_AMBIENCE}
+            className="ambience-section"
           >
             {isAmbienceCollapsed ? (
-              <div className="collapsed-info-bar">
-                <span>Ambience Collections (collapsed)</span>
-              </div>
+              <AmbienceCollapsed />
             ) : (
-              <DropArea
-                zoneId={DROP_ZONES.SOUND_MANAGER_AMBIENCE}
-                className="sfx-section"
-              >
-                <CollectionView
-                  collectionType="ambience"
-                  itemDisplayView="grid"
-                  dropZoneId={DROP_ZONES.SOUND_MANAGER_AMBIENCE}
-                  acceptedDropTypes={["file"]}
-                />
-              </DropArea>
+              <CollectionView
+                collectionType="ambience"
+                itemDisplayView="grid"
+                dropZoneId={DROP_ZONES.SOUND_MANAGER_AMBIENCE}
+                acceptedDropTypes={["file"]}
+              />
             )}
-          </div>
+          </DropArea>
         </Panel>
       </PanelGroup>
     </div>
   );
 };
 
-export default SoundManagerLiveView;
+export default SoundCollectionsPanel;

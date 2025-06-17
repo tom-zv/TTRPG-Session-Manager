@@ -2,7 +2,6 @@ import React from 'react';
 import { CollectionType } from "shared/audio/types.js";
 import { DragDropProps } from 'src/types/dragDropProps.js';
 import { CollectionItemsDisplay } from '../../CollectionItemsDisplay/CollectionItemsDisplay.js';
-import './CollectionsGrid.css';
 
 interface CollectionsGridProps extends DragDropProps {
   // Data props
@@ -33,14 +32,6 @@ const CollectionsGrid: React.FC<CollectionsGridProps> = ({
         showToggle={false}
         showActions={true}
         onItemClick={onItemClick}
-        renderSpecialItem={(item) =>
-          item.isCreateButton && (
-            <div className="create-collection-content">
-              <div className="create-collection-icon">+</div>
-              <span className="create-collection-text">{item.name}</span>
-            </div>
-          )
-        }
         isDragSource={isDragSource}
         isDropTarget={isDropTarget}
       />

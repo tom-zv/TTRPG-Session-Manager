@@ -61,6 +61,8 @@ export const createFolder = async (req: Request, res: Response, next: NextFuncti
     }
 
     // Validate folder name for file system compatibility
+    //
+    // Control regex is specifically used here since it is an invalid char in fs 
     // eslint-disable-next-line no-control-regex
     const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
     if (invalidChars.test(name)) {
@@ -144,11 +146,43 @@ export const deleteFolders = async (req: Request, res: Response, next: NextFunct
   }
 };
 
+export const updateFolder = async (req: Request, res: Response) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { name } = req.body;
+
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid folder ID format' });
+    }
+    if (!name || typeof name !== 'string' || name.trim() === '') {
+      return res.status(400).json({ error: 'Folder name is required and must be a non-empty string.' });
+    }
+    // eslint-disable-next-line no-control-regex
+    const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
+    if (invalidChars.test(name)) {
+      return res.status(400).json({ 
+        error: 'Folder name contains invalid characters. Avoid: < > : " / \\ | ? *' 
+      });
+    }
+
+    const updatedFolder = await folderService.updateFolder(id, name);
+    if (!updatedFolder) {
+      return res.status(404).json({ error: 'Folder not found' });
+    }
+    const folder = transformFolder(updatedFolder);
+    res.status(200).json(folder);
+  } catch (error) {
+    console.error('Error updating folder:', error);
+    res.status(500).json({ error: 'Failed to update folder' });
+  }
+};
+
 export default {
   getAllFolders,
   getFolderById,
   getSubFolders,
   createFolder,
   deleteFolder,
-  deleteFolders
+  deleteFolders,
+  updateFolder
 };

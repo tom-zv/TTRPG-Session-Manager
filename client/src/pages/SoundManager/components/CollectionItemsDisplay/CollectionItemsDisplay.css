@@ -30,7 +30,7 @@
     transform: none;
     margin: 1rem auto;
     text-align: center;
-    z-index: 10;
+    z-index: 30;
     pointer-events: none;
     width: auto;
     max-width: 190px;

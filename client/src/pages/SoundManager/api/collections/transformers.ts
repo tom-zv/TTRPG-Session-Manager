@@ -17,13 +17,14 @@ interface MacroApiResponse {
   items?: AudioFileDTO[];
 }
 
+// Update the interface to better represent mixed content
 interface CollectionApiResponse {
   id: number;
   name: string;
   description?: string;
   itemCount?: number;
   position?: number;
-  items?: AudioFileDTO[];
+  items?: (AudioFileDTO | MacroApiResponse)[];
 }
 
 /**
@@ -65,12 +66,44 @@ export function transformDtoToAudioMacro(dto: MacroApiResponse): AudioMacro {
 }
 
 /**
+ * Determines if an item is a macro or a file based on its properties
+ */
+function isMacroItem(item: AudioFileDTO | MacroApiResponse): item is MacroApiResponse {
+  return (item as MacroApiResponse).items !== undefined || (item as MacroApiResponse).itemCount !== undefined;
+}
+
+/**
+ * Transforms an item that could be either a file or macro
+ */
+function transformDtoToAudioItem(item: AudioFileDTO | MacroApiResponse) {
+  if (isMacroItem(item)) {
+    return transformDtoToAudioMacro(item);
+  } else {
+    return transformDtoToAudioFile(item as AudioFileDTO);
+  }
+}
+
+/**
  * Transforms a collection API response into an AudioCollection object
  */
 export function transformDtoToAudioCollection(
   dto: CollectionApiResponse,
   collectionType: "playlist" | "sfx" | "ambience" | "pack"
 ): AudioCollection {
+
+  // For sfx collections, items can be files or macros
+  const transformItems = () => {
+    if (!dto.items) return [];
+
+    if (collectionType === "sfx") {
+      return dto.items.map(transformDtoToAudioItem);
+    } else {
+      return dto.items.map((item) =>
+        transformDtoToAudioFile(item as AudioFileDTO)
+      );
+    }
+  };
+
   return {
     id: dto.id,
     type: collectionType,
@@ -78,7 +111,7 @@ export function transformDtoToAudioCollection(
     description: dto.description || undefined,
     itemCount: dto.itemCount ?? 0,
     position: dto.position ?? 0,
-    items: dto.items?.map(transformDtoToAudioFile) ?? [],
+    items: transformItems(),
   };
 }
 

@@ -73,7 +73,7 @@ export const ListView: React.FC<ListViewProps> = ({
       }
       break;
     case "macro":
-      columns = ["-", "name"];
+      columns = ["name", "actions"];
       break;
     default:
       columns = ["position", "name", "duration", "actions"];

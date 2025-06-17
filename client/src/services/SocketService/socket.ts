@@ -25,13 +25,13 @@ export const getSocket = (namespace: string = '/'): Socket => {
   });
 
   // Setup socket event listeners for connection management
-  socket.on('connect', () => {
-    console.log(`Socket connected to namespace: ${namespace}`);
-  });
+  // socket.on('connect', () => {
+  //   console.log(`Socket connected to namespace: ${namespace}`);
+  // });
 
-  socket.on('disconnect', (reason) => {
-    console.log(`Socket disconnected from namespace ${namespace}:`, reason);
-  });
+  // socket.on('disconnect', (reason) => {
+  //   console.log(`Socket disconnected from namespace ${namespace}:`, reason);
+  // });
 
   socket.on('connect_error', (error) => {
     console.error(`Socket connection error for namespace ${namespace}:`, error);

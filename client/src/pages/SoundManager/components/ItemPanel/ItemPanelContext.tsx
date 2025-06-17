@@ -12,11 +12,17 @@ interface ItemPanelContextValue {
   itemPanelOptions: ItemPanelOptions;
   // Flag indicating if any panel content is currently showing
   isPanelVisible: boolean;
+  // Macro panel collapse state
+  isMacroPanelCollapsed: boolean;
   // Methods to control the panel
   showItemPanel: (options?: ItemPanelOptions) => void;
   hideItemPanel: () => void;
   updateItemPanelOptions: (options: Partial<ItemPanelOptions>) => void;
   togglePanelVisibility: () => void;
+  // Methods to control macro panel collapse state
+  collapseMacroPanel: () => void;
+  expandMacroPanel: () => void;
+  toggleMacroPanel: () => void;
 }
 
 // Create the context with default values
@@ -45,6 +51,7 @@ interface ItemPanelProviderProps {
 export const ItemPanelProvider: React.FC<ItemPanelProviderProps> = ({ children }) => {
   const [itemPanelOptions, setItemPanelOptions] = useState<ItemPanelOptions>(defaultItemPanelOptions);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
+  const [isMacroPanelCollapsed, setIsMacroPanelCollapsed] = useState(true);
 
   const togglePanelVisibility = () => {
     setIsPanelVisible(prev => !prev);
@@ -77,15 +84,31 @@ export const ItemPanelProvider: React.FC<ItemPanelProviderProps> = ({ children }
     setItemPanelOptions(newOptions);
   };
 
+  const collapseMacroPanel = () => {
+    setIsMacroPanelCollapsed(true);
+  };
+
+  const expandMacroPanel = () => {
+    setIsMacroPanelCollapsed(false);
+  };
+
+  const toggleMacroPanel = () => {
+    setIsMacroPanelCollapsed(prev => !prev);
+  };
+
   return (
     <ItemPanelContext.Provider
       value={{
         itemPanelOptions,
         isPanelVisible,
+        isMacroPanelCollapsed,
         showItemPanel,
         hideItemPanel,
         updateItemPanelOptions,
         togglePanelVisibility,
+        collapseMacroPanel,
+        expandMacroPanel,
+        toggleMacroPanel,
       }}
     >
       {children}

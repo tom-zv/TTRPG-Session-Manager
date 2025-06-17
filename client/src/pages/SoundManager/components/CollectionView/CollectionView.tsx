@@ -20,7 +20,6 @@ const CollectionView: React.FC<CollectionViewProps> = (props) => {
   const handleItemClick = (itemId: number) => {
     // Special case for our "Create New" button
     if (itemId === -1) {
-      // TODO: create collection dialog
       return;
     }
 

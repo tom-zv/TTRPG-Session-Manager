@@ -1,19 +1,7 @@
-.audio-item-list-view {
-    display: flex;
-    flex-direction: column;
-    flex: 1 1 auto;
-    min-height: 0;
-}
+/* === BASE AUDIO TABLE STYLES === */
 
-.table-container {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-  }
-  
 .audio-item-table {
     width: 100%;
-    max-width: 900px;
     border-collapse: separate;
     border-spacing: 0;
     font-size: 0.95rem;
@@ -26,7 +14,7 @@
 
 .audio-item-table th {
     font-weight: 600;
-    padding: 1rem 1.25rem;
+    padding: 0.6rem 0.8rem;
     text-align: left;
     color: var(--text-secondary);
     border-bottom: 1px solid var(--border-color);
@@ -35,41 +23,91 @@
     letter-spacing: 0.06rem;
 }
 
-.audio-item-table th:first-child {
-    padding-left: 1.5rem;
-    /* border-top-left-radius: 8px; */
-}
-
-.audio-item-table th:last-child {
-    padding-right: 1.5rem;
-    /* border-top-right-radius: 8px; */
-}
-
 /* Table cells */
 .audio-item-table td {
+    padding: 0.6rem 0.8rem;
     vertical-align: middle;
     border-bottom: 1px solid var(--border-color-light);
-    transition: background-color 0.2s ease;
+    box-sizing: border-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.audio-item-table td {
-    padding-left: 1.5rem;
-    padding-right: 1rem;
-}
-
-/* Row styling */
+/* Base row styling */
 .audio-item-row {
     transition: all 0.2s ease;
+    background-color: var(--bg-secondary);
 }
 
 .audio-item-row:hover {
-    background-color: rgba(53, 114, 227, 0.05);
+    background-color: rgba(53, 114, 227, 0.08);
 }
 
-/* Selected state */
+/* Item states */
 .audio-item-row.selected {
-    background-color: rgba(53, 114, 227, 0.1);
-    box-shadow: inset 4px 0 0 var(--accent-primary);
+    background-color: rgba(53, 114, 227, 0.15);
+}
+
+.audio-item-row.playing {
+    background-color: rgba(53, 114, 227, 0.2);
+    position: relative;
+}
+
+.audio-item-row.playing::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 3px;
+    background-color: var(--accent-primary);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}
+
+/* Cell content styling */
+.item-name-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 500;
+    overflow: hidden;
+    position: relative;
+}
+
+.item-name-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* === LIST VIEW SPECIFIC STYLES === */
+
+.audio-item-list-view {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.table-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Add more padding for the main list view */
+.audio-item-list-view .audio-item-table th,
+.audio-item-list-view .audio-item-table td {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
 }
 
 /* Current Track - the track that is loaded but may not be playing */
@@ -91,22 +129,6 @@
     background-color: rgba(53, 114, 227, 0.15);
 }
 
-/* Playing state - used for playlist tracks, SFX, and macros */
-/* .audio-item-row.playing {
-    background-color: rgba(25, 190, 107, 0.1);
-    box-shadow: inset 4px 0 0 var(--accent-success, #19BE6B);
-}
-
-.audio-item-row.playing:hover {
-    background-color: rgba(25, 190, 107, 0.15);
-}
-
-.audio-item-row.playing.selected {
-    background-color: rgba(25, 190, 107, 0.15);
-    box-shadow: inset 4px 0 0 var(--accent-success, #19BE6B), 
-                inset 8px 0 0 var(--accent-primary);
-} */
-
 /* Active state - used specifically for ambience files */
 .audio-item-row.active {
     background-color: rgba(53, 114, 227, 0.07);
@@ -122,30 +144,12 @@
 
 /* Current track + playing combined state */
 .audio-item-row.current-track.playing {
-    background-color: rgba(25, 190, 107, 0.15);
+    /* background-color: rgba(25, 190, 107, 0.15); */
     border-left: none;
 }
 
-/* Cell content styling */
 .item-name-cell {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    font-weight: 500;
     max-width: 150px;
-    position: relative;
-    overflow: hidden;
-}
-
-.item-name-cell td {
-    padding: 0;
-}
-
-.item-name-text {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
 }
 
 /* Position cell styling */
@@ -218,12 +222,12 @@
 
 /* Drag and drop insertion marker */
 .table-wrapper {
-  position: relative;
+    position: relative;
 }
 
 .insert-marker-line {
-  pointer-events: none;
-  box-shadow: 0 0 4px rgba(53, 114, 227, 0.3);
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(53, 114, 227, 0.3);
 }
 
 .empty-list-view {

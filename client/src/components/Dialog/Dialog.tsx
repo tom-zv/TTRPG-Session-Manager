@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import ReactDOM from "react-dom";
 import "./Dialog.css";
 
 export interface DialogProps {
@@ -29,7 +30,7 @@ const Dialog: React.FC<DialogProps> = ({
   children,
   sidePanel = false,
   contentRef,
-  className = '',
+  className = "",
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const [panelRect, setPanelRect] = useState<DOMRect | null>(null);
@@ -88,7 +89,7 @@ const Dialog: React.FC<DialogProps> = ({
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [isOpen]);
+  }, [isOpen, panelRect, sidePanel]);
 
   // build mask CSS vars
   const cutoutStyle = useMemo<React.CSSProperties>(() => {
@@ -106,7 +107,22 @@ const Dialog: React.FC<DialogProps> = ({
     if (!isOpen) return;
     const blocker = (e: Event) => {
       const d = e as DragEvent;
+      // Allow events inside dialog
       if (dialogRef.current?.contains(d.target as Node)) return;
+
+      // Allow events inside the cutout area
+      if (
+        sidePanel &&
+        panelRect &&
+        d.clientX >= panelRect.x &&
+        d.clientX <= panelRect.x + panelRect.width &&
+        d.clientY >= panelRect.y &&
+        d.clientY <= panelRect.y + panelRect.height
+      ) {
+        return; // Allow drag events in cutout area
+      }
+
+      // Block all other drag events
       e.preventDefault();
       e.stopPropagation();
       if (d.dataTransfer) d.dataTransfer.dropEffect = "none";
@@ -123,42 +139,43 @@ const Dialog: React.FC<DialogProps> = ({
       );
       if (cnt) DRAG_EVENTS.forEach((n) => cnt.removeEventListener(n, stopper));
     };
-  }, [isOpen]);
+  }, [isOpen, panelRect, sidePanel]);
 
   if (!isOpen) return null;
 
-  return (
+  return ReactDOM.createPortal(
+    // stopPropagation is necessary here
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <div
       className={`dialog-overlay${sidePanel ? " side-panel" : ""}`}
       style={cutoutStyle}
       draggable={false}
-      onClick={(e) => e.stopPropagation()} 
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
     >
-      <div
-        className={`dialog-container ${className}`.trim()}
-        ref={dialogRef}
-      >
-        <header 
-          className="dialog-header"
-        >
+      <div className={`dialog-container ${className}`.trim()} ref={dialogRef}>
+        <header className="dialog-header">
           <h2>{title}</h2>
-          <button 
-            className="close-button" 
-            onClick={onClose} 
+          <button
+            className="close-button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
             aria-label="Close"
           >
             ×
           </button>
         </header>
 
-        <div 
-          className="dialog-content" 
-          ref={contentRef}
-        >
+        <div className="dialog-content" ref={contentRef}>
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

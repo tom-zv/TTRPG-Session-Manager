@@ -21,4 +21,7 @@ router.delete('/:id', folderController.deleteFolder);
 // GET /:parentId/subfolders - Get subfolders
 router.get('/:parentId/subfolders', folderController.getSubFolders);
 
+// PATCH /:id - Update folder name
+router.patch('/:id', folderController.updateFolder);
+
 export default router;

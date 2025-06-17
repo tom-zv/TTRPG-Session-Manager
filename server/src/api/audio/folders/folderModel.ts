@@ -161,6 +161,7 @@ export async function deleteFolders(
   return { deletedCount: result.affectedRows };
 }
 
+
 export default {
   getAllFolders,
   getFolderById,

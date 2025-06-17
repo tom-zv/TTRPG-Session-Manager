@@ -22,7 +22,7 @@ export default [
   ...baseConfig,
   ...compat.extends('plugin:react/recommended', 'plugin:react-hooks/recommended', 'plugin:jsx-a11y/recommended'),
   {
-    files: ['**/*.{jsx,tsx,js,ts}'],
+    files: ['**/*.{jsx,tsx,js,ts}'], 
     languageOptions: {
       parserOptions: {
         ecmaFeatures: {
@@ -44,7 +44,7 @@ export default [
     rules: {
       'react/react-in-jsx-scope': 'off',
       'react/prop-types': 'off',
-      '@tanstack/query/exhaustive-deps': 'warn'
+      '@tanstack/query/exhaustive-deps': 'warn',
     },
     settings: {
       react: {

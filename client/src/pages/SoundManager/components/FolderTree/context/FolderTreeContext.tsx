@@ -43,6 +43,7 @@ interface FolderTreeContextValue {
 
   // File management
   handleFileCreated: (file: AudioFileUI) => void;
+  handleFileUpdated: (file: AudioFileUI) => void;
   initializeDownloadProgress: (jobId: string, fileId: number) => void;
   handleFileDownloadError: ( jobId: string, folderId: number, error: string) => void;
   dismissDownloadProgress: (jobId: string, folderId: number) => void;
@@ -62,6 +63,7 @@ export const FolderTreeProvider: React.FC<{ children: ReactNode }> = ({ children
     reload,
     handleFolderCreated,
     handleFileCreated,
+    handleFileUpdated,
     initializeDownloadProgress,
     handleFileDownloadError,
     dismissDownloadProgress
@@ -110,6 +112,7 @@ export const FolderTreeProvider: React.FC<{ children: ReactNode }> = ({ children
     handleFileDragEnd,
     handleFolderCreated,
     handleFileCreated,
+    handleFileUpdated,
     initializeDownloadProgress,
     handleFileDownloadError,
     dismissDownloadProgress

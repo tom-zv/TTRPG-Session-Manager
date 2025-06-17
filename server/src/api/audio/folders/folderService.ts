@@ -127,10 +127,18 @@ async function getAllChildFolders(folderId: number): Promise<FolderDB[]> {
   return result;
 }
 
+export async function updateFolder(id: number, name: string): Promise<FolderDB | null> {
+  // Only update the name, not parent or type
+  const updated = await folderModel.updateFolder(id, name);
+  if (!updated) return null;
+  return await folderModel.getFolderById(id);
+}
+
 export default {
   getAllFolders,
   getFolderById,
   getSubFolders,
   createFolder,
   deleteFolders,
+  updateFolder
 };
