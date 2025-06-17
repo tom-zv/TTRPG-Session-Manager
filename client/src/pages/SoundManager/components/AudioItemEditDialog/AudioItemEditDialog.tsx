@@ -137,7 +137,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
         />
       ) : (
         <div className="audio-item-edit-form">
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="alert alert-danger">{error}</div>}
 
           <EditableField
             label="Name"
@@ -181,10 +181,10 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
           )}
 
           <div className="form-actions">
-            <button className="button button-secondary" onClick={onClose}>
+            <button className="btn btn-muted" onClick={onClose}>
               Cancel
             </button>
-            <button className="button button-primary" onClick={handleSave}>
+            <button className="btn btn-primary" onClick={handleSave}>
               Save Changes
             </button>
           </div>

@@ -97,27 +97,27 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
 
         <div className="controls">
           <button
-            className="control-btn prev-btn"
+            className="icon-button icon-button-circle control-btn prev-btn"
             onClick={previousTrack}
-            disabled={!currentTrack} 
+            disabled={!currentTrack}
             aria-label="Previous track"
           >
             ⏮
           </button>
 
           <button
-            className="control-btn play-btn"
+            className="icon-button icon-button-circle control-btn play-btn"
             onClick={handleTogglePlay}
-            disabled={!currentCollection} 
+            disabled={!currentCollection}
             aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? "⏸" : "▶"}
           </button>
 
           <button
-            className="control-btn next-btn"
+            className="icon-button icon-button-circle control-btn next-btn"
             onClick={nextTrack}
-            disabled={!currentTrack} 
+            disabled={!currentTrack}
             aria-label="Next track"
           >
             ⏭

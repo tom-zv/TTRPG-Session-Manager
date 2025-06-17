@@ -154,3 +154,29 @@
   border-color: var(--accent-primary);
   box-shadow: 0 0 6px rgba(var(--accent-primary-rgb), 0.3);
 }
+
+/* Circular icon buttons */
+.icon-button-circle {
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  padding: var(--spacing-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Modal content sections */
+.modal-body {
+  padding: var(--spacing-lg);
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}

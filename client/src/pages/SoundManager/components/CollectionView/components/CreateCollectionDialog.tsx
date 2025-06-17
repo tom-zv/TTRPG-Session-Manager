@@ -38,11 +38,11 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
   
   return (
     <div className="modal-overlay">
-      <div className="modal">
+      <div className="modal modal-lg">
         <div className="modal-header">
           <h2>Create New {collectionName.slice(0, -1)}</h2>
           <button
-            className="icon-button close-button"
+            className="modal-close icon-button"
             onClick={onClose}
           >
             ×
@@ -58,6 +58,7 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
               onChange={(e) => setNewItemName(e.target.value)}
               placeholder={`Enter ${collectionType} name`}
               required
+              className="form-control"
             />
           </div>
           <div className="form-group">
@@ -68,6 +69,7 @@ const CreateCollectionDialog: React.FC<CreateCollectionDialogProps> = ({
               onChange={(e) => setNewItemDescription(e.target.value)}
               placeholder="Enter description (optional)"
               rows={3}
+              className="form-control"
             />
           </div>
         </div>
