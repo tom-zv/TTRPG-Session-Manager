@@ -1,44 +1,43 @@
 import folderService from "./folderService.js";
 import { transformFolder } from "../../../utils/format-transformers.js";
-import { Request, Response } from 'express';
-import { FolderDB } from "./types.js";
+import { Request, Response, NextFunction } from 'express';
+import { ValidationError, NotFoundError } from "src/api/HttpErrors.js";
 
-export const getAllFolders = async (_req: Request, res: Response) => {
+export const getAllFolders = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const dbFolders = await folderService.getAllFolders();
     const folders = dbFolders.map(folder => transformFolder(folder));
     res.status(200).json(folders);
   } catch (error) {
-    console.error('Error getting folders:', error);
-    res.status(500).json({ error: 'Failed to retrieve folders' });
+    next(error);
   }
 };
 
-export const getFolderById = async (req: Request, res: Response) => {
+export const getFolderById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const id = parseInt(req.params.id);
     if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid folder ID format' });
+      throw new ValidationError("Invalid folder ID format");
     }
 
     const dbFolder = await folderService.getFolderById(id);
-    const folder = transformFolder(dbFolder);
-    if (!folder) {
-      return res.status(404).json({ error: 'Folder not found' });
+    
+    if (!dbFolder) {
+      throw new NotFoundError();
     }
 
+    const folder = transformFolder(dbFolder);
     res.status(200).json(folder);
   } catch (error) {
-    console.error('Error getting folder by ID:', error);
-    res.status(500).json({ error: 'Failed to retrieve folder' });
+    next(error);
   }
 };
 
-export const getSubFolders = async (req: Request, res: Response) => {
+export const getSubFolders = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const parentId = parseInt(req.params.parentId);
     if (isNaN(parentId)) {
-      return res.status(400).json({ error: 'Invalid parent folder ID format' });
+      throw new ValidationError("Invalid parent folder ID format");
     }
 
     const dbFolders = await folderService.getSubFolders(parentId);
@@ -46,61 +45,102 @@ export const getSubFolders = async (req: Request, res: Response) => {
     
     res.status(200).json(folders);
   } catch (error) {
-    console.error('Error getting subfolders:', error);
-    res.status(500).json({ error: 'Failed to retrieve subfolders' });
+    next(error);
   }
 };
 
-export const createFolder = async (req: Request, res: Response) => {
+export const createFolder = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { name, parentFolderId, folderType } = req.body;
-
     if (!name || typeof name !== 'string' || name.trim() === '') {
-      return res.status(400).json({ error: 'Folder name is required and must be a non-empty string.' });
+      throw new ValidationError("Folder name is required and must be a non-empty string");
     }
 
     if (parentFolderId !== undefined && (typeof parentFolderId !== 'number' || !Number.isInteger(parentFolderId))) {
-        return res.status(400).json({ error: 'Invalid parentFolderId format. Must be an integer.' });
+      throw new ValidationError("Invalid parentFolderId format");
     }
 
     // Validate folder name for file system compatibility
+    // eslint-disable-next-line no-control-regex
     const invalidChars = /[<>:"/\\|?*\x00-\x1F]/g;
     if (invalidChars.test(name)) {
-      return res.status(400).json({ 
-        error: 'Folder name contains invalid characters. Avoid: < > : " / \\ | ? *' 
-      });
+      throw new ValidationError("Folder name contains invalid characters");
     }
 
     const validFolderTypes = ['music', 'sfx', 'ambience', 'root', 'any'];
     if (folderType !== undefined && (typeof folderType !== 'string' || !validFolderTypes.includes(folderType))) {
-        return res.status(400).json({ error: `Invalid folderType. Must be one of: ${validFolderTypes.join(', ')}.` });
+      throw new ValidationError(`Invalid folderType`);
     }
 
-    const dbFolder = await folderService.createFolder(name, parentFolderId, folderType) as FolderDB | null;
-
+    const dbFolder = await folderService.createFolder(name, parentFolderId, folderType);
     if (!dbFolder) {
-      return res.status(500).json({ error: 'Failed to create folder' });
+      throw new Error("Failed to create folder");
     }
     
     const folder = transformFolder(dbFolder);
     res.status(201).json(folder);
   } catch (error) {
-    console.error('Error creating folder:', error);
-    // Check for specific database errors, e.g., foreign key constraint
-    if (error instanceof Error && 'code' in error && (error as any).code === 'ER_NO_REFERENCED_ROW_2') {
-        return res.status(400).json({ error: 'Invalid parentFolderId: The specified parent folder does not exist.' });
-    }
-    // Check for file system errors
-    if (error instanceof Error && 'code' in error) {
-      const fsErrorCode = (error as any).code;
-      if (fsErrorCode === 'EACCES' || fsErrorCode === 'EPERM') {
-        return res.status(500).json({ error: 'Permission denied when creating folder' });
-      }
+    // Handle specific database errors
+    if (error instanceof Error && 'code' in error && error.code === 'ER_NO_REFERENCED_ROW_2') {
+      next(new ValidationError("Invalid parentFolderId"));
+    } 
+    // Handle filesystem errors
+    else if (error instanceof Error && 'code' in error) {
+      const fsErrorCode = error.code;
       if (fsErrorCode === 'EEXIST') {
-        return res.status(409).json({ error: 'A folder with this name already exists' });
+        next(new ValidationError("A folder with this name already exists"));
+      } else {
+        next(error);
       }
+    } else {
+      next(error);
     }
-    res.status(500).json({ error: 'Failed to create folder' });
+  }
+};
+
+export const deleteFolder = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      throw new ValidationError("Invalid folder ID format");
+    }
+
+    const result = await folderService.deleteFolders([id]);
+    
+    if (result.deletedCount === 0) {
+      throw new NotFoundError();
+    }
+
+    res.status(200).json({ 
+      deletedCount: result.deletedCount
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteFolders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { folderIds } = req.body;
+    
+    if (!Array.isArray(folderIds) || folderIds.length === 0) {
+      throw new ValidationError("folderIds must be a non-empty array");
+    }
+    
+    // Validate that all IDs are numbers
+    if (!folderIds.every(id => typeof id === 'number' && Number.isInteger(id))) {
+      throw new ValidationError("All folder IDs must be integers");
+    }
+
+    const result = await folderService.deleteFolders(folderIds);
+    
+    res.status(200).json({ 
+      success: result.success,
+      deletedCount: result.deletedCount,
+      errors: result.errors
+    });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -108,5 +148,7 @@ export default {
   getAllFolders,
   getFolderById,
   getSubFolders,
-  createFolder
+  createFolder,
+  deleteFolder,
+  deleteFolders
 };

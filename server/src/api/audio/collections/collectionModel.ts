@@ -1,11 +1,16 @@
 import { audioPool } from "src/db.js";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
+import type {
+  CollectionDB,
+  CollectionAudioFileDB,
+  MacroDB,
+} from "../types.js";
 
 const COLLECTIONS_TABLE = 'collections';
 const COLLECTION_FILES_TABLE = 'collection_files';
 const COLLECTION_SFX_MACROS_TABLE = 'collection_sfx_macros';
 
-export async function getAllCollections(type: string): Promise<RowDataPacket[]> {
+export async function getAllCollections(type: string): Promise<CollectionDB[]> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
@@ -16,7 +21,7 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
     query = `
       SELECT c.*, 
         (
-          SELECT COUNT(cf.id) 
+          SELECT COUNT(cf.file_id) 
           FROM ${COLLECTION_FILES_TABLE} cf 
           WHERE cf.collection_id = c.id
         ) + (
@@ -31,7 +36,7 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
     `;
   } else {
     query = `
-      SELECT c.*, COUNT(cf.id) AS item_count
+      SELECT c.*, COUNT(cf.file_id) AS item_count
       FROM ${COLLECTIONS_TABLE} c
       LEFT JOIN ${COLLECTION_FILES_TABLE} cf ON c.id = cf.collection_id
       WHERE c.type = ?
@@ -41,10 +46,10 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
   }
 
   const [result] = await audioPool.execute(query, [type]);
-  return result as RowDataPacket[];
+  return result as CollectionDB[];
 }
 
-export async function getAllCollectionsAllTypes(): Promise<RowDataPacket[]> {
+export async function getAllCollectionsAllTypes(): Promise<CollectionDB[]> {
   const [result] = await audioPool.execute(
     `SELECT c.*, COUNT(cf.file_id) AS item_count
        FROM ${COLLECTIONS_TABLE} c
@@ -52,10 +57,10 @@ export async function getAllCollectionsAllTypes(): Promise<RowDataPacket[]> {
        GROUP BY c.id
        ORDER BY c.type, c.name ASC`
   );
-  return result as RowDataPacket[];
+  return result as CollectionDB[];
 }
 
-export async function getCollectionById(type: string, collectionId: number): Promise<RowDataPacket[]> {
+export async function getCollectionById(type: string, collectionId: number): Promise<CollectionDB[]> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
@@ -64,7 +69,7 @@ export async function getCollectionById(type: string, collectionId: number): Pro
     `SELECT * FROM ${COLLECTIONS_TABLE} WHERE id = ? AND type = ?`,
     [collectionId, type]
   );
-  return result as RowDataPacket[];
+  return result as CollectionDB[];
 }
 
 export async function createCollection(type: string, name: string, description: string | null): Promise<number> {
@@ -134,7 +139,7 @@ export async function deleteCollection(type: string, collectionId: number): Prom
 export async function getCollectionFiles(
   type: string,
   collectionId: number
-): Promise<{ files: RowDataPacket[], macros: RowDataPacket[] }> {
+): Promise<{ files: CollectionAudioFileDB[], macros: MacroDB[] }> {
   if (!["playlist", "sfx", "ambience"].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
@@ -142,14 +147,14 @@ export async function getCollectionFiles(
   const [files] = await audioPool.execute(
     `SELECT af.*, cf.position, cf.volume, cf.active
        FROM files af
-       JOIN ${COLLECTION_FILES_TABLE} cf ON af.file_id = cf.file_id
+       JOIN ${COLLECTION_FILES_TABLE} cf ON af.id = cf.file_id
        WHERE cf.collection_id = ?
        ORDER BY cf.position ASC`,
     [collectionId]
   );
 
   // For SFX collections, get both files and macros
-  let macros: RowDataPacket[] = [];
+  let macros: MacroDB[] = [];
 
   if (type == "sfx") {
     const [macroResults] = await audioPool.execute(
@@ -173,32 +178,29 @@ export async function getCollectionFiles(
               ) AS files
             FROM sfx_macros m
             JOIN ${COLLECTION_SFX_MACROS_TABLE} cm ON m.id = cm.macro_id
-            LEFT JOIN sfx_macro_files mf ON m.id = mf.collection_id 
+            LEFT JOIN sfx_macro_files mf ON m.id = mf.macro_id 
             LEFT JOIN files af ON mf.file_id = af.id 
             WHERE cm.collection_id = ?
             GROUP BY m.id, cm.position
             ORDER BY cm.position ASC`,
       [collectionId]
     );
-    // console.log("MODEL: macro results", macroResults); // Keep for debugging if needed
-    macros = macroResults as RowDataPacket[];
+    macros = macroResults as MacroDB[];
   }
 
-  return { files: files as RowDataPacket[], macros };
+  return { files: files as CollectionAudioFileDB[], macros };
 }
 
 export async function addFileToCollection(
   type: string,
   collectionId: number,
-  audioFileId: number,
+  fileId: number,
   position: number | null
 ): Promise<number> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
   
-  //console.log(`Adding file ${audioFileId} to collection ${collectionId} of type ${type} at position ${position}`);
-
   const connection = await audioPool.getConnection();
   try {
     await connection.beginTransaction();
@@ -248,7 +250,7 @@ export async function addFileToCollection(
     // Insert new entry
     const [result] = await connection.execute(
       `INSERT INTO ${COLLECTION_FILES_TABLE} (collection_id, file_id, position) VALUES (?, ?, ?)`,
-      [collectionId, audioFileId, position]
+      [collectionId, fileId, position]
     );
     
     await connection.commit();
@@ -267,10 +269,10 @@ export async function addFileToCollection(
 export async function addFilesToCollection(
   type: string,
   collectionId: number,
-  audioFileIds: number[],
+  fileIds: number[],
   startPosition: number | null = null
 ): Promise<number> {
-  if (!audioFileIds.length) return 0;
+  if (!fileIds.length) return 0;
   
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
@@ -311,22 +313,22 @@ export async function addFilesToCollection(
       // If inserting at a specific position, move all existing items up by the number of files we're adding
       await connection.execute(
         `UPDATE ${COLLECTION_FILES_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
-        [audioFileIds.length, collectionId, insertPosition]
+        [fileIds.length, collectionId, insertPosition]
       );
       
       // For SFX collections, also update positions in the macros table
       if (type === 'sfx') {
         await connection.execute(
           `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
-          [audioFileIds.length, collectionId, insertPosition]
+          [fileIds.length, collectionId, insertPosition]
         );
       }
     }
     
     // Prepare batch insert values
-    const values = audioFileIds.map((audioFileId, index) => [
+    const values = fileIds.map((fileId, index) => [
       collectionId, 
-      audioFileId, 
+      fileId, 
       insertPosition! + index
     ]);
     
@@ -353,7 +355,7 @@ export async function addFilesToCollection(
 // Update collection file properties
 export async function updateCollectionFile(
   collectionId: number,
-  audioFileId: number,
+  fileId: number,
   params: { 
     active?: boolean;
     volume?: number;
@@ -385,7 +387,7 @@ export async function updateCollectionFile(
   }
   
   // Add parameters for WHERE clause
-  fields.push(collectionId, audioFileId);
+  fields.push(collectionId, fileId);
   
   const [result] = await audioPool.execute(
     `UPDATE ${COLLECTION_FILES_TABLE} SET ${updateFields.join(', ')} 
@@ -399,7 +401,7 @@ export async function updateCollectionFile(
 export async function removeFileFromCollection(
   type: string,
   collectionId: number, 
-  audioFileId: number
+  fileId: number
 ): Promise<number> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
@@ -413,7 +415,7 @@ export async function removeFileFromCollection(
     // Get the current position of the file to be removed
     const [fileRows] = await connection.execute<RowDataPacket[]>(
       `SELECT position FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ? AND file_id = ?`,
-      [collectionId, audioFileId]
+      [collectionId, fileId]
     );
     
     if (fileRows.length === 0) {
@@ -426,7 +428,7 @@ export async function removeFileFromCollection(
     // Delete the file
     const [deleteResult] = await connection.execute(
       `DELETE FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ? AND file_id = ?`,
-      [collectionId, audioFileId]
+      [collectionId, fileId]
     );
     
     // Update position for all files that have a higher position
@@ -456,7 +458,7 @@ export async function removeFileFromCollection(
 export async function updateCollectionFilePosition(
   type: string,
   collectionId: number,
-  audioFileId: number,
+  fileId: number,
   targetPosition: number
 ): Promise<number> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
@@ -471,7 +473,7 @@ export async function updateCollectionFilePosition(
     // Get the current position of the file
     const [fileRows] = await connection.execute<RowDataPacket[]>(
       `SELECT position FROM ${COLLECTION_FILES_TABLE} WHERE collection_id = ? AND file_id = ?`,
-      [collectionId, audioFileId]
+      [collectionId, fileId]
     );
 
     if (fileRows.length === 0) {
@@ -490,12 +492,12 @@ export async function updateCollectionFilePosition(
     if (currentPosition === 0) {
       await connection.execute(
         `UPDATE ${COLLECTION_FILES_TABLE} SET position = -1 WHERE collection_id = ? AND file_id = ?`,
-        [collectionId, audioFileId]
+        [collectionId, fileId]
       );
     } else {
       await connection.execute(
         `UPDATE ${COLLECTION_FILES_TABLE} SET position = -position WHERE collection_id = ? AND file_id = ?`,
-        [collectionId, audioFileId]
+        [collectionId, fileId]
       );
     }
 
@@ -520,7 +522,7 @@ export async function updateCollectionFilePosition(
     // Place the file in its new effective position
     const [result] = await connection.execute(
       `UPDATE ${COLLECTION_FILES_TABLE} SET position = ? WHERE collection_id = ? AND file_id = ?`,
-      [effectiveTarget, collectionId, audioFileId]
+      [effectiveTarget, collectionId, fileId]
     );
 
     await connection.commit();
@@ -644,7 +646,7 @@ export async function addMacroToCollection(
       );
       
       const [macroPositions] = await connection.execute<RowDataPacket[]>(
-        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE macro_id = ?`,
+        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ?`,
         [collectionId]
       );
       
@@ -659,7 +661,7 @@ export async function addMacroToCollection(
       );
       
       await connection.execute(
-        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + 1 WHERE macro_id = ? AND position >= ? ORDER BY position DESC`,
+        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + 1 WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
         [collectionId, position]
       );
     }
@@ -671,7 +673,8 @@ export async function addMacroToCollection(
     );
     
     await connection.commit();
-    return (result as ResultSetHeader).insertId || 0;
+    
+    return (result as ResultSetHeader).affectedRows || 0;
   } catch (error: unknown) {
     await connection.rollback();
     if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
@@ -706,7 +709,7 @@ export async function addMacrosToCollection(
       );
       
       const [macroPositions] = await connection.execute<RowDataPacket[]>(
-        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE macro_id = ?`,
+        `SELECT MAX(position) as maxPosition FROM ${COLLECTION_SFX_MACROS_TABLE} WHERE collection_id = ?`,
         [collectionId]
       );
       
@@ -721,7 +724,7 @@ export async function addMacrosToCollection(
       );
       
       await connection.execute(
-        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + ? WHERE macro_id = ? AND position >= ? ORDER BY position DESC`,
+        `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position + ? WHERE collection_id = ? AND position >= ? ORDER BY position DESC`,
         [macroIds.length, collectionId, insertPosition]
       );
     }
@@ -784,7 +787,7 @@ export async function removeMacroFromCollection(
     // Update position for all files and macros that have a higher position
     // First update macro positions
     await connection.execute(
-      `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position - 1 WHERE macro_id = ? AND position > ? ORDER BY position ASC`,
+      `UPDATE ${COLLECTION_SFX_MACROS_TABLE} SET position = position - 1 WHERE collection_id = ? AND position > ? ORDER BY position ASC`,
       [collectionId, currentPosition]
     );
     
@@ -804,77 +807,6 @@ export async function removeMacroFromCollection(
   }
 }
 
-/* Pack endpoints
- *****************/
-
-export async function getAllPacks(): Promise<RowDataPacket[]> {
-  const [result] = await audioPool.execute(`SELECT * FROM audio_packs`);
-  return result as RowDataPacket[];
-}
-
-export async function createPack(
-  name: string,
-  description: string | null
-): Promise<number> {
-  const [result] = await audioPool.execute(
-    `INSERT INTO audio_packs (name, description) VALUES (?, ?)`,
-    [name, description]
-  );
-  return (result as ResultSetHeader).insertId || 0;
-}
-
-export async function deletePack(packId: number): Promise<number> {
-  const [result] = await audioPool.execute(
-    `DELETE FROM audio_packs WHERE pack_id = ?`,
-    [packId]
-  );
-  return (result as ResultSetHeader).affectedRows || 0;
-}
-
-export async function addCollectionToPack(
-  packId: number,
-  collectionId: number,
-): Promise<number> {
-  const connection = await audioPool.getConnection();
-  
-  try {
-    await connection.beginTransaction();
-
-    //console.log(`Adding collection ${collectionId} to pack ${packId}`);
-    
-    // Insert new entry
-    const [result] = await connection.execute(
-      `INSERT INTO audio_pack_collections (pack_id, collection_id) VALUES (?, ?)`,
-      [packId, collectionId]
-    );
-    
-    await connection.commit();
-    return (result as ResultSetHeader).affectedRows || 0;
-  } catch (error: unknown) {
-    if (error && typeof error === 'object' && 'code' in error && error.code === 'ER_DUP_ENTRY') {
-      return -1; // Special code to indicate duplicate entry
-    }
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
-}
-
-export async function getPackCollections(packId: number): Promise<RowDataPacket[]> {
-  const [result] = await audioPool.execute(
-    `SELECT c.id, c.name, c.description, c.type
-     FROM collections c
-     JOIN audio_pack_collections apc ON c.id = apc.collection_id
-     WHERE apc.pack_id = ?
-     ORDER BY c.type, c.name ASC`,
-    [packId]
-  );
-  return result as RowDataPacket[];
-}
-
-
-
 export default {
   getAllCollections,
   getAllCollectionsAllTypes,
@@ -891,10 +823,5 @@ export default {
   updateFileRangePosition,
   addMacroToCollection,
   addMacrosToCollection,
-  removeMacroFromCollection,
-  getAllPacks,
-  createPack,
-  deletePack,
-  addCollectionToPack,
-  getPackCollections,
+  removeMacroFromCollection
 };

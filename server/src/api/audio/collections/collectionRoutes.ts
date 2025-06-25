@@ -8,26 +8,8 @@ const router = express.Router();
 // GET /collections - Get all collections of all types
 router.get('/', collectionController.getAllCollectionsAllTypes);
 
-/* Pack endpoints
- *****************/
-// GET /pack - Get all packs
-router.get('/pack', collectionController.getAllPacks);
-
-// POST /pack - Create a new pack
-router.post('/pack', collectionController.createPack);
-
-// DELETE /pack/:id - Delete a pack
-router.delete('/pack/:id', collectionController.deletePack);
-
-// POST /pack/:id/collections - Add a collection to a pack
-router.post('/pack/:id/collections', collectionController.addCollectionToPack);
-
-// GET /pack/:id/collections - Get all collections in a pack
-router.get('/pack/:id/collections', collectionController.getPackCollections);
-
-
 /*
- * Macro endpoints
+ * Macro-in-collection endpoints
  ***************************/
 // POST /collections/sfx/:id/macros - Add a macro to a collection
 router.post('/sfx/:id/macros', collectionController.addMacroToCollection);
@@ -37,8 +19,6 @@ router.delete('/sfx/:id/macros/:macroId', collectionController.deleteMacroFromCo
 
 // POST /collections/sfx/:id/macros/batch - Add multiple macros to a collection
 router.post('/sfx/:id/macros/batch', collectionController.addMacrosToCollection);
-
-
 
 /* Collection endpoints
  ***********************/

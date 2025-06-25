@@ -1,7 +1,7 @@
 import { parentPort, workerData } from "worker_threads";
 import fs from "fs";
 import path from "path";
-import { serverRoot } from "../../utils/path-utils.js";
+import { serverConfig } from "src/config/server-config.js";
 import { getFolderPath } from "../../api/audio/folders/folderModel.js";
 import {
   isExplicitYoutubePlaylist,
@@ -10,7 +10,7 @@ import {
   downloadDirectUrl,
 } from "./downloadFunctions.js";
 import type { CompleteMessage, WorkerErrorMessage } from "./types.js";
-import { FOLDERS } from "../../constants/folders.js";
+import { FOLDERS } from "../../api/audio/folders/constants.js";
 
 async function executeDownload() {
   const { jobId, fileData } = workerData;
@@ -19,10 +19,9 @@ async function executeDownload() {
 
   try {
     const folderPath = await getFolderPath(folderId);
-
+    
     const absoluteOutputPath = path.join(
-      serverRoot,
-      "public/audio",
+      serverConfig.publicDir,
       folderPath
     );
     fs.mkdirSync(absoluteOutputPath, { recursive: true });

@@ -29,7 +29,6 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
     handleFolderDragStart, 
     handleFolderDragEnd,
     handleFolderCreated, 
-    handleFileCreated,
     initializeDownloadProgress,
     handleFileDownloadError,
     reload 
@@ -107,7 +106,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
         onClose={() => setCreateFileDialogOpen(false)}
         folderId={folder.id}
         type={folder.type === "root" ? "any" : folder.type}
-        onFileCreated={handleFileCreated}
+        reloadFolder={reload}
         onFileDownload={initializeDownloadProgress}
         onFileDownloadError={handleFileDownloadError}
       />

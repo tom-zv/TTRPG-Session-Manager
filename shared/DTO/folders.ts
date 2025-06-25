@@ -1,8 +1,8 @@
-import type { AudioFolderType } from "../../server/src/api/audio/types.js"
+import type { FolderType } from "shared/audio/types.js"
 
 export interface FolderDTO {
   id: number;
   name: string;
-  type: AudioFolderType;
+  type: FolderType;
   parentId: number | null;
 }

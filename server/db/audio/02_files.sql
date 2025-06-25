@@ -1,7 +1,7 @@
 CREATE TABLE
   IF NOT EXISTS audio.files (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(128),
+    name VARCHAR(128) NOT NULL,
     audio_type ENUM ('music', 'sfx', 'ambience', 'any') NOT NULL DEFAULT 'any',
     duration INT,
     url VARCHAR(256),

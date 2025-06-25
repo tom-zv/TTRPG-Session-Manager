@@ -1,41 +1,55 @@
 import Dialog from "src/components/Dialog/Dialog.js";
-import { createAudioFile } from "src/pages/SoundManager/api/fileApi.js";
-import { useState, useRef } from "react";
-import { AudioFileUI } from "../types.js";
+import { downloadAudioUrls, uploadAudioFiles } from "src/pages/SoundManager/api/fileApi.js";
+import { useState, useRef, FormEvent } from "react";
 import { AudioType } from "shared/audio/types.js";
 
 type CreateFileDialogProps = {
   isOpen: boolean;
-  onClose: () => void;
   folderId: number;
-  onFileCreated: (file: AudioFileUI) => void;
+  type?: AudioType;
+  onClose: () => void;
   onFileDownload: (jobId: string, folderId: number, error?: string) => void;
   onFileDownloadError: (jobId: string, folderId: number, error: string) => void;
-  type?: "music" | "sfx" | "ambience" | "any";
+  reloadFolder: () => void;
 };
+
+// Audio type options for dropdown
+const AUDIO_TYPE_OPTIONS: AudioType[] = ["music", "sfx", "ambience", "any"];
 
 const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
   isOpen,
-  onClose,
   folderId,
   type,
+  onClose,
   onFileDownload,
-  onFileCreated,
-  onFileDownloadError
+  onFileDownloadError,
+  reloadFolder
 }) => {
-  const [fileName, setFileName] = useState<string>("");
-  const [url, setUrl] = useState<string>("");
-  const [fileType, setFileType] = useState<AudioType>(type || "any");
+  // Form state
+  const [formData, setFormData] = useState({
+    fileName: "",
+    url: "",
+    fileType: type || "any" as AudioType,
+  });
   const [file, setFile] = useState<File | null>(null);
   const [urlInputActive, setUrlInputActive] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setFile(e.target.files[0]);
-      if (!fileName) {
-        // Use the file name as default if no name is provided
-        setFileName(e.target.files[0].name.split(".").slice(0, -1).join("."));
+      const selectedFile = e.target.files[0];
+      setFile(selectedFile);
+      
+      // Use file name as default if no name is provided
+      if (!formData.fileName) {
+        const nameWithoutExtension = selectedFile.name.split(".").slice(0, -1).join(".");
+        setFormData(prev => ({ ...prev, fileName: nameWithoutExtension }));
       }
     }
   };
@@ -49,57 +63,99 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
           fileInputRef.current.value = "";
         }
       } else {
-        setUrl("");
+        setFormData(prev => ({ ...prev, url: "" }));
       }
       setUrlInputActive(useUrl);
     }
   };
 
-  const handleSubmit = async () => {
-    const audioData = {
-      name: fileName,
-      audioType: fileType,
-      folderId,
-      url: urlInputActive ? url : undefined,
-    };
+  const validateForm = (): boolean => {
+    // Basic validation
 
-    try {
-      const response = await createAudioFile(
-        audioData,
-        urlInputActive ? undefined : file || undefined
-      );
-
-      if (response && response.jobId) {
-        onFileDownload(response.jobId, folderId);
-      } else if (response && response.id && response.id > 0) {
-        const newFile: AudioFileUI = {
-          id: response.id,
-          name: fileName,
-          audioType: fileType,
-          folderId: folderId,
-          url: urlInputActive ? url : undefined,
-        };
-        onFileCreated(newFile);
+    if (urlInputActive) {
+      if (!formData.url.trim()) {
+        alert("Please enter a URL");
+        return false;
       }
-    } catch (error) {
-      //client-side jobId for HTTP errors
-      const clientJobId = `error-${Date.now()}`;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      onFileDownloadError(clientJobId, folderId, errorMessage);
-    } finally {
+      
+      try {
+        // Basic URL validation
+        new URL(formData.url);
+      } catch {
+        alert("Please enter a valid URL");
+        return false;
+      }
+    } else if (!file) {
+      alert("Please select a file to upload");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+
+      if (file) {
+        const fileData = {
+          name: formData.fileName,
+          audioType: formData.fileType,
+          folderId,
+        };
+        
+        const response = await uploadAudioFiles(file, fileData);
+        if (response.success) {
+          reloadFolder();
+        } else {
+          throw new Error(response.error || "Unknown error during upload");
+        }
+      } else {
+        const downloadData = {
+          name: formData.fileName,
+          folderId,
+          url: formData.url,
+        };
+        
+        const response = await downloadAudioUrls(downloadData);
+
+        if (response && response.jobIds && response.jobIds.length > 0) {
+          response.jobIds.forEach(jobId => {
+            onFileDownload(jobId, folderId);
+          });
+        } else {
+          throw new Error(response.error || "No job IDs returned from download request");
+        }
+      }
+
+      console.log("File successfully created or uploaded, closing form..");
       resetForm();
       onClose();
+    } catch (error) {
+      console.log("err af", error);
+      // Create client-side jobId for HTTP errors
+      const clientJobId = `error-${Date.now()}`;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+      if (!file) {
+        onFileDownloadError(clientJobId, folderId, errorMessage);
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
-    setFileName("");
-    setUrl("");
-    if (type) {
-      setFileType(type);
-    } else {
-      setFileType("any");
-    }
+    setFormData({
+      fileName: "",
+      url: "",
+      fileType: type || "any",
+    });
     setFile(null);
     setUrlInputActive(false);
     if (fileInputRef.current) {
@@ -109,14 +165,19 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
 
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Add Audio File">
-      <div className="create-file-dialog">
-        <input
-          type="text"
-          value={fileName}
-          onChange={(e) => setFileName(e.target.value)}
-          placeholder="Enter file name"
-          className="file-name-input"
-        />
+      <form className="create-file-dialog" onSubmit={handleSubmit}>
+        <div className="form-group">
+          <label htmlFor="fileName">File Name</label>
+          <input
+            id="fileName"
+            name="fileName"
+            type="text"
+            value={formData.fileName}
+            onChange={handleInputChange}
+            placeholder="Enter file name"
+            className="file-name-input"
+          />
+        </div>
 
         <div className="file-source-toggle">
           <button
@@ -136,49 +197,67 @@ const CreateFileDialog: React.FC<CreateFileDialogProps> = ({
         </div>
 
         {urlInputActive ? (
-          <input
-            key="url-input"
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="Enter file URL"
-            className="file-url-input"
-          />
+          <div className="form-group">
+            <label htmlFor="url">File URL</label>
+            <input
+              id="url"
+              name="url"
+              type="url"
+              value={formData.url}
+              onChange={handleInputChange}
+              placeholder="https://example.com/audio.mp3"
+              className="file-url-input"
+              required={urlInputActive}
+            />
+          </div>
         ) : (
-          <input
-            key="file-input"
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            accept="audio/*"
-            className="file-upload-input"
-          />
+          <div className="form-group">
+            <label htmlFor="file">Audio File</label>
+            <input
+              id="file"
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="audio/*"
+              className="file-upload-input"
+              required={!urlInputActive}
+            />
+          </div>
         )}
 
-        {!type ? (
-          <input
-            type="text"
-            value={fileType}
-            onChange={(e) => setFileName(e.target.value)}
-            placeholder="Enter file name"
-            className="file-name-input"
-          />
-        ) : null}
+        
+          <div className="form-group">
+            <label htmlFor="fileType">Audio Type</label>
+            <select
+              id="fileType"
+              name="fileType"
+              value={formData.fileType}
+              defaultValue={type}
+              onChange={handleInputChange}
+              className="file-type-select"
+            >
+              {AUDIO_TYPE_OPTIONS.map(option => (
+                <option key={option} value={option}>
+                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                </option>
+              ))}
+            </select>
+          </div>
+      
 
         <div className="dialog-buttons">
           <button onClick={onClose} className="cancel-btn" type="button">
             Cancel
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={urlInputActive ? !url : !file}
             className="create-btn"
-            type="button"
+            type="submit"
+            disabled={isSubmitting || (urlInputActive ? !formData.url : !file)}
           >
-            Add File
+            {isSubmitting ? "Processing..." : "Add File"}
           </button>
         </div>
-      </div>
+      </form>
     </Dialog>
   );
 };

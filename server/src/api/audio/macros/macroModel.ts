@@ -16,10 +16,10 @@ export async function getAllMacros(): Promise<RowDataPacket[]> {
   return result as RowDataPacket[];
 }
 
-export async function getMacroById(macroId: number): Promise<RowDataPacket[]> {
+export async function getMacroById(id: number): Promise<RowDataPacket[]> {
   const [result] = await audioPool.execute(
     `SELECT id as collection_id, name, description FROM ${MACRO_TABLE} WHERE id = ?`,
-    [macroId]
+    [id]
   );
   return result as RowDataPacket[];
 }
@@ -33,14 +33,14 @@ export async function createMacro(name: string, description: string | null): Pro
 }
 
 export async function updateMacro(
-  macroId: number, 
+  id: number, 
   name?: string, 
   description?: string | null,
   volume?: number
 ): Promise<number> {
   // Build dynamic query based on provided params
   const updateFields: string[] = [];
-  const params: any[] = [];
+  const params: (string | number | null)[] = [];
 
   if (name !== undefined) {
     updateFields.push('name = ?');
@@ -62,7 +62,7 @@ export async function updateMacro(
     return 0;
   }
 
-  params.push(macroId);
+  params.push(id);
 
   const [result] = await audioPool.execute(
     `UPDATE ${MACRO_TABLE} SET ${updateFields.join(', ')} WHERE id = ?`,
@@ -71,30 +71,30 @@ export async function updateMacro(
   return (result as ResultSetHeader).affectedRows || 0;
 }
 
-export async function deleteMacro(macroId: number): Promise<number> {
+export async function deleteMacro(id: number): Promise<number> {
   const [result] = await audioPool.execute(
     `DELETE FROM ${MACRO_TABLE} WHERE id = ?`,
-    [macroId]
+    [id]
   );
   return (result as ResultSetHeader).affectedRows || 0;
 }
 
-export async function getMacroFiles(macroId: number): Promise<RowDataPacket[]> {
+export async function getMacroFiles(macro_id: number): Promise<RowDataPacket[]> {
   const [files] = await audioPool.execute(
     `SELECT af.*, mf.delay, mf.volume 
      FROM files af
      JOIN ${MACRO_FILES_TABLE} mf ON af.id = mf.file_id
      WHERE mf.macro_id = ?
      ORDER BY mf.delay ASC`,
-    [macroId]
+    [macro_id]
   );
   
   return files as RowDataPacket[];
 }
 
 export async function addFileToMacro(
-  macroId: number,
-  audioFileId: number,
+  macro_id: number,
+  file_id: number,
   delay: number = 0
 ): Promise<number> {
   try {
@@ -102,12 +102,12 @@ export async function addFileToMacro(
     const [result] = await audioPool.execute(
       `INSERT INTO ${MACRO_FILES_TABLE} (macro_id, file_id, delay, volume) 
        VALUES (?, ?, ?, 1.0)`,
-      [macroId, audioFileId, delay]
+      [macro_id, file_id, delay]
     );
     
     return (result as ResultSetHeader).affectedRows || 0;
-  } catch (error: any) {
-    if (error.code === 'ER_DUP_ENTRY') {
+  } catch (error: unknown) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === 'ER_DUP_ENTRY') {
       return -1; // Special code to indicate duplicate entry
     }
     throw error;
@@ -115,29 +115,41 @@ export async function addFileToMacro(
 }
 
 export async function addFilesToMacro(
-  macroId: number,
-  audioFileIds: number[]
+  macro_id: number,
+  file_ids: number[]
 ): Promise<number> {
-
-  const values = audioFileIds.map(id => `(${macroId}, ${id}, 0, 1.0)`).join(', ');
-  const [result] = await audioPool.execute(
-    `INSERT INTO ${MACRO_FILES_TABLE} (macro_id, file_id, delay, volume)
-     VALUES ${values}
-     ON DUPLICATE KEY UPDATE delay = VALUES(delay), volume = VALUES(volume)`,
-    []
-  );
-  return (result as ResultSetHeader).affectedRows || 0;
+  try {
+    // If no files to add, return early
+    if (file_ids.length === 0) {
+      return 0;
+    }
+    
+    // Build the values string for the INSERT statement
+    const values = file_ids.map(id => `(${macro_id}, ${id}, 0, 1.0)`).join(', ');
+    
+    // Execute the INSERT statement
+    const [result] = await audioPool.execute(
+      `INSERT INTO ${MACRO_FILES_TABLE} (macro_id, file_id, delay, volume) 
+       VALUES ${values}
+       ON DUPLICATE KEY UPDATE macro_id = macro_id`
+    );
+    
+    return (result as ResultSetHeader).affectedRows || 0;
+  } catch (error) {
+    console.error(`Error adding files to macro ${macro_id}:`, error);
+    throw error;
+  }
 }
 
 export async function updateMacroFile(
-  macroId: number,
-  audioFileId: number, 
+  macro_id: number,
+  file_id: number, 
   delay?: number,
   volume?: number
 ): Promise<number> {
   // Build dynamic query based on provided params
   const updateFields: string[] = [];
-  const params: any[] = [];
+  const params: number[] = [];
 
   if (delay !== undefined) {
     updateFields.push('delay = ?');
@@ -155,7 +167,7 @@ export async function updateMacroFile(
   }
 
   // Complete the params array with the WHERE clause parameters
-  params.push(macroId, audioFileId);
+  params.push(macro_id, file_id);
   
   const [result] = await audioPool.execute(
     `UPDATE ${MACRO_FILES_TABLE} SET 
@@ -168,12 +180,12 @@ export async function updateMacroFile(
 }
 
 export async function removeFileFromMacro(
-  macroId: number, 
-  audioFileId: number
+  macro_id: number, 
+  file_id: number
 ): Promise<number> {
   const [result] = await audioPool.execute(
     `DELETE FROM ${MACRO_FILES_TABLE} WHERE macro_id = ? AND file_id = ?`,
-    [macroId, audioFileId]
+    [macro_id, file_id]
   );
   
   return (result as ResultSetHeader).affectedRows || 0;

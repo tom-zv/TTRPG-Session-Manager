@@ -1,6 +1,7 @@
-import { AudioFileUI } from 'src/pages/SoundManager/components/FolderTree/types.js';
+import { AudioType } from "shared/audio/types.js";
+import { AudioFileUI } from "src/pages/SoundManager/components/FolderTree/types.js";
 
-const API_URL = '/api/audio';
+const API_URL = "/api/audio";
 
 export async function getAllAudioFiles(): Promise<AudioFileUI[]> {
   try {
@@ -28,47 +29,156 @@ export async function getAudioFile(id: number): Promise<AudioFileUI> {
   }
 }
 
-export async function createAudioFile(audioData: Partial<AudioFileUI>, file?: File): Promise<{jobId?: string, id?: number}> {
-  const formData = new FormData();
-  formData.append('name', audioData.name || '');
-  formData.append('type', audioData.audioType || 'any');
-  
-  if (audioData.url) {
-    formData.append('url', audioData.url);
+/**
+ * Upload one or multiple audio files to the server
+ * @param files - Single file or array of files to upload
+ * @param metadata - Metadata for each file (single object or array matching files)
+ * @returns Response with success status
+ */
+export async function uploadAudioFiles(
+  files: File | File[],
+  metadata: {
+    name: string;
+    folderId?: number;
+    audioType?: AudioType;
   }
-  
-  if (audioData.folderId) {
-    formData.append('folder_id', audioData.folderId.toString());
+): Promise<{
+  success: boolean;
+  error?: string;
+}> {
+  try {
+    const formData = new FormData();
+    const fileArray = Array.isArray(files) ? files : [files];
+
+    // Validate input
+    if (fileArray.length === 0) {
+      return { success: false, error: "No files provided" };
+    }
+
+    // Add metadata that applies to all files
+    if (metadata.name) {
+      formData.append("name", metadata.name);
+    }
+
+    if (metadata.audioType) {
+      formData.append("audioType", metadata.audioType);
+    }
+
+    if (metadata.folderId) {
+      formData.append("folder_id", metadata.folderId.toString());
+    }
+
+    // Add files to form data
+    fileArray.forEach((file) => {
+      formData.append("files", file);
+    });
+
+
+    // Send request
+    const response = await fetch(`${API_URL}/files/upload`, {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error uploading audio files:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
-  
-  if (file) {
-    formData.append('audioFile', file);
-  }
-
-  const response = await fetch(`${API_URL}/files`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    throw new Error(`HTTP error! Status: ${response.status}`);
-  }
-  
-  const result = await response.json();
-
-  if (result.id) return {id: result.id}
-
-  else if (response.status === 202){  
-    return {jobId: result.jobId};
-  }
-
-  return {id: -1}
 }
 
-export async function updateAudioFile(id: number, audioData: Partial<AudioFileUI>): Promise<number> {
+/**
+ * Type for URL download data
+ */
+export interface AudioUrlDownloadData {
+  name: string;
+  url: string;
+  folderId: number;
+  audioType?: AudioType;
+}
+
+/**
+ * Type for download response
+ */
+export interface DownloadResponse {
+  success: boolean;
+  jobIds?: string[];
+  error?: string;
+}
+
+/**
+ * Download one or multiple audio files from URLs
+ * @param downloadData - Single download data object or array of download data objects
+ * @returns Response with success status and job IDs for downloads
+ */
+export async function downloadAudioUrls(
+  downloadData: AudioUrlDownloadData | AudioUrlDownloadData[]
+): Promise<DownloadResponse> {
+  try {
+    const downloadDataArray = Array.isArray(downloadData)
+      ? downloadData
+      : [downloadData];
+
+    // Validate input
+    if (downloadDataArray.length === 0) {
+      return { success: false, error: "No URL data provided" };
+    }
+
+    // Format data for backend
+    const formattedData = downloadDataArray.map((item) => ({
+      name: item.name,
+      folder_id: item.folderId,
+      url: item.url,
+      audio_type: item.audioType,
+    }));
+
+    // Always use the same structure regardless of count
+    const requestBody = { files: formattedData };
+
+    // Send request
+    const response = await fetch(`${API_URL}/files/download-urls`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // Return job IDs
+    return {
+      success: true,
+      jobIds: result.jobIds,
+    };
+
+  } catch (error) {
+    console.error("Error downloading audio URLs:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+export async function updateAudioFile(
+  id: number,
+  audioData: Partial<AudioFileUI>
+): Promise<number> {
   try {
     const params: Record<string, string> = {};
-    
+
     if (audioData.name) {
       params.name = audioData.name;
     }
@@ -78,15 +188,15 @@ export async function updateAudioFile(id: number, audioData: Partial<AudioFileUI
     if (audioData.url) {
       params.url = audioData.url;
     }
-    
+
     const response = await fetch(`${API_URL}/files/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(params),
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
@@ -100,6 +210,7 @@ export async function updateAudioFile(id: number, audioData: Partial<AudioFileUI
 export default {
   getAllAudioFiles,
   getAudioFile,
-  createAudioFile,
-  updateAudioFile
+  uploadAudioFiles,
+  downloadAudioUrls,
+  updateAudioFile,
 };

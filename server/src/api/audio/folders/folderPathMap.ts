@@ -1,9 +1,12 @@
 import path from "path";
 import { getAllFolders } from "./folderService.js";
-import { FolderDB } from "./types.js";
+import { FolderDB } from "../types.js";
 
+export interface FolderInfo extends FolderDB {
+  found?: boolean;
+}
 
-export async function buildPathToFolderMap(): Promise<Map<string, FolderDB>> {
+export async function buildPathToFolderMap(): Promise<Map<string, FolderInfo>> {
 
   const folders = await getAllFolders();
   const folderById: Record<number, FolderDB> = Object.fromEntries(

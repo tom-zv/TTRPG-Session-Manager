@@ -1,10 +1,11 @@
-import fileModel from "./fileModel.js";
+import fileModel, { FileInsertData } from "./fileModel.js";
 import { getFolderType } from "../folders/folderModel.js";
-import { AudioFileDB } from "./types.js";
+import { AudioFileDB } from "../types.js";
 import fs from "fs/promises";
 import path from "path";
 import { toAbsolutePath, toRelativePath } from "../../../utils/path-utils.js";
-import { NotFoundError, ValidationError } from "src/errors/HttpErrors.js";
+import { NotFoundError, ValidationError } from "src/api/HttpErrors.js";
+import { PoolConnection } from "mysql2/promise";
 
 export async function getAllAudioFiles(): Promise<AudioFileDB[]> {
   return await fileModel.getAllAudioFiles();
@@ -14,34 +15,55 @@ export async function getAudioFile(id: number): Promise<AudioFileDB> {
   return await fileModel.getAudioFile(id);
 }
 
-export async function createAudioFile({
-  name,
-  rel_path,
-  url,
-  folder_id,
-  duration,
-}: {
-  name: string;
-  rel_path: string | null;
-  url: string | null;
-  folder_id: number;
-  duration?: number | null;
-}): Promise<{ insertId: number }> {
-  
-  const type = await getFolderType(folder_id);
+type AudioFileInsertRequest = Omit<FileInsertData, 'audio_type'> & {
+  audio_type?: string;
+};
 
-  return await fileModel.insertAudioFile(
-    name,
-    type,
-    rel_path,
-    url,
-    folder_id,
-    duration
+export async function insertAudioFiles(
+  filesData: AudioFileInsertRequest[],
+  connection?: PoolConnection
+): Promise<{ insertId: number; affectedRows: number }> {
+  if (filesData.length === 0) {
+    return { insertId: 0, affectedRows: 0 };
+  }
+
+  // Process each file to get its folder type
+  const processedFiles = await Promise.all(
+    filesData.map(async (fileData) => {
+      let audio_type: string;
+
+      if (!fileData.audio_type) {
+        const folderType = await getFolderType(fileData.folder_id);
+        if (!folderType) {
+          throw new ValidationError(`Folder with id ${fileData.folder_id} does not exist`);
+        }
+        audio_type = folderType;
+        if (audio_type == 'root') audio_type ='any';
+        
+      } else {
+        audio_type = fileData.audio_type;
+      }
+      return {
+        name: fileData.name,
+        audio_type,
+        rel_path: fileData.rel_path,
+        url: fileData.url,
+        folder_id: fileData.folder_id,
+        duration: fileData.duration,
+      };
+    })
   );
+
+  const result = await fileModel.insertAudioFiles(processedFiles, connection);
+
+  return {
+    insertId: result.insertId,
+    affectedRows: result.affectedRows,
+  };
 }
 
 export async function updateAudioFile(
-  audioFileId: number,
+  fileId: number,
   params: {
     name?: string;
     rel_path?: string;
@@ -50,12 +72,12 @@ export async function updateAudioFile(
 ): Promise<AudioFileDB> {
   const audioFileParams: typeof params = {};
 
-  // If name is being updated and we have a file on disk, we need to rename the actual file
+  // Rename file-system file
   if (params.name) {
     audioFileParams.name = params.name;
 
     // Get the current file record to access rel_path
-    const fileRecord = await fileModel.getAudioFile(audioFileId);
+    const fileRecord = await fileModel.getAudioFile(fileId);
 
     const currentFile = fileRecord;
     if (currentFile && currentFile.rel_path) {
@@ -96,7 +118,7 @@ export async function updateAudioFile(
   }
 
   const affectedRows = await fileModel.updateAudioFile(
-    audioFileId,
+    fileId,
     audioFileParams
   );
 
@@ -104,13 +126,60 @@ export async function updateAudioFile(
     throw new NotFoundError();
   }
 
-  const file = getAudioFile(audioFileId);
+  const file = getAudioFile(fileId);
   return file;
+}
+
+export async function deleteAudioFiles(fileIds: number[]): Promise<{ success: boolean, deletedCount: number, errors?: string[] }> {
+  const errors: string[] = [];
+  const filesToDelete: string[] = [];
+  
+  // First gather all files to delete
+  for (const fileId of fileIds) {
+    try {
+      const file = await fileModel.getAudioFile(fileId);
+      if (!file) {
+        errors.push(`File with ID ${fileId} not found`);
+        continue;
+      }
+      
+      if (file.rel_path) {
+        try {
+          const absolutePath = toAbsolutePath(file.rel_path);
+          await fs.access(absolutePath); 
+          filesToDelete.push(absolutePath);
+        } catch {
+          // File doesn't exist - just continue
+        }
+      }
+    } catch (error) {
+      errors.push(`Error processing file ID ${fileId}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  // Then delete files from filesystem in parallel
+  await Promise.allSettled(
+    filesToDelete.map(filepath => 
+      fs.unlink(filepath).catch(err => 
+        errors.push(`Error deleting file ${filepath}: ${err.message}`)
+      )
+    )
+  );
+  
+  // Finally delete from database
+  const result = await fileModel.deleteAudioFiles(fileIds);
+  
+  return {
+    success: errors.length === 0,
+    deletedCount: result.deletedCount,
+    errors: errors.length > 0 ? errors : undefined
+  };
 }
 
 export default {
   getAllAudioFiles,
   getAudioFile,
-  createAudioFile,
+  insertAudioFiles,
   updateAudioFile,
+  deleteAudioFiles
 };

@@ -1,232 +1,322 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { serverConfig } from '../config/server-config.js';
-import { toRelativePath } from './path-utils.js';
-import { pool } from '../db.js';
-import { ResultSetHeader } from 'mysql2';
-import { parseFile } from 'music-metadata';
+import {
+  getAllAudioFiles,
+  insertAudioFiles,
+} from "src/api/audio/files/fileService.js";
+import fs from "fs/promises";
+import { Dirent } from "fs";
+import path from "path";
+import type { AudioFileDB } from "src/api/audio/types.js";
+import { serverConfig } from "src/config/server-config.js";
+import {
+  buildPathToFolderMap,
+  FolderInfo,
+} from "src/api/audio/folders/folderPathMap.js";
+import { FolderType } from "shared/audio/types.js";
+import { audioPool } from "src/db.js";
 
-const audioExtensions = new Set(['.mp3', '.wav', '.ogg', '.flac', '.m4a']);
-type AudioType = 'music' | 'sfx' | 'ambience' | 'root';
+import { toRelativePath } from "./path-utils.js";
+import * as mm from "music-metadata";
+import fileModel, { FileInsertData } from "src/api/audio/files/fileModel.js";
+import folderModel from "src/api/audio/folders/folderModel.js";
+import { PoolConnection } from "mysql2/promise";
 
-/**
- * Get the duration of an audio file in seconds
- */
-async function getAudioDuration(filePath: string): Promise<number> {
-  try {
-    const metadata = await parseFile(filePath);
-    return metadata.format.duration || 0;
-  } catch (error) {
-    console.error(`Error getting duration for ${filePath}:`, error);
-    return 0;
-  }
+interface ExistingFileInfo extends AudioFileDB {
+  found?: boolean;
 }
 
 /**
- * Recursively scan a directory for audio files
+ * List of supported audio file extensions
  */
-async function scanDirectory(
-  dirPath: string, 
-  folderIdMap: Map<string, number>,
-  audioType?: AudioType
-): Promise<Array<{
-  path: string,
-  relativePath: string,
-  folderId: number,
-  audioType: AudioType,
-  duration?: number
-}>> {
-  const entries = await fs.readdir(dirPath, { withFileTypes: true });
-  const results: Array<{
-    path: string;
-    relativePath: string;
-    folderId: number;
-    audioType: AudioType;
-    duration?: number;
-  }> = [];
-
-  // Get or create folder ID for this directory
-  const relFolderPath = toRelativePath(dirPath);
-  console.log(`relative folder path: ${relFolderPath}`);
-  let folderId = folderIdMap.get(relFolderPath);
-
-  console.log(
-    `Scanning directory: ${dirPath} ID #${folderId}, inherited audioType: ${audioType}`
-  );
-
-  // Determine audio type based on top-level folder
-  if (!audioType || audioType === "root") {
-    if (folderId == 1) {
-      audioType = "root";
-    } else {
-      // Check if this is a top-level folder (music/sfx/ambience)
-      const folderName = path.basename(dirPath).toLowerCase();
-      if (folderName === "music") {
-        audioType = "music";
-      } else if (folderName === "sfx") {
-        audioType = "sfx";
-      } else if (folderName === "ambience") {
-        audioType = "ambience";
-      } else {
-        // Default
-        audioType = "music";
-      }
-    }
-  }
-
-  if (!folderId) {
-    // This is a new folder we need to add to the database
-    const folderName = path.basename(dirPath);
-    const parentDir = path.dirname(dirPath);
-    const relParentPath = toRelativePath(parentDir);
-    const parentId = folderIdMap.get(relParentPath) || null;
-
-    console.log(
-      `Adding folder: ${folderName}, parent: ${parentId}, type: ${audioType}`
-    );
-
-    // Insert folder into database with the determined or passed-in audioType
-    const [result] = await pool.execute(
-      "INSERT INTO folders (name, parent_folder_id, folder_type) VALUES (?, ?, ?)",
-      [folderName, parentId, audioType]
-    );
-    
-    folderId = (result as ResultSetHeader).insertId;
-    folderIdMap.set(relFolderPath, folderId);
-  }
-
-  // Process all entries in this directory
-  for (const entry of entries) {
-    const entryPath = path.join(dirPath, entry.name);
-
-    //console.log(`Processing entry: ${entryPath}`);
-
-    if (entry.isDirectory()) {
-      // Recursively scan subdirectory with the same audioType
-      const subResults = await scanDirectory(entryPath, folderIdMap, audioType);
-      results.push(...subResults);
-    } else if (entry.isFile() && isAudioFile(entry.name)) {
-      // This is an audio file
-      const relativePath = toRelativePath(entryPath);
-      const duration = await getAudioDuration(entryPath);
-      results.push({
-        path: entryPath,
-        relativePath,
-        folderId,
-        audioType,
-        duration
-      });
-    }
-  }
-
-  return results;
-}
+const AUDIO_EXTENSIONS = [
+  ".mp3",
+  ".mpeg",
+  ".opus",
+  ".m4a",
+  ".ogg",
+  ".oga",
+  ".wav",
+  ".aac",
+  ".caf",
+  ".mp4",
+  ".weba",
+  ".webm",
+  ".dolby",
+  ".flac",
+];
 
 /**
- * Build a map of folder paths to folder IDs
- */
-function buildFolderPathMap(folders: Array<{
-  folder_id: number,
-  name: string,
-  parent_folder_id: number | null
-}>): Map<string, number> {
-  const folderIdMap = new Map<string, number>();
-  
-  // First create a map of folder_id to folder info for quick lookups
-  const folderById = new Map(
-    folders.map(folder => [folder.folder_id, folder])
-  );
-  
-  // Function to build the full relative path of a folder
-  function buildFolderPath(folderId: number): string {
-    const folder = folderById.get(folderId);
-    if (!folder) return '';
-    
-    if (folder.parent_folder_id === null) {
-      return folder.name; // Root folder
-    }
-    
-    const parentPath = buildFolderPath(folder.parent_folder_id);
-    return path.join(parentPath, folder.name);
-  }
-  
-  // Build paths for all folders and map them to their IDs
-  for (const folder of folders) {
-    const folderPath = buildFolderPath(folder.folder_id);
-    console.log(`Mapped DB folder: "${folderPath}" => ID: ${folder.folder_id}`);
-    folderIdMap.set(folderPath, folder.folder_id);
-    
-    // Also map the actual relative path as it appears in the filesystem
-    // This helps when we encounter this folder during scanning
-    if (folderPath) {
-      const relPath = toRelativePath(path.join(serverConfig.audioDir, '..', folderPath));
-      if (relPath !== folderPath) {
-        console.log(`Also mapped filesystem path: "${relPath}" => ID: ${folder.folder_id}`);
-        folderIdMap.set(relPath, folder.folder_id);
-      }
-    }
-  }
-  
-  console.log(`Built folder ID map with ${folderIdMap.size} entries`);
-  return folderIdMap;
-}
-
-/**
- * Check if file is an audio file based on extension
+ * Checks if a file has an audio extension
  */
 function isAudioFile(filename: string): boolean {
   const ext = path.extname(filename).toLowerCase();
-  return audioExtensions.has(ext);
+  return AUDIO_EXTENSIONS.includes(ext);
 }
 
 /**
- * Scan audio directory and update database
+ * Scans the audio library directory for new audio files and updates the database accordingly.
+ * @returns A summary of operations performed
  */
-export async function scanAudioFiles(): Promise<void> {
+export async function syncAudioLibrary(): Promise<{
+  filesAdded: number;
+  filesDeleted: number;
+  foldersAdded: number;
+  foldersDeleted: number;
+}> {
   try {
-    // Get existing folders from database to avoid duplicates
-    const [folders] = await pool.execute(
-      'SELECT folder_id, name, parent_folder_id FROM folders'
+    // Build a map of existing folders in the database
+    const pathToExistingFolderMap = await buildPathToFolderMap();
+
+    const files = await getAllAudioFiles();
+    const pathToExistingFileMap: Map<string, ExistingFileInfo> = new Map(
+      files
+        .filter((file) => file.rel_path !== null)
+        .map((file) => [file.rel_path!, { ...file, found: false }])
     );
-    
-    // Build folder ID map using the extracted function
-    const folderIdMap = buildFolderPathMap(folders as {
-      folder_id: number,
-      name: string,
-      parent_folder_id: number | null
-    }[]);
-    
-    // Scan audio directory
-    const audioFiles = await scanDirectory(serverConfig.audioDir, folderIdMap);
-    
-    // Update database with found files
-    for (const file of audioFiles) {
-      const fileName = path.basename(file.path);
-      const fileExt = path.extname(fileName).toLowerCase() || '';
-      
-      // Check if file already exists in the database
-      const [existingFiles] = await pool.execute(
-        'SELECT audio_file_id FROM audio_files WHERE file_path = ?',
-        [file.relativePath]
+
+    // Start a transaction for database operations
+    const connection = await audioPool.getConnection();
+    await connection.beginTransaction();
+
+    try {
+      // Scan filesystem and prepare insert arrays
+      const result = await scanFsAndBuildInsertArray(
+        serverConfig.audioDir,
+        pathToExistingFolderMap,
+        pathToExistingFileMap,
+        connection
       );
+
+      const { fileInsertArray: fileArray, foldersAdded } = result;
+
+      // process files
+      let fileInsertResult = { affectedRows: 0 };
+      if (fileArray.length > 0) {
+        const fileInsertArray = await fetchFileDurations(fileArray);
+        fileInsertResult = await insertAudioFiles(fileInsertArray, connection);
+      }
+
+      // Delete files and folders that no longer exist
+      const foldersToDelete = Array.from(pathToExistingFolderMap.values())
+        .filter((folder) => !folder.found)
+        .map((folder) => folder.id);
+
+      const filesToDelete = Array.from(pathToExistingFileMap.values())
+        .filter((file) => !file.found)
+        .map((file) => file.id);
+
       
-      if ((existingFiles as any[]).length === 0) {
-        // Add new file to database using the audioType determined during scanning
-        await pool.execute(
-          'INSERT INTO audio_files (name, audio_type, file_path, folder_id, duration) VALUES (?, ?, ?, ?, ?)',
-          [fileName.replace(fileExt, ''), file.audioType, file.relativePath, file.folderId, file.duration || 0]
+      let filesDeleteResult = { deletedCount: 0 };
+      let foldersDeleteResult = { deletedCount: 0 };
+
+      if (filesToDelete.length > 0) {
+        filesDeleteResult = await fileModel.deleteAudioFiles(filesToDelete);
+      }
+
+      if (foldersToDelete.length > 0) {
+        foldersDeleteResult = await folderModel.deleteFolders(foldersToDelete);
+      }
+
+      await connection.commit();
+
+      return {
+        filesAdded: fileInsertResult.affectedRows,
+        filesDeleted: filesDeleteResult.deletedCount,
+        foldersAdded: foldersAdded,
+        foldersDeleted: foldersDeleteResult.deletedCount,
+      };
+    } catch (error) {
+      // Rollback on error
+      await connection.rollback();
+      console.error("Error during audio library sync transaction:", error);
+      if (error instanceof Error) {
+        throw new Error(
+          `Failed to synchronize audio library: ${error.message}`
         );
       } else {
-        // Update existing file's duration if needed
-        await pool.execute(
-          'UPDATE audio_files SET duration = ? WHERE file_path = ?',
-          [file.duration || 0, file.relativePath]
+        throw new Error(
+          `Failed to synchronize audio library: ${String(error)}`
         );
       }
+    } finally {
+      connection.release();
     }
-    
-    console.log(`Scan complete. Processed ${audioFiles.length} audio files.`);
   } catch (error) {
-    console.error('Error scanning audio files:', error);
+    console.error("Fatal error in syncAudioLibrary:", error);
+    if (error instanceof Error) {
+      throw new Error(`Audio library synchronization failed: ${error.message}`);
+    } else {
+      throw new Error(`Audio library synchronization failed: ${String(error)}`);
+    }
+  }
+}
+
+/**
+ * BFS traversing the file system
+ * Scan and build the DB insertion arrays directly in one pass.
+ * Folders are inserted immediately when discovered.
+ */
+async function scanFsAndBuildInsertArray(
+  rootPath: string,
+  pathToExistingFolderMap: Map<string, FolderInfo>,
+  pathToExistingFileMap: Map<string, ExistingFileInfo>,
+  connection: PoolConnection
+): Promise<{
+  fileInsertArray: FileInsertData[];
+  foldersAdded: number;
+}> {
+  const fileInsertArray: FileInsertData[] = [];
+  let foldersAdded = 0;
+
+  const queue: {
+    dirPath: string;
+    parentId: number | null;
+    parentAudioType: FolderType;
+  }[] = [{ dirPath: rootPath, parentId: null, parentAudioType: "root" }];
+
+  while (queue.length) {
+    const { dirPath, parentId, parentAudioType } = queue.shift()!;
+    const rel_path = toRelativePath(dirPath);
+
+    let audioType = parentAudioType;
+
+    if (parentAudioType === "root") {
+      audioType = audioTypeByName(path.basename(rel_path));
+    }
+
+    let folderId: number;
+
+    const existingFolder = pathToExistingFolderMap.get(rel_path);
+
+    if (existingFolder) {
+      folderId = existingFolder.id;
+      existingFolder.found = true;
+      audioType = existingFolder.folder_type;
+    } else {
+      if (parentId == null) {
+        // This means the root folder isn't in the DB, error in the folder structure
+        throw new Error(`Root folder ${rootPath} is not in the database!`);
+      }
+
+      // Insert the folder immediately and get the insert ID
+      const folderData = {
+        name: path.basename(rel_path),
+        type: audioType!,
+        parent_id: parentId,
+      };
+
+      const insertId = await folderModel.createFolder(folderData, connection);
+
+      if (!insertId) {
+        throw new Error(`Failed to create folder ${rel_path}`);
+      }
+
+      folderId = insertId;
+      foldersAdded++;
+    }
+
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(dirPath, { withFileTypes: true });
+    } catch (err) {
+      console.warn(`Skipping ${dirPath}:`, err);
+      continue;
+    }
+
+    for (const entry of entries) {
+      const entryPath = path.join(dirPath, entry.name);
+
+      if (entry.isDirectory()) {
+        queue.push({
+          dirPath: entryPath,
+          parentId: folderId,
+          parentAudioType: audioType,
+        });
+      } else if (entry.isFile() && isAudioFile(entry.name)) {
+        const relEntryPath = toRelativePath(entryPath);
+        const existingFile = pathToExistingFileMap.get(relEntryPath);
+
+        if (existingFile) {
+          existingFile.found = true;
+        } else {
+          // new file - put into insert structure
+          const file: FileInsertData = {
+            folder_id: folderId,
+            name: entry.name,
+            rel_path: relEntryPath,
+            audio_type: audioType === "root" ? "any" : audioType!,
+            url: null,
+          };
+
+          fileInsertArray.push(file);
+        }
+      }
+    }
+  }
+
+  return { fileInsertArray, foldersAdded };
+}
+
+/**
+ * Fetches and updates audio file durations concurrently
+ * @param files Array of audio files to process
+ * @returns Array of audio files with duration information
+ */
+async function fetchFileDurations(
+  files: FileInsertData[]
+): Promise<FileInsertData[]> {
+  // Skip files that don't have a relative path (URL-only files)
+  const filesToProcess = files.filter((file) => file.rel_path);
+
+  // Process files in batches
+  const BATCH_SIZE = 20;
+  const result: FileInsertData[] = [];
+
+  for (let i = 0; i < filesToProcess.length; i += BATCH_SIZE) {
+    const batch = filesToProcess.slice(i, i + BATCH_SIZE);
+
+    const processedBatch = await Promise.all(
+      batch.map(async (file) => {
+        try {
+          const fullPath = path.join(serverConfig.publicDir, file.rel_path!);
+          // Parse metadata to get duration
+          const metadata = await mm.parseFile(fullPath, {
+            duration: true,
+            skipCovers: true,
+            skipPostHeaders: true,
+          });
+
+          return {
+            ...file,
+            duration: metadata.format.duration || null,
+          };
+        } catch (error) {
+          console.warn(`Failed to get duration for ${file.name}:`, error);
+          // Return the original file if we couldn't get the duration
+          return {
+            ...file,
+            duration: null,
+          };
+        }
+      })
+    );
+
+    result.push(...processedBatch);
+  }
+
+  return result;
+}
+
+function audioTypeByName(name: string): FolderType {
+  switch (name) {
+    case "music":
+      return "music";
+    case "sfx":
+      return "sfx";
+    case "ambience":
+      return "ambience";
+    case "audio":
+      return "root";
+    default:
+      return "any";
   }
 }
