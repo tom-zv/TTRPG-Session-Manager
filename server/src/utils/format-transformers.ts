@@ -4,7 +4,7 @@ import {
   CollectionDB,
   FolderDB,
   MacroDB,
-} from "src/api/audio/files/types.js";
+} from "src/api/audio/types.js";
 import {
   FolderDTO,
   AudioFileDTO,
@@ -37,29 +37,49 @@ export function transformAudioFileToDTO(
 export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
   // Parse the files field if it exists
   let nestedFiles: AudioFileDTO[] = [];
+  
   if (macroDB.files) {
     try {
-      // Convert the comma-separated JSON objects into a proper JSON array
-      const jsonArrayString = "[" + macroDB.files + "]";
-
-      // Parse the entire array at once
-      const filesArray = JSON.parse(jsonArrayString);
-
-      // Transform each nested file with both file and collection properties
-      nestedFiles = filesArray.map((fileObj: CollectionAudioFileDB) => ({
-        // Audio file properties
-        id: fileObj.id,
-        type: "file",
-        audioType: fileObj.audio_type,
-        name: fileObj.name,
-        url: fileObj.url,
-        path: fileObj.rel_path,
-        folderId: fileObj.folder_id,
-        duration: fileObj.duration,
-        // Collection properties
-        volume: fileObj.volume,
-        delay: fileObj.delay,
-      }));
+      // Handle case where files is already an array of objects
+      if (Array.isArray(macroDB.files)) {
+        nestedFiles = macroDB.files.map((fileObj: CollectionAudioFileDB) => ({
+          id: fileObj.id,
+          type: "audio",
+          audioType: fileObj.audio_type,
+          name: fileObj.name,
+          url: fileObj.url ?? undefined,
+          path: fileObj.rel_path ?? undefined,
+          folderId: fileObj.folder_id,
+          addedAt: fileObj.added_at,
+          duration: fileObj.duration ?? 0,
+          volume: fileObj.volume,
+          delay: fileObj.delay,
+          active: fileObj.active,
+          position: fileObj.position,
+        }));
+      } 
+      // Handle case where files is a string from GROUP_CONCAT in SQL
+      else if (typeof macroDB.files === 'string') {
+        // Convert the comma-separated JSON objects into a proper JSON array
+        const jsonArrayString = "[" + macroDB.files + "]";
+        
+        // Parse the entire array at once
+        const filesArray = JSON.parse(jsonArrayString);
+        
+        // Transform each nested file with both file and collection properties
+        nestedFiles = filesArray.map((fileObj: CollectionAudioFileDB) => ({
+          id: fileObj.id,
+          type: "file",
+          audioType: fileObj.audio_type,
+          name: fileObj.name,
+          url: fileObj.url,
+          path: fileObj.rel_path,
+          folderId: fileObj.folder_id,
+          duration: fileObj.duration,
+          volume: fileObj.volume,
+          delay: fileObj.delay,
+        }));
+      }
     } catch (error) {
       console.error("Error parsing macro files:", error);
       nestedFiles = [];
@@ -77,7 +97,7 @@ export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
     type: "macro",
     name: macroDB.name,
     description: macroDB.description ?? undefined,
-    volume: macroDB.volume,
+    volume: macroDB.volume || 1.0,
     duration: MacroDuration,
     position: macroDB.position,
     itemCount: macroDB.item_count,

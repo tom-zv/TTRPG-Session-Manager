@@ -49,3 +49,17 @@ done
 rm "$MYSQL_TMPFILE"
 
 echo ">> All migrations applied."
+
+# Create default audio folder structure ───────────────────────────────────
+echo ">> Creating default audio folder structure..."
+# Get server directory (one level up from script directory)
+SERVER_DIR="$(dirname "$SCRIPT_DIR")"
+AUDIO_DIR="$SERVER_DIR/public/audio"
+
+# Create audio directories
+mkdir -p "$AUDIO_DIR/music"
+mkdir -p "$AUDIO_DIR/sfx"
+mkdir -p "$AUDIO_DIR/ambience"
+mkdir -p "$AUDIO_DIR/upload"
+
+echo ">> Audio directories created at: $AUDIO_DIR"

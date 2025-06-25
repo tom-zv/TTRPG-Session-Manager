@@ -2,17 +2,17 @@ import React from "react";
 import AudioApi from "src/pages/SoundManager/api/AudioApi.js";
 
 interface FileScanButtonProps {
-  onScanComplete?: () => void;
+  onScanComplete?: () => Promise<void>;
 }
 
 const FileScanButton: React.FC<FileScanButtonProps> = ({ onScanComplete }) => {
   const handleScanClick = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent triggering folder click
-    await AudioApi.initiateScan();
+    const res = await AudioApi.scanAudioLibrary();
     
     // Call the callback to trigger data refresh if provided
-    if (onScanComplete) {
-      onScanComplete();
+    if (onScanComplete && res.success) {
+      await onScanComplete();
     }
   };
 

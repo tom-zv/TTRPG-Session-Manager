@@ -3,9 +3,7 @@ import { Folder, AudioFileUI } from "../types.js";
 import { getAllFolders } from "src/pages/SoundManager/api/folderApi.js";
 import { getAllAudioFiles } from "src/pages/SoundManager/api/fileApi.js";
 import { buildFolderTree } from "../utils/FolderTree.js";
-import { 
-  useDownloadProgress, 
-} from "./useDownloadProgress.js";
+import { useDownloadProgress } from "./useDownloadProgress.js";
 
 // Type definitions
 type FolderMap = Record<number, Folder>;
@@ -18,7 +16,7 @@ export function useFolderTreeData() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // --- Normalization utilities ---
+  // --- Normalization ---
   function normalizeFolders(folders: Folder[]): FolderMap {
     return Object.fromEntries(
       folders.map((f) => [f.id, f] as [number, Folder])
@@ -38,20 +36,20 @@ export function useFolderTreeData() {
 
   const handleFileUpdated = useCallback((file: AudioFileUI) => {
     setAudioFilesById((prev) => ({
-...prev,
+      ...prev,
 
       [file.id]: file,
     }));
   }, []);
 
   // --- Download progress integration ---
-  
+
   const {
     folderDownloadProgress,
     initializeDownloadProgress,
     handleFileDownloadError,
     dismissDownloadProgress,
-    cleanupFolderDownloads
+    cleanupFolderDownloads,
   } = useDownloadProgress({ onFileCreated: handleFileCreated });
 
   // --- Derived data ---
@@ -71,7 +69,7 @@ export function useFolderTreeData() {
   );
 
   // --- Data loading ---
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async () => { // TODO: implement lazy loading, allowing targeted reloads
     try {
       setLoading(true);
       setError(null);
@@ -79,9 +77,9 @@ export function useFolderTreeData() {
       // Load audio files and folders in parallel
       const [files, allFolders] = await Promise.all([
         getAllAudioFiles(),
-        getAllFolders()
+        getAllFolders(),
       ]);
-      
+
       setAudioFilesById(normalizeAudioFiles(files));
       setFoldersById(normalizeFolders(allFolders));
     } catch (error) {
@@ -175,14 +173,14 @@ export function useFolderTreeData() {
     folderDownloadProgress,
     loading,
     error,
-    
+
     // Operations
     reload: loadData,
     handleFolderCreated,
     handleFolderDeleted,
     handleFileCreated,
     handleFileUpdated,
-    
+
     // Download management
     initializeDownloadProgress,
     handleFileDownloadError,

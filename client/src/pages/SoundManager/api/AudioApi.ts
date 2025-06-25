@@ -1,7 +1,7 @@
 
 const API_URL = '/api/audio';
 
-export async function initiateScan(): Promise<number> {
+export async function scanAudioLibrary() {
   try {
     const response = await fetch(`${API_URL}/files/scan`, {
       method: 'POST'
@@ -11,10 +11,11 @@ export async function initiateScan(): Promise<number> {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
 
-    return await response.json();
+    return { success: true }
+
   } catch (error) {
     console.error("Error initiating scan:", error);
-    throw error;
+    return { success: false }
   }
 }
 
@@ -33,6 +34,6 @@ export async function getYTAudioURL(videoUrl: string): Promise<string> {
 }
 
 export default {
-  initiateScan,
+  scanAudioLibrary,
   getYTAudioURL
 };
