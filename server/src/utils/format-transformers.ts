@@ -4,7 +4,7 @@ import {
   CollectionDB,
   FolderDB,
   MacroDB,
-} from "src/api/audio/files/types.js";
+} from "src/api/audio/types.js";
 import {
   FolderDTO,
   AudioFileDTO,

@@ -1,26 +1,18 @@
 import path from 'path';
 import { serverConfig } from '../config/server-config.js';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-// Get the absolute server root path
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-export const serverRoot = path.resolve(__dirname, '../../'); // Navigate up to server root
 
 /**
  * Convert an absolute file path to a path relative to the audio directory
  */
 export function toRelativePath(absolutePath: string): string {
-  return path.relative(serverConfig.audioDir, absolutePath);
+  return path.relative(serverConfig.publicDir, absolutePath);
 }
 
 /**
  * Convert a relative path to an absolute file path
  */
 export function toAbsolutePath(relativePath: string): string {
-  return path.join(serverConfig.audioDir, relativePath);
+  return path.join(serverConfig.publicDir, relativePath);
 }
 
 /**
@@ -44,9 +36,6 @@ export function getClientPath(storedPath: string): string {
   return `/audio/${storedPath.replace(/\\/g, '/')}`;
 }
 
-export function relativePathFromAbsolute(absolute: string): string {
-  return path.relative(path.join(serverRoot, "public/audio"), absolute);
-}
 
 /**
  * Sanitize filename to ensure it's valid across operating systems

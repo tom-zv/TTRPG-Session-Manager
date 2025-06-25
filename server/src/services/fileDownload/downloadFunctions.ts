@@ -9,10 +9,11 @@ import ytDlp, { YtResponse } from "yt-dlp-exec";
 import fileModel from "src/api/audio/files/fileModel.js";
 import fileService from "../../api/audio/files/fileService.js";
 import { 
-  relativePathFromAbsolute,
+  toRelativePath,
   sanitizeFilename,
 } from "../../utils/path-utils.js";
 import { ProgressMessage, ItemErrorMessage, MetadataMessage } from "./types.js";
+import { AudioType } from "shared/audio/types.js";
 
 
 // Interfaces and types
@@ -28,6 +29,7 @@ export interface FileData {
   name: string;
   url: string;
   folder_id: number;
+  audio_type?: AudioType;
 }
 
 export function isExplicitYoutubePlaylist(url: string): boolean {
@@ -48,8 +50,10 @@ async function downloadYtAudio(
   outputPath: string
 ): Promise<YtResponse> {
   return ytDlp(url, {
+    format: 'bestaudio[ext=m4a]/bestaudio',
     extractAudio: true,
     audioQuality: 0,
+    hlsPreferFfmpeg: true,
     output: outputPath,
     printJson: true,
     noPlaylist: true,
@@ -116,7 +120,7 @@ async function processDownloadedYtAudio(
   }
 
   const relativePath = path.join(
-    path.dirname(relativePathFromAbsolute(outputPath)),
+    path.dirname(toRelativePath(outputPath)),
     resolvedFileName
   );
 
@@ -181,13 +185,14 @@ export async function downloadYouTubePlaylist(fileData: FileData, folderPath: st
         );
 
         // Insert into DB
-        const { insertId: fileId } = await fileService.createAudioFile({
+        const { insertId: fileId } = await fileService.insertAudioFiles([{
           name: processedFile.name,
           rel_path: processedFile.path,
           url: videoUrl,
           folder_id: fileData.folder_id,
           duration: processedFile.duration,
-        });
+          audio_type: fileData.audio_type
+        }]);
 
         const newFileData = await fileModel.getAudioFile(fileId);
 
@@ -247,13 +252,14 @@ export async function downloadYouTubeSingle(fileData: FileData, folderPath: stri
     }
   );
 
-  const res = await fileService.createAudioFile({
+  const res = await fileService.insertAudioFiles([{
     name: processedFile.name,
     rel_path: processedFile.path,
     url: fileData.url,
     folder_id: fileData.folder_id,
     duration: processedFile.duration,
-  });
+    audio_type: fileData.audio_type
+  }]);
 
   // Get updated file record and emit event
   const updatedFile = await fileModel.getAudioFile(res.insertId);
@@ -317,17 +323,18 @@ export async function downloadDirectUrl(fileData: FileData, folderPath: string) 
   const duration = meta.format?.duration;
 
   const rel_path = path.join(
-    path.dirname(relativePathFromAbsolute(filepath)),
+    path.dirname(toRelativePath(filepath)),
     filename
   );
 
-  const createRes = await fileService.createAudioFile({
+  const createRes = await fileService.insertAudioFiles([{
     name: filename,
     rel_path,
     url: fileData.url,
     folder_id: fileData.folder_id,
     duration: duration,
-  });
+    audio_type: fileData.audio_type
+  }]);
 
   // Get updated file record and emit event
   const updatedFile = await fileModel.getAudioFile(createRes.insertId);

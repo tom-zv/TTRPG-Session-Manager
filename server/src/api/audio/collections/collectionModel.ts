@@ -16,7 +16,7 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
     query = `
       SELECT c.*, 
         (
-          SELECT COUNT(cf.id) 
+          SELECT COUNT(cf.file_id) 
           FROM ${COLLECTION_FILES_TABLE} cf 
           WHERE cf.collection_id = c.id
         ) + (
@@ -31,7 +31,7 @@ export async function getAllCollections(type: string): Promise<RowDataPacket[]> 
     `;
   } else {
     query = `
-      SELECT c.*, COUNT(cf.id) AS item_count
+      SELECT c.*, COUNT(cf.file_id) AS item_count
       FROM ${COLLECTIONS_TABLE} c
       LEFT JOIN ${COLLECTION_FILES_TABLE} cf ON c.id = cf.collection_id
       WHERE c.type = ?

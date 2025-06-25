@@ -657,7 +657,7 @@ export async function getAllCollectionsWithFiles(type: string): Promise<ServiceR
       collections.map(async (collection: any) => {
         let result;
         if (type === 'macro') {
-          const files = await macroModel.getMacroFiles(collection.id);
+          const files = await macroModel.getMacroFiles(collection.macro_id);
           result = { files, macros: [] };
         } else {
           result = await collectionModel.getCollectionFiles(type, collection.id);

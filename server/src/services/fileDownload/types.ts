@@ -1,4 +1,4 @@
-import { AudioFileDB } from "src/api/audio/files/types.js";
+import { AudioFileDB } from "src/api/audio/types.js";
 
 export interface ProgressMessage {
   type: 'progress';

@@ -2,7 +2,7 @@
 import { getSocketIO } from "../../index.js";
 import { transformAudioFileToDTO } from "../../../utils/format-transformers.js";
 import { AudioEventTypes } from "shared/sockets/audio/events.js";
-import { AudioFileDB } from "../../../api/audio/files/types.js";
+import { AudioFileDB } from "../../../api/audio/types.js";
 import { AudioFileDTO } from "shared/DTO/files.js";
 import {
   DownloadProgressDTO,
