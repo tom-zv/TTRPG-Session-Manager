@@ -1,0 +1,9 @@
+# Audio Files
+/audio/files:
+  $ref: './audio/files/collection.yaml'
+/audio/files/{id}:
+  $ref: './audio/files/single.yaml'
+/audio/files/link:
+  $ref: './audio/files/link.yaml'
+/audio/files/scan:
+  $ref: './audio/files/scan.yaml'

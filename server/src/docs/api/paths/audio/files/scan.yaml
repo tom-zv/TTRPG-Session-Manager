@@ -1,0 +1,10 @@
+post:
+  summary: Scan audio library
+  description: Scan the file system to synchronize audio library
+  tags:
+    - Audio Files
+  responses:
+    '200':
+      description: Audio library synchronized successfully
+    '500':
+      $ref: '../../../components/responses/ServerError.yaml'

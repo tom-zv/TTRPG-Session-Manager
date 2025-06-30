@@ -1,0 +1,122 @@
+get:
+  summary: Get all audio files
+  description: Retrieve a list of all audio files from the database
+  tags:
+    - Audio Files
+  responses:
+    '200':
+      description: Array of audio file objects
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '../../../components/schemas/AudioFile.yaml'
+    '500':
+      $ref: '../../../components/responses/ServerError.yaml'
+
+post:
+  summary: Upload audio files
+  description: Upload one or more audio files to the server
+  tags:
+    - Audio Files
+  requestBody:
+    required: true
+    content:
+      multipart/form-data:
+        schema:
+          type: object
+          properties:
+            files:
+              type: array
+              items:
+                type: string
+                format: binary
+              description: Audio files to upload
+            name:
+              type: string
+              description: Custom name for the audio file (single file upload)
+            type:
+              type: string
+              description: Audio file type
+            folder_id:
+              type: integer
+              description: Folder ID to store the file in
+            url:
+              type: string
+              description: URL for the audio file
+  responses:
+    '201':
+      description: Files uploaded successfully
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - type: object
+                properties:
+                  id:
+                    type: integer
+                  success:
+                    type: boolean
+              - type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+                  firstId:
+                    type: integer
+                  message:
+                    type: string
+    '400':
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '../../../components/schemas/Error.yaml'
+    '500':
+      $ref: '../../../components/responses/ServerError.yaml'
+
+delete:
+  summary: Delete multiple audio files
+  description: Delete multiple audio files by their IDs
+  tags:
+    - Audio Files
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          type: object
+          required:
+            - fileIds
+          properties:
+            fileIds:
+              type: array
+              items:
+                type: integer
+              description: Array of audio file IDs to delete
+  responses:
+    '200':
+      description: Files deleted successfully
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              deletedCount:
+                type: integer
+              errors:
+                type: array
+                items:
+                  type: string
+    '400':
+      description: Invalid input
+      content:
+        application/json:
+          schema:
+            $ref: '../../../components/schemas/Error.yaml'
+    '500':
+      $ref: '../../../components/responses/ServerError.yaml'

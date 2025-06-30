@@ -1,0 +1,3 @@
+# Common parameters
+IdParam:
+  $ref: './IdParam.yaml'

@@ -1,0 +1,11 @@
+type: object
+properties:
+  error:
+    type: string
+    description: Error message
+  status:
+    type: integer
+    description: HTTP status code
+  stack:
+    type: string
+    description: Error stack trace (development only)

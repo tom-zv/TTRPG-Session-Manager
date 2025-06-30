@@ -1,0 +1,18 @@
+openapi: 3.0.3
+info:
+  title: TTRPG Session Manager API
+  description: API for managing tabletop RPG session resources
+  version: 1.0.0
+servers:
+  - url: /api
+    description: Default server
+paths:
+  # Import all path modules
+  $ref: './paths/index.yaml'
+components:
+  schemas:
+    $ref: './components/schemas/index.yaml'
+  parameters:
+    $ref: './components/parameters/index.yaml'
+  responses:
+    $ref: './components/responses/index.yaml'

@@ -1,0 +1,31 @@
+type: object
+properties:
+  id:
+    type: integer
+    description: Unique identifier for the audio file
+  name:
+    type: string
+    description: Name of the audio file
+  rel_path:
+    type: string
+    nullable: true
+    description: Relative path to the audio file on the server
+  url:
+    type: string
+    nullable: true
+    description: URL to the audio file (if external)
+  folder_id:
+    type: integer
+    description: ID of the folder containing the audio file
+  duration:
+    type: number
+    nullable: true
+    description: Duration of the audio file in seconds
+  created_at:
+    type: string
+    format: date-time
+    description: Timestamp when the file was added
+  updated_at:
+    type: string
+    format: date-time
+    description: Timestamp when the file was last updated

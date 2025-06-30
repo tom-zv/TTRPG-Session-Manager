@@ -1,0 +1,84 @@
+post:
+  summary: Link audio files
+  description: Link audio files by URL or direct path reference
+  tags:
+    - Audio Files
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          oneOf:
+            - type: object
+              properties:
+                file:
+                  type: object
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      description: Name of the file
+                    folder_id:
+                      type: integer
+                      description: Folder ID to store the file in
+                    url:
+                      type: string
+                      description: URL of the audio file
+                    rel_path:
+                      type: string
+                      description: Relative path to the audio file
+            - type: object
+              properties:
+                files:
+                  type: array
+                  items:
+                    type: object
+                    required:
+                      - name
+                    properties:
+                      name:
+                        type: string
+                        description: Name of the file
+                      folder_id:
+                        type: integer
+                        description: Folder ID to store the file in
+                      url:
+                        type: string
+                        description: URL of the audio file
+                      rel_path:
+                        type: string
+                        description: Relative path to the audio file
+  responses:
+    '201':
+      description: Files linked successfully (immediate links)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              id:
+                type: integer
+              success:
+                type: boolean
+    '202':
+      description: Files accepted for processing (downloads pending)
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              jobId:
+                type: string
+              jobIds:
+                type: array
+                items:
+                  type: string
+    '400':
+      description: Invalid file data, missing required fields, or invalid URL
+      content:
+        application/json:
+          schema:
+            $ref: '../../../components/schemas/Error.yaml'
+    '500':
+      $ref: '../../../components/responses/ServerError.yaml'
