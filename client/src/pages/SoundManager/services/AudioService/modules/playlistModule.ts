@@ -96,14 +96,26 @@ export class PlaylistModule {
         if (newHowl) { 
           console.error(`Load error code from howl.state(): ${newHowl.state()}`);
         }
-        this.nextTrack();
+        // Add delay before cycling to next track on load error
+        setTimeout(() => {
+          // Check if we're still playing before moving to next track
+          if (this.currentPlaylist.playing) {
+            this.nextTrack();
+          }
+        }, 1500);
       },
       onplayerror: (soundId, error) => { 
         console.error(`Error playing track (${audioSrc}): ID ${soundId}, Error:`, error);
         if (newHowl) { 
           console.error(`Play error code from howl.state(): ${newHowl.state()}`);
         }
-        this.nextTrack();
+        // Add delay before cycling to next track on play error
+        setTimeout(() => {
+          // Check if we're still playing before moving to next track
+          if (this.currentPlaylist.playing) {
+            this.nextTrack();
+          }
+        }, 1500);
       },
     };
 
