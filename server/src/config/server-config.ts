@@ -24,6 +24,8 @@ export interface DatabaseConfig {
 // Server configuration
 export interface ServerConfig {
   port: number;
+  host: string;
+  clientOrigin: string;
   rootDir: string;
   publicDir: string;
   audioDir: string;
@@ -44,6 +46,8 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 export const getServerConfig = (): ServerConfig => {
   return {
     port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
+    host: process.env.HOST || 'localhost',
+    clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
     rootDir,
     publicDir,
     audioDir: process.env.AUDIO_DIR || path.join(publicDir, 'audio'),

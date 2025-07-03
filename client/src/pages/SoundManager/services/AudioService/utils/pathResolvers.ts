@@ -51,8 +51,14 @@ export function resolveAudioPath(relativePath: string | undefined | null): strin
   ) {
     return relativePath;
   }
+  
+  if (!basePath) {
+    console.warn('Audio path not initialized, using fallback');
+    // Fallback to current origin in case initialization hasn't happened yet
+    return `${window.location.origin}/audio/${relativePath}`;
+  }
 
-  // Join the base path with the relative path
+  // Join the base path with the cleaned relative path
   return `${basePath}/${relativePath}`;
 }
 

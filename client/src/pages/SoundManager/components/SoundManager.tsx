@@ -1,7 +1,8 @@
-import React from "react";
+import React, {useEffect} from "react";
 import ItemPanel from "./ItemPanel/ItemPanel.js";
 import PlaylistPanel from "./PlaylistPanel/PlaylistPanel.js";
 import SoundCollectionsPanel from "./SoundCollectionsPanel/SoundCollectionsPanel.js";
+import { initializeAudioPathResolver } from "../services/AudioService/utils/pathResolvers.js";
 import { DropTargetProvider } from "src/components/DropTargetContext/DropTargetContext.js";
 import { ItemPanelProvider } from "./ItemPanel/ItemPanelContext.js";
 import { AudioProvider } from "../services/AudioService/index.js";
@@ -16,7 +17,24 @@ import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js"
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import "./sound-manager.css";
 
+
+
 const SoundManagerContent: React.FC = () => {
+
+
+
+  useEffect(() => {
+  // Initialize the audio path resolver
+  initializeAudioPathResolver()
+    .then(() => {
+      console.log('Audio path resolver initialized');
+    })
+    .catch(err => {
+      console.error('Failed to initialize audio path resolver:', err);
+    });
+  
+  // Other initialization code...
+}, []);
   const playlistPanelRef = React.useRef<ImperativePanelHandle>(null);
   return (
     <div className="sound-manager">
