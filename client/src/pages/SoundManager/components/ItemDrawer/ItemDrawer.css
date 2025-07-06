@@ -1,0 +1,337 @@
+/* ----------------------
+   1. Main Container Styles
+----------------------- */
+.item-drawer-container {
+  position: relative;
+  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  border-right: 2px solid var(--border-color-light);
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.item-drawer-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  max-height: 100vh;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.item-drawer-content.collapsed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+.item-drawer-group {
+  height: 100%;
+}
+
+/* ----------------------
+   2. Drawer Header Styles
+----------------------- */
+.item-drawer-header {
+  z-index: 5;
+  display: flex;
+  padding: 0.75rem 1rem;
+  position: relative;
+  align-items: center;
+  justify-content: space-between;
+  height: 42px;
+  background-color: #2a2a2a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  transition: background-color 0.25s, height 0.25s;
+}
+
+.item-drawer-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-align: center;
+  color: var(--text-primary);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+
+
+.item-drawer-header-actions {
+  position: absolute;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  z-index: 5;
+}
+
+.drawer-close-button {
+  background-color: transparent;
+  font-size: 1.2rem;
+  padding: 0rem;
+}
+.item-drawer-header.collapsed {
+  background-color: var(--bg-tertiary);
+  transition: height 0.5s;
+}
+
+.item-drawer-header.collapsed h3 {
+  color: var(--text-secondary);
+}
+
+.main-item-drawer-header {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ----------------------
+   3. Section Container Styles
+----------------------- */
+.drawer-section {
+  position: relative;
+  overflow: visible;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+/* ----------------------
+   4. Folder Tree Styles
+----------------------- */
+
+.drawer-section .folder-tree-container {
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+  padding-inline: 4px;
+  max-width: 100%;
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 4px;
+  margin: 0;
+}
+
+/* ----------------------
+   5. Macro Container Styles
+----------------------- */
+.macro-drawer-section .collection-items-display::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--border-color-light);
+  z-index: 1;
+}
+
+.drawer-section .collection-items-display:empty::after {
+  content: "No macros yet. Click the '+' to create your first macro.";
+  font-style: normal;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.macro-content-container {
+  flex: 1;
+  overflow-y: auto;
+  transition:
+    max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+  z-index: 1; /* Below header */
+}
+
+.macro-content-container.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(0);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* ----------------------
+   6. Audio Item Styles
+----------------------- */
+.audio-item-row {
+  cursor: grab;
+  border-radius: 4px;
+  padding: 4px 0;
+  margin: 2px 0;
+  position: relative;
+}
+
+.audio-item-table {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.audio-item-table td {
+  padding: 3px 1px !important;
+  border-bottom: none;
+}
+
+.audio-item-row .item-name-cell {
+  position: relative;
+  padding-left: 17px;
+}
+
+.audio-item-row .item-name-cell::before {
+  content: none; /* Remove default marker if present */
+}
+
+.macro-content-container.audio-item-row .item-name-cell::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 12px;
+  height: 1px;
+  background-color: var(--border-color-light);
+  z-index: 2;
+}
+
+.item-name-text {
+  margin-left: 4px;
+}
+
+/* ----------------------
+   7. Control Button Styles
+----------------------- */
+.create-collection-button {
+  background-color: transparent;
+  color: var(--text-primary);
+  border: none;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.2rem;
+}
+
+.create-collection-button:hover {
+  background-color: transparent;
+  transform: scale(1.05);
+}
+
+.drawer-toggle-button {
+  font-size: 1.2rem;
+  margin-top: 5px;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawer-toggle-button:hover {
+  background-color: transparent;
+  transform: translateY(-1px);
+}
+
+.create-collection-button:hover,
+.drawer-toggle-button:hover,
+.drawer-close-button:hover {
+  color: var(--accent-color);
+  transform: scale(1.05);
+}
+
+/* ----------------------
+   8. Resizable Panel Styles
+----------------------- */
+[data-panel-id] {
+  transition: flex-basis 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+[data-panel-resize-handle-id] {
+  transition: background-color 0.2s ease;
+}
+
+/* ----------------------
+   9. Drawer Integration Styles
+----------------------- */
+
+.item-panel-drawer {
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  overflow: hidden;
+  transition:
+    width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.3s ease,
+    transform 0.3s ease;
+  opacity: 0;
+  transform: scale(0.98);
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.item-panel-drawer.open {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  pointer-events: all;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.4);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  opacity: 1;
+  transform: scale(1);
+  display: flex;
+  pointer-events: all;
+}
+
+.item-drawer-accent-line {
+  position: absolute;
+  top: 0px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, #5c6bc0, #ab47bc);
+  opacity: 0.8;
+  z-index: 52;
+}
+
+.item-drawer-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background-color: rgba(30, 30, 30, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 
+    -4px 0 15px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0;
+}

@@ -65,9 +65,12 @@
   justify-content: center;
   margin-right: 8px;
   width: 20px;
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
+.file-icon{
+  width: 16px;
+}
 .folder-name, .file-name {
   flex-grow: 1;
   white-space: nowrap;

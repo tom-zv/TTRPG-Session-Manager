@@ -1,82 +1,67 @@
 import React, {useEffect} from "react";
-import ItemPanel from "./ItemPanel/ItemPanel.js";
 import PlaylistPanel from "./PlaylistPanel/PlaylistPanel.js";
 import SoundCollectionsPanel from "./SoundCollectionsPanel/SoundCollectionsPanel.js";
 import { initializeAudioPathResolver } from "../services/AudioService/utils/pathResolvers.js";
 import { DropTargetProvider } from "src/components/DropTargetContext/DropTargetContext.js";
-import { ItemPanelProvider } from "./ItemPanel/ItemPanelContext.js";
+import { ItemDrawerProvider, useItemDrawer } from "./ItemDrawer/ItemDrawerContext.js";
+import ItemDrawer from "./ItemDrawer/ItemDrawer.js";
 import { AudioProvider } from "../services/AudioService/index.js";
-import {
-  Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  ImperativePanelHandle,
-} from "react-resizable-panels";
 import PlayBar from "./PlayBar/PlayBar.js";
 import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
+import { BsFileMusicFill } from "react-icons/bs";
 import "./sound-manager.css";
 
-
-
 const SoundManagerContent: React.FC = () => {
-
-
+  const { isDrawerVisible: isDrawerVisible, showItemDrawer, hideItemDrawer } = useItemDrawer();
 
   useEffect(() => {
-  // Initialize the audio path resolver
-  initializeAudioPathResolver()
-    .then(() => {
-      console.log('Audio path resolver initialized');
-    })
-    .catch(err => {
-      console.error('Failed to initialize audio path resolver:', err);
-    });
-  
-  // Other initialization code...
-}, []);
-  const playlistPanelRef = React.useRef<ImperativePanelHandle>(null);
+    // Initialize the audio path resolver
+    initializeAudioPathResolver()
+      .catch(err => {
+        console.error('Failed to initialize audio path resolver:', err);
+      });
+  }, []);
+
+  const toggleItemDrawer = () => {
+    if (isDrawerVisible) {
+      hideItemDrawer();
+    } else {
+      showItemDrawer();
+    }
+  };
+
   return (
     <div className="sound-manager">
       <div className="sound-manager-layout">
         <div className="sound-manager-left-panel">
-          <div className="panel-group-container">
-            <PanelGroup direction="vertical">
-              {/* Playlist Panel */}
-              <Panel
-                ref={playlistPanelRef}
-                defaultSize={50}
-                minSize={9}
-                className="panel-with-table" 
-              >
-                <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
-                  <PlaylistPanel
-                    panelRef={playlistPanelRef}
-                  />
-                </DropArea>
-              </Panel>
+          
+          <div className="playlist-panel-wrapper">
+            <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
+              <PlaylistPanel/>
+            </DropArea>
 
-              <PanelResizeHandle className="separator" />
-
-              {/* Item Panel */}
-              <Panel
-                defaultSize={50}
-                minSize={20}
-                className="panel-with-table"
-              >
-                <ItemPanel />
-              </Panel>
-            </PanelGroup>
+            <div className="item-panel-toggle">
+            <button 
+              className={`item-panel-toggle-button ${isDrawerVisible ? 'active' : ''}`}
+              onClick={toggleItemDrawer}
+              title={isDrawerVisible ? "Hide Item Panel" : "Show Item Panel"}
+            >
+              <BsFileMusicFill />
+            </button>
           </div>
           
-          {/* Fixed Play Bar */}
+          </div>
           <div className="play-bar-container">
             <PlayBar />
           </div>
         </div>
-
-        <div className="layout-vertical-separator"></div>
-
+        <div className="layout-vertical-separator">
+          <div className="vertical-separator-bar"></div>
+        </div>
+        <div className={`item-panel-drawer${isDrawerVisible ? ' open' : ''}`}>
+          <ItemDrawer />
+        </div>
         <div className="sound-manager-main-panel">
           <SoundCollectionsPanel />
         </div>
@@ -88,11 +73,11 @@ const SoundManagerContent: React.FC = () => {
 const SoundManager: React.FC = () => {
   return (
     <AudioProvider>
-      <ItemPanelProvider>
+      <ItemDrawerProvider>
         <DropTargetProvider>
           <SoundManagerContent />
         </DropTargetProvider>
-      </ItemPanelProvider>
+      </ItemDrawerProvider>
     </AudioProvider>
   );
 };

@@ -1,22 +1,19 @@
 import React, { useState, useMemo, useCallback } from "react";
-import { ImperativePanelHandle } from "react-resizable-panels";
+
 import { useGetCollectionsOfType } from "../../api/collections/useCollectionQueries.js";
 import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { PiMusicNotesPlusFill } from "react-icons/pi";
 import { Audio } from "../../services/AudioService/AudioContext.js";
 import CreateCollectionDialog from "../../components/CollectionView/components/CreateCollectionDialog.js";
 import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionActions.js";
-import { usePlaylistPanelSizeCalc } from "../../hooks/usePlaylistPanelSizeCalc.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
 import "./PlaylistPanel.css";
 import { AudioCollection } from "../CollectionItemsDisplay/types.js";
 
-interface PlaylistPanelProps {
-  panelRef: React.RefObject<ImperativePanelHandle>;
-}
 
-const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
-  function PlaylistPanel({ panelRef }) {
+
+const PlaylistPanel: React.FC = React.memo(
+  function PlaylistPanel() {
     // Get audio context functionality
     const {
       isAudioItemPlaying,
@@ -58,13 +55,7 @@ const PlaylistPanel: React.FC<PlaylistPanelProps> = React.memo(
     const handlePlaylistSelect = useCallback((itemId: number) => {
       setSelectedPlaylistId(itemId);
     }, []);
-
-    const isDetail = selectedPlaylistId !== null;
-    const itemCount = isDetail
-      ? selectedPlaylist?.items?.length || 0
-      : playlists.length;
-    usePlaylistPanelSizeCalc(itemCount, panelRef);
-
+    
     const listViewProps = {
       collectionType: "playlist" as const,
       collectionId: -1,
