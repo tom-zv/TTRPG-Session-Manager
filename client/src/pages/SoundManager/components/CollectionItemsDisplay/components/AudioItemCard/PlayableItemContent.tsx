@@ -5,6 +5,7 @@ import {
   isAudioCollection,
   AudioItemActions,
   isAudioMacro,
+  isSfxCollection,
 } from "../../types.js";
 // import { getItemIcon } from "../../utils/getItemIcon.js";
 import ItemActions from "../ItemActions.js";
@@ -32,7 +33,10 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
   isPlaying = false,
 }) => {
   const [localVolume, setLocalVolume] = useState<number>(1);
+  const [position, setPosition] = useState(0);
   const { updateAudioItemVolume } = Audio.useAudio();
+  const { getFilePosition } = Audio.useSfx();
+
 
   useEffect(() => {
     if (isAudioFile(item) || isAudioMacro(item)) {
@@ -63,6 +67,22 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
       .replace(/^00:/, "")
       .replace(/^0/, "");
   };
+
+  // Add effect to update position for playing SFX items
+  useEffect(() => {
+    if (isPlaying && isSfxCollection(parentCollection)) {
+      setPosition(0); // reset to prevent any intermediate values showing
+      const interval = setInterval(() => {
+        const pos = getFilePosition(item.id);
+        setPosition(pos !== null ? pos : 0);
+      }, 100); // Update 10 times per second
+      
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [isPlaying, parentCollection, item.id, getFilePosition]);
+
+ 
 
   return (
     <div className="audio-item-content">
@@ -125,6 +145,17 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
           className="volume-slider"
           aria-label="Volume"
         />
+      )}
+    
+      {isPlaying && isSfxCollection(parentCollection) && (
+        <div className="sfx-progress-track">
+          <div 
+            className="sfx-progress-indicator" 
+            style={{ 
+              width: `${(position / (isAudioFile(item) && item.duration ? item.duration : 1)) * 100}%` 
+            }}
+          />
+        </div>
       )}
     </div>
   );

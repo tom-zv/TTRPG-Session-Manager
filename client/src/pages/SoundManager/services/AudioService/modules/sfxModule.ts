@@ -168,19 +168,24 @@ export class SfxModule {
     }
   }
 
-  // Set master SFX volume (affects future sounds)
+  // Set master SFX volume 
   setMasterVolume(volume: number): void {
     if (volume < 0 || volume > 1) return;
     setVolume("sfx", volume);
     // Does not affect currently playing sounds, only new ones
-    // (matching AudioService behavior)
-    // If you want to update current sounds, uncomment below:
+    // for current sound update, uncomment:
     // this.currentFiles.forEach(sound => {
     //   sound.howl.volume(volume * (sound.volume || 1));
     // });
   }
 
   // State getters
+  getFilePosition(id: number): number | null {
+    const file = this.currentFiles.get(id);
+    if (!file) return null;
+    return file.howl.seek();
+  }
+
   get playingSoundIds(): number[] {
     return Array.from(this.currentFiles.keys());
   }
@@ -192,6 +197,8 @@ export class SfxModule {
   get volume(): number {
     return getVolume("sfx");
   }
+
+  
 }
 
 export const sfxModule = new SfxModule();

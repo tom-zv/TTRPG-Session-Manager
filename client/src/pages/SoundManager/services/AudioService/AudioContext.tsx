@@ -86,6 +86,7 @@ interface AudioContextType {
       volume: number
     ) => void;
     setMacroVolume: (id: number, volume: number) => void;
+    getFilePosition: (id: number) => number | null;
   };
 }
 
@@ -198,7 +199,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
       return false; // Default case
     },
-    // Ensure all relevant state pieces are dependencies
     [
       playlist.currentPlaylistId,
       playlist.isPlaying,

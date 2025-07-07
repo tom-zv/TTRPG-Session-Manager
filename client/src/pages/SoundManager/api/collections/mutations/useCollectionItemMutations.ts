@@ -323,7 +323,6 @@ export const useRemoveFromCollection = (type: CollectionType) => {
 // Update a collections file volume
 export const useUpdateFileVolume = (type: CollectionType) => {
   const api = getApiForType(type);
-  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
@@ -334,11 +333,6 @@ export const useUpdateFileVolume = (type: CollectionType) => {
       volume: number;
     }) => {
       return await api.updateFile(collectionId, fileId, { volume });
-    },
-    onSuccess: (_data, { collectionId }) => {
-      queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection(type, collectionId),
-      });
     },
   });
 };

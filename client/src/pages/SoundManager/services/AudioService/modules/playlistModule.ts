@@ -39,7 +39,6 @@ export class PlaylistModule {
     await this.loadTrack();
     this.syncTrackPlayback();
 
-    // Emit playlist change events
     this.emitPlaylistChangeEvents();
   }
 
@@ -69,7 +68,6 @@ export class PlaylistModule {
       this.currentPlaylist.howl = null;
     }
 
-    // Resolve audio source, handling special URLs like YouTube
     const audioSrc = resolveAudioPath(track.path) || await resolveAudioUrl(track.url) || "";
 
     if (!audioSrc) {
@@ -124,7 +122,6 @@ export class PlaylistModule {
       howlOptions.format = ['m4a', 'mp4'];
     }
 
-    // Create new Howl for the current track
     const newHowl = new Howl(howlOptions);
     this.currentPlaylist.howl = newHowl;
   }
@@ -162,21 +159,18 @@ export class PlaylistModule {
     );
     if (!collection?.items?.length) return;
 
-    // Stop current track
     if (this.currentPlaylist.howl) {
       this.currentPlaylist.howl.stop();
       this.currentPlaylist.howl.unload();
       this.currentPlaylist.howl = null;
     }
 
-    // Advance to next track or loop
     this.currentPlaylist.currentIndex =
       (this.currentPlaylist.currentIndex + 1) % collection.items.length;
 
     await this.loadTrack();
     this.syncTrackPlayback();
 
-    // Emit track change event
     this.emitTrackChangeEvent();
   }
 
@@ -187,7 +181,7 @@ export class PlaylistModule {
     );
 
     if (!collection?.items?.length) return;
-    // Stop current track
+  
     if (this.currentPlaylist.howl) {
       this.currentPlaylist.howl.stop();
       this.currentPlaylist.howl.unload();
@@ -201,11 +195,9 @@ export class PlaylistModule {
     await this.loadTrack();
     this.syncTrackPlayback();
 
-    // Emit track change event
     this.emitTrackChangeEvent();
   }
 
-  // Helper method to emit consistent track change events
   private emitTrackChangeEvent(): void {
     emit(AudioEventTypes.PLAYLIST_TRACK_CHANGE, {
       index: this.currentPlaylist.currentIndex,

@@ -61,6 +61,12 @@ export function useSfxModule() {
     },
     [debouncedUpdateMacroVolume]
   );
+  
+  const getFilePosition = useCallback(
+    (id: number): number | null => {
+      return sfxModule.getFilePosition(id);
+    }, []
+  );
 
   // Set up event listeners for state changes
   useEffect(() => {
@@ -111,5 +117,6 @@ export function useSfxModule() {
     setVolume: setMasterVolume,
     setSoundVolume,
     setMacroVolume,
+    getFilePosition
   };
 }
