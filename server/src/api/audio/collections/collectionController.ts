@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import collectionService from './collectionService.js';
 import fileService from '../files/fileService.js';
-import { transformCollection, transformAudioFileToDTO, transformMacro } from '../../../utils/format-transformers.js';
+import { collectionToDTO, audioFileToDTO, macroToDTO } from '../../../utils/format-transformers/audio-transformer.js';
 import { ValidationError } from 'src/api/HttpErrors.js';
 
 // Valid collection types - macros are now handled separately
@@ -37,16 +37,16 @@ export const getAllCollections = async (
       
       // Transform collections with their files/macros
       collections = collections.map(collection => {
-        const transformedCollection = transformCollection(collection);
+        const collectionDTO = collectionToDTO(collection);
         
         if (type === 'sfx') {
           // For SFX, merge files and macros into a unified items array
           const fileItems = (collection.files ?? []).map(file => ({
-            ...transformAudioFileToDTO(file),
+            ...audioFileToDTO(file),
             itemType: 'file' as const
           }));
           const macroItems = (collection.macros ?? []).map(macro => ({
-            ...transformMacro(macro),
+            ...macroToDTO(macro),
             itemType: 'macro' as const
           }));
           
@@ -56,14 +56,14 @@ export const getAllCollections = async (
             return posA - posB;
           });
           return {
-            ...transformedCollection,
+            ...collectionDTO,
             items
           };
         } else {
           // For other types, just use files as items
-          const items = (collection.files ?? []).map(file => transformAudioFileToDTO(file));
+          const items = (collection.files ?? []).map(file => audioFileToDTO(file));
           return {
-            ...transformedCollection,
+            ...collectionDTO,
             items
           };
         }
@@ -71,7 +71,7 @@ export const getAllCollections = async (
       
     } else {
       collections = await collectionService.getAllCollections(type);
-      collections = collections.map(collection => transformCollection(collection));
+      collections = collections.map(collection => collectionToDTO(collection));
     }
 
     res.status(200).json(collections);
@@ -132,11 +132,11 @@ export const getCollectionById = async (
       if (type === 'sfx') {
         // For SFX, merge files and macros into a unified items array, transforming to DTOs
         const fileItems = (collectionWithFiles.files ?? []).map(file => ({
-          ...transformAudioFileToDTO(file),
+          ...audioFileToDTO(file),
           itemType: 'file' as const
         }));
         const macroItems = (collectionWithFiles.macros ?? []).map(macro => ({
-          ...transformMacro(macro),
+          ...macroToDTO(macro),
           itemType: 'macro' as const
         }));
         
@@ -148,14 +148,14 @@ export const getCollectionById = async (
 
         // Build response object with only the desired properties
         res.status(200).json({
-          ...transformCollection(collectionWithFiles),
+          ...collectionToDTO(collectionWithFiles),
           items
         });
       } else {
         // For other types, just use files as items, transforming to DTOs
-        const items = (collectionWithFiles.files ?? []).map(file => transformAudioFileToDTO(file));
+        const items = (collectionWithFiles.files ?? []).map(file => audioFileToDTO(file));
         res.status(200).json({
-          ...transformCollection(collectionWithFiles),
+          ...collectionToDTO(collectionWithFiles),
           items
         });
       }

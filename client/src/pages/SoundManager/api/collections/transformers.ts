@@ -4,7 +4,7 @@ import {
   AudioMacro,
 } from "../../types/AudioItem.js";
 import { AudioType } from "shared/audio/types.js";
-import { AudioFileDTO } from "shared/DTO/files.js";
+import { AudioFileDTO } from "shared/DTO/audio/files.js";
 
 interface MacroApiResponse {
   id: number;

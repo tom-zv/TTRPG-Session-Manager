@@ -1,7 +1,7 @@
 import fileService from "./fileService.js";
 import { Request, Response, NextFunction } from "express";
 import { syncAudioLibrary } from "../../../utils/file-scanner.js";
-import { transformAudioFileToDTO } from "../../../utils/format-transformers.js";
+import { audioFileToDTO } from "../../../utils/format-transformers/audio-transformer.js";
 import fs from "fs";
 import path from "path";
 import { downloadAudioFile } from "src/services/fileDownload/fileDownload.js";
@@ -25,10 +25,10 @@ export const getAllAudioFiles = async (
 ) => {
   try {
     const dbAudioFiles = await fileService.getAllAudioFiles();
-    const audioFiles = dbAudioFiles.map((file) =>
-      transformAudioFileToDTO(file)
+    const audioFilesDTO = dbAudioFiles.map((file) =>
+      audioFileToDTO(file)
     );
-    res.status(200).json(audioFiles);
+    res.status(200).json(audioFilesDTO);
   } catch (error) {
     next(error);
   }
@@ -60,8 +60,8 @@ export const getAudioFile = async (
     }
 
     // Transform to frontend format
-    const transformedFile = transformAudioFileToDTO(audioFile);
-    res.status(200).json(transformedFile);
+    const audioFileDTO = audioFileToDTO(audioFile);
+    res.status(200).json(audioFileDTO);
   } catch (error) {
     next(error);
   }

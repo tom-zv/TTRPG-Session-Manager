@@ -1,11 +1,11 @@
+import { AnyDownloadFileDTO } from "shared/DTO/audio/files.js";
 import {
-  AnyDownloadFileDTO,
   DownloadEventType,
   DownloadItemErrorDTO,
   DownloadJobErrorDTO,
   DownloadMetadataDTO,
   DownloadProgressDTO,
-} from "shared/DTO/files.js";
+} from "shared/DTO/downloadEvents.js";
 import { SocketEvent } from "shared/sockets/types.js";
 import { AudioEventTypes, getDownloadSocket } from "../SocketService/index.js";
 

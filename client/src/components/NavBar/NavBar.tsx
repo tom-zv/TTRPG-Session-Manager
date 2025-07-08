@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import './NavBar.css';
+import UserMenu from './UserMenu.js';
 
 const NavBar: React.FC = () => {
   return (
@@ -10,11 +11,6 @@ const NavBar: React.FC = () => {
           {/* <NavLink to="/" end>TTRPG Session Manager</NavLink> */}
         {/* </div> */}
         <ul className="nav-tabs">
-          <li>
-            <NavLink to="/" end className={({isActive}) => isActive ? 'active' : ''}>
-              Home
-            </NavLink>
-          </li>
           <li>
             <NavLink to="/sound-manager" className={({isActive}) => isActive ? 'active' : ''}>
               Sound Manager
@@ -31,6 +27,8 @@ const NavBar: React.FC = () => {
             </NavLink>
           </li>
         </ul>
+
+        <UserMenu/>
       </div>
     </nav>
   );

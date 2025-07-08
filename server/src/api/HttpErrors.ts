@@ -24,4 +24,14 @@ export class NotFoundError extends HttpError {
   }
 }
 
+export class UnauthorizedError extends HttpError {
+  constructor(message?: string) {
+    super(401, message);
+    this.name = "UnauthorizedError";
+  }
+
+  get headers() {
+    return { 'WWW-Authenticate': 'Bearer' };
+  }
+}
  

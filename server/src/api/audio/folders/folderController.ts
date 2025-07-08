@@ -1,13 +1,13 @@
 import folderService from "./folderService.js";
-import { transformFolder } from "../../../utils/format-transformers.js";
+import { folderToDTO } from "../../../utils/format-transformers/audio-transformer.js";
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError, NotFoundError } from "src/api/HttpErrors.js";
 
 export const getAllFolders = async (_req: Request, res: Response, next: NextFunction) => {
   try {
     const dbFolders = await folderService.getAllFolders();
-    const folders = dbFolders.map(folder => transformFolder(folder));
-    res.status(200).json(folders);
+    const foldersDTO = dbFolders.map(folder => folderToDTO(folder));
+    res.status(200).json(foldersDTO);
   } catch (error) {
     next(error);
   }
@@ -26,8 +26,8 @@ export const getFolderById = async (req: Request, res: Response, next: NextFunct
       throw new NotFoundError();
     }
 
-    const folder = transformFolder(dbFolder);
-    res.status(200).json(folder);
+    const folderDTO = folderToDTO(dbFolder);
+    res.status(200).json(folderDTO);
   } catch (error) {
     next(error);
   }
@@ -41,9 +41,9 @@ export const getSubFolders = async (req: Request, res: Response, next: NextFunct
     }
 
     const dbFolders = await folderService.getSubFolders(parentId);
-    const folders = dbFolders.map(folder => transformFolder(folder));
+    const foldersDTO = dbFolders.map(folder => folderToDTO(folder));
     
-    res.status(200).json(folders);
+    res.status(200).json(foldersDTO);
   } catch (error) {
     next(error);
   }
@@ -79,8 +79,8 @@ export const createFolder = async (req: Request, res: Response, next: NextFuncti
       throw new Error("Failed to create folder");
     }
     
-    const folder = transformFolder(dbFolder);
-    res.status(201).json(folder);
+    const folderDTO = folderToDTO(dbFolder);
+    res.status(201).json(folderDTO);
   } catch (error) {
     // Handle specific database errors
     if (error instanceof Error && 'code' in error && error.code === 'ER_NO_REFERENCED_ROW_2') {
@@ -169,8 +169,8 @@ export const updateFolder = async (req: Request, res: Response) => {
     if (!updatedFolder) {
       return res.status(404).json({ error: 'Folder not found' });
     }
-    const folder = transformFolder(updatedFolder);
-    res.status(200).json(folder);
+    const folderDTO = folderToDTO(updatedFolder);
+    res.status(200).json(folderDTO);
   } catch (error) {
     console.error('Error updating folder:', error);
     res.status(500).json({ error: 'Failed to update folder' });

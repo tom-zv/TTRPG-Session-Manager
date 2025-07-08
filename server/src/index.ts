@@ -2,6 +2,8 @@ import express from 'express';
 import http from 'http';
 import cors from 'cors';
 import { serverConfig } from './config/server-config.js';
+import authRoutes from './api/auth/authRoutes.js'
+import userRoutes from './api/users/userRoutes.js'
 import audioRoutes from './api/audio/audioRoutes.js';
 import systemRoutes from './api/system/systemRoutes.js'; 
 import path from 'path';
@@ -33,7 +35,8 @@ app.use('/audio', express.static(path.join(serverConfig.rootDir, 'public/audio')
 
 // API Routes
 // ---------
-// Mount audio routes
+app.use('/api/auth', authRoutes)
+app.use('/api/users', userRoutes)
 app.use('/api/audio', audioRoutes);
 app.use('/api/system', systemRoutes); 
 

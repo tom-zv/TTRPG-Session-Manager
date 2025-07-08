@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import macroService from './macroService.js';
 import fileService from '../files/fileService.js';
-import { transformMacro } from 'src/utils/format-transformers.js';
+import { macroToDTO } from 'src/utils/format-transformers/audio-transformer.js';
 
 /**
  * Get all macros
@@ -23,7 +23,7 @@ export const getAllMacros = async (req: Request, res: Response) => {
         const macrosWithFiles = await Promise.all(
           response.data.map(async (macro) => {
             const macroWithFiles = await macroService.getMacroWithFiles(macro.id);
-            return macroWithFiles.success ? transformMacro(macroWithFiles.data) : transformMacro(macro);
+            return macroWithFiles.success ? macroToDTO(macroWithFiles.data) : macroToDTO(macro);
           })
         );
         
@@ -32,7 +32,7 @@ export const getAllMacros = async (req: Request, res: Response) => {
     } else {
       response = await macroService.getAllMacros();
       if (response.success && response.data) {
-        response.data = response.data.map(transformMacro);
+        response.data = response.data.map(macroToDTO);
       }
     }
 
@@ -73,12 +73,12 @@ export const getMacroById = async (req: Request, res: Response) => {
       
       if (response.success && response.data) {
         // Transform the macro with its files
-        response.data = transformMacro(response.data);
+        response.data = macroToDTO(response.data);
       }
     } else {
       response = await macroService.getMacroById(id);
       if (response.success && response.data) {
-        response.data = transformMacro(response.data);
+        response.data = macroToDTO(response.data);
       }
     }
 
@@ -118,8 +118,7 @@ export const createMacro = async (req: Request, res: Response) => {
     const response = await macroService.createMacro(name, description || null);
     
     if (response.success) {
-      // Transform the response data using the proper DTO transformer
-      res.status(201).json(transformMacro(response.data));
+      res.status(201).json(macroToDTO(response.data));
     } else {
       res.status(400).json({ error: response.error });
     }

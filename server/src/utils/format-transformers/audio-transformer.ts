@@ -10,10 +10,10 @@ import {
   AudioFileDTO,
   AudioMacroDTO,
   AudioCollectionDTO,
-} from "shared/DTO/index.js";
+} from "shared/DTO/audio/index.js";
 
 // Transform raw database audio file without collection properties
-export function transformAudioFileToDTO(
+export function audioFileToDTO(
   source: AudioFileDB | CollectionAudioFileDB
 ): AudioFileDTO {
   return {
@@ -34,7 +34,7 @@ export function transformAudioFileToDTO(
   };
 }
 
-export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
+export function macroToDTO(macroDB: MacroDB): AudioMacroDTO {
   // Parse the files field if it exists
   let nestedFiles: AudioFileDTO[] = [];
   
@@ -105,7 +105,7 @@ export function transformMacro(macroDB: MacroDB): AudioMacroDTO {
   };
 }
 
-export function transformCollection(
+export function collectionToDTO(
   collectionDB: CollectionDB
 ): AudioCollectionDTO {
   return {
@@ -118,7 +118,7 @@ export function transformCollection(
   };
 }
 
-export function transformFolder(folderDB: FolderDB): FolderDTO {
+export function folderToDTO(folderDB: FolderDB): FolderDTO {
   return {
     id: folderDB.id,
     name: folderDB.name,

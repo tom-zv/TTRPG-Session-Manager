@@ -94,7 +94,7 @@
   transition: background 0.2s, color 0.2s;
 }
 .close-button:hover {
-  background: var(--bg-primary);
+  background: transparent;
   color: var(--text-primary);
 }
 

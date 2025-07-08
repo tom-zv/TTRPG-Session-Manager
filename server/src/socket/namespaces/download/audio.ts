@@ -1,9 +1,9 @@
 // server/src/socket/namespaces/audio.ts
 import { getSocketIO } from "../../index.js";
-import { transformAudioFileToDTO } from "../../../utils/format-transformers.js";
+import { audioFileToDTO } from "../../../utils/format-transformers/audio-transformer.js";
 import { AudioEventTypes } from "shared/sockets/audio/events.js";
 import { AudioFileDB } from "../../../api/audio/types.js";
-import { AudioFileDTO } from "shared/DTO/files.js";
+import { AudioFileDTO } from "shared/DTO/audio/files.js";
 import {
   DownloadProgressDTO,
   DownloadItemErrorDTO,
@@ -21,7 +21,7 @@ export const emitAudioDownloadProgress = (
   total: number
 ): void => {
   const io = getSocketIO();
-  const file = transformAudioFileToDTO(audioFile);
+  const file = audioFileToDTO(audioFile);
 
   const event: DownloadSocketEvent<DownloadProgressDTO<AudioFileDTO>> = {
     type: "DownloadProgress",
@@ -73,7 +73,7 @@ export const emitAudioDownloadComplete = (
   let file: AudioFileDTO | undefined;
 
   if (audioFile) {
-    file = transformAudioFileToDTO(audioFile);
+    file = audioFileToDTO(audioFile);
   }
 
   const event: DownloadSocketEvent<DownloadCompleteDTO> = {

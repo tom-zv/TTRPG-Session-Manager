@@ -1,5 +1,5 @@
 import { SocketEvent } from "shared/sockets/types.js";
-import { DownloadFileBase } from "./files.js";
+import { DownloadFileBase } from "./audio/files.js";
 
 export type DownloadEventType =
   | "DownloadProgress"

@@ -4,6 +4,14 @@ set -euo pipefail
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
+# Parse CLI arguments for --drop or -d
+DROP_DB=false
+for arg in "$@"; do
+  if [[ "$arg" == "--drop" || "$arg" == "-d" ]]; then
+    DROP_DB=true
+  fi
+done
+
 # Prompt for MySQL credentials ────────────────────────────────────────────
 read -p "MySQL username: " MYSQL_USER
 read -s -p "MySQL password: " MYSQL_PWD
@@ -25,6 +33,16 @@ EOF
 _mysql() {
   mysql --defaults-file="$MYSQL_TMPFILE" --batch --silent "$@"
 }
+
+# Drop schemas if requested ───────────────────────────────────────────────
+if [ "$DROP_DB" = true ]; then
+  echo ">> Dropping schemas: core, dnd5e, audio"
+  _mysql <<EOSQL
+DROP DATABASE IF EXISTS dnd5e;
+DROP DATABASE IF EXISTS core;
+DROP DATABASE IF EXISTS audio;
+EOSQL
+fi
 
 # Create schemas ────────────────────────────────────────────
 echo ">> Creating schemas: core, dnd5e, audio"

@@ -3,7 +3,7 @@ import { AudioFileUI } from "../types.js";
 import { AnyDownloadPayload, downloadEventBus } from "src/services/EventBus/DownloadEventBus.js";
 import {
   AudioFileDTO,
-} from "shared/DTO/files.js";
+} from "shared/DTO/audio/files.js";
 
 import {
   DownloadCompleteDTO,
