@@ -1,9 +1,9 @@
 import React from 'react';
-import { AudioItem, AudioItemActions } from '../../types.js';
+import { AudioItem, AudioItemActions } from '../../../types.js';
 import PlayableItemContent from './PlayableItemContent.js';
 import StandardItemContent from './StandardItemContent.js';
 import './AudioItemCard.css';
-import type { AudioCollection } from '../../index.js';
+import type { AudioCollection } from '../../../types.js';
 
 interface AudioItemCardProps extends AudioItemActions {
   item: AudioItem;

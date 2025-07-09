@@ -4,9 +4,9 @@ import {
   isAudioCollection,
   AudioItemActions,
   AudioCollection,
-} from "../../types.js";
+} from "../../../types.js";
 //import { getItemIcon } from "../../utils/getItemIcon.js";
-import ItemActions from "../ItemActions.js";
+import ItemActions from "../../ItemActions.js";
 
 interface StandardItemContentProps extends AudioItemActions {
   item: AudioItem;
