@@ -11,38 +11,6 @@
   background: rgba(0, 0, 0, 0.7);   
 }
 
-/* Side-panel mode: transparent behind dialog + cutout mask */
-.dialog-overlay.side-panel {
-  background: transparent;          
-  margin-left: 320px;               
-}
-
-/* mask for side-panel mode */
-.dialog-overlay.side-panel::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  clip-path: polygon(
-    0% 0%,
-    var(--cutout-left) 0%,
-    var(--cutout-left) var(--cutout-top),
-    var(--cutout-left)
-      calc(var(--cutout-top) + var(--cutout-height)),
-    calc(var(--cutout-left) + var(--cutout-width))
-      calc(var(--cutout-top) + var(--cutout-height)),
-    calc(var(--cutout-left) + var(--cutout-width))
-      var(--cutout-top),
-    var(--cutout-left) var(--cutout-top),
-    var(--cutout-left) 0%,
-    100% 0%,
-    100% 100%,
-    0% 100%
-  );
-  pointer-events: auto;
-  z-index: 1000;
-}
-
 /* dialog window */
 .dialog-container {
   position: relative;
@@ -60,6 +28,17 @@
   overflow: hidden;
 }
 
+/* Standalone dialog container (when noOverlay is true) */
+.dialog-container.standalone {
+  position: fixed;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: auto;
+  min-width: 320px;
+}
+
 /* Show state for the dialog container */
 .dialog-overlay.show .dialog-container {
   transform: translateY(0);
@@ -75,6 +54,71 @@
   background: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-color);
 }
+.dialog-header h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+}
+.close-button {
+  all: unset;
+  cursor: pointer;
+  font-size: 24px;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-secondary);
+  transition: background 0.2s, color 0.2s;
+}
+.close-button:hover {
+  background: transparent;
+  color: var(--text-primary);
+}
+
+/* content area */
+.dialog-content {
+  padding: 12px 24px;
+  color: var(--text-primary);
+  overflow-y: auto; 
+  flex-grow: 1; 
+}
+
+/* Support for :has() fallback for browsers that don't support it */
+.dialog-content.no-padding {
+  padding: 0;
+}
+
+/* scrollbar styling */
+.dialog-container::-webkit-scrollbar {
+  width: 8px;
+}
+.dialog-container::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+.dialog-container::-webkit-scrollbar-thumb {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+}
+.dialog-container::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+.dialog-footer {
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-md);
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 600px) {
+  .dialog-container {
+    width: 95%;
+  }
+}
+
 .dialog-header h2 {
   margin: 0;
   color: var(--text-primary);

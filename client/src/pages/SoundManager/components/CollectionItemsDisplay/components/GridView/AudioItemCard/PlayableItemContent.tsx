@@ -6,11 +6,11 @@ import {
   AudioItemActions,
   isAudioMacro,
   isSfxCollection,
-} from "../../types.js";
+} from "../../../types.js";
 // import { getItemIcon } from "../../utils/getItemIcon.js";
-import ItemActions from "../ItemActions.js";
-import type { AudioCollection } from "../../index.js";
-import { Audio } from "../../../../services/AudioService/AudioContext.js";
+import ItemActions from "../../ItemActions.js";
+import type { AudioCollection } from "../../../types.js";
+import { Audio } from "src/pages/SoundManager/services/AudioService/AudioContext.js";
 
 interface PlayableItemContentProps extends AudioItemActions {
   item: AudioItem;

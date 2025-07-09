@@ -1,13 +1,12 @@
 import React, { useRef, useState, useCallback, useMemo } from "react";
-import { AudioItem, AudioItemActions, AudioCollection } from "../index.js";
-import AudioItemCard from "./AudioItemCard/AudioItemCard.js";
+import { AudioItem, AudioItemActions, AudioCollection, isAudioFile } from "../../types.js";
+import AudioItemCard from "./AudioItemCard/AudioItemCard.js"
 import { DragDropProps } from "src/types/dragDropProps.js";
-import { useItemDragDrop } from "../hooks/useItemDragDrop.js";
+import { useItemDragDrop } from "../../hooks/useItemDragDrop.js";
 import { calculateGridDropIndex } from "src/utils/gridDropUtils.js";
-import { Audio } from "../../../services/AudioService/AudioContext.js";
-import { isAudioFile } from "../../../types/AudioItem.js";
-import CreateCollectionDialog from "../../../components/CollectionView/components/CreateCollectionDialog.js";
-import { collectionNameFromType } from "../../../components/CollectionView/hooks/useCollections.js";
+import { Audio } from "src/pages/SoundManager/services/AudioService/AudioContext.js";
+import CreateCollectionDialog from "../../../CollectionView/components/CreateCollectionDialog.js";
+import { collectionNameFromType } from "../../../CollectionView/hooks/useCollections.js";
 import "./GridView.css";
 
 interface GridViewProps extends AudioItemActions, DragDropProps {

@@ -1,8 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { AudioCollection, CollectionItemsDisplayProps } from "./types.js";
-import GridView from "./components/GridView.js";
-import ListView from "./components/ListView.js";
-import ViewToggle from "./components/ViewToggle.js";
+import GridView from "./components/GridView/GridView.js";
+import ListView from "./components/ListView/ListView.js";
 import StatusMessages from "./components/StatusMessages.js";
 import { useAudioItems } from "./hooks/useAudioItems.js";
 import {
@@ -23,7 +22,6 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
   isSelectable = true,
   view = "grid",
   showHeaders = true,
-  showToggle = true,
   showActions = false,
   onItemClick,
   isDragSource = false,
@@ -50,7 +48,6 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
   const items = collection.items || [];
   const {
     viewMode,
-    setViewMode,
     selectedItemIds,
     handleItemSelection,
     clearSelection,
@@ -145,11 +142,6 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
   return (
     <div className="collection-items-display">
       <div className="collection-items-display-header">
-        <ViewToggle
-          viewMode={viewMode}
-          setViewMode={setViewMode}
-          showToggle={showToggle}
-        />
 
         {selectedItemIds.length > 0 && (
           <div className="selection-info">

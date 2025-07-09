@@ -11,6 +11,8 @@ import {
   isAudioFile,
   isAudioCollection,
   isAudioMacro,
+  isPlaylistCollection,
+  AudioCollection
 } from "../../types/AudioItem.js";
 import "./AudioItemEditDialog.css";
 import EditableField from "../../../../components/EditableField/EditableField.js";
@@ -19,7 +21,7 @@ import EditableField from "../../../../components/EditableField/EditableField.js
 interface AudioItemEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onEditClick: (itemId: number) => void;
+  onEditClick?: (itemId: number) => void;
   item: AudioItem;
   parentCollectionId: number;
   parentCollectionType: string;
@@ -28,7 +30,6 @@ interface AudioItemEditDialogProps {
 const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   isOpen,
   onClose,
-  onEditClick,
   item,
   parentCollectionType,
   parentCollectionId,
@@ -49,6 +50,9 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
     }
     if (isAudioCollection(item)) {
       initial.description = item.description;
+    }
+    if (isPlaylistCollection(item)) {
+      initial.imagePath = (item as AudioCollection).imagePath || "";
     }
     setFormData(initial);
   }, [item, parentCollectionType]);
@@ -76,10 +80,10 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       Array.from(dirtyFields.current).forEach(field => {
         payload[field] = formData[field];
       });
-      
+
       // Submit based on item type
       if (isAudioCollection(item)) {
-        updateCollection.mutate(payload as { id: number; name?: string; description?: string });
+        updateCollection.mutate(payload as { id: number; name?: string; description?: string; imagePath?: string });
       } else if (isAudioFile(item)) {
         updateAudioFile.mutate(payload as { id: number; collectionId: number; name?: string; path?: string; url?: string; active?: boolean; volume?: number; delay?: number; parentInfo?: {type: CollectionType, id: number} });
       }
@@ -126,14 +130,13 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       onClose={onClose}
       title={getTitle()}
       contentRef={dialogContentRef}
-      sidePanel={item.type === "macro"}
+      noOverlay={item.type === "macro"}
       className="modern-dialog"
     >
       {showMacroEditor ? (
         <MacroEditView
           macro={item as AudioMacro}
           parentCollectionInfo={parentInfo}
-          onEditClick={onEditClick}
           dialogContentRef={dialogContentRef}
         />
       ) : (
@@ -179,6 +182,15 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
                 />
               </div>
             </>
+          )}
+
+          {isPlaylistCollection(item) && (
+            <EditableField
+              label="Image Path"
+              name="imagePath"
+              value={formData.imagePath || ""}
+              onChange={handleChange}
+            />
           )}
 
           <div className="form-actions">

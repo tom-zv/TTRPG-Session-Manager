@@ -111,10 +111,11 @@ export async function updateCollection(
   type: string,
   id: number, 
   name?: string, 
-  description?: string | null
+  description?: string ,
+  imagePath?: string
 ): Promise<void> {
   try {
-    const affectedRows = await collectionModel.updateCollection(type, id, name, description);
+    const affectedRows = await collectionModel.updateCollection(type, id, name, description, imagePath);
 
     if (affectedRows === 0) {
       // Check if collection exists

@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import macroService from './macroService.js';
 import fileService from '../files/fileService.js';
 import { macroToDTO } from 'src/utils/format-transformers/audio-transformer.js';
@@ -8,42 +8,36 @@ import { macroToDTO } from 'src/utils/format-transformers/audio-transformer.js';
  * @route GET /api/audio/macros
  * @param {boolean} [req.query.includeFiles] - Whether to include files in each macro
  * @returns {Object[]} 200 - Array of macro objects (optionally with files)
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const getAllMacros = async (req: Request, res: Response) => {
+export const getAllMacros = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const includeFiles = req.query.includeFiles === 'true';
-    let response;
+    let macros;
     
     if (includeFiles) {
-      response = await macroService.getAllMacros();
+      // Get all macros first
+      macros = await macroService.getAllMacros();
       
-      if (response.success && response.data) {
-        // Process each macro to include its files
-        const macrosWithFiles = await Promise.all(
-          response.data.map(async (macro) => {
+      // Process each macro to include its files
+      const macrosWithFiles = await Promise.all(
+        macros.map(async (macro) => {
+          try {
             const macroWithFiles = await macroService.getMacroWithFiles(macro.id);
-            return macroWithFiles.success ? macroToDTO(macroWithFiles.data) : macroToDTO(macro);
-          })
-        );
-        
-        response.data = macrosWithFiles;
-      }
+            return macroToDTO(macroWithFiles);
+          } catch {
+            return macroToDTO(macro);
+          }
+        })
+      );
+      
+      res.status(200).json(macrosWithFiles);
     } else {
-      response = await macroService.getAllMacros();
-      if (response.success && response.data) {
-        response.data = response.data.map(macroToDTO);
-      }
-    }
-
-    if (response.success) {
-      res.status(200).json(response.data);
-    } else {
-      res.status(500).json({ error: response.error });
+      macros = await macroService.getAllMacros();
+      res.status(200).json(macros.map(macroToDTO));
     }
   } catch (error) {
-    console.error('Error getting macros:', error);
-    res.status(500).json({ error: 'Failed to retrieve macros' });
+    next(error);
   }
 };
 
@@ -55,9 +49,9 @@ export const getAllMacros = async (req: Request, res: Response) => {
  * @returns {Object} 200 - Macro object (optionally with files)
  * @throws {ValidationError} 400 - Invalid macro ID
  * @throws {NotFoundError} 404 - Macro not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const getMacroById = async (req: Request, res: Response) => {
+export const getMacroById = async (req: Request, res: Response, next: NextFunction) => {
   const id = parseInt(req.params.id);
   
   if (isNaN(id)) {
@@ -66,32 +60,17 @@ export const getMacroById = async (req: Request, res: Response) => {
   
   try {
     const includeFiles = req.query.includeFiles === 'true';
-    let response;
+    let macro;
     
     if (includeFiles) {
-      response = await macroService.getMacroWithFiles(id);
-      
-      if (response.success && response.data) {
-        // Transform the macro with its files
-        response.data = macroToDTO(response.data);
-      }
+      macro = await macroService.getMacroWithFiles(id);
     } else {
-      response = await macroService.getMacroById(id);
-      if (response.success && response.data) {
-        response.data = macroToDTO(response.data);
-      }
+      macro = await macroService.getMacroById(id);
     }
-
-    if (response.success) {
-      res.status(200).json(response.data);
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(500).json({ error: response.error });
-    }
+    
+    res.status(200).json(macroToDTO(macro));
   } catch (error) {
-    console.error(`Error getting macro ${id}:`, error);
-    res.status(500).json({ error: 'Failed to retrieve macro' });
+    next(error);
   }
 };
 
@@ -102,9 +81,9 @@ export const getMacroById = async (req: Request, res: Response) => {
  * @param {string} [req.body.description] - Description of the macro
  * @returns {Object} 201 - Created macro object
  * @throws {ValidationError} 400 - Missing or invalid name
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const createMacro = async (req: Request, res: Response) => {
+export const createMacro = async (req: Request, res: Response, next: NextFunction) => {
   const { name, description } = req.body;
   
   if (!name) {
@@ -115,16 +94,10 @@ export const createMacro = async (req: Request, res: Response) => {
   }
   
   try {
-    const response = await macroService.createMacro(name, description || null);
-    
-    if (response.success) {
-      res.status(201).json(macroToDTO(response.data));
-    } else {
-      res.status(400).json({ error: response.error });
-    }
+    const macro = await macroService.createMacro(name, description || null);
+    res.status(201).json(macroToDTO(macro));
   } catch (error) {
-    console.error('Error creating macro:', error);
-    res.status(500).json({ error: 'Failed to create macro' });
+    next(error);
   }
 };
 
@@ -138,9 +111,9 @@ export const createMacro = async (req: Request, res: Response) => {
  * @returns {Object} 200 - Success message
  * @throws {ValidationError} 400 - Invalid parameters
  * @throws {NotFoundError} 404 - Macro not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const updateMacro = async (req: Request, res: Response) => {
+export const updateMacro = async (req: Request, res: Response, next: NextFunction) => {
   const id = parseInt(req.params.id);
   const { name, description, volume } = req.body;
 
@@ -161,18 +134,10 @@ export const updateMacro = async (req: Request, res: Response) => {
   }
 
   try {
-    const response = await macroService.updateMacro(id, name, description, volume);
-    
-    if (response.success) {
-      res.status(200).json({ message: 'Macro updated successfully' });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(400).json({ error: response.error });
-    }
+    await macroService.updateMacro(id, name, description, volume);
+    res.status(200).json({ message: 'Macro updated successfully' });
   } catch (error) {
-    console.error(`Error updating macro ${id}:`, error);
-    res.status(500).json({ error: 'Failed to update macro' });
+    next(error);
   }
 };
 
@@ -186,9 +151,9 @@ export const updateMacro = async (req: Request, res: Response) => {
  * @returns {Object} 200 - Success message
  * @throws {ValidationError} 400 - Invalid parameters
  * @throws {NotFoundError} 404 - Macro or file not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const updateMacroFile = async (req: Request, res: Response) => {
+export const updateMacroFile = async (req: Request, res: Response, next: NextFunction) => {
   const macroId = parseInt(req.params.id);
   const fileId = parseInt(req.params.fileId);
   const { volume, delay } = req.body;
@@ -225,18 +190,10 @@ export const updateMacroFile = async (req: Request, res: Response) => {
   }
 
   try {
-    const response = await macroService.updateMacroFile(macroId, fileId, params);
-
-    if (response.success) {
-      res.status(200).json({ message: 'File updated successfully in macro' });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(400).json({ error: response.error });
-    }
+    await macroService.updateMacroFile(macroId, fileId, params);
+    res.status(200).json({ message: 'File updated successfully in macro' });
   } catch (error) {
-    console.error(`Error updating file in macro ${macroId}:`, error);
-    res.status(500).json({ error: 'Failed to update file in macro' });
+    next(error);
   }
 };
 
@@ -247,9 +204,9 @@ export const updateMacroFile = async (req: Request, res: Response) => {
  * @returns {Object} 200 - Success message
  * @throws {ValidationError} 400 - Invalid macro ID
  * @throws {NotFoundError} 404 - Macro not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const deleteMacro = async (req: Request, res: Response) => {
+export const deleteMacro = async (req: Request, res: Response, next: NextFunction) => {
   const id = parseInt(req.params.id);
   
   if (isNaN(id)) {
@@ -257,18 +214,10 @@ export const deleteMacro = async (req: Request, res: Response) => {
   }
   
   try {
-    const response = await macroService.deleteMacro(id);
-    
-    if (response.success) {
-      res.status(200).json({ message: 'Macro deleted successfully' });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(500).json({ error: response.error });
-    }
+    await macroService.deleteMacro(id);
+    res.status(200).json({ message: 'Macro deleted successfully' });
   } catch (error) {
-    console.error(`Error deleting macro ${id}:`, error);
-    res.status(500).json({ error: 'Failed to delete macro' });
+    next(error);
   }
 };
 
@@ -281,9 +230,9 @@ export const deleteMacro = async (req: Request, res: Response) => {
  * @returns {Object} 201 - Success message
  * @throws {ValidationError} 400 - Invalid macro ID or file ID
  * @throws {NotFoundError} 404 - Macro or file not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const addFileToMacro = async (req: Request, res: Response) => {
+export const addFileToMacro = async (req: Request, res: Response, next: NextFunction) => {
   const macroId = parseInt(req.params.id);
   const { fileId, delay } = req.body;
   
@@ -298,22 +247,15 @@ export const addFileToMacro = async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Audio file not found' });
     }
     
-    const response = await macroService.addFileToMacro(
+    await macroService.addFileToMacro(
       macroId, 
       fileId, 
       delay !== undefined ? delay : 0
     );
     
-    if (response.success) {
-      res.status(201).json({ message: 'Audio file added to macro' });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(400).json({ error: response.error });
-    }
+    res.status(201).json({ message: 'Audio file added to macro' });
   } catch (error) {
-    console.error(`Error adding file to macro ${macroId}:`, error);
-    res.status(500).json({ error: 'Failed to add file to macro' });
+    next(error);
   }
 };
 
@@ -325,9 +267,9 @@ export const addFileToMacro = async (req: Request, res: Response) => {
  * @returns {Object} 201 - Success message
  * @throws {ValidationError} 400 - Invalid macro ID or file IDs
  * @throws {NotFoundError} 404 - Macro not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const addFilesToMacro = async (req: Request, res: Response) => {
+export const addFilesToMacro = async (req: Request, res: Response, next: NextFunction) => {
   const macroId = parseInt(req.params.id);
   const { fileIds } = req.body;
   
@@ -336,18 +278,10 @@ export const addFilesToMacro = async (req: Request, res: Response) => {
   }
   
   try {
-    const response = await macroService.addFilesToMacro(macroId, fileIds);
-    
-    if (response.success) {
-      res.status(201).json({ message: `Added ${fileIds.length} files to macro` });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(400).json({ error: response.error });
-    }
+    await macroService.addFilesToMacro(macroId, fileIds);
+    res.status(201).json({ message: `Added ${fileIds.length} files to macro` });
   } catch (error) {
-    console.error(`Error adding files to macro ${macroId}:`, error);
-    res.status(500).json({ error: 'Failed to add files to macro' });
+    next(error);
   }
 };
 
@@ -359,9 +293,9 @@ export const addFilesToMacro = async (req: Request, res: Response) => {
  * @returns {Object} 200 - Success message
  * @throws {ValidationError} 400 - Invalid macro ID or file ID
  * @throws {NotFoundError} 404 - Macro or file not found
- * @throws {Error} 500 - Server error
+ * @throws Forwards errors to the global error handler
  */
-export const removeFileFromMacro = async (req: Request, res: Response) => {
+export const removeFileFromMacro = async (req: Request, res: Response, next: NextFunction) => {
   const macroId = parseInt(req.params.id);
   const fileId = parseInt(req.params.fileId);
   
@@ -370,18 +304,10 @@ export const removeFileFromMacro = async (req: Request, res: Response) => {
   }
   
   try {
-    const response = await macroService.removeFileFromMacro(macroId, fileId);
-    
-    if (response.success) {
-      res.status(200).json({ message: 'Audio file removed from macro' });
-    } else if (response.notFound) {
-      res.status(404).json({ error: response.error });
-    } else {
-      res.status(500).json({ error: response.error });
-    }
+    await macroService.removeFileFromMacro(macroId, fileId);
+    res.status(200).json({ message: 'Audio file removed from macro' });
   } catch (error) {
-    console.error(`Error removing file from macro ${macroId}:`, error);
-    res.status(500).json({ error: 'Failed to remove file from macro' });
+    next(error);
   }
 };
 

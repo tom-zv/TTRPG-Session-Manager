@@ -63,6 +63,7 @@ const PlaylistPanel: React.FC = React.memo(
       showToggle: false,
       showHeaders: false,
       showPlayButton: true,
+      showActions: true,
       onItemClick: handlePlaylistSelect,
       isDragSource: true,
       isReorderable: true,

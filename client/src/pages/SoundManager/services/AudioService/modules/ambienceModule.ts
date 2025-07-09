@@ -2,7 +2,7 @@ import { Howl } from "howler";
 import { getCollectionFromCache } from "../queryClient.js";
 import { AudioEventTypes, emit } from "../events.js";
 import { AudioFile, isAudioFile } from "../../../types/AudioItem.js";
-import { resolveAudioPath, resolveAudioUrl } from "../utils/pathResolvers.js";
+import { resolveAudioUrl } from "../utils/pathResolvers.js";
 import { getVolume, setVolume } from '../volumeStore.js';
 
 export class AmbienceModule {
@@ -41,7 +41,7 @@ export class AmbienceModule {
     file: AudioFile
   ): Promise<number | undefined> {
     const audioSrc =
-      resolveAudioPath(file.path) || (await resolveAudioUrl(file.url)) || "";
+      file.path || await resolveAudioUrl(file.url);
 
     if (!audioSrc) {
       console.warn(

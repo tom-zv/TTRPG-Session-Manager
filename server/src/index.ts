@@ -5,7 +5,6 @@ import { serverConfig } from './config/server-config.js';
 import authRoutes from './api/auth/authRoutes.js'
 import userRoutes from './api/users/userRoutes.js'
 import audioRoutes from './api/audio/audioRoutes.js';
-import systemRoutes from './api/system/systemRoutes.js'; 
 import path from 'path';
 import { initSocketServer } from './socket/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -32,13 +31,13 @@ app.use(express.urlencoded({ extended: true }));
 // -----------------
 // Serve static audiofiles from the public directory
 app.use('/audio', express.static(path.join(serverConfig.rootDir, 'public/audio')));
+app.use('/images', express.static(path.join(serverConfig.rootDir, 'public/images')));
 
 // API Routes
 // ---------
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/audio', audioRoutes);
-app.use('/api/system', systemRoutes); 
 
 // Production Configuration
 // ----------------------

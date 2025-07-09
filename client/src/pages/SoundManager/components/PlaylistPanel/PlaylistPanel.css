@@ -35,13 +35,21 @@
   display: none;
 }
 
-.playlist-panel .audio-item-row {
+.playlist-panel .audio-item-row.playlist {
   cursor: pointer;
+  height: 60px;
+}
+
+.playlist-panel .audio-item-row.playlist .item-actions {
+  position: absolute;
+  right:5px;
+  top: 25%;
 }
 
 .playlist-panel .audio-item-row:hover .item-actions .play-button {
   opacity: 1;
 }
+
 
 .playlist-panel [data-item-id] td:first-child {
   position: relative;

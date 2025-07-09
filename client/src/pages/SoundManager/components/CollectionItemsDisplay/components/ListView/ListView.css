@@ -40,6 +40,21 @@
     background-color: var(--bg-secondary);
 }
 
+.audio-item-row .image-cell {
+    width: 40px;
+}
+.audio-item-row .image {
+    position: relative;
+    padding-left: 10px;
+    margin-top: 10px;
+}
+
+.audio-item-row .item-actions {
+    position: relative;
+    margin-left: 10px;
+    top: 50%;
+}
+
 .audio-item-row:hover {
     background-color: rgba(53, 114, 227, 0.08);
 }
@@ -226,6 +241,12 @@
 }
 
 .insert-marker-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--accent-primary);
+    z-index: 10;
     pointer-events: none;
     box-shadow: 0 0 4px rgba(53, 114, 227, 0.3);
 }

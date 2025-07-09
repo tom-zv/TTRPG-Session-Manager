@@ -1,7 +1,6 @@
-import React, {useEffect} from "react";
+import React from "react";
 import PlaylistPanel from "./PlaylistPanel/PlaylistPanel.js";
 import SoundCollectionsPanel from "./SoundCollectionsPanel/SoundCollectionsPanel.js";
-import { initializeAudioPathResolver } from "../services/AudioService/utils/pathResolvers.js";
 import { DropTargetProvider } from "src/components/DropTargetContext/DropTargetContext.js";
 import { ItemDrawerProvider, useItemDrawer } from "./ItemDrawer/ItemDrawerContext.js";
 import ItemDrawer from "./ItemDrawer/ItemDrawer.js";
@@ -14,14 +13,6 @@ import "./sound-manager.css";
 
 const SoundManagerContent: React.FC = () => {
   const { isDrawerVisible: isDrawerVisible, showItemDrawer, hideItemDrawer } = useItemDrawer();
-
-  useEffect(() => {
-    // Initialize the audio path resolver
-    initializeAudioPathResolver()
-      .catch(err => {
-        console.error('Failed to initialize audio path resolver:', err);
-      });
-  }, []);
 
   const toggleItemDrawer = () => {
     if (isDrawerVisible) {

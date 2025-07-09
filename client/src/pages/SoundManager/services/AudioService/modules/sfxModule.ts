@@ -1,7 +1,7 @@
 import { Howl } from "howler";
 import { AudioEventTypes, emit } from "../events.js";
 import { AudioFile, AudioMacro, isAudioFile } from "../../../types/AudioItem.js";
-import { resolveAudioPath, resolveAudioUrl } from "../utils/pathResolvers.js";
+import { resolveAudioUrl } from "../utils/pathResolvers.js";
 import { getVolume, setVolume } from "../volumeStore.js";
 
 type SfxMacroState = {
@@ -17,7 +17,7 @@ export class SfxModule {
 
   // Play a single SFX file
   async playFile(file: AudioFile): Promise<void> {
-    const audioSrc = resolveAudioPath(file.path) || await resolveAudioUrl(file.url) || "";
+    const audioSrc = file.path|| await resolveAudioUrl(file.url) || "";
 
     const howl = new Howl({
       src: [audioSrc],
@@ -84,7 +84,7 @@ export class SfxModule {
 
       fileIds.push(sound.id);
 
-      const audioSrc = resolveAudioPath(sound.path) || await resolveAudioUrl(sound.url) || "";
+      const audioSrc = sound.path || await resolveAudioUrl(sound.url) || "";
       
       if (!audioSrc) {
         console.warn(`Could not resolve audio source for ${sound.name || sound.id} in macro ${macro.name}`);

@@ -239,9 +239,11 @@ async function scanFsAndBuildInsertArray(
           existingFile.found = true;
         } else {
           // new file - put into insert structure
+          const nameWithoutExt = path.parse(entry.name).name;
+
           const file: FileInsertData = {
             folder_id: folderId,
-            name: entry.name,
+            name: nameWithoutExt,
             rel_path: relEntryPath,
             audio_type: audioType === "root" ? "any" : audioType!,
             url: null,

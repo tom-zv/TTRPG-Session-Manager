@@ -2,7 +2,7 @@ import { Howl, HowlOptions } from "howler";
 import { getCollectionFromCache } from "../queryClient.js";
 import { AudioEventTypes, emit } from "../events.js";
 import { AudioFile } from "../../../types/AudioItem.js";
-import { resolveAudioPath, resolveAudioUrl } from "../utils/pathResolvers.js";
+import { resolveAudioUrl } from "../utils/pathResolvers.js";
 import { getVolume, setVolume } from "../volumeStore.js";
 
 export class PlaylistModule {
@@ -17,12 +17,31 @@ export class PlaylistModule {
     howl: null,
     playing: false,
   };
+  
+  // Add this property to track error timeouts
+  private errorTimeoutId: number | null = null;
+
+  // Play track if the playing flag is set
+  private syncTrackPlayback(): void {
+    if (this.currentPlaylist.howl && this.currentPlaylist.playing) {
+      this.currentPlaylist.howl.play();
+      emit(AudioEventTypes.PLAYLIST_STATE_CHANGE, this.currentPlaylist.playing);
+    }
+  }
+
+  private clearErrorTimeouts(): void {
+    if (this.errorTimeoutId !== null) {
+      clearTimeout(this.errorTimeoutId);
+      this.errorTimeoutId = null;
+    }
+  }
 
   async playPlaylist(
     collectionId: number,
     startIndex: number = 0
   ): Promise<void> {
     this.stopPlaylist();
+    this.clearErrorTimeouts(); // Clear any pending timeouts
     const collection = getCollectionFromCache("playlist", collectionId);
     if (!collection?.items?.length) {
       console.error(`No playlist ${collectionId}`);
@@ -42,15 +61,9 @@ export class PlaylistModule {
     this.emitPlaylistChangeEvents();
   }
 
-  // Play track if the playing flag is set
-  private syncTrackPlayback(): void {
-    if (this.currentPlaylist.howl && this.currentPlaylist.playing) {
-      this.currentPlaylist.howl.play();
-      emit(AudioEventTypes.PLAYLIST_STATE_CHANGE, this.currentPlaylist.playing);
-    }
-  }
-
   private async loadTrack(): Promise<void> {
+    this.clearErrorTimeouts(); // Clear any pending timeouts when loading a new track
+    
     const collection = getCollectionFromCache(
       "playlist",
       this.currentPlaylist.collectionId
@@ -68,7 +81,7 @@ export class PlaylistModule {
       this.currentPlaylist.howl = null;
     }
 
-    const audioSrc = resolveAudioPath(track.path) || await resolveAudioUrl(track.url) || "";
+    const audioSrc = track.path || await resolveAudioUrl(track.url);
 
     if (!audioSrc) {
       console.error(`Could not resolve audio source for track: ${track.name || track.id} (URL: ${track.url}, Path: ${track.path}). Skipping.`);
@@ -94,26 +107,28 @@ export class PlaylistModule {
         if (newHowl) { 
           console.error(`Load error code from howl.state(): ${newHowl.state()}`);
         }
-        // Add delay before cycling to next track on load error
-        setTimeout(() => {
+        // Store the timeout ID so it can be cleared if needed
+        this.errorTimeoutId = setTimeout(() => {
+          this.errorTimeoutId = null;
           // Check if we're still playing before moving to next track
           if (this.currentPlaylist.playing) {
             this.nextTrack();
           }
-        }, 1500);
+        }, 1500) as unknown as number;
       },
       onplayerror: (soundId, error) => { 
         console.error(`Error playing track (${audioSrc}): ID ${soundId}, Error:`, error);
         if (newHowl) { 
           console.error(`Play error code from howl.state(): ${newHowl.state()}`);
         }
-        // Add delay before cycling to next track on play error
-        setTimeout(() => {
+        // Store the timeout ID so it can be cleared if needed
+        this.errorTimeoutId = setTimeout(() => {
+          this.errorTimeoutId = null;
           // Check if we're still playing before moving to next track
           if (this.currentPlaylist.playing) {
             this.nextTrack();
           }
-        }, 1500);
+        }, 1500) as unknown as number;
       },
     };
 
@@ -153,6 +168,7 @@ export class PlaylistModule {
   }
 
   async nextTrack(): Promise<void> {
+    this.clearErrorTimeouts(); // Clear any pending timeouts
     const collection = getCollectionFromCache(
       "playlist",
       this.currentPlaylist.collectionId
@@ -175,6 +191,7 @@ export class PlaylistModule {
   }
 
   async previousTrack(): Promise<void> {
+    this.clearErrorTimeouts(); // Clear any pending timeouts
     const collection = getCollectionFromCache(
       "playlist",
       this.currentPlaylist.collectionId
@@ -225,6 +242,7 @@ export class PlaylistModule {
     collectionId: number,
     index: number = 0
   ): Promise<boolean> {
+    this.clearErrorTimeouts(); // Clear any pending timeouts
     const collection = getCollectionFromCache("playlist", collectionId);
     if (!collection) {
       console.error(`Collection with ID ${collectionId} not found in cache`);

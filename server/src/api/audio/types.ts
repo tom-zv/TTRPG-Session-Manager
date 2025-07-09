@@ -29,11 +29,11 @@ export interface MacroDB {
   name: string;
   description: string | null;
   volume: number; 
-  created_at?: string; 
   // Computed/aggregated fields
   position?: number; 
   item_count?: number; 
-  files?: string | null; 
+  files?: MacroFileDB[] | null; 
+  created_at: string; 
 }
 
 export interface CollectionDB {
@@ -41,6 +41,8 @@ export interface CollectionDB {
   name: string;
   description: string | null;
   type: "playlist" | "sfx" | "ambience";
+  image_path?: string; 
+  created_at: string;
   // Computed/aggregated fields
   item_count?: number; 
   position?: number;

@@ -88,27 +88,33 @@ export async function updateCollection(
   type: string,
   collectionId: number,
   name?: string,
-  description?: string | null
+  description?: string | null,
+  imagePath?: string
 ): Promise<number> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
   }
 
-  const fields = [];
-  const params = [];
+  const updates: [string, unknown][] = [
+    ['name = ?', name],
+    ['description = ?', description],
+    ['image_path = ?', imagePath],
+  ];
 
-  if (name !== undefined) {
-    fields.push('name = ?');
-    params.push(name);
+  const fields: string[] = [];
+  const params: unknown[] = [];
+
+  for (const [field, value] of updates) {
+    if (value !== undefined) {
+      fields.push(field);
+      params.push(value);
+    }
   }
-  if (description !== undefined) {
-    fields.push('description = ?');
-    params.push(description);
-  }
-  
+
   if (fields.length === 0) {
     return 0;
   }
+
   params.push(collectionId, type);
 
   const sql = `
@@ -117,8 +123,9 @@ export async function updateCollection(
     WHERE id = ? AND type = ?
   `;
 
-  const [result] = await audioPool.execute(sql, params);
-  return (result as ResultSetHeader).affectedRows || 0;
+  const [result] = await audioPool.execute<ResultSetHeader>(sql, params);
+  
+  return result.affectedRows;
 }
 
 export async function deleteCollection(type: string, collectionId: number): Promise<number> {

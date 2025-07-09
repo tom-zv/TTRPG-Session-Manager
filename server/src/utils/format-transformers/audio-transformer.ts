@@ -42,21 +42,9 @@ export function macroToDTO(macroDB: MacroDB): AudioMacroDTO {
     try {
       // Handle case where files is already an array of objects
       if (Array.isArray(macroDB.files)) {
-        nestedFiles = macroDB.files.map((fileObj: CollectionAudioFileDB) => ({
-          id: fileObj.id,
-          type: "audio",
-          audioType: fileObj.audio_type,
-          name: fileObj.name,
-          url: fileObj.url ?? undefined,
-          path: fileObj.rel_path ?? undefined,
-          folderId: fileObj.folder_id,
-          addedAt: fileObj.added_at,
-          duration: fileObj.duration ?? 0,
-          volume: fileObj.volume,
-          delay: fileObj.delay,
-          active: fileObj.active,
-          position: fileObj.position,
-        }));
+        nestedFiles = macroDB.files.map((fileObj) =>
+          audioFileToDTO(fileObj)
+        );
       } 
       // Handle case where files is a string from GROUP_CONCAT in SQL
       else if (typeof macroDB.files === 'string') {
@@ -66,25 +54,18 @@ export function macroToDTO(macroDB: MacroDB): AudioMacroDTO {
         // Parse the entire array at once
         const filesArray = JSON.parse(jsonArrayString);
         
-        // Transform each nested file with both file and collection properties
-        nestedFiles = filesArray.map((fileObj: CollectionAudioFileDB) => ({
-          id: fileObj.id,
-          type: "file",
-          audioType: fileObj.audio_type,
-          name: fileObj.name,
-          url: fileObj.url,
-          path: fileObj.rel_path,
-          folderId: fileObj.folder_id,
-          duration: fileObj.duration,
-          volume: fileObj.volume,
-          delay: fileObj.delay,
-        }));
+        // Transform each nested file using audioFileToDTO
+        nestedFiles = filesArray.map((fileObj: CollectionAudioFileDB) =>
+          audioFileToDTO(fileObj)
+        );
       }
+
     } catch (error) {
       console.error("Error parsing macro files:", error);
       nestedFiles = [];
     }
   }
+
 
   let MacroDuration = 0;
   for (const file of nestedFiles) {
@@ -102,6 +83,7 @@ export function macroToDTO(macroDB: MacroDB): AudioMacroDTO {
     position: macroDB.position,
     itemCount: macroDB.item_count,
     items: nestedFiles,
+    createdAt: macroDB.created_at,
   };
 }
 
@@ -113,8 +95,10 @@ export function collectionToDTO(
     type: collectionDB.type,
     name: collectionDB.name,
     description: collectionDB.description ?? undefined,
+    imagePath: collectionDB.image_path ?? undefined,
     itemCount: collectionDB.item_count,
     position: collectionDB.position,
+    createdAt: collectionDB.created_at,
   };
 }
 

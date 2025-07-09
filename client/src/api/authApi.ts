@@ -4,7 +4,6 @@ import { UserRegistrationDTO } from "shared/DTO/users/types.js";
 
 
 const AUTH_API_URL = `/api/auth`;
-const USERS_API_URL = `/api/users`;
 
 export async function login(credentials: LoginDTO): Promise<UserSession>{
   const response = await fetch(`${AUTH_API_URL}/login`, {
@@ -43,7 +42,7 @@ export async function logout(token: string) {
 }
 
 export async function registerUser(userData: UserRegistrationDTO): Promise<User>{
-  const response = await fetch(`${USERS_API_URL}/register`, {
+  const response = await fetch(`${AUTH_API_URL}/register`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
