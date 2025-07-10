@@ -35,7 +35,7 @@
 /* Portal dropdown positioning */
 body>.dropdown-menu {
   position: absolute;
-  z-index: 9999;
+  z-index: 2000;
   position: absolute;
   background: rgba(25, 28, 36, 0.95);
   backdrop-filter: blur(10px);
@@ -43,7 +43,6 @@ body>.dropdown-menu {
   border-radius: 8px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
   min-width: 160px;
-  z-index: 100;
   overflow: hidden;
   animation: dropdownFade 0.2s ease-out;
   transform-origin: top right;
