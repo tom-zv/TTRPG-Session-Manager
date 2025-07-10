@@ -8,6 +8,10 @@ import { updateAudioFile } from "../../files/fileApi.js";
  * Mutation hooks for managing items within collections using React Query
  ****************************************************************************************************************/
 
+//TODO: implement more efficient invalidation - 
+//      pass information about which cache to invalidate - so that mutations shared by
+//      generic and more specific caches can be granularly invalidated.
+//      for generic, large caches, manually update cache with API response data (if available)
 export const useAddToCollection = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
@@ -88,22 +92,10 @@ export const useAddToCollection = (type: CollectionType) => {
         context?.previousCollection
       );
     },
-    onSettled: (_data, err, vars) => {
-      queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection(type, vars.collectionId),
-      });
+    onSettled: (_data, err) => {
+      // Invalidate the collection query to refetch updated data
+      queryClient.invalidateQueries( {queryKey: collectionKeys.type(type)})
 
-      // Invalidate parent collection if specified - for parent pack, or parent sfx collection for macros
-      if (vars.parentInfo) {
-        const parentQueryKey = collectionKeys.collection(
-          vars.parentInfo.type,
-          vars.parentInfo.id
-        );
-
-        queryClient.invalidateQueries({
-          queryKey: parentQueryKey,
-        });
-      }
       if (err) {
         console.error(`[AddToCollection] Error during mutation:`, err);
       }
@@ -200,19 +192,12 @@ export const useUpdateCollectionFile = (type: CollectionType) => {
         context?.previousCollection
       );
     },
-    onSettled: (_data, _err, vars) => {
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection(type, vars.collectionId),
+        queryKey: collectionKeys.type(type),
       });
-      if (vars.parentInfo) {
-        const parentQueryKey = collectionKeys.collection(
-          vars.parentInfo.type,
-          vars.parentInfo.id
-        );
-        queryClient.invalidateQueries({
-          queryKey: parentQueryKey,
-        });
-      }
+
+      
     },
   });
 };
@@ -302,20 +287,10 @@ export const useRemoveFromCollection = (type: CollectionType) => {
         context?.previousCollection
       );
     },
-    onSettled: (_data, _err, vars) => {
+    onSettled: () => {
       queryClient.invalidateQueries({
-        queryKey: collectionKeys.collection(type, vars.collectionId),
+        queryKey: collectionKeys.type(type),
       });
-
-      if (vars.parentInfo) {
-        const parentQueryKey = collectionKeys.collection(
-          vars.parentInfo.type,
-          vars.parentInfo.id
-        );
-        queryClient.invalidateQueries({
-          queryKey: parentQueryKey,
-        });
-      }
     },
   });
 };
