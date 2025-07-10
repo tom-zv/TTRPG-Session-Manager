@@ -6,9 +6,11 @@ export interface AudioCollectionDTO {
   type: CollectionType;
   name: string;
   description?: string;
+  imagePath?: string; 
   itemCount?: number;
   position?: number;
   items?: (AudioFileDTO | AudioMacroDTO)[];
+  createdAt: string;
 }
 
 export interface AudioMacroDTO extends AudioCollectionDTO {

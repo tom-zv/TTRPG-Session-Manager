@@ -3,7 +3,9 @@ CREATE TABLE
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(128) NOT NULL,
     description TEXT,
-    type ENUM ('playlist', 'sfx', 'ambience') NOT NULL
+    type ENUM ('playlist', 'sfx', 'ambience') NOT NULL,
+    image_path VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 
 CREATE TABLE

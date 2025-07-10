@@ -32,6 +32,7 @@ app.use(express.urlencoded({ extended: true }));
 // -----------------
 // Serve static audiofiles from the public directory
 app.use('/audio', express.static(path.join(serverConfig.rootDir, 'public/audio')));
+app.use('/images', express.static(path.join(serverConfig.rootDir, 'public/images')));
 
 // API Routes
 // ---------
