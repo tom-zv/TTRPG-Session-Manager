@@ -3,9 +3,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
-  useState,
 } from "react";
 import ReactDOM from "react-dom";
 import "./Dialog.css";
@@ -19,6 +17,7 @@ export interface DialogProps {
   sidePanel?: boolean;
   contentRef?: React.RefObject<HTMLDivElement>;
   className?: string;
+  noOverlay?: boolean;
 }
 
 const DRAG_EVENTS = ["dragenter", "dragover", "drop", "dragstart"] as const;
@@ -28,52 +27,21 @@ const Dialog: React.FC<DialogProps> = ({
   onClose,
   title,
   children,
-  sidePanel = false,
   contentRef,
   className = "",
+  noOverlay = false,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
-  const [panelRect, setPanelRect] = useState<DOMRect | null>(null);
-
-  // measure side-panel cutout
-  const measureCutout = useCallback(() => {
-    if (!sidePanel) return;
-    const el = document.querySelector(".item-panel-container");
-    if (el) setPanelRect(el.getBoundingClientRect());
-  }, [sidePanel]);
-
-  useEffect(() => {
-    if (!isOpen || !sidePanel) return;
-    measureCutout();
-    const ro = new ResizeObserver(measureCutout);
-    const panelEl = document.querySelector(".item-panel-container");
-    if (panelEl) ro.observe(panelEl);
-    window.addEventListener("resize", measureCutout);
-    return () => {
-      window.removeEventListener("resize", measureCutout);
-      if (panelEl) ro.unobserve(panelEl);
-      ro.disconnect();
-    };
-  }, [isOpen, sidePanel, measureCutout]);
 
   // close on outside click
   const handleOutside = useCallback(
     (e: MouseEvent) => {
+      if ( noOverlay ) return
       const tgt = e.target as Node;
       if (dialogRef.current?.contains(tgt)) return;
-      if (
-        sidePanel &&
-        panelRect &&
-        e.clientX >= panelRect.x &&
-        e.clientX <= panelRect.x + panelRect.width &&
-        e.clientY >= panelRect.y &&
-        e.clientY <= panelRect.y + panelRect.height
-      ) {
-        return;
-      }
       onClose();
     },
-    [onClose, sidePanel, panelRect]
+    [onClose, noOverlay]
   );
 
   useEffect(() => {
@@ -89,38 +57,16 @@ const Dialog: React.FC<DialogProps> = ({
     return () => {
       document.body.style.overflow = "auto";
     };
-  }, [isOpen, panelRect, sidePanel]);
-
-  // build mask CSS vars
-  const cutoutStyle = useMemo<React.CSSProperties>(() => {
-    if (!sidePanel || !panelRect) return {};
-    return {
-      "--cutout-left": `${panelRect.x}px`,
-      "--cutout-top": `${panelRect.y}px`,
-      "--cutout-width": `${panelRect.width}px`,
-      "--cutout-height": `${panelRect.height}px`,
-    } as React.CSSProperties;
-  }, [sidePanel, panelRect]);
+  }, [isOpen]);
 
   // block all drag/drop outside, allow inside
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || noOverlay) return;
+
     const blocker = (e: Event) => {
       const d = e as DragEvent;
       // Allow events inside dialog
       if (dialogRef.current?.contains(d.target as Node)) return;
-
-      // Allow events inside the cutout area
-      if (
-        sidePanel &&
-        panelRect &&
-        d.clientX >= panelRect.x &&
-        d.clientX <= panelRect.x + panelRect.width &&
-        d.clientY >= panelRect.y &&
-        d.clientY <= panelRect.y + panelRect.height
-      ) {
-        return; // Allow drag events in cutout area
-      }
 
       // Block all other drag events
       e.preventDefault();
@@ -139,23 +85,19 @@ const Dialog: React.FC<DialogProps> = ({
       );
       if (cnt) DRAG_EVENTS.forEach((n) => cnt.removeEventListener(n, stopper));
     };
-  }, [isOpen, panelRect, sidePanel]);
+  }, [isOpen, noOverlay]);
 
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
-    // stopPropagation is necessary here
-    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
-    <div
-      className={`dialog-overlay${sidePanel ? " side-panel" : ""}`}
-      style={cutoutStyle}
-      draggable={false}
-      role="dialog"
-      aria-modal="true"
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => e.stopPropagation()}
-    >
-      <div className={`dialog-container ${className}`.trim()} ref={dialogRef}>
+    noOverlay ? (
+      <div
+        className={`dialog-container standalone ${className}`.trim()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+      >
         <header className="dialog-header">
           <h2>{title}</h2>
           <button
@@ -169,12 +111,42 @@ const Dialog: React.FC<DialogProps> = ({
             ×
           </button>
         </header>
-
         <div className="dialog-content" ref={contentRef}>
           {children}
         </div>
       </div>
-    </div>,
+    ) : (
+      <div
+        className="dialog-overlay"
+        draggable={false}
+        aria-label="Dialog overlay"
+      >
+        <div
+          className={`dialog-container ${className}`.trim()}
+          ref={dialogRef}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <header className="dialog-header">
+            <h2>{title}</h2>
+            <button
+              className="close-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </header>
+          <div className="dialog-content" ref={contentRef}>
+            {children}
+          </div>
+        </div>
+      </div>
+    ),
     document.body
   );
 };
