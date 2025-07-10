@@ -14,12 +14,12 @@ import { useCollectionMutations } from "../hooks/useCollectionActions.js";
 import { useUpdateMacroFile } from "../../../api/collections/useSfxMutations.js";
 import { useSelection } from "src/hooks/useSelection.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
+import AudioItemEditDialog from "../../../components/AudioItemEditDialog/AudioItemEditDialog.js";
 import "./MacroEditView.css";
 
 interface MacroEditViewProps {
   macro: AudioMacro;
   parentCollectionInfo: { type: CollectionType; id: number };
-  onEditClick?: (itemId: number) => void;
   dialogContentRef?: React.RefObject<HTMLDivElement>;
 }
 
@@ -33,9 +33,11 @@ type DropAreaProps = Partial<
 export const MacroEditView: React.FC<MacroEditViewProps> = ({
   macro,
   parentCollectionInfo,
-  onEditClick,
   dialogContentRef,
 }) => {
+  // Add state for the edit dialog
+  const [editingItem, setEditingItem] = useState<AudioFile | null>(null);
+  
   // Prepare files
   const items = useMemo(
     () => (macro.items || []).filter(isAudioFile) as AudioFile[],
@@ -265,6 +267,11 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
     handleSelect(item, items, e.ctrlKey || e.metaKey, e.shiftKey);
   };
 
+  // Direct handler for editing items
+  const handleEditItem = useCallback((item: AudioFile) => {
+    setEditingItem(item);
+  }, []);
+
   // Render
   return (
     <div className="macro-edit-view">
@@ -380,7 +387,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                         item={item}
                         selectedItems={selectedItems}
                         removeItems={removeItemsMutation}
-                        onEditClick={onEditClick}
+                        onEditClick={() => handleEditItem(item)}
                         isSmall
                       />
                     </td>
@@ -396,6 +403,16 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
             })}
           </tbody>
         </table>
+      )}
+
+      {editingItem && (
+        <AudioItemEditDialog
+          isOpen={true}
+          item={editingItem}
+          onClose={() => setEditingItem(null)}
+          parentCollectionId={macro.id}
+          parentCollectionType='macro'
+        />
       )}
     </div>
   );

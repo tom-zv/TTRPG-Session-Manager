@@ -19,7 +19,7 @@ import EditableField from "../../../../components/EditableField/EditableField.js
 interface AudioItemEditDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onEditClick: (itemId: number) => void;
+  onEditClick?: (itemId: number) => void;
   item: AudioItem;
   parentCollectionId: number;
   parentCollectionType: string;
@@ -28,7 +28,6 @@ interface AudioItemEditDialogProps {
 const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   isOpen,
   onClose,
-  onEditClick,
   item,
   parentCollectionType,
   parentCollectionId,
@@ -126,14 +125,13 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       onClose={onClose}
       title={getTitle()}
       contentRef={dialogContentRef}
-      sidePanel={item.type === "macro"}
+      noOverlay={item.type === "macro"}
       className="modern-dialog"
     >
       {showMacroEditor ? (
         <MacroEditView
           macro={item as AudioMacro}
           parentCollectionInfo={parentInfo}
-          onEditClick={onEditClick}
           dialogContentRef={dialogContentRef}
         />
       ) : (
