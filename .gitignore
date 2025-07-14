@@ -8,3 +8,4 @@ logs
 npm-debug.log*
 
 public/
+backups/
