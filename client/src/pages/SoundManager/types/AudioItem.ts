@@ -25,7 +25,7 @@ export interface AudioFile extends AudioItemBase {
 // Collection specific interface
 export interface AudioCollection<T extends AudioItem = AudioItem> extends AudioItemBase {
   type: CollectionType;
-  imagePath?: string;
+  imageUrl?: string;
   description?: string;
   itemCount?: number;
   items?: T[]; 

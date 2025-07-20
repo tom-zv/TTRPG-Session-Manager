@@ -21,7 +21,7 @@ interface MacroApiResponse {
 interface CollectionApiResponse {
   id: number;
   name: string;
-  imagePath?: string;
+  imageUrl?: string;
   description?: string;
   itemCount?: number;
   position?: number;
@@ -109,7 +109,7 @@ export function transformDtoToAudioCollection(
     id: dto.id,
     name: dto.name,
     type: collectionType,
-    imagePath: dto.imagePath,
+    imageUrl: dto.imageUrl,
     description: dto.description || undefined,
     itemCount: dto.itemCount ?? 0,
     position: dto.position ?? 0,

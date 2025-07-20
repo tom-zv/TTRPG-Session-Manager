@@ -6,7 +6,7 @@ export interface AudioCollectionDTO {
   type: CollectionType;
   name: string;
   description?: string;
-  imagePath?: string; 
+  imageUrl?: string; 
   itemCount?: number;
   position?: number;
   items?: (AudioFileDTO | AudioMacroDTO)[];

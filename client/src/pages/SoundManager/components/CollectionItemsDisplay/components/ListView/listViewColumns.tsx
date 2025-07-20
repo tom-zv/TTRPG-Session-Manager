@@ -115,12 +115,12 @@ export function renderCell(
       ) : null;
 
     case "image":
-      return isPlaylistCollection(item) && item.imagePath ? (
+      return isPlaylistCollection(item) && item.imageUrl ? (
         <td key={column} className="image-cell">
           <div className="image">
-            {item.imagePath ? (
+            {item.imageUrl ? (
               <img
-                src={item.imagePath}
+                src={item.imageUrl}
                 alt={item.name}
                 style={{ maxWidth: 35, maxHeight: 35, objectFit: "contain" }}
               />
