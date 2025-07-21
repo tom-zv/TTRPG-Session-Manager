@@ -17,14 +17,14 @@ CREATE TABLE
   );
 
 CREATE TABLE
-  IF NOT EXISTS core.encounter_characters (
+  IF NOT EXISTS core.encounter_entities (
     encounter_id INT NOT NULL,
-    character_id INT NOT NULL,
+    entity_id INT NOT NULL,
     is_hidden BOOLEAN DEFAULT FALSE,
     notes JSON,
-    PRIMARY KEY (encounter_id, character_id),
-    CONSTRAINT fk_encounter_characters_encounter_id FOREIGN KEY (encounter_id) REFERENCES encounters (id) ON DELETE CASCADE,
-    CONSTRAINT fk_encounter_characters_character_id FOREIGN KEY (character_id) REFERENCES characters (id) ON DELETE CASCADE
+    PRIMARY KEY (encounter_id, entity_id),
+    CONSTRAINT fk_encounter_entities_encounter_id FOREIGN KEY (encounter_id) REFERENCES encounters (id) ON DELETE CASCADE,
+    CONSTRAINT fk_encounter_entities_entity_id FOREIGN KEY (entity_id) REFERENCES entities (id) ON DELETE CASCADE
   );
 
 CREATE TABLE
