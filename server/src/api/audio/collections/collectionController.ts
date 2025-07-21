@@ -209,7 +209,7 @@ export const createCollection = async (
  * @param {number} req.params.id - Collection ID
  * @param {string} [req.body.name] - New name for the collection
  * @param {string} [req.body.description] - New description for the collection
- * @param {string} [req.body.imagePath] - New image path for the collection 
+ * @param {string} [req.body.imageUrl] - New image path for the collection 
  * @returns {Object} 200 - Success message
  * @throws {ValidationError} 400 - Invalid collection type, ID, or no update parameters
  */
@@ -221,7 +221,7 @@ export const updateCollection = async (
   try {
     const type = req.params.type;
     const id = parseInt(req.params.id);
-    const { name, description, imagePath } = req.body; 
+    const { name, description, imageUrl } = req.body; 
 
     if (!collectionTypes.includes(type)) {
       throw new ValidationError('Invalid collection type');
@@ -231,11 +231,11 @@ export const updateCollection = async (
     }
 
     // All fields are optional, but at least one must be provided
-    if (name === undefined && description === undefined && imagePath === undefined) {
+    if (name === undefined && description === undefined && imageUrl === undefined) {
       throw new ValidationError('No update parameters provided');
     }
 
-    await collectionService.updateCollection(type, id, name, description, imagePath);
+    await collectionService.updateCollection(type, id, name, description, imageUrl);
     res.status(200).json({ message: `${type} collection updated successfully` });
   } catch (error) {
     next(error);

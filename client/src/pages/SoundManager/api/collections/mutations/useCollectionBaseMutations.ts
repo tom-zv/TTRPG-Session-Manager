@@ -79,14 +79,14 @@ export const useUpdateCollection = (type: CollectionType) => {
       id,
       name,
       description,
-      imagePath,
+      imageUrl,
     }: {
       id: number;
       name?: string;
       description?: string;
-      imagePath?: string;
+      imageUrl?: string;
     }) => {
-      return await api.updateCollection(id, name, description, imagePath);
+      return await api.updateCollection(id, name, description, imageUrl);
     },
     onMutate: async ({ id, name, description }) => {
       // Cancel any outgoing refetches

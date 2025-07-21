@@ -89,7 +89,7 @@ export async function updateCollection(
   collectionId: number,
   name?: string,
   description?: string | null,
-  imagePath?: string
+  imageUrl?: string
 ): Promise<number> {
   if (!['playlist', 'sfx', 'ambience'].includes(type)) {
     throw new Error(`Invalid collection type: ${type}`);
@@ -98,7 +98,7 @@ export async function updateCollection(
   const updates: [string, unknown][] = [
     ['name = ?', name],
     ['description = ?', description],
-    ['image_path = ?', imagePath],
+    ['image_url = ?', imageUrl],
   ];
 
   const fields: string[] = [];

@@ -39,7 +39,7 @@ export interface CollectionApi {
     id: number,
     name?: string,
     description?: string,
-    imagePath?: string,
+    imageUrl?: string,
     volume?: number,
     active?: boolean
   ) => Promise<boolean>;
@@ -200,19 +200,19 @@ export function createCollectionApi(
     id: number,
     name?: string,
     description?: string,
-    imagePath?: string,
+    imageUrl?: string,
     volume?: number,
   ): Promise<boolean> => {
     try {
       const body: {
         name?: string;
         description?: string;
-        imagePath?: string;
+        imageUrl?: string;
         volume?: number;
       } = {};
       if (name !== undefined) body.name = name;
       if (description !== undefined) body.description = description;
-      if (imagePath !== undefined) body.imagePath = imagePath;
+      if (imageUrl !== undefined) body.imageUrl = imageUrl;
       if (volume !== undefined) body.volume = volume;
     
       if (Object.keys(body).length === 0) {

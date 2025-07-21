@@ -95,7 +95,7 @@ export function collectionToDTO(
     type: collectionDB.type,
     name: collectionDB.name,
     description: collectionDB.description ?? undefined,
-    imagePath: collectionDB.image_path ?? undefined,
+    imageUrl: collectionDB.image_url ?? undefined,
     itemCount: collectionDB.item_count,
     position: collectionDB.position,
     createdAt: collectionDB.created_at,

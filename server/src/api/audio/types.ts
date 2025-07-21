@@ -41,7 +41,7 @@ export interface CollectionDB {
   name: string;
   description: string | null;
   type: "playlist" | "sfx" | "ambience";
-  image_path?: string; 
+  image_url?: string; 
   created_at: string;
   // Computed/aggregated fields
   item_count?: number; 
