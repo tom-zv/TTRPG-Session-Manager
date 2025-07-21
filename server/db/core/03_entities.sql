@@ -1,7 +1,7 @@
 CREATE TABLE
   IF NOT EXISTS core.entities (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    name VARCHAR(64) NOT NULL,
+    name VARCHAR(128) NOT NULL,
     image_url VARCHAR(256),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );

@@ -5,6 +5,8 @@ import { serverConfig } from './config/server-config.js';
 import authRoutes from './api/auth/authRoutes.js'
 import userRoutes from './api/users/userRoutes.js'
 import audioRoutes from './api/audio/audioRoutes.js';
+import entityRoutes from './api/encounters/entities/entityRoutes.js'
+import encounterRoutes from './api/encounters/encounterRoutes.js'
 import path from 'path';
 import { initSocketServer } from './socket/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -38,6 +40,8 @@ app.use('/images', express.static(path.join(serverConfig.rootDir, 'public/images
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/audio', audioRoutes);
+app.use('/api/:system/entities', entityRoutes)
+app.use('/api/:system/encounters', encounterRoutes)
 
 // Production Configuration
 // ----------------------
