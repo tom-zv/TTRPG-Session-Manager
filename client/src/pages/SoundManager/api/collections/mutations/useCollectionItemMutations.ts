@@ -1,5 +1,5 @@
 import { useQueryClient, useMutation } from "@tanstack/react-query";
-import { AudioCollection, AudioItem, isAudioFile } from "../../../types/AudioItem.js";
+import { AudioCollection, AudioItem } from "../../../types/AudioItem.js";
 import { CollectionType } from "shared/audio/types.js";
 import { getApiForType, collectionKeys, ParentCollectionInfo } from "../useCollectionQueries.js";
 import { updateAudioFile } from "../../files/fileApi.js"; 
@@ -8,10 +8,6 @@ import { updateAudioFile } from "../../files/fileApi.js";
  * Mutation hooks for managing items within collections using React Query
  ****************************************************************************************************************/
 
-//TODO: implement more efficient invalidation - 
-//      pass information about which cache to invalidate - so that mutations shared by
-//      generic and more specific caches can be granularly invalidated.
-//      for generic, large caches, manually update cache with API response data (if available)
 export const useAddToCollection = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
@@ -24,73 +20,31 @@ export const useAddToCollection = (type: CollectionType) => {
       position?: number;      
     }) => {
       const { collectionId, items, position } = vars;
-      return await api.addToCollection(collectionId, items, position);
-    },
-    onMutate: async ({ collectionId, items, position }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({
-        queryKey: collectionKeys.collection(type, collectionId),
-      });
 
-      const previousCollection = queryClient.getQueryData(
+      // Get current collection to filter out existing items
+      const currentCollection = queryClient.getQueryData(
         collectionKeys.collection(type, collectionId)
+      ) as AudioCollection | undefined;
+
+      // Filter out items that already exist in the collection
+      const newItems = items.filter(
+        (newItem) =>
+          !currentCollection?.items?.some(
+            (existing) => existing.id === newItem.id
+          )
       );
 
-      // Optimistic update with full audio items and smart positioning
-      queryClient.setQueryData(
-        collectionKeys.collection(type, collectionId),
-        (old: AudioCollection) => {
-          if (!old) return { id: collectionId, type, name: "", items: [] };
+      // If no new items to add, return early without making API call
+      if (newItems.length === 0) {
+        return true;
+      }
 
-          // Create a copy of existing items
-          const updatedItems = [...(old.items || [])];
-
-          // Filter out new items that already exist in the collection
-          const newItems = items.filter(
-            (newItem) =>
-              !updatedItems.some((existing) => existing.id === newItem.id)
-          );
-
-          if (newItems.length === 0) return old;
-
-          // Determine insertion position
-          const insertPosition =
-            position !== undefined ? position : updatedItems.length;
-
-          // Adjust positions of existing items
-          for (let i = 0; i < updatedItems.length; i++) {
-            if ((updatedItems[i].position ?? 0) >= insertPosition) {
-              updatedItems[i].position =
-                (updatedItems[i].position ?? 0) + newItems.length;
-            }
-          }
-
-          // Add new items with proper positions
-          const itemsToInsert = newItems.map((item, index) => ({
-            ...item,
-            position: insertPosition + index,
-          }));
-
-          // Combine and sort by position
-          const sortedItems = [...updatedItems, ...itemsToInsert].sort(
-            (a, b) => (a.position || 0) - (b.position || 0)
-          );
-
-          return {
-            ...old,
-            items: sortedItems,
-          };
-        }
-      );
-
-      return { previousCollection };
+      // Only send items that don't already exist to the API
+      return await api.addToCollection(collectionId, newItems, position);
     },
-    onError: (_err, vars, context) => {
-      console.log(`[AddToCollection] Error occurred, rolling back changes`);
-      queryClient.setQueryData(
-        collectionKeys.collection(type, vars.collectionId),
-        context?.previousCollection
-      );
+  
+    onError: () => {
+      console.log(`[AddToCollection] Error occurred`);
     },
     onSettled: (_data, err) => {
       // Invalidate the collection query to refetch updated data
@@ -109,7 +63,7 @@ export const useAddToCollection = (type: CollectionType) => {
 export const useUpdateCollectionFile = (type: CollectionType) => {
   const queryClient = useQueryClient();
   const api = getApiForType(type);
-  
+
   return useMutation({
     mutationFn: async (vars: {
       id: number;
@@ -122,85 +76,41 @@ export const useUpdateCollectionFile = (type: CollectionType) => {
       delay?: number;
       parentInfo?: ParentCollectionInfo;
     }) => {
-      const { collectionId, id: fileId, ...restProps } = vars;
+      const { collectionId, id: fileId, active, volume, delay, name, path, url } = vars;
+
       const results: boolean[] = [];
-        
-      const collectionParams: Partial<{ active: boolean; volume: number; delay: number; }> = {};
-      const fileParams: Partial<{ name: string; path: string; url: string; }> = {};
       
-      if (restProps.active !== undefined) collectionParams.active = restProps.active;
-      if (restProps.volume !== undefined) collectionParams.volume = restProps.volume;
-      if (restProps.delay !== undefined) collectionParams.delay = restProps.delay;
-      
-      if (restProps.name !== undefined) fileParams.name = restProps.name;
-      if (restProps.path !== undefined) fileParams.path = restProps.path;
-      if (restProps.url !== undefined) fileParams.url = restProps.url;
-      
-      if (Object.keys(collectionParams).length > 0) {
-        const collectionResult = await api.updateFile(collectionId, fileId, collectionParams);
+      // collection params update
+      if (active !== undefined || volume !== undefined || delay !== undefined) {
+        const collectionResult = await api.updateFile(collectionId, fileId, {  
+          active,
+          volume,
+          delay,
+        });
         results.push(collectionResult);
       }
-      
-      if (Object.keys(fileParams).length > 0) {
-        const fileResult = await updateAudioFile(fileId, fileParams);
+
+      // file params update
+      if (name !== undefined || path !== undefined || url !== undefined) {
+        const fileResult = await updateAudioFile(fileId, {
+          name,
+          path,
+          url,
+        });
         results.push(!!fileResult);
       }
-      
-      return results.every(result => result === true);
+
+      return results.every(Boolean);
     },
-    
-    onMutate: async ({ collectionId, id: fileId, name, path, url, active, volume, delay }) => {
-      await queryClient.cancelQueries({
-        queryKey: collectionKeys.collection(type, collectionId),
-      });
-      
-      const previousCollection = queryClient.getQueryData(
-        collectionKeys.collection(type, collectionId)
-      );
-      
-      queryClient.setQueryData(
-        collectionKeys.collection(type, collectionId),
-        (old: AudioCollection | undefined): AudioCollection | undefined => {
-          if (!old || !old.items) return old;
-          const itemToUpdate = old.items.find((item) => item.id === fileId);
-          if (!itemToUpdate || !isAudioFile(itemToUpdate)) return old;
-          
-          const updatedItem = { ...itemToUpdate };
-          
-          if (name !== undefined) updatedItem.name = name;
-          if (path !== undefined) updatedItem.path = path;
-          if (url !== undefined) updatedItem.url = url;
-          if (active !== undefined) updatedItem.active = active;
-          if (volume !== undefined) updatedItem.volume = volume;
-          if (delay !== undefined) updatedItem.delay = delay;
-          
-          const updatedItems = old.items.map((item) =>
-            item.id === fileId ? updatedItem : item
-          );
-          
-          return {
-            ...old,
-            items: updatedItems,
-          };
-        }
-      );
-      return { previousCollection };
-    },
-    onError: (_err, vars, context) => {
-      queryClient.setQueryData(
-        collectionKeys.collection(type, vars.collectionId),
-        context?.previousCollection
-      );
-    },
+
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: collectionKeys.type(type),
       });
-
-      
     },
   });
 };
+
 
 export const useRemoveFromCollection = (type: CollectionType) => {
   const queryClient = useQueryClient();
@@ -298,6 +208,7 @@ export const useRemoveFromCollection = (type: CollectionType) => {
 // Update a collections file volume
 export const useUpdateFileVolume = (type: CollectionType) => {
   const api = getApiForType(type);
+  const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({
@@ -307,7 +218,13 @@ export const useUpdateFileVolume = (type: CollectionType) => {
       fileId: number;
       volume: number;
     }) => {
+      
       return await api.updateFile(collectionId, fileId, { volume });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({
+        queryKey: collectionKeys.type(type),
+      });
     },
   });
 };

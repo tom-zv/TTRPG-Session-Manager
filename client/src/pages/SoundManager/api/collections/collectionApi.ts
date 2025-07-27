@@ -28,11 +28,13 @@ export interface CollectionApi {
   getAllCollections: (
     includeFiles?: boolean
   ) => Promise<AudioCollection[] | AudioMacro[]>;
+  
   getCollectionById: (
     id: number,
     includeFiles?: boolean
   ) => Promise<AudioCollection | AudioMacro>;
   createCollection: (name: string, description?: string) => Promise<number>;
+
   updateCollection: (
     id: number,
     name?: string,
@@ -41,58 +43,58 @@ export interface CollectionApi {
     volume?: number,
     active?: boolean
   ) => Promise<boolean>;
+
   deleteCollection: (id: number) => Promise<boolean>;
+
   getCollectionFiles: (collectionId: number) => Promise<AudioFile[]>;
+
   addFileToCollection: (
     collectionId: number,
     fileId: number,
     position?: number
   ) => Promise<boolean>;
+
   addFilesToCollection: (
     collectionId: number,
     fileIds: number[],
     startPosition?: number
   ) => Promise<boolean>;
+
   addToCollection: (
     collectionId: number,
     items: AudioItem[],
     position?: number
   ) => Promise<boolean>;
+
   updateFile: (
     collectionId: number,
     fileId: number,
     params: UpdateFileParams
   ) => Promise<boolean>;
+
   removeMacroFromCollection?: (
     collectionId: number,
     macroId: number
   ) => Promise<boolean>;
+
   removeFilesFromCollection: (
     collectionId: number,
     audioFiles: AudioItem[]
   ) => Promise<boolean>;
+
   updateFilePosition: (
     collectionId: number,
     fileId: number,
     targetPosition: number
   ) => Promise<boolean>;
+
   updateFileRangePosition: (
     collectionId: number,
     sourceStartPosition: number,
     sourceEndPosition: number,
     targetPosition: number
   ) => Promise<boolean>;
-  updatePosition(
-    collectionId: number,
-    fileId: number,
-    targetPosition: number
-  ): Promise<boolean>;
-  updatePosition(
-    collectionId: number,
-    sourceStart: number,
-    sourceEnd: number,
-    targetPosition: number
-  ): Promise<boolean>;
+
 }
 
 export function createCollectionApi(
@@ -559,32 +561,6 @@ export function createCollectionApi(
         error
       );
       throw error;
-    }
-  };
-
-  // ----------------------
-  // updatePosition (single‐vs‐range dispatcher)
-  // ----------------------
-  api.updatePosition = async (
-    collectionId: number,
-    fileId: number,
-    targetPosition: number,
-    sourceStartPosition?: number,
-    sourceEndPosition?: number
-  ): Promise<boolean> => {
-    if (sourceStartPosition !== undefined && sourceEndPosition !== undefined) {
-      return await api.updateFileRangePosition(
-        collectionId,
-        sourceStartPosition,
-        sourceEndPosition,
-        targetPosition
-      );
-    } else {
-      return await api.updateFilePosition(
-        collectionId,
-        fileId,
-        targetPosition
-      );
     }
   };
 

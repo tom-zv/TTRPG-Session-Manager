@@ -118,7 +118,7 @@ export function useItemDragDrop({
       
       const { index, mode } = context;
 
-      if (mode === "reorder" && updateItemPosition && items.length > 0) { // Changed from useUpdateItemPosition
+      if (mode === "reorder" && updateItemPosition && items.length > 0) { 
         const sourceStartPosition = items[0].position;
         const sourceEndPosition = items[items.length - 1].position;
 
@@ -128,21 +128,21 @@ export function useItemDragDrop({
         }
 
         if (items.length > 1) {
-          updateItemPosition( // Changed from useUpdateItemPosition
+          updateItemPosition( 
             items[0].id,
             index!,
             sourceStartPosition,
             sourceEndPosition
           );
         } else {
-          updateItemPosition( // Changed from useUpdateItemPosition
+          updateItemPosition(
             items[0].id,
             index!
           );
         }
-      } else if (mode === "file-transfer" && addItems) { // Changed from useAddItems
+      } else if (mode === "file-transfer" && addItems) { 
         if (items.length > 0) {
-          addItems(items, index); // Changed from useAddItems
+          addItems(items, index); 
         }
         setTargetIndex(undefined);
       }

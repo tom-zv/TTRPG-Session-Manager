@@ -28,15 +28,16 @@ export const useUpdateItemPositions = (type: CollectionType) => {
     }) => {
       
       if (sourceStartPosition !== undefined && sourceEndPosition !== undefined) {
-        // Range update
-        return await api.updatePosition(
+        
+
+        return await api.updateFileRangePosition(
           collectionId,
           sourceStartPosition,
           sourceEndPosition,
           targetPosition
         );
       } else {
-        return await api.updatePosition(
+        return await api.updateFilePosition(
           collectionId,
           itemId,
           targetPosition
