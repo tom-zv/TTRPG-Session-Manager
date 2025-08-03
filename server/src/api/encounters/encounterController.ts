@@ -112,8 +112,8 @@ async function deleteEncounter(
 
 export default {
   insertEncounter,
+  getAllEncounters,
   assignEntitiesToEncounter,
   updateEncounter,
-  deleteEncounter,
-  getAllEncounters
+  deleteEncounter
 };
