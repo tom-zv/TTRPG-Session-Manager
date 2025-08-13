@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import DnD5eEncounterApi from './encounterApi.js';
 import type { Dnd5eEncounter } from 'shared/domain/encounters/dnd5e/encounter.js';
-import type { CreateEncounterRequest, UpdateEncounterRequest } from '../../encounterApi.js';
+import type { CreatePayload, UpdatePayload } from 'src/pages/EncounterManager/types.js';
 
 // Query keys
 const ENCOUNTER_KEYS = {
@@ -33,7 +33,7 @@ export function useCreateDnD5eEncounter() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (newEncounter: CreateEncounterRequest<Dnd5eEncounter>) => 
+    mutationFn: (newEncounter: CreatePayload<Dnd5eEncounter>) => 
       DnD5eEncounterApi.createEncounter(newEncounter),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -47,7 +47,7 @@ export function useUpdateDnD5eEncounter() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateEncounterRequest<Dnd5eEncounter> }) => 
+    mutationFn: ({ id, data }: { id: number; data: UpdatePayload<Dnd5eEncounter> }) => 
       DnD5eEncounterApi.updateEncounter(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -70,7 +70,6 @@ export function useDeleteDnD5eEncounter() {
   });
 }
 
-// Additional mutation hook specific to encounters
 export function useAssignEntitiesToEncounter() {
   const queryClient = useQueryClient();
   

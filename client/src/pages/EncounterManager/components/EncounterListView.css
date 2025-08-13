@@ -1,0 +1,72 @@
+/* EncounterListView.css */
+
+
+.encounter-toolbar {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.encounter-toolbar input[type="text"] {
+  flex: 1;
+  min-width: 240px;
+}
+
+.encounter-table-container {
+  overflow: auto;
+}
+
+.encounter-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.encounter-table th {
+  text-align: left;
+  padding: 6px 8px;
+}
+
+.encounter-table td {
+  padding: 6px 8px;
+}
+
+.encounter-table td.text-right,
+.encounter-table th.text-right {
+  text-align: right;
+}
+
+.encounter-table tr {
+  border-top: 1px solid var(--border, #333);
+}
+
+.encounter-name {
+  font-weight: 600;
+}
+
+.encounter-description {
+  font-size: 12px;
+  opacity: 0.7;
+  max-width: 520px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.encounter-actions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.encounter-actions button {
+  margin-right: 6px;
+}
+
+.encounter-error {
+  color: var(--danger, #c00);
+}
+
+.encounter-empty {
+  padding: 12px 8px;
+  opacity: 0.7;
+}

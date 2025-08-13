@@ -1,7 +1,5 @@
-import EncounterApi, {
-  CreateEncounterRequest,
-  UpdateEncounterRequest,
-} from "../../encounterApi.js";
+import { CreatePayload, UpdatePayload } from "src/pages/EncounterManager/types.js";
+import EncounterApi from "../../encounterApi.js";
 import type { Dnd5eEncounter } from "shared/domain/encounters/dnd5e/encounter.js";
 
 /**
@@ -17,14 +15,14 @@ export class DnD5eEncounterApi {
   }
 
   static async createEncounter(
-    encounterData: CreateEncounterRequest<Dnd5eEncounter>
+    encounterData: CreatePayload<Dnd5eEncounter>
   ): Promise<number> {
     return EncounterApi.createEncounter("dnd5e", encounterData);
   }
 
   static async updateEncounter(
     id: number,
-    updateData: UpdateEncounterRequest<Dnd5eEncounter>
+    updateData: UpdatePayload<Dnd5eEncounter>
   ): Promise<Dnd5eEncounter> {
     return EncounterApi.updateEncounter("dnd5e", id, updateData);
   }

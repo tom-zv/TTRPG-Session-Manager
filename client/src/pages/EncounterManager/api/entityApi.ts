@@ -1,21 +1,12 @@
 import type { Entity, CoreEntity } from "shared/domain/encounters/coreEntity.js";
 import type { DnD5eEntity, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
 
-// Response types that match the backend API structure
 interface EntityResponse<T = Entity> {
   entity: T;
 }
 
 interface EntitiesResponse<T = Entity> {
   entities: T[];
-}
-
-interface CreateEntityResponse {
-  insertId: number;
-}
-
-interface DeleteEntityResponse {
-  success: boolean;
 }
 
 // Request types for entity operations
@@ -120,7 +111,7 @@ export class EntityApi {
       throw new Error(error.message || 'Failed to create entity');
     }
 
-    const data: CreateEntityResponse = await response.json();
+    const data: { insertId: number } = await response.json();
     return data.insertId;
   }
 
@@ -170,7 +161,7 @@ export class EntityApi {
       throw new Error(error.message || 'Failed to delete entity');
     }
 
-    const data: DeleteEntityResponse = await response.json();
+    const data: {success: boolean} = await response.json();
     return data.success;
   }
 }

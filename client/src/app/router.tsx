@@ -1,15 +1,15 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import SoundManager from '../pages/SoundManager/components/SoundManager.js';
+import EncounterListView from '../pages/EncounterManager/components/EncounterListView.js';
 import NavBar from '../components/NavBar/NavBar.js';
 import { usePageTransition } from '../hooks/usePageTransition.js';
+const EncounterManager: React.FC = () => <EncounterListView />;
 import './AppLayout.css';
 import { AuthProvider } from './contexts/AuthContext.js';
 import AuthPage from 'src/pages/auth/AuthPage.js';
 import ProtectedRoute from './ProtectedRoute.js';
 
-// Placeholder components for future pages
-const CombatTracker: React.FC = () => <div className="page-container">Combat Tracker Coming Soon</div>;
 const Notes: React.FC = () => <div className="page-container">Notes Coming Soon</div>;
 const Home: React.FC = () => <div className="page-container">Welcome to TTRPG Session Manager</div>;
 
@@ -27,7 +27,7 @@ const AppRouter: React.FC = () => {
             <Route path="/" element={<AppLayout />}>
               <Route index element={<Home />} />
               <Route path="sound-manager" element={<SoundManager />} />
-              <Route path="combat-tracker" element={<CombatTracker />} />
+              <Route path="encounter-manager" element={<EncounterManager />} />
               <Route path="notes" element={<Notes />} />
             </Route>
           </Route>
@@ -53,8 +53,8 @@ const AppLayout: React.FC = () => {
           <div id="sound-manager-page" className="app-page">
             <SoundManager />
           </div>
-          <div id="combat-tracker-page" className="app-page">
-            <CombatTracker />
+          <div id="encounter-manager-page" className="app-page">
+            <EncounterManager />
           </div>
           <div id="notes-page" className="app-page">
             <Notes />

@@ -1,7 +1,8 @@
 import type { CoreEncounter } from "shared/domain/encounters/coreEncounter.js";
 import type { Dnd5eEncounter } from "shared/domain/encounters/dnd5e/encounter.js";
+import { CreatePayload, UpdatePayload } from "../types.js";
 
-// Response types that match the backend API structure
+
 interface EncounterResponse<T = CoreEncounter> {
   encounter: T;
 }
@@ -10,22 +11,12 @@ interface EncountersResponse<T = CoreEncounter> {
   encounters: T[];
 }
 
-interface CreateEncounterResponse {
-  insertId: number;
-}
-
-interface DeleteEncounterResponse {
-  success: boolean;
-}
-
-// Request types for encounter operations
-export type CreateEncounterRequest<T extends CoreEncounter = CoreEncounter> = Omit<T, 'id' | 'createdAt'>;
-export type UpdateEncounterRequest<T extends CoreEncounter = CoreEncounter> = Partial<Omit<T, 'id' | 'createdAt'>>;
-
-export type SystemType = 'dnd5e';
+export type SystemType = "dnd5e";
 
 // Helper types to extract encounter types based on system
-type EncounterBySystem<T extends SystemType> = T extends 'dnd5e' ? Dnd5eEncounter : CoreEncounter;
+type EncounterBySystem<T extends SystemType> = T extends "dnd5e"
+  ? Dnd5eEncounter
+  : CoreEncounter;
 
 export class EncounterApi {
   /**
@@ -35,16 +26,18 @@ export class EncounterApi {
     system: T
   ): Promise<EncounterBySystem<T>[]> {
     const response = await fetch(`/api/${system}/encounters`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to fetch encounters' }));
-      throw new Error(error.message || 'Failed to fetch encounters');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to fetch encounters" }));
+      throw new Error(error.message || "Failed to fetch encounters");
     }
 
     const data: EncountersResponse = await response.json();
@@ -59,16 +52,18 @@ export class EncounterApi {
     id: number
   ): Promise<EncounterBySystem<T>> {
     const response = await fetch(`/api/${system}/encounters/${id}`, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to fetch encounter' }));
-      throw new Error(error.message || 'Failed to fetch encounter');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to fetch encounter" }));
+      throw new Error(error.message || "Failed to fetch encounter");
     }
 
     const data: EncounterResponse = await response.json();
@@ -80,23 +75,25 @@ export class EncounterApi {
    */
   static async createEncounter<T extends SystemType>(
     system: T,
-    encounterData: CreateEncounterRequest<EncounterBySystem<T>>
+    encounterData: CreatePayload<EncounterBySystem<T>>
   ): Promise<number> {
     const response = await fetch(`/api/${system}/encounters`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({ data: encounterData }),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to create encounter' }));
-      throw new Error(error.message || 'Failed to create encounter');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to create encounter" }));
+      throw new Error(error.message || "Failed to create encounter");
     }
 
-    const data: CreateEncounterResponse = await response.json();
+    const data: { insertId: number } = await response.json();
     return data.insertId;
   }
 
@@ -106,20 +103,22 @@ export class EncounterApi {
   static async updateEncounter<T extends SystemType>(
     system: T,
     id: number,
-    updateData: UpdateEncounterRequest<EncounterBySystem<T>>
+    updateData: UpdatePayload<EncounterBySystem<T>>
   ): Promise<EncounterBySystem<T>> {
     const response = await fetch(`/api/${system}/encounters/${id}`, {
-      method: 'PUT',
+      method: "PUT",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({ data: updateData }),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to update encounter' }));
-      throw new Error(error.message || 'Failed to update encounter');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to update encounter" }));
+      throw new Error(error.message || "Failed to update encounter");
     }
 
     const data: EncounterResponse = await response.json();
@@ -134,19 +133,21 @@ export class EncounterApi {
     id: number
   ): Promise<boolean> {
     const response = await fetch(`/api/${system}/encounters/${id}`, {
-      method: 'DELETE',
+      method: "DELETE",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to delete encounter' }));
-      throw new Error(error.message || 'Failed to delete encounter');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to delete encounter" }));
+      throw new Error(error.message || "Failed to delete encounter");
     }
 
-    const data: DeleteEncounterResponse = await response.json();
+    const data: { success: boolean } = await response.json();
     return data.success;
   }
 
@@ -159,17 +160,21 @@ export class EncounterApi {
     entityIds: number[]
   ): Promise<void> {
     const response = await fetch(`/api/${system}/encounters/assign-entities`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
-      credentials: 'include',
+      credentials: "include",
       body: JSON.stringify({ encounterId, entityIds }),
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to assign entities to encounter' }));
-      throw new Error(error.message || 'Failed to assign entities to encounter');
+      const error = await response
+        .json()
+        .catch(() => ({ message: "Failed to assign entities to encounter" }));
+      throw new Error(
+        error.message || "Failed to assign entities to encounter"
+      );
     }
   }
 }
