@@ -1,4 +1,4 @@
-/* ===== Base Card Styles ===== */
+/* Base card - layout and defaults */
 .audio-item-card {
   border: 1px solid var(--border-color);
   border-radius: 12px;
@@ -18,103 +18,226 @@
   position: relative;
   overflow: hidden;
 
-  /* Default type color */
+  /* Default type color fallback */
   --type-color: var(--accent-primary);
-  --type-color-rgb: var(--accent-primary-rgb);
-  --type-glow: var(--accent-primary-glow);
+  
+  /* Current color starts as type color and can be overridden by states */
+  --current-color: var(--type-color);
 }
 
-/* ===== Type Indicators (use data-type attribute for clarity & DRYness) ===== */
+/* Type indicators - per-type color variables and left border */
 .audio-item-card[data-type="playlist"] {
   --type-color: var(--accent-success);
-  --type-color-rgb: var(--accent-success-rgb);
-  --type-glow: var(--accent-success-glow);
-  border-left: 3px solid var(--type-color);
+  --current-color: var(--type-color);
+  border-left: 3px solid var(--current-color);
 }
 .audio-item-card[data-type="sfx"] {
   --type-color: var(--sfx);
-  --type-color-rgb: var(--sfx-rgb);
-  --type-glow: var(--sfx-glow);
-  border-left: 3px solid var(--type-color);
+  --current-color: var(--type-color);
+  border-left: 3px solid var(--current-color);
 }
 .audio-item-card[data-type="ambience"] {
   --type-color: var(--ambience);
-  --type-color-rgb: var(--ambience-rgb);
-  --type-glow: var(--ambience-glow);
-  border-left: 3px solid var(--type-color);
+  --current-color: var(--type-color);
+  border-left: 3px solid var(--current-color);
 }
 .audio-item-card[data-type="pack"] {
   --type-color: var(--danger);
-  --type-color-rgb: var(--danger-rgb);
-  --type-glow: var(--danger-glow);
-  border-left: 3px solid var(--type-color);
+  --current-color: var(--type-color);
+  border-left: 3px solid var(--current-color);
 }
 .audio-item-card[data-type="macro"] {
   --type-color: var(--macro);
-  --type-color-rgb: var(--macro-rgb);
-  --type-glow: var(--macro-glow);
-  border-left: 3px solid var(--type-color);
+  --current-color: var(--type-color);
+  border-left: 3px solid var(--current-color);
 }
 
-/* Backwards compatibility for existing class selectors */
-.audio-item-card.playlist { --type-color: var(--accent-success); --type-color-rgb: var(--accent-success-rgb); --type-glow: var(--accent-success-glow); border-left: 3px solid var(--type-color);}
-.audio-item-card.sfx { --type-color: var(--sfx); --type-color-rgb: var(--sfx-rgb); --type-glow: var(--sfx-glow); border-left: 3px solid var(--type-color);}
-.audio-item-card.ambience { --type-color: var(--ambience); --type-color-rgb: var(--ambience-rgb); --type-glow: var(--ambience-glow); border-left: 3px solid var(--type-color);}
-.audio-item-card.pack { --type-color: var(--danger); --type-color-rgb: var(--danger-rgb); --type-glow: var(--danger-glow); border-left: 3px solid var(--type-color);}
-.audio-item-card.macro { --type-color: var(--macro); --type-color-rgb: var(--macro-rgb); --type-glow: var(--macro-glow); border-left: 3px solid var(--type-color);}
-
-/* ===== Use type color for all elements that should match ===== */
+/* Shared rules that use the current color  */
 .audio-item-card .play-icon,
 .audio-item-card .dropdown-toggle:hover,
 .audio-item-card .dropdown-toggle.active {
-  color: var(--type-color);
+  color: var(--current-color);
 }
 
-.audio-item-card .volume-slider::-webkit-slider-thumb,
-.audio-item-card .volume-slider::-moz-range-thumb {
-  background-color: var(--type-color);
+.audio-item-card .volume-slider-container .volume-slider::-webkit-slider-thumb,
+.audio-item-card .volume-slider-container .volume-slider::-moz-range-thumb {
+  background-color: var(--current-color);
 }
 
-/* ===== State Styles ===== */
+/* Hover state for volume slider thumb */
+.audio-item-card .volume-slider-container .volume-slider::-webkit-slider-thumb:hover,
+.audio-item-card .volume-slider-container .volume-slider::-moz-range-thumb:hover {
+  background-color: var(--current-color);
+  opacity: 0.8;
+}
+
+/* Playable item content: headers, titles, info and icons */
+.playable-item-header,
+.audio-item-header {
+  display: flex;
+  position: relative;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+}
+.playable-item-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0rem;
+  max-width: 100%;
+}
+.audio-item-info {
+  font-size: 0.75rem;
+  text-indent: 0.2rem;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  opacity: 0.9;
+}
+.audio-item-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+}
+.audio-item-header .item-icon {
+  position: relative;
+  top: 4px;
+  margin-right: 0.5rem;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+/* Play button styles */
+.playable-item-play-button {
+  background: none;
+  border: none;
+  position: absolute;
+  top: 52%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: 50%;
+  opacity: 0; /* default hidden until hover/state*/
+}
+
+.playable-item-play-button:hover {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1.1);
+  background: none;
+}
+.playable-item-play-button .play-icon {
+  color: var(--current-color);
+  font-size: 1.5rem;
+  transition: all 0.2s ease;
+}
+
+.audio-item-card:hover .playable-item-play-button {
+  opacity: 0.8;
+}
+
+/* Progress track and indicator */
+.sfx-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.2);
+  margin: 0;
+  overflow: hidden;
+  z-index: 2;
+}
+.sfx-progress-indicator {
+  height: 100%;
+  background-color: var(--current-color);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+/* Volume controls */
+.volume-slider-container {
+  position: absolute;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  height: 6px;
+}
+
+.audio-item-content .volume-slider {
+  width: 100%;
+  accent-color: var(--current-color);
+}
+
+/* State styles: selected, drop-target, playing, active */
+/* Basic selected state */
 .audio-item-card.selected {
-  border-bottom: 2px solid var(--type-color);
+  border-bottom: 2px solid var(--current-color);
 }
 
+/* =========================
+   AMBIENCE CARD STATES
+   ========================= */
+
+/* 1. INACTIVE STATE (default) - Neutral, static appearance */
+.audio-item-card[data-type="ambience"] {
+  /* Already handled by base type color above */
+  transition: all 0.3s ease;
+}
+
+/* 2. ACTIVE STATE (not playing) - Green border, subtle glow */
+.audio-item-card[data-type="ambience"].active {
+  --current-color: var(--accent-success);
+  border-left: 4px solid var(--accent-success);
+  box-shadow: 0 2px 8px rgba(25, 180, 122, 0.2);
+  background-color: var(--bg-tertiary);
+}
+
+.audio-item-card[data-type="ambience"].active .item-icon {
+  color: var(--accent-success);
+}
+
+/* 3. PLAYING STATE - Bright animated border, enhanced glow */
+.audio-item-card[data-type="ambience"].playing {
+  --current-color: var(--accent-active-glow);
+  border-left: none;
+  border-top: 4px solid var(--accent-active-glow);
+  box-shadow: 
+    0 0 1px rgba(61, 230, 168, 0.2),
+    0 1px 3px rgba(61, 230, 168, 0.1);
+  background-color: rgba(61, 230, 168, 0.03);
+  animation: ambience-playing-pulse 3s ease-in-out infinite;
+}
+
+.audio-item-card[data-type="ambience"].playing .playable-item-play-button {
+  opacity: 1;
+}
+
+.audio-item-card[data-type="ambience"].playing .item-icon {
+  color: var(--accent-active-glow);
+  animation: icon-glow-pulse 3s ease-in-out infinite;
+}
+.audio-item-card[data-type="ambience"]:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Drop target state */
 .audio-item-card.card-drop-target {
-  outline: 2px dashed var(--type-color);
-  background-color: rgba(var(--type-color-rgb), 0.1);
+  outline: 2px dashed var(--current-color);
+  background-color: rgba(var(--current-color), 0.1);
   transform: scale(1.02);
   z-index: 6;
 }
 
-.audio-item-card.playing .play-icon {
-  color: var(--type-color);
-}
-
-.audio-item-card.playing .playable-item-play-button {
-  opacity: 1;
-}
-
-/* Ambience active state */
-.audio-item-card.ambience-active {
-  --active-color: var(--accent-active-glow);
-  box-shadow: inset 0 4px 0 0 var(--active-color), 0 2px 4px var(--shadow);
-}
-.audio-item-card.ambience-active .play-icon {
-  color: var(--active-color);
-}
-.audio-item-card.ambience-active .volume-slider::-webkit-slider-thumb {
-  background-color: var(--active-color);
-}
-
-/* Combined states */
-.audio-item-card.ambience-active.selected {
-  border-bottom: 2px solid var(--active-color);
-  box-shadow: inset 0 4px 0 0 var(--active-color), 0 4px 12px var(--shadow);
-  border-inline: 1px solid transparent;
-}
-
-/* ===== Create Collection Card ===== */
+/* Create collection card */
 .create-collection-card {
   border: 2px dashed var(--border-color);
   display: flex;
@@ -164,111 +287,57 @@
   border-color: var(--accent-primary);
 }
 
-/* ===== Playable Item Styles ===== */
-.playable-item-header,
-.audio-item-header {
-  display: flex;
-  position: relative;
-  justify-content: space-between;
-  align-items: flex-start;
-  width: 100%;
-}
-.playable-item-title {
-  display: flex;
-  flex-direction: column;
-  gap: 0rem;
-  max-width: 100%;
-}
-.audio-item-info {
-  font-size: 0.75rem;
-  text-indent: 0.2rem;
-  line-height: 1.2;
-  color: var(--text-secondary);
-  opacity: 0.9;
-}
-.audio-item-content {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: 100%;
-}
-.audio-item-header .item-icon {
-  position: relative;
-  top: 4px;
-  margin-right: 0.5rem;
-  font-size: 1.2rem;
-  color: var(--text-secondary);
-}
-
-/* ===== Play Button Styles ===== */
-.playable-item-play-button {
-  background: none;
-  border: none;
-  position: absolute;
-  top: 52%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border-radius: 50%;
-}
-.playable-item-play-button:hover {
-  opacity: 1;
-  transform: translate(-50%, -50%) scale(1.1);
-  background: none;
-}
-.playable-item-play-button .play-icon {
-  color: var(--type-color);
-  font-size: 1.5rem;
-  transition: all 0.2s ease;
-}
-.playable-item-play-button:hover .play-icon {
-  transform: scale(1.1);
-}
-.audio-item-card:hover .playable-item-play-button {
-  opacity: 0.8;
-}
-
-.sfx-progress-track {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 4px;
-  background-color: rgba(255, 255, 255, 0.2);
-  margin: 0;
-  overflow: hidden;
-  z-index: 2;
-}
-
-.sfx-progress-indicator {
-  height: 100%;
-  background-color: #4a90e2;
-  border-radius: 2px;
-  transition: width 0.1s linear;
-}
-
-/* ===== Volume Controls ===== */
-.audio-item-content .volume-slider {
-  position: absolute;
-  bottom: 12px;
-  width: 90%;
-  justify-self: center;
-  height: 6px;
-  margin-bottom: -1px;
-}
-
-/* ===== Standard Item Styles ===== */
+/* Miscellaneous */
 .item-icon.playing {
   color: var(--success);
 }
 .item-count {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+/* =========================
+   KEYFRAME ANIMATIONS
+   ========================= */
+
+/* Very subtle pulsing glow for playing ambience cards */
+@keyframes ambience-playing-pulse {
+  0%, 100% {
+    box-shadow: 
+      0 0 4px rgba(61, 230, 168, 0.15),
+      0 1px 2px rgba(61, 230, 168, 0.08);
+  }
+  50% {
+    box-shadow: 
+      0 0 8px rgba(61, 230, 168, 0.25),
+      0 1px 2px rgba(61, 230, 168, 0.12);
+  }
+}
+
+/* Icon glow pulse for playing state */
+@keyframes icon-glow-pulse {
+  0%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(61, 230, 168, 0.6);
+  }
+  50% {
+    opacity: 0.8;
+    text-shadow: 0 0 12px rgba(61, 230, 168, 0.8);
+  }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .audio-item-card[data-type="ambience"].playing {
+    animation: none;
+  }
+  
+  .audio-item-card[data-type="ambience"].playing .item-icon {
+    animation: none;
+    text-shadow: 0 0 8px rgba(61, 230, 168, 0.6);
+  }
+  
+  .audio-item-card[data-type="ambience"].playing::after {
+    animation: none;
+  }
 }

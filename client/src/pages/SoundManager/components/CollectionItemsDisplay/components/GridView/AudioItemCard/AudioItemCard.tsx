@@ -35,33 +35,29 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
   onEditItem,
   removeItems,
 }) => {
-  const isPlayable = !item.isCreateButton && 
+  const isPlayable = !item.isCreateButton &&
     item.type !== 'pack' && item.type !== 'sfx';
 
-  // Extract drag className and props more cleanly
+  // Separate drag className from other drag props
   const { className: dragClassName, ...restDragProps } = dragItemProps || {};
-  
-  // Group related classes for better organization
+
+  // Card class list
   const cardClasses = [
     'audio-item-card',
-    // Item type
-    item.type || '',
-    // Special card types
     item.isCreateButton ? 'create-collection-card' : '',
-    // Card states
     isSelected ? 'selected' : '',
     isDropTarget ? 'card-drop-target' : '',
     isPlaying ? 'playing' : '',
-    isAmbienceActive ? 'ambience-active' : '',
-    // Drag classes
+    isAmbienceActive ? 'active' : '',
     dragClassName || ''
   ]
-    .filter(Boolean) // Remove empty strings
+    .filter(Boolean)
     .join(' ');
 
   return (
     <div
       className={cardClasses}
+      data-type={item.type}
       onClick={(e) => onSelect(e, item.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -87,7 +83,7 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
           onPlayItem={onPlayItem}
           removeItems={removeItems}
           isPlaying={isPlaying}
-          onEditItem={onEditItem} 
+          onEditItem={onEditItem}
         />
       ) : (
         <StandardItemContent
@@ -96,7 +92,7 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
           showActions={showActions}
           selectedItemIds={selectedItemIds}
           removeItems={removeItems}
-          onEditItem={onEditItem} 
+          onEditItem={onEditItem}
         />
       )}
     </div>

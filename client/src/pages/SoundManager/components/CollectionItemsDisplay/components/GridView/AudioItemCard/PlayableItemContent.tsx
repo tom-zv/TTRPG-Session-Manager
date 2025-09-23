@@ -124,7 +124,7 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
       </div>
 
       <button
-        className={`playable-item-play-button ${isPlaying ? "playing" : ""}`}
+        className="playable-item-play-button"
         onClick={(e) => {
           e.stopPropagation();
           onPlayItem(item.id);
@@ -135,16 +135,19 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
       </button>
 
       {(!isAudioCollection(item) || isAudioMacro(item)) && (
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={localVolume}
-          onChange={handleVolumeChange}
-          className="volume-slider"
-          aria-label="Volume"
-        />
+        <div className="volume-slider-container">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={localVolume}
+            onClick={(e) => e.stopPropagation()}
+            onChange={handleVolumeChange}
+            className="volume-slider"
+            aria-label="Volume"
+          />
+        </div>
       )}
     
       {isPlaying && isSfxCollection(parentCollection) && (

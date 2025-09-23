@@ -106,3 +106,18 @@
 .volume-slider::-webkit-slider-thumb:hover {
   background-color: var(--accent-secondary);
 }
+
+/* Override for audio item cards to use current-color */
+.audio-item-card .volume-slider::-webkit-slider-thumb {
+  background-color: var(--current-color);
+}
+
+.audio-item-card .volume-slider::-moz-range-thumb {
+  background-color: var(--current-color);
+}
+
+.audio-item-card .volume-slider::-webkit-slider-thumb:hover,
+.audio-item-card .volume-slider::-moz-range-thumb:hover {
+  background-color: var(--current-color);
+  opacity: 0.8;
+}
