@@ -38,7 +38,8 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
     return (
       (data as AudioCollection) || {
         items: [],
-        type: collectionType,
+        type: 'collection',
+        audioType: collectionType,
         id: collectionId || -1,
         name: "",
       }
@@ -168,7 +169,7 @@ export const CollectionItemsDisplay: React.FC<CollectionItemsDisplayProps> = ({
           onEditClick={handleEditItem}
           item={items.find((item) => item.id === editingItemId)!}
           parentCollectionId={collection.id}
-          parentCollectionType={collection.type}
+          parentCollectionType={collection.audioType}
         />
       )}
     </div>

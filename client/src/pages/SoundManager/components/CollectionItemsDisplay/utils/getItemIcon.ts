@@ -1,4 +1,4 @@
-import { BsMusicNote, BsSoundwave, BsHeadphones, BsBox } from "react-icons/bs";
+import { BsMusicNote, BsSoundwave, BsHeadphones } from "react-icons/bs";
 import { AiTwotoneSound } from "react-icons/ai";
 import { FaLeaf } from "react-icons/fa";
 import { IconType } from 'react-icons';
@@ -9,10 +9,11 @@ export function getItemIcon(item: AudioItem): IconType {
     case 'file':
       return item.audioType === 'music' ? BsMusicNote : 
              item.audioType === 'sfx' ? BsSoundwave : AiTwotoneSound;
-    case 'playlist': return BsHeadphones;
-    case 'sfx': return AiTwotoneSound;
-    case 'ambience': return FaLeaf;
-    case 'pack': return BsBox;
+    case 'collection':
+      return item.audioType === 'playlist' ? BsHeadphones :
+             item.audioType === 'sfx' ? AiTwotoneSound :
+             item.audioType === 'ambience' ? FaLeaf :
+             AiTwotoneSound;
     default: return AiTwotoneSound;
   }
 }

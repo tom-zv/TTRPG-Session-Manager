@@ -1,10 +1,10 @@
 import { AudioFileDTO } from './files.js';
-import { CollectionType } from "shared/audio/types.js";
 
 export interface AudioCollectionDTO {
   id: number;
-  type: CollectionType;
+  type: 'collection' | 'macro' ;
   name: string;
+  audioType: 'playlist' | 'sfx' | 'ambience';
   description?: string;
   imagePath?: string; 
   itemCount?: number;

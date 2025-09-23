@@ -41,11 +41,6 @@
   --current-color: var(--type-color);
   border-left: 3px solid var(--current-color);
 }
-.audio-item-card[data-type="pack"] {
-  --type-color: var(--danger);
-  --current-color: var(--type-color);
-  border-left: 3px solid var(--current-color);
-}
 .audio-item-card[data-type="macro"] {
   --type-color: var(--macro);
   --current-color: var(--type-color);

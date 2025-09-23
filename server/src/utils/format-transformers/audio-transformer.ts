@@ -92,8 +92,9 @@ export function collectionToDTO(
 ): AudioCollectionDTO {
   return {
     id: collectionDB.id,
-    type: collectionDB.type,
+    type: 'collection',
     name: collectionDB.name,
+    audioType: collectionDB.type,
     description: collectionDB.description ?? undefined,
     imagePath: collectionDB.image_path ?? undefined,
     itemCount: collectionDB.item_count,

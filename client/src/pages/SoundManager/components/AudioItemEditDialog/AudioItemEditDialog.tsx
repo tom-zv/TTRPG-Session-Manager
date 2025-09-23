@@ -98,15 +98,13 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
     if (isAudioFile(item)) return "Edit Audio File";
     if (isAudioMacro(item)) return "Edit Macro";
     if (isAudioCollection(item)) {
-      switch (item.type) {
+      switch (item.audioType) {
         case "playlist":
           return "Edit Playlist";
         case "sfx":
           return "Edit SFX Collection";
         case "ambience":
           return "Edit Ambience Collection";
-        case "pack":
-          return "Edit Pack";
         default:
           return "Edit Collection";
       }

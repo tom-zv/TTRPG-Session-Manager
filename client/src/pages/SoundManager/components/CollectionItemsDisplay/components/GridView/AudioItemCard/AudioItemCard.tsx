@@ -36,7 +36,7 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
   removeItems,
 }) => {
   const isPlayable = !item.isCreateButton &&
-    item.type !== 'pack' && item.type !== 'sfx';
+    !(item.type == 'collection' && item.audioType == 'sfx');
 
   // Separate drag className from other drag props
   const { className: dragClassName, ...restDragProps } = dragItemProps || {};
@@ -57,7 +57,7 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
   return (
     <div
       className={cardClasses}
-      data-type={item.type}
+      data-type={item.audioType}
       onClick={(e) => onSelect(e, item.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

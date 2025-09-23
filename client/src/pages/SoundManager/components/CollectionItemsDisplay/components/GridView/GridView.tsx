@@ -105,12 +105,12 @@ export const GridView: React.FC<GridViewProps> = ({
     return createCollection
       ? ({
           id: -1, 
-          name: `Create New ${collectionNameFromType(collection.type).slice(0, -1)}`,
+          name: `Create New ${collectionNameFromType(collection.audioType).slice(0, -1)}`,
           type: collection.type,
           isCreateButton: true,
         } as AudioItem)
       : null;
-  }, [createCollection, collection.type]);
+  }, [createCollection, collection.audioType, collection.type]);
 
   return (
     <>
@@ -168,7 +168,7 @@ export const GridView: React.FC<GridViewProps> = ({
         <CreateCollectionDialog
           isOpen={isCreateDialogOpen}
           onClose={() => setIsCreateDialogOpen(false)}
-          collectionType={collection.type}
+          collectionType={collection.audioType}
           createCollection={createCollection}
         />
       )}

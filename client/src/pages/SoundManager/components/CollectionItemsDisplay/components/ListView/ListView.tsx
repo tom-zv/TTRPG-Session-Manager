@@ -128,7 +128,7 @@ export const ListView: React.FC<ListViewProps> = ({
                 );
 
                 const isCurrentTrack =
-                  collection.type === "playlist" &&
+                  collection.audioType === "playlist" &&
                   audioContext.playlist?.currentPlaylistId === collection.id &&
                   audioContext.playlist?.currentIndex === item.position;
 

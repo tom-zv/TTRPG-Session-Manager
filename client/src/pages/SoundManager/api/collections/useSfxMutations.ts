@@ -15,7 +15,7 @@ export const useUpdateMacroVolume = () => {
       macroId: number;
       volume: number;
     }) => {
-      return await macroApi.updateCollection(macroId, undefined, undefined, volume);
+      return await macroApi.updateCollection(macroId, undefined, undefined, undefined, volume);
     },
     onMutate: async ({ macroId, volume }) => {
       // Optimistically update the cache

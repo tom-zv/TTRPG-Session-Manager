@@ -55,7 +55,8 @@ export function transformDtoToAudioFile(dto: AudioFileDTO): AudioFile {
 export function transformDtoToAudioMacro(dto: MacroApiResponse): AudioMacro {
   return {
     id: dto.id,
-    type: "macro",
+    type: 'macro',
+    audioType: 'sfx',
     name: dto.name,
     description: dto.description || undefined,
     volume: dto.volume ?? 1.0,
@@ -89,7 +90,7 @@ function transformDtoToAudioItem(item: AudioFileDTO | MacroApiResponse) {
  */
 export function transformDtoToAudioCollection(
   dto: CollectionApiResponse,
-  collectionType: "playlist" | "sfx" | "ambience" | "pack"
+  collectionType: "playlist" | "sfx" | "ambience" 
 ): AudioCollection {
 
   // For sfx collections, items can be files or macros
@@ -108,7 +109,8 @@ export function transformDtoToAudioCollection(
   return {
     id: dto.id,
     name: dto.name,
-    type: collectionType,
+    type: 'collection',
+    audioType: collectionType,
     imagePath: dto.imagePath,
     description: dto.description || undefined,
     itemCount: dto.itemCount ?? 0,

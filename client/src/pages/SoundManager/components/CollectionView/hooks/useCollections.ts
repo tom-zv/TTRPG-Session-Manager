@@ -24,7 +24,7 @@ interface UseCollectionsProps {
   onEditItem?: (
     collectionId: number,
     itemId: number,
-    params: any
+    params: unknown
   ) => Promise<boolean>;
   onUpdateItemPosition?: (
     collectionId: number,
@@ -137,8 +137,9 @@ export const useCollections = ({
     const optimisticCollection: AudioCollection = {
       id: -Date.now(), // Temporary negative ID to avoid conflicts
       name: newItemName,
+      type: 'collection',
       description: newItemDescription || undefined,
-      type: collectionType,
+      audioType: collectionType,
       itemCount: 0,
     };
 
@@ -302,7 +303,7 @@ export const useCollections = ({
   );
 
   const handleEditItem = useCallback(
-    async (itemId: number, params: any) => {
+    async (itemId: number, params: unknown) => {
       if (!onEditItem || !selectedCollection || !selectedCollection.items) return;
 
       // Find the item to edit
@@ -311,7 +312,9 @@ export const useCollections = ({
 
       // Optimistically update the item
       const updatedItems = selectedCollection.items.map((item) =>
-        item.id === itemId ? { ...item, ...params } : item
+        item.id === itemId && typeof params === 'object' && params !== null
+          ? { ...item, ...params }
+          : item
       );
       
       setSelectedCollection(prev => 
@@ -557,6 +560,8 @@ export const useCollections = ({
 };
 
 export const collectionNameFromType = (collectionType: string): string => {
+  // Debug log removed for production
+  if (!collectionType) return 'Collections';
   switch(collectionType) {
     case 'playlist':
       return 'Playlists';
@@ -564,8 +569,6 @@ export const collectionNameFromType = (collectionType: string): string => {
       return 'Sound Effect Collections';
     case 'ambience':
       return 'Ambience Collections';
-    case 'pack':
-      return 'Packs';
     case 'macro':
       return 'Macros';
     default:

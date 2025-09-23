@@ -57,7 +57,8 @@ export const useGetCollectionsOfType = (type: CollectionType, options = {}) => {
       // Transform the array of collections into a virtual collection object
       return {
         id: -1,
-        type: type,
+        type: 'collection',
+        audioType: type,
         name: `All ${type}s`,
         items: collections,
       } as AudioCollection;

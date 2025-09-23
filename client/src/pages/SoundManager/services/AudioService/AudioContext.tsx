@@ -108,10 +108,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Universal toggle function that works with any audio item type
   const toggleAudioItem = useCallback(
     async (item: AudioItem, parentCollection?: AudioCollection): Promise<boolean> => { 
+      if (isAudioMacro(item)){
+        return sfx.toggleMacro(item);
+      }
+
       if (isAudioCollection(item)) {
-        if (isAudioMacro(item)) {
-          return sfx.toggleMacro(item);
-        } else if (isPlaylistCollection(item)) {
+        if (isPlaylistCollection(item)) {
           return playlist.togglePlaylist(item.id, 0);
         } else if (isAmbienceCollection(item)) {
           return ambience.toggleCollection(item);
@@ -123,7 +125,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       // For audio files, determine the type and use the appropriate toggle
       if (isAudioFile(item)) {
         if (parentCollection) {
-          switch (parentCollection.type) {
+          switch (parentCollection.audioType) {
             case "playlist":
               return playlist.togglePlaylist(
                 parentCollection.id,
@@ -167,7 +169,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       // For audio files
       if (isAudioFile(item)) {
         if (parentCollection) {
-          switch (parentCollection.type) {
+          switch (parentCollection.audioType) {
             case "playlist":
               // Check if it's the current track in the playing playlist
               return (
@@ -213,7 +215,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const updateAudioItemVolume = useCallback(
     (item: AudioItem, volume: number, parentCollection?: AudioCollection) => {
       if (isAudioCollection(item)) {
-        switch (item.type) {
+        switch (item.audioType) {
           case "macro":
             sfx.setMacroVolume(item.id, volume);
             break;
@@ -235,7 +237,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         if (!parentCollection) {
           return;
         }
-        switch (parentCollection.type) {
+        switch (parentCollection.audioType) {
           case "playlist":
             if (parentCollection.id === playlist.currentPlaylistId) {
               playlist.setVolume(volume);

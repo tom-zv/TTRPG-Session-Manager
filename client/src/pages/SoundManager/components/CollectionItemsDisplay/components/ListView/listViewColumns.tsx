@@ -8,13 +8,10 @@ import { isAudioFile, isAudioMacro } from "../../../../types/AudioItem.js";
 import { getItemIcon } from "../../utils/getItemIcon.js";
 
 export function getColumns(collection: AudioCollection) {
-  switch (collection.type) {
-    case "pack":
-      return ["icon", "name"];
-
+  switch (collection.audioType) {
     case "playlist":
       return collection.id < 0
-        ? ["image", "name", "actions"]
+        ? ["play", "image", "name", "actions"]
         : ["position", "name", "duration", "actions"];
 
     case "macro":
@@ -53,6 +50,23 @@ export function renderCell(
         </td>
       );
     }
+    case "play":
+      return (
+        <td key={column}>
+          <div className="play-cell">
+            <button
+              className="row-play-button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handlePlayItem(item);
+              }}
+              aria-label="Play"
+            >
+              ▶
+            </button>
+          </div>
+        </td>
+      );
 
     case "position":
       return (
@@ -60,7 +74,7 @@ export function renderCell(
           <div className="position-cell">
             <span className="position-number">{item.position! + 1}</span>
             <button
-              className="position-play-button"
+              className="row-play-button"
               onClick={(e) => {
                 e.stopPropagation();
                 handlePlayItem(item);

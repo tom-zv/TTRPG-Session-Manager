@@ -4,8 +4,8 @@ import { AudioType, CollectionType } from "shared/audio/types.js";
 export interface AudioItemBase {
   id: number;
   name: string;
-  position?: number; // Position within a collection/pack
-  isCreateButton?: boolean; // Special item for creating a new item
+  position?: number; // Position within a collection
+  isCreateButton?: boolean;
 }
 
 // Audio file specific interface
@@ -24,7 +24,8 @@ export interface AudioFile extends AudioItemBase {
 
 // Collection specific interface
 export interface AudioCollection<T extends AudioItem = AudioItem> extends AudioItemBase {
-  type: CollectionType;
+  type: 'collection' | 'macro';
+  audioType: CollectionType
   imagePath?: string;
   description?: string;
   itemCount?: number;
@@ -33,8 +34,9 @@ export interface AudioCollection<T extends AudioItem = AudioItem> extends AudioI
 
 export interface AudioMacro extends AudioCollection {
   type: "macro";
-  duration?: number; 
-  volume?: number; 
+  audioType: 'sfx';
+  duration: number; 
+  volume: number; 
 }
 
 // Union type
@@ -54,21 +56,18 @@ export function isAudioMacro(item: AudioItem): item is AudioMacro {
 }
 
 export function isPlaylistCollection(item: AudioItem): item is AudioCollection {
-  return item.type === "playlist";
+  return item.audioType === "playlist";
 }
 
 export function isSfxCollection(item: AudioItem): item is AudioCollection {
-  return item.type === "sfx";
+  return item.audioType === "sfx";
 }
 
 export function isAmbienceCollection(item: AudioItem): item is AudioCollection {
-  return item.type === "ambience";
+  return item.audioType === "ambience";
 }
 
 export function isMacroCollection(item: AudioItem): item is AudioCollection {
   return item.type === "macro";
 }
 
-export function isPackCollection(item: AudioItem): item is AudioCollection {
-  return item.type === "pack";
-}
