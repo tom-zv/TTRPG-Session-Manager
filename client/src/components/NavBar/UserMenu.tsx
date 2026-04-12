@@ -49,7 +49,7 @@ const UserMenu: React.FC = () => {
         <div className="user-menu-dropdown">
           <div className="user-info">
             <p className="username">{currentUser.username}</p>
-            <p className="role">{currentUser.isDm ? 'Dungeon Master' : 'Player'}</p>
+            <p className="role">{currentUser.isGm ? 'Dungeon Master' : 'Player'}</p>
           </div>
           <hr />
           <button className="menu-item" onClick={handleLogout}>

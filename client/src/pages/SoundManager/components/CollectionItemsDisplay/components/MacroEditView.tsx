@@ -15,7 +15,7 @@ import { useUpdateMacroFile } from "../../../api/collections/useSfxMutations.js"
 import { useSelection } from "src/hooks/useSelection.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
 import AudioItemEditDialog from "../../../components/AudioItemEditDialog/AudioItemEditDialog.js";
-import "./MacroEditView.css";
+import styles from "./MacroEditView.module.css";
 
 interface MacroEditViewProps {
   macro: AudioMacro;
@@ -324,7 +324,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                       <div className="item-name-cell">{item.name}</div>
                     </td>
                     <td>
-                      <div className="parameter-control">
+                      <div className={styles.parameterControl}>
                         <input
                           type="number"
                           min={0}
@@ -334,9 +334,9 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                             handleValueChange(item.id, "delay", +e.target.value)
                           }
                           onClick={(e) => e.stopPropagation()}
-                          className="delay-input"
+                          className={styles.delayInput}
                         />
-                        <div className="delay-buttons">
+                        <div className={styles.delayButtons}>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -354,7 +354,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                             –
                           </button>
                         </div>
-                        <span className="parameter-unit">ms</span>
+                        <span className={styles.parameterUnit}>ms</span>
                         {vals.isSaving && (
                           <span className="save-indicator" title="Saving…">
                             ●
@@ -363,7 +363,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                       </div>
                     </td>
                     <td>
-                      <div className="parameter-control">
+                      <div className={styles.parameterControl}>
                         <input
                           type="range"
                           min={0}
@@ -376,7 +376,7 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
                           onClick={(e) => e.stopPropagation()}
                           className="volume-slider"
                         />
-                        <span className="volume-value">
+                        <span className={styles.volumeValue}>
                           {Math.round(vals.volume * 100)}%
                         </span>
                       </div>

@@ -1,4 +1,5 @@
 import React from "react";
+import styles from './AudioItemCard.module.css';
 import {
   AudioItem,
   isAudioCollection,
@@ -26,18 +27,26 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
   onEditItem,
 }) => {
   return (
-    <div className="audio-item-content">
-      <div className="audio-item-header">
-        <h4 className="audio-item-name" title={item.name}>
-          {/* <span className={`item-icon`}>
-            {React.createElement(getItemIcon(item))}
-          </span> */}
-          {item.name}
-          {item.type === "macro" && <span className="macro-indicator">M</span>}
-        </h4>
+    <div className={styles.audioItemContent}>
+      <div className={styles.audioItemHeader}>
+        <div className={styles.playableItemTitle}>
+          <h4 className={styles.audioItemName} title={item.name}>
+            {/* <span className={`item-icon`}>
+              {React.createElement(getItemIcon(item))}
+            </span> */}
+            {item.name}
+            {item.type === "macro" && <span className="macro-indicator">M</span>}
+          </h4>
+
+          {isAudioCollection(item) && item.itemCount !== undefined && (
+            <span className={styles.audioItemInfo}>
+              {item.itemCount === 0 ? "empty" : `${item.itemCount} items`}
+            </span>
+          )}
+        </div>
 
         {showActions && (
-          <div className="item-actions">
+          <div className={styles.itemActions}>
             <ItemActions
               collectionId={parentCollection.id}
               item={item}
@@ -50,12 +59,6 @@ const StandardItemContent: React.FC<StandardItemContentProps> = ({
               isSmall
             />
           </div>
-        )}
-      </div>
-
-      <div className="audio-item-details">
-        {isAudioCollection(item) && item.itemCount !== undefined && (
-          <span className="item-count">{item.itemCount} items</span>
         )}
       </div>
     </div>

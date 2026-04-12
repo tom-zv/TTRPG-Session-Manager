@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { sfxModule } from "../modules/sfxModule.js";
 import { AudioEventTypes, on, off } from "../events.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
@@ -105,18 +105,31 @@ export function useSfxModule() {
     };
   }, []);
 
-  return {
-    // State
-    volume: masterVolume,
-    playingSoundIds,
-    playingMacroIds,
+  return useMemo(
+    () => ({
+      // State
+      volume: masterVolume,
+      playingSoundIds,
+      playingMacroIds,
 
-    // Methods
-    toggleFile,
-    toggleMacro,
-    setVolume: setMasterVolume,
-    setSoundVolume,
-    setMacroVolume,
-    getFilePosition
-  };
+      // Methods
+      toggleFile,
+      toggleMacro,
+      setVolume: setMasterVolume,
+      setSoundVolume,
+      setMacroVolume,
+      getFilePosition,
+    }),
+    [
+      masterVolume,
+      playingSoundIds,
+      playingMacroIds,
+      toggleFile,
+      toggleMacro,
+      setMasterVolume,
+      setSoundVolume,
+      setMacroVolume,
+      getFilePosition,
+    ]
+  );
 }

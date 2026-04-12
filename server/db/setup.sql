@@ -6,14 +6,13 @@ CREATE DATABASE IF NOT EXISTS audio;
 USE core;
 SOURCE core/01_users.sql;
 SOURCE core/02_systems.sql;
-SOURCE core/03_characters.sql;
+SOURCE core/03_entities.sql;
 SOURCE core/04_encounters.sql;
 
 USE dnd5e;
-SOURCE dnd5e/01_conditions.sql;
-SOURCE dnd5e/02_damage_types.sql;
-SOURCE dnd5e/03_characters.sql;
-SOURCE dnd5e/04_encounters.sql;
+SOURCE dnd5e/01_damage_types.sql;
+SOURCE dnd5e/02_entities.sql;
+SOURCE dnd5e/03_encounter_state.sql;
 
 USE audio;
 SOURCE audio/01_folders.sql;

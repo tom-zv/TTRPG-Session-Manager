@@ -1,0 +1,124 @@
+.playlistPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Hide the collection-items-display header in playlist context */
+.playlistPanel :global(.collection-items-display-header) {
+  display: none;
+}
+
+/* Panel header */
+.playlistPanel :global(.panel-header) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+  height: var(--panel-header-height);
+  white-space: nowrap;
+}
+
+.playlistPanel :global(.panel-header) h3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+/* Scroll container */
+.playlistPanel :global(.collection-items-display) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.playlistPanel :global(.collection-items-display) thead {
+  display: none;
+}
+
+/* Playlist rows */
+.playlistPanel :global(.audio-item-row.playlist) {
+  cursor: pointer;
+  height: 60px;
+  margin-bottom: var(--spacing-xs);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  position: relative;
+  transition:
+    transform var(--transition-fast) ease,
+    box-shadow var(--transition-fast) ease,
+    background-color var(--transition-fast) ease;
+}
+
+.playlistPanel :global(.audio-item-row.playlist) :global(.item-actions) {
+  position: absolute;
+  right: 5px;
+  top: 25%;
+}
+
+.playlistPanel :global(.audio-item-row:hover) :global(.item-actions) :global(.play-button) {
+  opacity: 1;
+}
+
+.playlistPanel :global([data-item-id]) td:first-child {
+  position: relative;
+}
+
+.playlistPanel :global(.audio-item-row:not(.playlist)) td:nth-child(1) {
+  width: 40px;
+  text-align: center;
+}
+
+.playlistPanel :global(.audio-item-row:not(.playlist)) :global(.position-number) {
+  transition: opacity var(--transition-fast) ease;
+  opacity: 1;
+}
+
+.playlistPanel :global(.audio-item-row:not(.playlist)):hover :global(.position-number) {
+  opacity: 0;
+}
+
+/* Playlist row separator line */
+.playlistPanel :global(.audio-item-row.playlist)::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0%;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--border-color), transparent);
+}
+
+.playlistPanel :global(.audio-item-row.playlist):last-child::after {
+  display: none;
+}
+
+/* Playlist name indentation */
+.playlistPanel :global(.audio-item-row.playlist) :global(.item-name-cell) {
+  padding-left: 12px;
+}
+
+/* Selected playlist row */
+.playlistPanel :global(.audio-item-row.playlist.selected) {
+  background-color: rgba(var(--accent-primary-rgb), 0.15);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Hover effect for playlists */
+.playlistPanel :global(.audio-item-row.playlist):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.playlistPanel :global(.audio-item-row.playlist):focus-within {
+  outline: 2px solid rgba(var(--accent-primary-rgb), 0.5);
+  outline-offset: -1px;
+}
+
+@media (max-width: 768px) {
+  .playlistPanel :global(.audio-item-row.playlist) {
+    height: 52px;
+  }
+}

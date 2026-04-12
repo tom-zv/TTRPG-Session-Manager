@@ -8,6 +8,7 @@ import FolderDisplay from "./FolderDisplay.js";
 import { useFolderTree } from "../context/FolderTreeContext.js";
 import { DownloadProgress } from "../hooks/useDownloadProgress.js";
 import { FaCheck } from "react-icons/fa";
+import styles from "../FolderTree.module.css";
 
 
 interface FolderItemProps {
@@ -57,7 +58,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
       <div
         {...{
           ...dropAreaProps,
-          className: `folder-item ${dropAreaProps.className || ""}`,
+          className: `${styles.folderItem} ${dropAreaProps.className || ""}`,
         }}
       >
         <FolderHeader
@@ -69,14 +70,14 @@ const FolderItem: React.FC<FolderItemProps> = ({
         />
 
         {isOpen && (
-          <ul className="folder-children">
+            <ul className={styles.folderChildren}>
             {/* Render subfolders first */}
             {hasChildren && folder.children && (
               <FolderDisplay folders={folder.children} level={level + 1} />
             )}
 
             {/* Add separator if we have both children and files */}
-            {hasChildren && hasFiles && <li className="folder-separator"></li>}
+            {hasChildren && hasFiles && <li className={styles.folderSeparator}></li>}
 
             {hasFiles &&
               folder.files!.map((file) => (
@@ -95,18 +96,18 @@ const FolderItem: React.FC<FolderItemProps> = ({
                   return (
                     <div
                       key={`download-job-${jobId}`}
-                      className="download-status"
+                        className={styles.downloadStatus}
                     >
                       {/*
                         If the job has a jobError, show a job‐level error block
                       */}
                       {progress.jobError ? (
-                        <div className="job-error">
-                          <div className="error-header">
+                          <div className={styles.jobError}>
+                            <div className={styles.errorHeader}>
                             <i className="fas fa-exclamation-triangle"></i>
                             <span>Download job failed</span>
                             <button
-                              className="retry-button"
+                                className={styles.retryButton}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 console.log(
@@ -121,7 +122,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                               Retry All
                             </button>
                             <button
-                              className="dismiss-button"
+                                className={styles.dismissButton}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 dismissDownloadProgress(jobId, folder.id);
@@ -130,20 +131,20 @@ const FolderItem: React.FC<FolderItemProps> = ({
                              <FaCheck />
                             </button>
                           </div>
-                          <div className="folder-error-text">
+                            <div className={styles.folderErrorText}>
                             {progress.jobError.message}
                           </div>
                         </div>
                       ) : progress.fileErrors &&
                         progress.fileErrors.length > 0 ? (
-                        <div className="file-errors">
-                          <div className="error-header">
+                          <div className={styles.fileErrors}>
+                            <div className={styles.errorHeader}>
                             <span>
                               {progress.fileErrors.length} file(s) failed to
                               download
                             </span>
                             <button
-                              className="retry-button"
+                                className={styles.retryButton}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 console.log(
@@ -158,7 +159,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                               Retry All
                             </button>
                             <button
-                              className="toggle-details-button"
+                                className={styles.toggleDetailsButton}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleErrorDetails(jobId);
@@ -167,7 +168,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                               {showDetails ? "Hide Details" : "Show Details"}
                             </button>
                             <button
-                              className="dismiss-button"
+                                className={styles.dismissButton}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 dismissDownloadProgress(jobId, folder.id);
@@ -178,33 +179,33 @@ const FolderItem: React.FC<FolderItemProps> = ({
                           </div>
 
                           {showDetails && (
-                            <ul className="error-list">
+                              <ul className={styles.errorList}>
                               {progress.fileErrors!.map((error, index) => (
                                 <li
                                   key={`error-${jobId}-${index}`}
-                                  className="error-item"
+                                    className={styles.errorItem}
                                 >
-                                  <div className="error-file-info">
+                                    <div className={styles.errorFileInfo}>
                                     {error.title ? (
-                                      <span className="error-file-name">
+                                        <span className={styles.errorFileName}>
                                         {error.title}
                                       </span>
                                     ) : (
-                                      <span className="error-file-name">
+                                        <span className={styles.errorFileName}>
                                         Unknown file
                                       </span>
                                     )}
                                     {error.url && (
-                                      <span className="error-file-url">
+                                        <span className={styles.errorFileUrl}>
                                         {error.url}
                                       </span>
                                     )}
                                   </div>
-                                  <div className="folder-error-text">
+                                    <div className={styles.folderErrorText}>
                                     {error.message}
                                   </div>
                                   <button
-                                    className="retry-file-button"
+                                      className={styles.retryFileButton}
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       console.log(
@@ -225,13 +226,13 @@ const FolderItem: React.FC<FolderItemProps> = ({
                           )}
                         </div>
                       ) : progress.complete ? (
-                        <div className="download-complete">
-                          <div className="complete-header">
+                          <div className={styles.downloadComplete}>
+                            <div className={styles.completeHeader}>
                             <i className="fas fa-check-circle"></i>
                             <span>Download complete</span>
 
                             <button
-                              className="dismiss-button"
+                                className={styles.dismissButton}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 dismissDownloadProgress(jobId, folder.id);
@@ -245,7 +246,7 @@ const FolderItem: React.FC<FolderItemProps> = ({
                           </div> */}
                         </div>
                       ) : (
-                        <span className="download-progress">
+                          <span className={styles.downloadProgress}>
                           Downloading {progress.index}/{progress.total}...
                         </span>
                       )}

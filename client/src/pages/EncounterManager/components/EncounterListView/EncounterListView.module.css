@@ -1,0 +1,98 @@
+.encounterToolbar {
+  display: flex;
+  gap: var(--spacing-sm);
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+}
+
+.encounterToolbar input[type="text"] {
+  flex: 1;
+  min-width: 240px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-sm);
+}
+
+.encounterTableContainer {
+  overflow: auto;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px var(--shadow);
+}
+
+.encounterTable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.encounterTable th {
+  text-align: left;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.encounterTable td {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.encounterTable td.textRight,
+.encounterTable th.textRight {
+  text-align: right;
+}
+
+.encounterTable tr {
+  border-top: 1px solid var(--border-color);
+}
+
+.encounterName {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.encounterDescription {
+  font-size: 12px;
+  opacity: 0.7;
+  max-width: 520px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-tertiary);
+}
+
+.encounterActions {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.encounterActions button {
+  margin-right: var(--spacing-xs);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  transition: background var(--transition-duration);
+}
+
+.encounterActions button:hover {
+  background: var(--bg-hover);
+}
+
+.encounterError {
+  color: var(--danger);
+}
+
+.encounterEmpty {
+  padding: var(--spacing-sm) var(--spacing-sm);
+  opacity: 0.7;
+  color: var(--text-tertiary);
+}

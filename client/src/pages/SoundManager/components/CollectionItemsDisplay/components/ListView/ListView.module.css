@@ -1,0 +1,148 @@
+/* ============================================================
+   ListView.module.css — ListView-specific layout styles
+   Shared audio-item-table and audio-item-row styles live in
+   _audio-items.css (globally imported via sound-manager.css).
+   ============================================================ */
+
+/* === Outer container === */
+.audioItemListView {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.tableContainer {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+/* Add extra padding for the main list view */
+.audioItemListView :global(.audio-item-table) th,
+.audioItemListView :global(.audio-item-table) td {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+/* Constrain item-name-cell within the list view */
+.audioItemListView :global(.item-name-cell) {
+    max-width: 150px;
+}
+
+/* Variant when displaying a macro collection — placeholder for future styles */
+.macroListView {
+  /* extend audioItemListView for macro-specific overrides here */
+}
+
+/* === List cell components (declared global so listViewColumns.tsx can reference as strings) === */
+:global(.play-cell),
+:global(.position-cell) {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+:global(.position-number) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    transition: opacity 0.2s ease;
+}
+
+:global(.row-play-button) {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    color: var(--accent-primary);
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+:global(.play-cell) :global(.row-play-button) {
+    left: 10px;
+    font-size: 1.4rem;
+}
+
+:global(.play-cell):hover :global(.row-play-button),
+:global(.position-cell):hover :global(.row-play-button) {
+    opacity: 1;
+    background-color: transparent;
+}
+
+:global(.position-cell):hover :global(.position-number) {
+    opacity: 0;
+}
+
+/* === Drag-and-drop helpers === */
+.tableWrapper {
+    position: relative;
+}
+
+.insertMarkerLine {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: var(--accent-primary);
+    z-index: 10;
+    pointer-events: none;
+    box-shadow: 0 0 4px rgba(53, 114, 227, 0.3);
+}
+
+/* === Create button === */
+.createButtonListView {
+    padding: 1rem 1.5rem;
+    background-color: var(--bg-tertiary);
+    border-radius: 0 0 8px 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-top: 1px dashed var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.createButtonListView:hover {
+    background-color: rgba(53, 114, 227, 0.1);
+    color: var(--accent-primary);
+}
+
+/* === Empty states === */
+.emptyListView {
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.emptyTableDropArea {
+    width: 100%;
+    min-height: 150px;
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+    .audioItemListView :global(.audio-item-table) th,
+    .audioItemListView :global(.audio-item-table) td {
+        padding: 0.75rem;
+    }
+}

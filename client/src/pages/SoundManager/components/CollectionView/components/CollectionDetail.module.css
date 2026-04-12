@@ -1,0 +1,199 @@
+/* ============================================================
+   CollectionDetail.module.css
+   ============================================================ */
+
+.collectionDetailView {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.collectionDetailHeader {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  padding: 0.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  gap: 0.5rem;
+  position: relative;
+  overflow: hidden;
+  background-image: 
+    /*noise texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://w3.org id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
+    linear-gradient(0deg, #1a1f26 0%, #252b33 100%);
+  background-blend-mode: overlay;
+  opacity: 0.8;
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+.collectionDetailHeader :global(.back-button) {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.collectionDetailHeader h2 {
+  margin: 0;
+  padding: 0;
+  font-size: 1.2rem;
+}
+
+.collectionTitleGroup {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+}
+
+.collectionTitleBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+
+.collectionStatusRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1rem;
+  margin-top: -0.3rem;
+}
+
+.collectionStatus {
+  --status-color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 8.5rem;
+  padding: 0.1rem 0.1rem;
+  color: var(--status-color);
+  font-size: 0.65rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.0em;
+  line-height: 1;
+}
+
+.collectionStatus[data-state="off"] {
+  --status-color: var(--text-secondary);
+}
+
+.collectionStatus[data-state="active"] {
+  --status-color: var(--audio-type-color-highlight);
+}
+
+.collectionStatus[data-state="playing"] {
+  --status-color: var(--audio-type-color-highlight);
+}
+
+.collectionDescriptionInline {
+  font-style: italic;
+  color: var(--text-secondary);
+  margin: 0;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
+.collectionDescription {
+  width: 100%;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.playButton {
+  width: 40px;
+  height: 28px;
+  display: block;
+  margin: -1px auto 0;
+  padding: 0px 0px 4px 0px;
+  position: relative;
+  z-index: 5;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  border: 1px solid var(--border-color);
+  /* border-top: none; */
+  border-radius: 0 0 5px 5px;
+}
+
+.playButton:hover {
+  background: var(--bg-tertiary);
+  color: var(--audio-type-color, var(--accent-primary));
+  transform: none;
+}
+
+.collectionDetailViewContent {
+  height: 100%;
+  width: 100%;
+  position: relative;
+  transition: all 0.2s ease;
+  padding: 2rem;
+}
+
+.collectionDetailViewList {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Target child CollectionItemsDisplay and its table in list layout */
+.collectionDetailViewList :global(.collection-items-display) {
+  width: 100%;
+}
+
+.collectionDetailViewList :global(.audio-item-table) {
+  margin-bottom: 0;
+}
+
+.errorMessage {
+  color: var(--danger);
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .collectionDetailHeader {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding-left: 3.5rem;
+    padding-right: 1rem;
+  }
+
+  .collectionTitleGroup {
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+
+  .collectionStatusRow {
+    min-height: 1.45rem;
+  }
+
+  .collectionStatus {
+    min-width: 0;
+  }
+
+  .collectionDetailHeader :global(.back-button) {
+    left: 0.75rem;
+  }
+
+  .collectionDescriptionInline {
+    margin: 0.25rem 0 0 0;
+    max-width: 100%;
+  }
+
+  .collectionDetailHeader h2 {
+    margin-bottom: 0;
+  }
+}

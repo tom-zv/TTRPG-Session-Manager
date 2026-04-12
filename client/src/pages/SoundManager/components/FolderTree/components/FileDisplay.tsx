@@ -5,6 +5,7 @@ import { getFileIcon } from "../utils/icons.js";
 import { MdEdit } from "react-icons/md";
 import { handleFileClick } from "../utils/ClickHandlers.js";
 import { useFolderTree } from "../context/FolderTreeContext.js";
+import styles from "../FolderTree.module.css";
 
 interface FileDisplayProps {
   file: AudioFileUI;
@@ -42,7 +43,7 @@ const FileDisplay: React.FC<FileDisplayProps> = ({ file }) => {
 
   return (
     <div
-      className={`file-item ${isSelected ? "selected" : ""}`}
+      className={[styles.fileItem, isSelected ? styles.selected : ""].filter(Boolean).join(" ")}
       draggable
       onDragStart={(e) => handleFileDragStart(e, file)}
       onDragEnd={handleFileDragEnd}
@@ -61,11 +62,11 @@ const FileDisplay: React.FC<FileDisplayProps> = ({ file }) => {
       tabIndex={0}
       data-type={file.audioType || "default"}
     >
-      <div className="file-header">
-        <span className="file-icon">
+      <div className={styles.fileHeader}>
+        <span className={styles.fileIcon}>
           {getFileIcon(file.audioType || "default")}
         </span>
-        <span className="file-name" title={file.name}>
+        <span className={styles.fileName} title={file.name}>
           {file.name}
         </span>
         <button

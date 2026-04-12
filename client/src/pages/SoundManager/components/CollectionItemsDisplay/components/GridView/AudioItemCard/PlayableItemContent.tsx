@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from "react";
+import styles from './AudioItemCard.module.css';
 import {
   AudioItem,
   isAudioFile,
@@ -10,7 +11,10 @@ import {
 // import { getItemIcon } from "../../utils/getItemIcon.js";
 import ItemActions from "../../ItemActions.js";
 import type { AudioCollection } from "../../../types.js";
-import { Audio } from "src/pages/SoundManager/services/AudioService/AudioContext.js";
+import {
+  useAudioItemControls,
+  useSfxAudio,
+} from "src/pages/SoundManager/services/AudioService/AudioContext.js";
 
 interface PlayableItemContentProps extends AudioItemActions {
   item: AudioItem;
@@ -34,8 +38,8 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
 }) => {
   const [localVolume, setLocalVolume] = useState<number>(1);
   const [position, setPosition] = useState(0);
-  const { updateAudioItemVolume } = Audio.useAudio();
-  const { getFilePosition } = Audio.useSfx();
+  const { updateAudioItemVolume } = useAudioItemControls();
+  const { getFilePosition } = useSfxAudio();
 
 
   useEffect(() => {
@@ -85,10 +89,10 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
  
 
   return (
-    <div className="audio-item-content">
-      <div className="audio-item-header">
-        <div className="playable-item-title">
-          <h4 className="audio-item-name" title={item.name}>
+    <div className={styles.audioItemContent}>
+      <div className={styles.audioItemHeader}>
+        <div className={styles.playableItemTitle}>
+          <h4 className={styles.audioItemName} title={item.name}>
             {/* <span className={`item-icon`}>
               {React.createElement(getItemIcon(item))}
             </span> */}
@@ -97,18 +101,20 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
 
           {(isAudioFile(item) || isAudioMacro(item)) &&
             item.duration !== undefined && (
-              <span className="audio-item-info">
+              <span className={styles.audioItemInfo}>
                 {formatDuration(item.duration)}
               </span>
             )}
 
           {isAudioCollection(item) && item.itemCount !== undefined && (
-            <span className="audio-item-info">{item.itemCount} items</span>
+            <span className={styles.audioItemInfo}>
+              {item.itemCount === 0 ? "empty" : `${item.itemCount} items`}
+            </span>
           )}
         </div>
 
         {showActions && (
-          <div className="item-actions">
+          <div className={styles.itemActions}>
             <ItemActions
               item={item}
               collectionId={parentCollection.id}
@@ -124,18 +130,18 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
       </div>
 
       <button
-        className="playable-item-play-button"
+        className={styles.playButton}
         onClick={(e) => {
           e.stopPropagation();
           onPlayItem(item.id);
         }}
         aria-label={isPlaying ? "Pause" : "Play"}
       >
-        <span className="play-icon">{isPlaying ? "◼" : "▶"}</span>
+        <span className={styles.playIcon}>{isPlaying ? "◼" : "▶"}</span>
       </button>
 
       {(!isAudioCollection(item) || isAudioMacro(item)) && (
-        <div className="volume-slider-container">
+        <div className={styles.volumeSliderContainer}>
           <input
             type="range"
             min="0"
@@ -151,9 +157,9 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
       )}
     
       {isPlaying && isSfxCollection(parentCollection) && (
-        <div className="sfx-progress-track">
+        <div className={styles.sfxProgressTrack}>
           <div 
-            className="sfx-progress-indicator" 
+            className={styles.sfxProgressIndicator} 
             style={{ 
               width: `${(position / (isAudioFile(item) && item.duration ? item.duration : 1)) * 100}%` 
             }}

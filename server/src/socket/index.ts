@@ -1,5 +1,7 @@
 import { Server as HttpServer } from 'http';
-import { Server } from 'socket.io';
+import { ExtendedError, Server, Socket } from 'socket.io';
+import { getUserByToken } from 'src/api/auth/authModel.js';
+import { initEncounterHandlers } from './namespaces/encounters/encounters.js';
 
 // Socket.IO server instance
 let io: Server | null = null;
@@ -19,6 +21,10 @@ export const initSocketServer = (httpServer: HttpServer): Server => {
   });
   
   io.of('/download');
+
+  const encounterNamespace = io.of('/encounter');
+  encounterNamespace.use(socketAuth);
+  initEncounterHandlers(encounterNamespace);
   
   console.log('Socket.IO server initialized');
   
@@ -34,3 +40,24 @@ export const getSocketIO = (): Server => {
   }
   return io;
 };
+
+export const socketAuth = async (socket: Socket, next: (err?: ExtendedError) => void) => {
+  try{
+    const token = socket.handshake.auth.token ||
+      socket.handshake.query.token;
+    
+    if (!token) return next(new Error('Auth error: token required'));
+
+    const user = await getUserByToken(token);
+
+    if (!user) return next(new Error('Auth error: invalid token'));
+    
+    socket.data.user = user;
+
+    next();
+  
+  } catch (error){
+    console.error('Socket auth error:', error);
+    next(new Error('Auth error'));
+  }
+}

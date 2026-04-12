@@ -1,0 +1,11 @@
+.entityList h2 {
+  margin-bottom: var(--spacing-md);
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.entityRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}

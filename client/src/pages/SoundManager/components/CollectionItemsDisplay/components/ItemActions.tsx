@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AudioItem, AudioItemActions } from "../types.js";
 import { MdEdit, MdClose, MdMoreVert } from "react-icons/md";
-import "./ItemActions.css";
+import styles from "./ItemActions.module.css";
 
 interface DropdownItemProps {
   icon: React.ReactNode;
@@ -20,7 +20,10 @@ const DropdownItem: React.FC<DropdownItemProps> = ({
   return (
     <button
       type="button"
-      className={`dropdown-item dropdown-item--${itemType}`}
+      className={[
+        styles.dropdownItem,
+        itemType === "edit" ? styles.dropdownItemEdit : styles.dropdownItemDelete,
+      ].join(" ")}
       onClick={onClick}
       aria-label={label}
     >
@@ -125,7 +128,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
     <div className="item-actions">
       <button
         ref={buttonRef}
-        className={`dropdown-toggle ${isSmall ? "dropdown-toggle--small" : ""} ${isOpen ? 'active' : ''}`}
+        className={`dropdown-toggle${isSmall ? " dropdown-toggle--small" : ""}${isOpen ? " active" : ""}`}
         onClick={toggleDropdown}
         aria-label="Open actions menu"
         aria-expanded={isOpen}

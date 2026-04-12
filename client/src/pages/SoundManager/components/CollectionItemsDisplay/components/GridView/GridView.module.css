@@ -1,0 +1,31 @@
+/* ============================================================
+   GridView.module.css
+   Note: audio-item-grid is declared :global so it can be merged
+   with the drag-and-drop library's dropClassName string.
+   audio-item-name, audio-item-details, macro-indicator are
+   handled in AudioItemCard.module.css / _audio-items.css.
+   ============================================================ */
+
+:global(.audio-item-grid) {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    height: 100%;
+}
+
+.gridInsertMarker {
+    grid-column: 1 / -1;
+    width: 100%;
+    z-index: 5;
+    margin: 1rem 0;
+    box-shadow: 0 0 8px var(--accent-primary);
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+    :global(.audio-item-grid) {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+}

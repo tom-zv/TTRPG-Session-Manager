@@ -76,6 +76,7 @@ export function macroToDTO(macroDB: MacroDB): AudioMacroDTO {
   return {
     id: macroDB.id,
     type: "macro",
+    audioType: 'sfx',
     name: macroDB.name,
     description: macroDB.description ?? undefined,
     volume: macroDB.volume || 1.0,
@@ -96,7 +97,7 @@ export function collectionToDTO(
     name: collectionDB.name,
     audioType: collectionDB.type,
     description: collectionDB.description ?? undefined,
-    imagePath: collectionDB.image_path ?? undefined,
+    imageUrl: collectionDB.image_url ?? undefined,
     itemCount: collectionDB.item_count,
     position: collectionDB.position,
     createdAt: collectionDB.created_at,

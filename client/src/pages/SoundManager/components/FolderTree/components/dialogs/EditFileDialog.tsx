@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { useUpdateFile } from "src/pages/SoundManager/api/files/useFileMutations.js";
 import EditableField from "src/components/EditableField/EditableField.js";
-import "./EditFileDialog.css";
+import styles from "./EditFileDialog.module.css";
 import { AudioFileUI } from "../../types.js";
 
 type EditProps = {
@@ -92,7 +92,7 @@ const EditFileDialog: React.FC<EditProps> = ({
       contentRef={dialogContentRef}
       className="modern-dialog"
     >
-      <div className="file-edit-form">
+      <div className={styles.fileEditForm}>
         {error && <div className="alert alert-danger">{error}</div>}
 
         <EditableField

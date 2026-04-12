@@ -2,14 +2,14 @@ export type UserRegistrationDTO = {
     username: string,
     password: string,
     email?: string,
-    isDM: boolean,
+    isGM: boolean,
 }
 
 export interface UserDTO {
   id: number;
   username: string;
   email?: string;
-  isDm: boolean;
+  isGm: boolean;
   createdAt: string;
   lastLogin: string; 
 }

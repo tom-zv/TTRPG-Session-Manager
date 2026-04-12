@@ -26,13 +26,12 @@ const SoundManagerContent: React.FC = () => {
     <div className="sound-manager">
       <div className="sound-manager-layout">
         <div className="sound-manager-left-panel">
-          
           <div className="playlist-panel-wrapper">
             <DropArea zoneId={DROP_ZONES.SOUND_MANAGER_PLAYLIST}>
               <PlaylistPanel/>
             </DropArea>
-
-            <div className="item-panel-toggle">
+          </div>
+          <div className="item-panel-toggle">
             <button 
               className={`item-panel-toggle-button ${isDrawerVisible ? 'active' : ''}`}
               onClick={toggleItemDrawer}
@@ -40,8 +39,6 @@ const SoundManagerContent: React.FC = () => {
             >
               <BsFileMusicFill />
             </button>
-          </div>
-          
           </div>
           <div className="play-bar-container">
             <PlayBar />

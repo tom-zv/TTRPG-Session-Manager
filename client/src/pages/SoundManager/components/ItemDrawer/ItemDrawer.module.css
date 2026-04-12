@@ -1,0 +1,221 @@
+/* ============================
+   1. Main Container
+   ============================ */
+.itemDrawerContainer {
+  position: relative;
+  background-color: transparent;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  border-right: 2px solid var(--border-color-light);
+  border-top-right-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+/* ============================
+   2. Accent Line
+   ============================ */
+.itemDrawerAccentLine {
+  position: absolute;
+  top: 0px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  opacity: 0.8;
+  z-index: 52;
+}
+
+/* ============================
+   3. Drawer Header
+   ============================ */
+.itemDrawerHeader {
+  z-index: 5;
+  display: flex;
+  padding: 0.75rem 1rem;
+  position: relative;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--panel-header-height);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  transition: background-color var(--transition-fast), height var(--transition-fast);
+}
+
+.drawerTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.itemDrawerHeader.collapsed {
+  background-color: var(--bg-tertiary);
+  transition: height var(--transition-slow);
+}
+
+.itemDrawerHeader.collapsed .drawerTitle {
+  color: var(--text-secondary);
+}
+
+.drawerCloseButton {
+  background-color: transparent;
+  font-size: 1.2rem;
+  padding: 0rem;
+}
+
+.drawerCloseButton:hover,
+.drawerToggleButton:hover,
+:global(.create-collection-button):hover {
+  color: var(--accent-primary);
+  transform: scale(1.05);
+}
+
+/* ============================
+   4. Drawer Content
+   ============================ */
+.itemDrawerContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  max-height: 100vh;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height 0.9s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  background-color: var(--surface-frosted);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow:
+    -4px 0 15px rgba(0, 0, 0, 0.2),
+    inset 0 0 0 1px var(--border-subtle);
+}
+
+.itemDrawerContent.collapsed {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+/* ============================
+   5. Panel Group
+   ============================ */
+.itemDrawerGroup {
+  height: 100%;
+}
+
+/* ============================
+   6. Section Containers
+   ============================ */
+.drawerSection {
+  position: relative;
+  overflow: visible;
+  border-bottom: 1px solid var(--border-subtle-2);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+
+/* Folder tree context override */
+.drawerSection :global(.folder-tree-container) {
+  border: none;
+  box-shadow: none;
+  background-color: transparent;
+  padding-inline: 4px;
+  max-width: 100%;
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: var(--radius-sm);
+  margin: 0;
+}
+
+/* ============================
+   7. Macro Section
+   ============================ */
+.macroDrawerSection :global(.collection-items-display)::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--border-color-light);
+  z-index: 1;
+}
+
+.drawerSection :global(.collection-items-display):empty::after {
+  content: "No macros yet. Click the '+' to create your first macro.";
+  font-style: normal;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+/* ============================
+   8. Macro Content Container
+   ============================ */
+.macroContentContainer {
+  flex: 1;
+  overflow-y: auto;
+  transition:
+    max-height 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 1000px;
+  opacity: 1;
+  transform: translateY(0);
+  position: relative;
+  z-index: 1;
+}
+
+.macroContentContainer.collapsed {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(0);
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+/* ============================
+   9. Toggle Button
+   ============================ */
+.drawerToggleButton {
+  font-size: 1.2rem;
+  margin-top: 5px;
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drawerToggleButton:hover {
+  background-color: transparent;
+  transform: translateY(-1px);
+}
+
+/* ============================
+   10. Resizable Panel Transitions
+   ============================ */
+:global([data-panel-id]) {
+  transition: flex-basis 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+:global([data-panel-resize-handle-id]) {
+  transition: background-color 0.2s ease;
+}

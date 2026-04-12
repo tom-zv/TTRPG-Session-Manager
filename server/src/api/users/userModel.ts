@@ -28,16 +28,16 @@ export async function insertUserRecord(
   username: string,
   password_hash: string,
   email: string,
-  isDM: boolean
+  isGM: boolean
 ) {
   const query =
-    "INSERT INTO users (username, password_hash, email, is_dm) VALUES (?, ?, ?, ?)";
+    "INSERT INTO users (username, password_hash, email, is_gm) VALUES (?, ?, ?, ?)";
 
   const [rows] = await corePool.execute<ResultSetHeader>(query, [
     username,
     password_hash,
     email,
-    isDM,
+    isGM,
   ]);
 
   return rows.insertId;

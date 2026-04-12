@@ -1,13 +1,16 @@
 import React, { useRef, useState, useCallback, useMemo } from "react";
-import { AudioItem, AudioItemActions, AudioCollection, isAudioFile } from "../../types.js";
+import { AudioItem, AudioItemActions, AudioCollection } from "../../types.js";
 import AudioItemCard from "./AudioItemCard/AudioItemCard.js"
 import { DragDropProps } from "src/types/dragDropProps.js";
 import { useItemDragDrop } from "../../hooks/useItemDragDrop.js";
 import { calculateGridDropIndex } from "src/utils/gridDropUtils.js";
-import { Audio } from "src/pages/SoundManager/services/AudioService/AudioContext.js";
+import {
+  useAudioItemControls,
+  useAudioItemState,
+} from "src/pages/SoundManager/services/AudioService/AudioContext.js";
 import CreateCollectionDialog from "../../../CollectionView/components/CreateCollectionDialog.js";
 import { collectionNameFromType } from "../../../CollectionView/hooks/useCollections.js";
-import "./GridView.css";
+import "./GridView.module.css";
 
 interface GridViewProps extends AudioItemActions, DragDropProps {
   // Data props
@@ -48,7 +51,8 @@ export const GridView: React.FC<GridViewProps> = ({
   const gridRef = useRef<HTMLDivElement>(
     null
   ) as React.MutableRefObject<HTMLDivElement | null>;
-  const audioContext = Audio.useAudio();
+  const { toggleAudioItem } = useAudioItemControls();
+  const { getAudioItemPlayState } = useAudioItemState();
 
   const {
     dropAreaProps,
@@ -90,9 +94,9 @@ export const GridView: React.FC<GridViewProps> = ({
       const item = collection.items?.find((item) => item.id === itemId);
       if (!item) return;
 
-      audioContext.toggleAudioItem(item, collection);
+      toggleAudioItem(item, collection);
     },
-    [collection, audioContext]
+    [collection, toggleAudioItem]
   );
 
   // Handle special case for the create button
@@ -118,11 +122,7 @@ export const GridView: React.FC<GridViewProps> = ({
         {collection.items?.map((item) => {
           //const isDropTarget = cardTargetIndex === index;
           const isSelected = selectedItemIds.includes(item.id);
-          // Determine if the item is playing based on its type and collection context
-          const isAmbienceActive =
-            isAudioFile(item) &&
-            item.active
-          const isPlaying = audioContext.isAudioItemPlaying(item, collection);
+          const playState = getAudioItemPlayState(item, collection);
           const itemDragProps = dragItemProps(item);
 
           return (
@@ -132,8 +132,7 @@ export const GridView: React.FC<GridViewProps> = ({
               collection={collection}
               isSelected={isSelected}
               isDropTarget={false}  // TODO: implement card as drop target feature. rename to avoid confusion with isDropTarget prop from useItemDragDrop
-              isPlaying={isPlaying}
-              isAmbienceActive={isAmbienceActive}
+              playState={playState}
               showActions={!!showActions}
               selectedItemIds={selectedItemIds}
               dragItemProps={itemDragProps}

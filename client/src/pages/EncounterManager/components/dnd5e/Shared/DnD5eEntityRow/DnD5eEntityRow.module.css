@@ -1,0 +1,265 @@
+.entityRow {
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  background: var(--bg-tertiary);
+  transition: all var(--transition-duration);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+}
+
+.entityRow.active {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+  box-shadow: 0 2px 8px var(--accent-active-glow);
+}
+
+/* Top Row: Name and Type */
+.entityRowTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-color-light);
+}
+
+.entityNameSection {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.entityNameSection h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.entityType {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.625rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  letter-spacing: 0.5px;
+}
+
+.entityRemoveButton {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-duration);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.entityRemoveButton:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.entityRemoveButton:focus {
+  outline: 2px solid var(--danger);
+  outline-offset: 2px;
+}
+
+/* Remove Confirmation */
+.entityRemoveConfirm {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: 0.25rem 0.5rem;
+  background: rgba(var(--danger-rgb, 220, 38, 38), 0.1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+}
+
+.confirmText {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.confirmButton {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-duration);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+}
+
+.confirmYes {
+  border-color: var(--success, #22c55e);
+  color: var(--success, #22c55e);
+}
+
+.confirmYes:hover {
+  background: var(--success, #22c55e);
+  color: #fff;
+}
+
+.confirmNo {
+  border-color: var(--text-tertiary);
+}
+
+.confirmNo:hover {
+  background: var(--bg-secondary);
+  border-color: var(--text-primary);
+}
+
+.confirmButton:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Middle Row: Stats and Conditions */
+.entityRowMiddle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) 0;
+}
+
+.editModeHint {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  margin-bottom: var(--spacing-xs);
+  opacity: 0.8;
+}
+
+.entityStatsCompact {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 60px;
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.statValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.statDivider {
+  width: 1px;
+  height: 2rem;
+  background: var(--border-color-light);
+}
+
+.entityConditions {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(var(--danger-rgb, 220, 38, 38), 0.1);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--danger);
+  border-left: 3px solid var(--danger);
+}
+
+.entityConditions strong {
+  font-weight: 600;
+  margin-right: 0.5rem;
+}
+
+/* Bottom Row: Actions */
+.entityRowBottom {
+  padding-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-color-light);
+}
+
+.entityActions {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  padding: 0.5rem 1rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all var(--transition-duration);
+}
+
+.actionButton:hover:not(:disabled) {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.actionButton:focus {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* HP Live Mode Display */
+.hpLiveDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.hpLiveDisplay .hpCurrent {
+  font-weight: 700;
+}
+
+.hpSeparator {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+  margin: 0 0.125rem;
+}
+
+.hpLiveDisplay .hpMax {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}

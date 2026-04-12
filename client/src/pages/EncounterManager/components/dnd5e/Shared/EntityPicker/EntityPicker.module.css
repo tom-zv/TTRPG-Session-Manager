@@ -1,0 +1,174 @@
+.entityPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.entityPicker h2 {
+  margin: 0 0 1rem;
+  color: var(--text-primary, #e0e0e0);
+}
+
+.entityPickerLoading {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary, #b0b0b0);
+}
+
+.entityPickerError {
+  padding: 2rem;
+  text-align: center;
+  color: var(--error-color, #ff6b6b);
+}
+
+.entityPickerFilters {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 0.625rem;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #1a1a1a);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 0.9375rem;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a9eff);
+}
+
+.typeFilter {
+  padding: 0.625rem;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--input-bg, #1a1a1a);
+  color: var(--text-primary, #e0e0e0);
+  font-size: 0.9375rem;
+  cursor: pointer;
+}
+
+.typeFilter:focus {
+  outline: none;
+  border-color: var(--accent-color, #4a9eff);
+}
+
+.entityPickerList {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color, #444);
+  border-radius: 4px;
+  background: var(--bg-tertiary, #1e1e1e);
+}
+
+.entityPickerEmpty {
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--text-secondary, #b0b0b0);
+}
+
+.entityPickerItem {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-bottom: 1px solid var(--border-color, #333);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.entityPickerItem:last-child {
+  border-bottom: none;
+}
+
+.entityPickerItem:hover {
+  background: var(--bg-hover, #2a2a2a);
+}
+
+.entityPickerItem:active {
+  background: var(--bg-active, #333);
+}
+
+.entityItemName {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #e0e0e0);
+  margin-bottom: 0.375rem;
+}
+
+.entityItemDetails {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.entityTypeBadge {
+  padding: 0.25rem 0.625rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.pc {
+  background: var(--pc-color, #4a9eff);
+  color: #fff;
+}
+
+.npc {
+  background: var(--npc-color, #9b59b6);
+  color: #fff;
+}
+
+.creature {
+  background: var(--creature-color, #e74c3c);
+  color: #fff;
+}
+
+.entityCr {
+  font-size: 0.875rem;
+  color: var(--text-secondary, #b0b0b0);
+}
+
+.entityPickerActions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.cancelButton {
+  padding: 0.75rem 1.5rem;
+  background: var(--button-secondary-bg, #444);
+  color: var(--text-primary, #e0e0e0);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9375rem;
+  transition: background 0.2s;
+}
+
+.cancelButton:hover {
+  background: var(--button-secondary-hover, #555);
+}
+
+@media (max-width: 768px) {
+  .entityPicker {
+    max-width: 100%;
+  }
+
+  .entityPickerFilters {
+    flex-direction: column;
+  }
+
+  .entityPickerList {
+    max-height: 300px;
+  }
+}

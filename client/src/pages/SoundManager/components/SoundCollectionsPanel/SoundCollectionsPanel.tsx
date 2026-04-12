@@ -8,7 +8,7 @@ import {
 } from "react-resizable-panels";
 import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
-import "./SoundCollectionsPanel.css";
+import styles from "./SoundCollectionsPanel.module.css";
 import { AmbienceCollapsed } from "./AmbienceCollapsedView.js";
 
 const SoundCollectionsPanel: React.FC = () => {
@@ -28,12 +28,12 @@ const SoundCollectionsPanel: React.FC = () => {
   };
 
   return (
-    <div className="SoundCollectionsPanel">
+    <div className={styles.soundCollectionsPanel}>
       <PanelGroup direction="vertical">
         <Panel defaultSize={60} minSize={25}>
           <DropArea
             zoneId={DROP_ZONES.SOUND_MANAGER_SFX}
-            className="sfx-section"
+            className={styles.sfxSection}
           >
             <CollectionView
               collectionType="sfx"
@@ -65,7 +65,7 @@ const SoundCollectionsPanel: React.FC = () => {
         >
           <DropArea
             zoneId={DROP_ZONES.SOUND_MANAGER_AMBIENCE}
-            className="ambience-section"
+            className={styles.ambienceSection}
           >
             {isAmbienceCollapsed ? (
               <AmbienceCollapsed />

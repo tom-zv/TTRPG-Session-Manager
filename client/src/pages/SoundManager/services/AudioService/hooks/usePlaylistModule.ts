@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { PlaylistModule } from '../modules/playlistModule.js';
 import { AudioEventTypes, on, off } from '../events.js';
 import { getVolume } from '../volumeStore.js';
@@ -56,7 +56,7 @@ export function usePlaylistModule() {
       id: number;
       currentIndex: number;
     }) => {
-      setCurrentPlaylistId(data.id);
+      setCurrentPlaylistId(data.id || null);
       setCurrentIndex(data.currentIndex);
     };
 
@@ -130,19 +130,34 @@ export function usePlaylistModule() {
     };
   }, []);
   
-  return {
-    // playlist id and state
-    currentPlaylistId,
-    currentIndex,
-    isPlaying,
-    playlistVolume,
-    position,
-    duration,
-    // Methods
-    togglePlaylist,
-    nextTrack,
-    previousTrack,
-    setVolume,
-    seekToPosition,
-  };
+  return useMemo(
+    () => ({
+      // playlist id and state
+      currentPlaylistId,
+      currentIndex,
+      isPlaying,
+      playlistVolume,
+      position,
+      duration,
+      // Methods
+      togglePlaylist,
+      nextTrack,
+      previousTrack,
+      setVolume,
+      seekToPosition,
+    }),
+    [
+      currentPlaylistId,
+      currentIndex,
+      isPlaying,
+      playlistVolume,
+      position,
+      duration,
+      togglePlaylist,
+      nextTrack,
+      previousTrack,
+      setVolume,
+      seekToPosition,
+    ]
+  );
 }

@@ -1,8 +1,11 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Audio } from '../../services/AudioService/AudioContext.js';
+import {
+  useAudioItemControls,
+  usePlaylistAudio,
+} from '../../services/AudioService/AudioContext.js';
 import { useGetCollectionById } from '../../api/collections/useCollectionQueries.js';
 import type { AudioFile } from 'src/pages/SoundManager/types/AudioItem.js'; 
-import './PlayBar.css';
+import styles from './PlayBar.module.css';
 
 interface PlayBarProps {
   className?: string;
@@ -18,20 +21,18 @@ const formatTime = (seconds: number): string => {
 
 const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
   const {
-    playlist: {
-      currentPlaylistId,
-      currentIndex,
-      isPlaying,
-      playlistVolume,
-      nextTrack,
-      previousTrack,
-      setVolume,
-      duration,
-      position,
-      seekToPosition
-    },
-    toggleAudioItem
-  } = Audio.useAudio();
+    currentPlaylistId,
+    currentIndex,
+    isPlaying,
+    playlistVolume,
+    nextTrack,
+    previousTrack,
+    setVolume,
+    duration,
+    position,
+    seekToPosition,
+  } = usePlaylistAudio();
+  const { toggleAudioItem } = useAudioItemControls();
   
   // Fetch the current collection data using React Query
   const { data: currentCollection } = useGetCollectionById(
@@ -89,26 +90,26 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
   }, [seekToPosition]);
 
   return (
-    <div className={`play-bar ${className}`}>
+    <div className={[styles.playBar, className].filter(Boolean).join(' ')}>
       
-      <div className="playbar-main-row">
-        <div className="track-info">
+      <div className={styles.playbarMainRow}>
+        <div className={styles.trackInfo}>
           <span
-            className="track-name"
+            className={styles.trackName}
             title={displayName}
           >
             {displayName}
           </span>
           {currentCollection && (
-            <span className="collection-name" title={currentCollection.name}>
+            <span className={styles.collectionName} title={currentCollection.name}>
               {currentCollection.name}
             </span>
           )}
         </div>
 
-        <div className="controls">
+        <div className={styles.controls}>
           <button
-            className="icon-button control-button"
+              className={`icon-button ${styles.controlButton}`}
             onClick={previousTrack}
             disabled={!currentTrack}
             aria-label="Previous track"
@@ -117,7 +118,7 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
           </button>
 
           <button
-            className="icon-button play-button"
+              className={`icon-button ${styles.playButton}`}
             onClick={handleTogglePlay}
             disabled={!currentCollection}
             aria-label={isPlaying ? "Pause" : "Play"}
@@ -126,7 +127,7 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
           </button>
 
           <button
-            className="icon-button control-button"
+              className={`icon-button ${styles.controlButton}`}
             onClick={nextTrack}
             disabled={!currentTrack}
             aria-label="Next track"
@@ -135,7 +136,7 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
           </button>
         </div>
 
-        <div className="volume-control">
+          <div className="volume-control">
           <input
             type="range"
             min="0"
@@ -149,8 +150,8 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
         </div>
       </div>
 
-      <div className="seek-container">
-        <div className="time-display">{formattedPosition}</div>
+        <div className={styles.seekContainer}>
+          <div className={styles.timeDisplay}>{formattedPosition}</div>
         <input
           ref={seekBarRef}
           type="range"
@@ -159,11 +160,11 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
           step="0.01"
           value={position} 
           onChange={handleSeek}
-          className="seek-bar"
+            className={styles.seekBar}
           disabled={!currentTrack || duration <= 0} 
           aria-label="Seek"
         />
-        <div className="time-display">{formattedDuration}</div> 
+          <div className={styles.timeDisplay}>{formattedDuration}</div> 
       </div>
     </div>
   );

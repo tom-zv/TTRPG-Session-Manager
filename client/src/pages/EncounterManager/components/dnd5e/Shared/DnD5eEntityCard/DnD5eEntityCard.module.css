@@ -1,0 +1,226 @@
+/* ================================
+   D&D 5e (2024) Stat Block Styles
+   Dark Mode Theme
+   ================================ */
+
+/* Scoped CSS variables */
+.entityCard {
+  --accent: var(--accent-primary);
+  --accent-dark: var(--accent-secondary);
+  --card-bg: var(--bg-secondary);
+  --card-bg-elevated: var(--bg-tertiary);
+  --ink: var(--text-primary);
+  --muted: var(--text-tertiary);
+}
+
+/* Card shell */
+.entityCard {
+  box-sizing: border-box;
+  width: 480px;
+  background:
+    radial-gradient(120% 100% at 0% 0%, rgba(255, 255, 255, 0.03) 0 20%, transparent 50%),
+    radial-gradient(120% 100% at 100% 100%, rgba(0, 0, 0, 0.2) 0 30%, transparent 70%),
+    var(--card-bg);
+  color: var(--ink);
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px 16px 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  line-height: 1.25;
+}
+
+/* Top name line */
+.entityCard h3 {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.35rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  font-weight: 800;
+  padding-bottom: 0.25rem;
+}
+
+/* Small stat line (AC/HP/etc.) */
+.statline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.35rem 0 0.5rem;
+  color: var(--ink);
+  font-size: 1rem;
+}
+
+.statlineRow {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.statline strong {
+  font-weight: 800;
+  margin-right: 4px;
+  color: var(--text-secondary);
+}
+
+/* Key/Value pairs (e.g., Type, Senses, Skills) */
+.kv {
+  margin: 0.25rem 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.k {
+  color: var(--text-tertiary);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.v {
+  color: var(--text-secondary);
+}
+
+/* Section headers: TRAITS / ACTIONS / REACTIONS */
+.sectionTitle {
+  margin: 0.9rem 0 0.35rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  font-size: 0.9rem;
+  position: relative;
+  padding-bottom: 0.25rem;
+  border-bottom: 2px solid var(--accent);
+  background: none;
+}
+
+/* Body text in sections */
+.section {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.section p {
+  margin: 0.25rem 0 0.5rem;
+}
+
+.section ul {
+  margin: 0.25rem 0 0.5rem;
+  padding-left: 1.5rem;
+}
+
+.section li {
+  margin: 0.15rem 0;
+}
+
+/* ==========================
+   Ability Scores + Saves grid
+
+   Grid is 3 repeating column groups. Each group is:
+   [ ability+score | mod | save ]
+========================== */
+.abilityGrid {
+  display: grid;
+  grid-template-columns: repeat(3, auto auto auto);
+  grid-auto-rows: minmax(26px, auto);
+  column-gap: 0;
+  row-gap: 1px;
+  align-items: center;
+  padding: 0.2rem 0 0.6rem;
+  margin: 0.2rem 0 0.6rem;
+  border-top: 1px solid var(--border-color-light);
+  border-bottom: 1px solid var(--border-color-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Add spacing after each ability group (after every 3rd column) */
+.abilityGrid > *:nth-child(9n+3) {
+  margin-right: 8px;
+}
+
+/* Add spacing after headers */
+.abilityGrid > .gridHead:nth-child(3),
+.abilityGrid > .gridHead:nth-child(6) {
+  margin-right: 8px;
+}
+
+/* header row for each group: [ , MOD, SAVE ] */
+.gridHead {
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--muted);
+  align-self: end;
+  padding-left: 4px;
+}
+
+.gridHead.empty {
+  visibility: hidden; /* keeps alignment without showing text */
+}
+
+/* base style for both MOD/SAVE cells */
+.abilityGrid .val {
+  text-align: center;
+  font-weight: 800;
+  font-size: 16px;
+  max-width: 40px;
+  padding: 2px 0px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color-dark);
+  border-radius: 0;
+  color: var(--text-primary);
+}
+
+/* first of the pair = MOD (positions 2,5,8,… relative to the grid) */
+.abilityGrid > .val:nth-child(3n + 2) {
+  border-right: 0;
+  border-radius: 3px 0 0 3px;
+}
+
+/* second of the pair = SAVE (positions 3,6,9,…) */
+.abilityGrid > .val:nth-child(3n + 3) {
+  border-left: 0;
+  border-radius: 0 3px 3px 0;
+}
+
+/* ability label + score cell */
+.ability {
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.30rem;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
+/* Physical abilities (STR, DEX, CON) */
+.abilityGrid > .ability:nth-child(10),
+.abilityGrid > .ability:nth-child(13),
+.abilityGrid > .ability:nth-child(16) {
+  background: rgba(53, 114, 227, 0.1);
+}
+
+/* Mental abilities (INT, WIS, CHA) */
+.abilityGrid > .ability:nth-child(19),
+.abilityGrid > .ability:nth-child(22),
+.abilityGrid > .ability:nth-child(25) {
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.abbr {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.score {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.val.positive::before {
+  content: "+";
+}

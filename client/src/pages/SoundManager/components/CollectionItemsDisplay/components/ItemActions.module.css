@@ -1,0 +1,140 @@
+/* ============================================================
+   ItemActions.module.css
+   Note: .item-actions is declared :global so parent components
+   (PlayableItemContent, StandardItemContent, PlaylistPanel) can
+   target it by string className and context override selectors.
+   .dropdown-toggle is :global so AudioItemCard.module.css can
+   reference it in contextual hover rules.
+   .dropdown-menu is :global because it renders in a portal
+   (appended to document.body).
+   ============================================================ */
+
+/* Outer container — global so parents can set className="item-actions" */
+:global(.item-actions) {
+  display: flex;
+  position: absolute;
+  top: -1px;
+  right: -6px;
+  margin-top: 2px;
+  gap: 0.3rem;
+  align-items: center;
+  width: fit-content;
+}
+
+/* Toggle button — global for AudioItemCard cross-module hover rules */
+:global(.dropdown-toggle) {
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  transition:
+    transform var(--transition-fast) ease,
+    color var(--transition-fast) ease,
+    background-color var(--transition-fast) ease;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 50%;
+}
+
+:global(.dropdown-toggle):focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+:global(.dropdown-toggle):hover {
+  transform: scale(1.2);
+  background-color: transparent;
+  color: var(--accent-primary);
+}
+
+:global(.dropdown-toggle--small) {
+  font-size: 1.2rem;
+}
+
+/* Portal dropdown menu — must be globally scoped (renders on body) */
+:global(body > .dropdown-menu) {
+  position: absolute;
+  z-index: 2000;
+  background: var(--surface-overlay);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  min-width: 160px;
+  overflow: hidden;
+  animation: dropdownFade var(--transition-fast) ease-out;
+  transform-origin: top right;
+}
+
+@keyframes dropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* === Dropdown items === */
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, transform 0.1s;
+  color: var(--text-primary);
+  background-color: transparent;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border: none;
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dropdownItem:last-child {
+  border-bottom: none;
+}
+
+.dropdownItem span:first-child {
+  display: flex;
+  align-items: center;
+  font-size: 1.1rem;
+  transition: transform 0.2s;
+}
+
+.dropdownItem:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.dropdownItem:hover span:first-child {
+  transform: scale(1.1);
+}
+
+.dropdownItem:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+/* Edit variant */
+.dropdownItemEdit:hover {
+  color: var(--accent-primary);
+}
+
+.dropdownItemEdit:hover span:first-child {
+  color: var(--accent-primary);
+  filter: drop-shadow(0 0 3px rgba(var(--accent-primary-rgb), 0.3));
+}
+
+/* Delete variant */
+.dropdownItemDelete:hover {
+  background-color: rgba(var(--danger-rgb), 0.12);
+  color: var(--danger);
+}
+
+.dropdownItemDelete:hover span:first-child {
+  color: var(--danger);
+  filter: drop-shadow(0 0 3px rgba(var(--danger-rgb), 0.3));
+}

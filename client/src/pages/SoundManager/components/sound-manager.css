@@ -1,3 +1,29 @@
+@import './_panel-primitives.css';
+@import './_forms.css';
+@import './_audio-items.css';
+
+/* Canonical SoundManager audio type-to-color binding.
+   Components consume this via var(--audio-type-color). */
+.sound-manager [data-type="playlist"] {
+  --audio-type-color: var(--playlist);
+  --audio-type-color-highlight: var(--playlist-highlight);
+}
+
+.sound-manager [data-type="sfx"] {
+  --audio-type-color: var(--sfx);
+  --audio-type-color-highlight: var(--sfx-highlight);
+}
+
+.sound-manager [data-type="ambience"] {
+  --audio-type-color: var(--ambience);
+  --audio-type-color-highlight: var(--ambience-highlight);
+}
+
+.sound-manager [data-type="macro"] {
+  --audio-type-color: var(--macro);
+  --audio-type-color-highlight: var(--macro-highlight);
+}
+
 .sound-manager {
   display: flex;
   flex-direction: column;
@@ -10,7 +36,7 @@
   flex-direction: row;
   flex: 1;
   background-color: var(--bg-primary);
-  box-shadow: 0 2px 4px var(--shadow);
+  box-shadow: var(--shadow-sm);
   border: 1px solid var(--border-color);
   overflow: hidden;
   min-height: 70vh;
@@ -34,7 +60,7 @@
 }
 
 .sound-manager-left-panel .audio-item-table {
-  max-width: 320px;
+  max-width: var(--panel-width-left);
 }
 
 .sound-manager-left-panel .audio-item-table td {
@@ -44,7 +70,7 @@
 
 .layout-horizontal-separator {
   width: 100%;
-  height: 4px;
+  height: var(--separator-width-h);
   background-color: var(--border-color-light);
   position: relative;
 }
@@ -52,8 +78,8 @@
 .layout-vertical-separator {
   margin-left: 0;
   padding-left: 0;
-  width: 3px;
-  min-width: 3px;
+  width: var(--separator-width-v);
+  min-width: var(--separator-width-v);
   background: none;
   position: relative;
   display: flex;
@@ -64,7 +90,9 @@
 }
 
 .layout-vertical-separator:hover .vertical-separator-bar {
-  box-shadow: 0 0 16px 4px rgba(176,106,179,0.25), 0 4px 16px rgba(0,0,0,0.12);
+  box-shadow:
+    0 0 16px 4px rgba(var(--accent-primary-rgb), 0.25),
+    0 4px 16px rgba(0, 0, 0, 0.12);
   opacity: 1;
 }
 
@@ -111,8 +139,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  flex: 0 0 320px;
-  overflow: hidden;
+  flex: 0 0 var(--panel-width-left);
+  overflow: visible;
   border-right: 1px solid var(--border-color-light);
   height: 100%;
 }
@@ -142,9 +170,9 @@
   position: relative;
   align-items: center;
   justify-content: space-between;
-  height: 42px;
+  height: var(--panel-header-height);
   background-color: var(--bg-hover);
-  transition: background-color 0.25s, height 0.25s;
+  transition: background-color var(--transition-fast), height var(--transition-fast);
 }
 
 .panel-header h3 {
@@ -173,54 +201,11 @@
 
 .panel-header.collapsed{
   background-color: var(--bg-tertiary);
-  transition: height 0.5s;
+  transition: height var(--transition-slow);
 }
 
 .panel-header.collapsed h3{
   color: var(--text-secondary)
-}
-
-/* === Panel Content Sections === */
-.panel-section {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: auto;
-  border-bottom: 1px solid var(--border-color-light);
-}
-
-/* === Resize Handle Styling === */
-.separator {
-  width: 100%;
-  height: 1px;
-  background-color: var(--border-color-light);
-  position: relative;
-}
-
-.separator-handle {
-  height: 8px;
-  background-color: var(--bg-tertiary);
-  cursor: row-resize;
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  border-top: 1px solid var(--border-color-light);
-  border-bottom: 1px solid var(--border-color-light);
-  z-index: 20;
-}
-
-.separator-handle:hover {
-  background-color: var(--bg-hover);
-}
-
-.separator-handle .drag-handle {
-  width: 24px;
-  height: 4px;
-  border-radius: 2px;
-  background-image: linear-gradient(to right, rgba(255,255,255,0.2) 10%, transparent 25%);
-  background-size: 4px 4px;
-  background-repeat: repeat-x;
 }
 
 /* === Create Button Styling === */
@@ -229,7 +214,7 @@
   color: var(--text-primary);
   border: none;
   padding: 0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 1.2rem;
 }
@@ -240,7 +225,6 @@
 }
 
 .play-bar-container {
-  height: 140px;
   /* Fixed height for the play bar */
   border-top: 1px solid var(--border-color-light);
   flex-shrink: 0;
@@ -273,28 +257,20 @@
   color: var(--text-primary);
   border: none;
   padding: 0;
+  padding-bottom: 5px;
   cursor: pointer;
-  font-size: 1.5rem;
-  margin-right: 0.5rem;
+  font-size: 1.3rem;
+  margin-right: var(--spacing-sm);
 }
 
 .play-all-button:hover {
-  transform: scale(1.05);
+  color: var(--accent-primary);
+  background-color: transparent;
 }
 
-
-@keyframes pulse {
-  0% {
-    opacity: 0.6;
-  }
-
-  50% {
-    opacity: 1;
-  }
-
-  100% {
-    opacity: 0.6;
-  }
+.play-all-button.playing{
+  font-size: 1.5rem;
+  padding-bottom: 8px;
 }
 
 /* === Item Panel Specific === */
@@ -319,73 +295,78 @@
 }
 
 /* === Collapsible section styles === */
-.collapsed-info-bar {
-  height: 36px;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
-}
-
-.collapse-btn {
-  position: absolute;
-  right: 15px;
-  font-size: 10px;
-  width: 14px;
-  height: 14px;
-  padding: 5px 15px;
-  background-color: var(--bg-tertiary);
-  border: 1px solid var(--border-color);
-  border-top: none;
-  border-radius: 10%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition: transform 0.3s ease;
-  z-index: 11;
-}
-
-.collapse-btn:hover {
-  background-color: var(--bg-hover);
-}
-
-
 .item-panel-toggle {
   position: absolute;
-  bottom: 15px;
-  right: 15px;
-  z-index: 51;
+  top: 50%;
+  right: 0;
+  transform: translate(50%, -50%);
+  z-index: 53;
 }
 
 .item-panel-toggle-button {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   background-color: var(--bg-secondary);
   color: var(--text-secondary);
   border: 1px solid var(--border-color);
-  border-radius: 4px;
-  width: 36px;
-  height: 36px;
+  border-radius: calc(var(--radius-sm) + 2px);
+  width: 38px;
+  height: 32px;
   padding: 0;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color var(--transition-fast) ease,
+    color var(--transition-fast) ease,
+    transform var(--transition-fast) ease,
+    border-color var(--transition-fast) ease,
+    box-shadow var(--transition-fast) ease;
+}
+
+.item-panel-toggle-button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 5px;
+  height: 5px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: translateY(-50%) rotate(45deg);
+  opacity: 0.6;
+  transition:
+    right var(--transition-fast) ease,
+    transform var(--transition-fast) ease,
+    opacity var(--transition-fast) ease;
+}
+
+.item-panel-toggle-button svg {
+  font-size: 1.2rem;
+  transform: translateX(-1px);
+  transition: transform var(--transition-fast) ease;
 }
 
 .item-panel-toggle-button:hover {
   background-color: var(--bg-hover);
   color: var(--text-primary);
   transform: scale(1.05);
+  box-shadow: 0 0 0 1px rgba(var(--accent-primary-rgb), 0.22);
 }
 
 .item-panel-toggle-button.active {
-  background-color: var(--accent-color);
+  background-color: var(--accent-primary);
   color: var(--text-on-accent);
+  border-color: rgba(var(--accent-primary-rgb), 0.65);
+}
+
+.item-panel-toggle-button.active::after {
+  right: 24px;
+  transform: translateY(-50%) rotate(-135deg);
+}
+
+.item-panel-toggle-button.active svg {
+  transform: translateX(4px);
 }
 
 /* === Media Queries === */
@@ -399,12 +380,78 @@
     max-width: 100%;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
+    overflow: hidden;
+  }
+
+  .item-panel-toggle {
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    transform: none;
   }
 }
 
 /* Define CSS variables for playlist item sizing */
 :root {
   --playlist-item-height: 40px;
-  --playlist-header-height: 48px; 
-  --playlist-padding: 10px;
+  --playlist-header-height: 48px;
+  --playlist-padding: var(--spacing-sm);
+}
+
+/* === Item Panel Drawer (slide-in panel) === */
+/* Applied in SoundManager.tsx: <div className={`item-panel-drawer${isVisible ? ' open' : ''}`}> */
+.item-panel-drawer {
+  width: 0;
+  min-width: 0;
+  max-width: 0;
+  overflow: hidden;
+  transition:
+    width var(--transition-standard) cubic-bezier(0.16, 1, 0.3, 1),
+    opacity var(--transition-standard) ease,
+    transform var(--transition-standard) ease;
+  opacity: 0;
+  transform: scale(0.98);
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  pointer-events: none;
+  z-index: 50;
+}
+
+.item-panel-drawer.open {
+  width: var(--panel-width-drawer);
+  min-width: var(--panel-width-drawer);
+  max-width: var(--panel-width-drawer);
+  pointer-events: all;
+  box-shadow: -4px 0 15px rgba(0, 0, 0, 0.4);
+  border-left: 1px solid var(--border-subtle);
+  opacity: 1;
+  transform: scale(1);
+  display: flex;
+}
+
+.sound-manager button:focus-visible,
+.sound-manager .create-collection-button:focus-visible,
+.sound-manager .panel-toggle-button:focus-visible,
+.sound-manager .play-all-button:focus-visible,
+.sound-manager .item-panel-toggle-button:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.sound-manager ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sound-manager ::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+.sound-manager ::-webkit-scrollbar-thumb {
+  background-color: var(--border-color-light);
+  border-radius: var(--radius-sm);
+}
+
+.sound-manager ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border-color);
 }

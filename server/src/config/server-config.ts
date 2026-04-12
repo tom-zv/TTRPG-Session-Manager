@@ -1,14 +1,11 @@
 import * as dotenv from 'dotenv';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 // Initialize dotenv to load environment variables from .env file
 dotenv.config();
 
 // Calculate base directories for the application
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-export const rootDir = path.resolve(__dirname, '../../');
+export const rootDir = process.cwd();
 export const publicDir = path.join(rootDir, 'public');
 
 
@@ -17,7 +14,6 @@ export interface DatabaseConfig {
   host: string;
   user: string;
   password: string;
-  database: string;
   port?: number;
 }
 
@@ -37,7 +33,6 @@ export const getDatabaseConfig = (): DatabaseConfig => {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
     password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'DND',
     port: process.env.DB_PORT ? parseInt(process.env.DB_PORT) : 3306
   };
 };
@@ -46,8 +41,8 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 export const getServerConfig = (): ServerConfig => {
   return {
     port: process.env.PORT ? parseInt(process.env.PORT) : 3000,
-    host: process.env.HOST || 'localhost',
-    clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+    host: process.env.HOST || '0.0.0.0',
+    clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:3000',
     rootDir,
     publicDir,
     audioDir: process.env.AUDIO_DIR || path.join(publicDir, 'audio'),

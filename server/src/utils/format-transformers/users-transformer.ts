@@ -8,7 +8,7 @@ export function userToDto(user: UserDB): UserDTO {
     id: user.id,
     username: user.username,
     email: user.email || undefined,
-    isDm: user.is_dm,
+    isGm: user.is_gm,
     createdAt: user.created_at,
     lastLogin: user.last_login
   };

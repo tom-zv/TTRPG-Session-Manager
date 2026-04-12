@@ -1,0 +1,7 @@
+/* CollectionsGrid — grid view container */
+.collectionsGridView {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  padding: 0rem 0rem 0rem 1rem;
+}

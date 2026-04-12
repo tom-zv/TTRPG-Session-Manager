@@ -1,0 +1,59 @@
+.inline-editable-number-display {
+  cursor: pointer;
+  padding: 0.125rem 0.25rem;
+  border: 1px dashed transparent; /* match input border size */
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-duration);
+  display: inline-block;
+  min-width: 2rem;
+  text-align: center;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.inline-editable-number-display:hover {
+  background: var(--bg-secondary);
+  outline: 1px dashed var(--border-color);
+}
+
+.entity-row .inline-editable-number-input,
+.inline-editable-number-input {
+  all: unset; /* reset ALL global styles */
+  display: inline-block;
+  padding: 0.125rem 0.25rem;
+  min-width: 2rem;
+  max-width: 32px;
+  height: 34.14px;
+  text-align: center;
+  border: 1px dashed var(--accent-primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: inherit;
+  box-sizing: border-box;
+  outline: none;
+}
+
+
+.entity-row .inline-editable-number-input {
+  width: auto;
+  padding: 0.125rem 0.25rem;
+}
+
+.inline-editable-number-input:focus {
+  border-color: var(--accent-active);
+  box-shadow: 0 0 0 2px var(--accent-active-glow);
+}
+
+/* Remove spinner arrows for cleaner look */
+.inline-editable-number-input::-webkit-inner-spin-button,
+.inline-editable-number-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.inline-editable-number-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}

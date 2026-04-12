@@ -1,0 +1,133 @@
+/* ============================================================
+   MacroEditView.module.css
+   Root class and dialog-context classes stay global for :has()
+   selector compatibility. Interior layout classes are scoped.
+   ============================================================ */
+
+/* Root class — global so Dialog can detect via :has(.macro-edit-view) */
+:global(.macro-edit-view) {
+    width: 100%;
+}
+
+/* === Parameter control cells === */
+.parameterControl {
+    display: flex;
+    align-items: center;
+    column-gap: 0.3rem;
+    position: relative;
+}
+
+.delayInput {
+    width: 80px;
+    height: 36px;
+    padding: 0.3rem;
+    border: 1px solid var(--border-color);
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    margin-top: 16px;
+    font-size: 16px;
+}
+
+.delayInput::-webkit-outer-spin-button,
+.delayInput::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Volume slider inside macro table */
+:global(.macro-edit-view) :global(.volume-slider) {
+    min-width: 100px;
+    max-width: 200px;
+    accent-color: var(--accent-primary);
+    margin-top: 16px;
+}
+
+.parameterUnit,
+.volumeValue {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+.volumeValue {
+    width: 40px;
+    margin-left: 5px;
+}
+
+/* === Delay adjustment buttons === */
+.delayButtons {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin-left: -7px;
+}
+
+.delayButtons button {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    width: 24px;
+    height: 18px;
+    padding: 0;
+    margin: 0;
+    line-height: 2;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.delayButtons button:hover {
+    background-color: var(--accent-secondary);
+    color: white;
+}
+
+/* === Saving row state (global extension of audio-item-row) === */
+:global(.audio-item-row.saving) {
+    background-color: rgba(53, 114, 227, 0.05);
+}
+
+:global(.audio-item-row.saving.selected) {
+    background-color: rgba(53, 114, 227, 0.15);
+}
+
+/* === Empty state — global class kept for dialog :has() targeting === */
+:global(.empty-macro-message) {
+  text-align: center;
+  padding: 3rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-tertiary);
+  border-radius: 8px;
+  margin: 1rem 0;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* === Dialog context adjustments === */
+:global(.dialog-content:has(.macro-edit-view)) {
+  padding: 0;
+}
+
+:global(.dialog-content:has(.macro-edit-view) .audio-item-table) {
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+}
+
+:global(.dialog-content:has(.macro-edit-view) .empty-macro-message) {
+  border-radius: 0;
+  margin: 0;
+  height: 100%;
+  min-height: 200px;
+}

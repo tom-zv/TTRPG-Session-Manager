@@ -3,11 +3,14 @@ import React, { useState, useMemo, useCallback } from "react";
 import { useGetCollectionsOfType } from "../../api/collections/useCollectionQueries.js";
 import { CollectionItemsDisplay } from "../CollectionItemsDisplay/CollectionItemsDisplay.js";
 import { PiMusicNotesPlusFill } from "react-icons/pi";
-import { Audio } from "../../services/AudioService/AudioContext.js";
+import {
+  useAudioItemState,
+  usePlaylistAudio,
+} from "../../services/AudioService/AudioContext.js";
 import CreateCollectionDialog from "../../components/CollectionView/components/CreateCollectionDialog.js";
 import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionActions.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
-import "./PlaylistPanel.css";
+import styles from "./PlaylistPanel.module.css";
 import { AudioCollection } from "../CollectionItemsDisplay/types.js";
 
 
@@ -15,10 +18,9 @@ import { AudioCollection } from "../CollectionItemsDisplay/types.js";
 const PlaylistPanel: React.FC = React.memo(
   function PlaylistPanel() {
     // Get audio context functionality
-    const {
-      isAudioItemPlaying,
-      playlist: { togglePlaylist, currentIndex },
-    } = Audio.useAudio();
+    const { getAudioItemPlayState } = useAudioItemState();
+    const { togglePlaylist, currentPlaylistId, currentIndex } =
+      usePlaylistAudio();
     const [selectedPlaylistId, setSelectedPlaylistId] = useState<number | null>(
       null
     );
@@ -48,9 +50,11 @@ const PlaylistPanel: React.FC = React.memo(
 
     const handleTogglePlay = useCallback(() => {
       if (selectedPlaylist) {
-        togglePlaylist(selectedPlaylistId!, currentIndex);
+        const startIndex =
+          selectedPlaylist.id === currentPlaylistId ? currentIndex : 0;
+        togglePlaylist(selectedPlaylist.id, startIndex);
       }
-    }, [selectedPlaylist, togglePlaylist, selectedPlaylistId, currentIndex]);
+    }, [selectedPlaylist, togglePlaylist, currentPlaylistId, currentIndex]);
 
     const handlePlaylistSelect = useCallback((itemId: number) => {
       setSelectedPlaylistId(itemId);
@@ -84,8 +88,13 @@ const PlaylistPanel: React.FC = React.memo(
       acceptedDropTypes: ["file"],
     };
 
+    const selectedPlaylistPlayState = selectedPlaylist
+      ? getAudioItemPlayState(selectedPlaylist)
+      : "off";
+    const isSelectedPlaylistPlaying = selectedPlaylistPlayState === "playing";
+
     return (
-      <div className="playlist-panel">
+      <div className={styles.playlistPanel}>
         {!selectedPlaylistId ? (
           <>
             <div className="panel-header">
@@ -124,14 +133,14 @@ const PlaylistPanel: React.FC = React.memo(
               <h3>{selectedPlaylist.name}</h3>
               <button
                 className={`play-all-button ${
-                  isAudioItemPlaying(selectedPlaylist) ? "playing" : ""
+                  isSelectedPlaylistPlaying ? "playing" : ""
                 }`}
                 onClick={handleTogglePlay}
                 title={
-                  isAudioItemPlaying(selectedPlaylist) ? "Pause" : "Play all"
+                  isSelectedPlaylistPlaying ? "Pause" : "Play"
                 }
               >
-                {isAudioItemPlaying(selectedPlaylist) ? "⏸" : "▶"}
+                {isSelectedPlaylistPlaying ? "⏸" : "▶"}
               </button>
             </div>
             <CollectionItemsDisplay {...detailViewProps} />

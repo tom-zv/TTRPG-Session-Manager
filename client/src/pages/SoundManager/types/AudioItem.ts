@@ -26,7 +26,7 @@ export interface AudioFile extends AudioItemBase {
 export interface AudioCollection<T extends AudioItem = AudioItem> extends AudioItemBase {
   type: 'collection' | 'macro';
   audioType: CollectionType
-  imagePath?: string;
+  imageUrl?: string;
   description?: string;
   itemCount?: number;
   items?: T[]; 
@@ -40,7 +40,7 @@ export interface AudioMacro extends AudioCollection {
 }
 
 // Union type
-export type AudioItem = AudioFile | AudioCollection | AudioMacro;
+export type AudioItem = AudioFile | AudioCollection | AudioMacro
 
 // Type guards to check which type an AudioItem is
 export function isAudioFile(item: AudioItem): item is AudioFile {
@@ -69,5 +69,9 @@ export function isAmbienceCollection(item: AudioItem): item is AudioCollection {
 
 export function isMacroCollection(item: AudioItem): item is AudioCollection {
   return item.type === "macro";
+}
+
+export function isPlayableItem(item: AudioItem): boolean {
+  return !item.isCreateButton && !(item.type === "collection" && item.audioType === "sfx");
 }
 

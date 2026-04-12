@@ -12,7 +12,7 @@ export async function registerUser(UserData: {
     username: string,
     password: string,
     email: string,
-    isDM: boolean,
+    isGM: boolean,
 }) : Promise<UserDB>{
     
     const user = await usersModel.getUserByUsername(UserData.username);
@@ -21,7 +21,7 @@ export async function registerUser(UserData: {
 
     const password_hash = await argon2.hash(UserData.password);
 
-    const insertId = await usersModel.insertUserRecord(UserData.username, password_hash, UserData.email, UserData.isDM);
+    const insertId = await usersModel.insertUserRecord(UserData.username, password_hash, UserData.email, UserData.isGM);
 
     if (!insertId) {
         throw new Error("Failed to register user");

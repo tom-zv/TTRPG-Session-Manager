@@ -280,8 +280,8 @@ export class PlaylistModule {
   }
 
   // Getter methods for playlist state
-  getCurrentPlaylistId(): number {
-    return this.currentPlaylist.collectionId;
+  getCurrentPlaylistId(): number | null {
+    return this.currentPlaylist.collectionId || null;
   }
 
   getCurrentTrackIndex(): number {
@@ -320,7 +320,5 @@ export class PlaylistModule {
     if (this.currentPlaylist.howl) {
       this.currentPlaylist.howl.volume(volume);
     }
-
-    emit(AudioEventTypes.VOLUME_CHANGE, { playlist: volume });
   }
 }

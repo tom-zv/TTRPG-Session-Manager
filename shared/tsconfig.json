@@ -3,7 +3,6 @@
   "compilerOptions": {
     "outDir": "../server/dist/shared",
     "rootDir": "./",
-    "baseUrl": "./",
     "paths": {
       "shared/*": ["./*"]
     }

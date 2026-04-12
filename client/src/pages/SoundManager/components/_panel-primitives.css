@@ -1,0 +1,85 @@
+/* Shared SoundManager panel primitives */
+
+@keyframes pulse {
+  0%   { opacity: 0.6; }
+  50%  { opacity: 1; }
+  100% { opacity: 0.6; }
+}
+.separator-handle {
+  height: var(--sm-separator-height, 8px);
+  background-color: var(--bg-tertiary);
+  cursor: row-resize;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border-top: 1px solid var(--border-color-light);
+  border-bottom: 1px solid var(--border-color-light);
+  z-index: 20;
+}
+
+.separator-handle:hover {
+  background-color: var(--bg-hover);
+}
+
+.separator-handle .drag-handle {
+  width: var(--sm-drag-handle-width, 24px);
+  height: 4px;
+  border-radius: 2px;
+  background-color: var(--sm-drag-handle-bg, transparent);
+  background-image: var(
+    --sm-drag-handle-pattern,
+    linear-gradient(to right, rgba(255, 255, 255, 0.2) 10%, transparent 25%)
+  );
+  background-size: 4px 4px;
+  background-repeat: repeat-x;
+  transition: transform var(--transition-fast) ease;
+}
+
+.separator-handle:active .drag-handle {
+  transform: scale(1.1);
+}
+
+.collapsed-info-bar {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+.collapse-btn {
+  position: absolute;
+  right: 15px;
+  top: var(--sm-collapse-btn-top, auto);
+  font-size: 10px;
+  width: 14px;
+  height: 14px;
+  padding: 5px 15px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-top: none;
+  border-radius: 10%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition:
+    transform var(--transition-standard) ease,
+    background-color var(--transition-fast) ease,
+    color var(--transition-fast) ease;
+  z-index: var(--sm-collapse-btn-z, 11);
+}
+
+.collapse-btn:hover {
+  background-color: var(--bg-hover);
+}
+
+.collapse-btn:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}

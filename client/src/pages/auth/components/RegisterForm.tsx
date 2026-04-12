@@ -12,7 +12,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onLoginClick, onSuccess }) 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [email, setEmail] = useState('');
-  const [isDM, setIsDM] = useState(false);
+  const [isGM, setIsGM] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -33,7 +33,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onLoginClick, onSuccess }) 
 
     setIsLoading(true);
     try {
-      await registerUser({ username, password, email, isDM });
+      await registerUser({ username, password, email, isGM });
       if (onSuccess) {
         onSuccess();
       }
@@ -94,13 +94,13 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onLoginClick, onSuccess }) 
         </div>
         <div className="form-group-checkbox">
           <input
-            id="isDM"
+            id="isGM"
             type="checkbox"
-            checked={isDM}
-            onChange={(e) => setIsDM(e.target.checked)}
+            checked={isGM}
+            onChange={(e) => setIsGM(e.target.checked)}
             disabled={isLoading}
           />
-          <label htmlFor="isDM">I am a Dungeon Master</label>
+          <label htmlFor="isGM">I am a Game Master</label>
         </div>
         <button type="submit" disabled={isLoading} className="btn btn-primary auth-button">
           {isLoading ? 'Registering...' : 'Register'}

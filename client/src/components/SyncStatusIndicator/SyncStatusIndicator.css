@@ -1,0 +1,166 @@
+/* Icon-only sync indicator with hover tooltip */
+.sync-status-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  cursor: help;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+
+.sync-status-icon {
+  font-size: 0.875rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+/* Hover tooltip - hidden by default */
+.sync-status-tooltip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--color-bg-elevated, #2c2c2c);
+  border: 1px solid var(--color-border, #444);
+  border-radius: 6px;
+  padding: 0.75rem;
+  min-width: 180px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px);
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 1000;
+  font-size: 0.875rem;
+}
+
+.sync-status-indicator:hover .sync-status-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Tooltip arrow */
+.sync-status-tooltip::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 8px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 6px solid var(--color-border, #444);
+}
+
+.sync-status-tooltip::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 9px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid var(--color-bg-elevated, #2c2c2c);
+}
+
+.sync-status-main {
+  font-weight: 500;
+  line-height: 1.4;
+  margin-bottom: 0.25rem;
+}
+
+.sync-status-time {
+  font-size: 0.75rem;
+  opacity: 0.7;
+  line-height: 1.3;
+}
+
+.sync-status-error {
+  font-size: 0.75rem;
+  color: var(--color-error, #e74c3c);
+  line-height: 1.3;
+  margin-top: 0.25rem;
+}
+
+/* Status-specific styles - color coded */
+.sync-status-synced {
+  color: var(--color-success, #27ae60);
+  background-color: var(--color-success-bg, rgba(39, 174, 96, 0.15));
+}
+
+.sync-status-synced:hover {
+  background-color: var(--color-success-bg, rgba(39, 174, 96, 0.25));
+}
+
+.sync-status-pending {
+  color: var(--color-warning, #f39c12);
+  background-color: var(--color-warning-bg, rgba(243, 156, 18, 0.15));
+}
+
+.sync-status-pending:hover {
+  background-color: var(--color-warning-bg, rgba(243, 156, 18, 0.25));
+}
+
+.sync-status-syncing {
+  color: var(--color-info, #3498db);
+  background-color: var(--color-info-bg, rgba(52, 152, 219, 0.15));
+}
+
+.sync-status-syncing:hover {
+  background-color: var(--color-info-bg, rgba(52, 152, 219, 0.25));
+}
+
+/* Spinning animation for syncing state */
+.sync-status-syncing .sync-status-icon {
+  animation: spin 1s linear infinite;
+}
+
+.sync-status-error {
+  color: var(--color-error, #e74c3c);
+  background-color: var(--color-error-bg, rgba(231, 76, 60, 0.15));
+}
+
+.sync-status-error:hover {
+  background-color: var(--color-error-bg, rgba(231, 76, 60, 0.25));
+}
+
+.sync-status-offline {
+  color: var(--color-muted, #95a5a6);
+  background-color: var(--color-muted-bg, rgba(149, 165, 166, 0.15));
+}
+
+.sync-status-offline:hover {
+  background-color: var(--color-muted-bg, rgba(149, 165, 166, 0.25));
+}
+
+/* Animation keyframes */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Future animation: fade from green to gray after sync */
+@keyframes fadeToGray {
+  0% {
+    color: var(--color-success, #27ae60);
+    background-color: var(--color-success-bg, rgba(39, 174, 96, 0.15));
+  }
+  100% {
+    color: var(--color-muted, #95a5a6);
+    background-color: var(--color-muted-bg, rgba(149, 165, 166, 0.1));
+  }
+}

@@ -1,17 +1,21 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Audio } from "../../services/AudioService/AudioContext.js";
+import {
+  useAmbienceAudio,
+  useAudioItemState,
+} from "../../services/AudioService/AudioContext.js";
 import { useCollectionQuery } from "../../api/collections/useCollectionQueries.js";
 import { AudioCollection, AudioFile } from "../CollectionItemsDisplay/types.js";
 import { FaLeaf, FaCaretDown } from "react-icons/fa";
 
-import "./AmbienceCollapsedView.css";
+import styles from "./AmbienceCollapsedView.module.css";
 
 export const AmbienceCollapsed: React.FC = () => {
   // TODO: allow parent to control collectionId - user expects last interacted collection to be selected
   const [collectionId, setCollectionId] = useState<number | null>(null);
   const [collectionSelectorOpen, setCollectionSelectorOpen] = useState(false);
 
-  const AmbienceContext = Audio.useAmbience();
+  const AmbienceContext = useAmbienceAudio();
+  const { getAudioItemPlayState } = useAudioItemState();
   const { data: collections } = useCollectionQuery("ambience", -1);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,8 +41,11 @@ export const AmbienceCollapsed: React.FC = () => {
     (c) => c.id === collectionId
   ) as AudioCollection;
 
+  const collectionPlayState = currentCollection
+    ? getAudioItemPlayState(currentCollection)
+    : "off";
   const isCollectionActive =
-    AmbienceContext.playingCollectionId === currentCollection?.id;
+    collectionPlayState === "active" || collectionPlayState === "playing";
 
   const toggleFile = (file: AudioFile) => {
     if (currentCollection) {
@@ -48,43 +55,40 @@ export const AmbienceCollapsed: React.FC = () => {
 
   if (!collectionId || !currentCollection) {
     return (
-      <div className="no-collection-selected">
+      <div className={styles.noCollectionSelected}>
         No ambience collection selected.
       </div>
     );
   }
 
   return (
-    <div className="ambience-collapsed" ref={containerRef}>
-      <div className="left-panel">
-        <div className="collection-info">
+    <div className={styles.ambienceCollapsed} ref={containerRef}>
+      <div className={styles.leftPanel}>
+        <div className={styles.collectionInfo}>
           {/* Selector Header */}
           {!collectionSelectorOpen && (
-            <div className="collection-selector">
+            <div className={styles.collectionSelector}>
               <button
-                className={`collection-name-container ${
-                  isCollectionActive || collectionSelectorOpen ? "active" : ""
-                }`}
+                className={[styles.collectionNameContainer, (isCollectionActive || collectionSelectorOpen) ? styles.active : ""].filter(Boolean).join(" ")}
                 onClick={() => setCollectionSelectorOpen(!collectionSelectorOpen)}
                 onKeyDown={(e) =>
                   ["Enter", " "].includes(e.key) &&
                   setCollectionSelectorOpen(!collectionSelectorOpen)
                 }
               >
-                <span className="collection-name">{currentCollection.name}</span>
-
-                <FaCaretDown className="dropdown-icon" />
+                <span className={styles.collectionName}>{currentCollection.name}</span>
+                <FaCaretDown className={styles.dropdownIcon} />
               </button>
             </div>
           )}
 
           {/* Controls */}
           {collectionSelectorOpen ? (
-            <span className="select-prompt">
+            <span className={styles.selectPrompt}>
               Please select an ambience collection{" "}
             </span>
           ) : (
-            <div className="collection-controls">
+            <div className={styles.collectionControls}>
               <button
                 className="icon-button play-button"
                 onClick={() =>
@@ -112,26 +116,24 @@ export const AmbienceCollapsed: React.FC = () => {
             </div>
           )}
 
-          <div className="collection-icon">
+          <div className={styles.collectionIcon}>
             <FaLeaf />
-            <span className="collection-type">Ambience</span>
+            <span className={styles.collectionType}>Ambience</span>
           </div>
         </div>
       </div>
 
-      <div className="layout-vertical-separator"></div>
+      <div className={styles.verticalSeparator}></div>
 
       {/* Right Panel: Collection Selector or Grid */}
-      <div className="right-panel">
+      <div className={styles.rightPanel}>
         {collectionSelectorOpen ? (
-          <div className="collections-selector-view">
+          <div className={styles.collectionsSelectorView}>
             {(collections?.items as AudioCollection[]).map((c) => (
               <button
                 key={c.id}
                 type="button"
-                className={`selector-view-item ${
-                  c.id === collectionId ? "selected" : ""
-                }`}
+                className={[styles.selectorViewItem, c.id === collectionId ? styles.selected : ""].filter(Boolean).join(" ")}
                 onClick={() => handleCollectionSelect(c.id)}
                 onKeyDown={(e) =>
                   ["Enter", " "].includes(e.key) && handleCollectionSelect(c.id)
@@ -142,13 +144,13 @@ export const AmbienceCollapsed: React.FC = () => {
             ))}
           </div>
         ) : (
-          <div className="file-info">
+          <div className={styles.fileInfo}>
             {currentCollection.items?.length ? (
               (currentCollection.items as AudioFile[]).map(
                 (file: AudioFile) => (
                   <button
                     key={file.id}
-                    className={`file-item ${file.active ? "active" : ""}`}
+                    className={[styles.fileItem, file.active ? styles.active : ""].filter(Boolean).join(" ")}
                     onClick={() => toggleFile(file)}
                     title={file.name}
                   >

@@ -1,0 +1,383 @@
+.audioItemCard {
+  --type-color: var(--audio-type-color, var(--accent-primary));
+  --current-color: var(--type-color);
+  --card-accent-color: var(--type-color);
+  --card-accent-offset: 0px;
+  --card-accent-size: 3px;
+  --card-bg: var(--bg-tertiary);
+  --card-radius: 12px;
+
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex: 0 0 12%;
+  flex-direction: column;
+  min-width: 170px;
+  max-width: 210px;
+  height: 128px;
+  margin-inline: 18px;
+  margin-block: 10px;
+  padding: 0.5rem 0.7rem 0.7rem;
+  place-self: center;
+
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+
+  transition:
+    transform 180ms ease,
+    background-color 180ms ease;
+}
+
+/* Global interop */
+.audioItemCard :global(.play-icon),
+.audioItemCard :global(.dropdown-toggle):hover,
+.audioItemCard :global(.dropdown-toggle.active) {
+  color: var(--current-color);
+}
+
+.audioItemCard .volumeSliderContainer :global(.volume-slider)::-webkit-slider-thumb,
+.audioItemCard .volumeSliderContainer :global(.volume-slider)::-moz-range-thumb {
+  background-color: var(--current-color);
+}
+
+.audioItemCard .volumeSliderContainer :global(.volume-slider)::-webkit-slider-thumb:hover,
+.audioItemCard .volumeSliderContainer :global(.volume-slider)::-moz-range-thumb:hover {
+  opacity: 0.85;
+}
+
+
+.audioItemCard[data-card-kind="collection"] {
+  padding-left: 0.85rem;
+  border-top-color: var(--type-color);
+}
+
+.audioItemCard[data-card-kind="file"] {
+  border-left-color: var(--type-color);
+}
+
+.audioItemCard[data-card-kind="file"]::before,
+.audioItemCard[data-card-kind="collection"]::before {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  background: var(--current-color);
+}
+
+.audioItemCard[data-card-kind="file"]::before {
+  left: 0;
+  top: var(--card-accent-offset);
+  bottom: var(--card-accent-offset);
+  width: var(--card-accent-size);
+
+}
+
+.audioItemCard[data-card-kind="collection"]::before {
+  top: 0;
+  left: var(--card-accent-offset);
+  right: var(--card-accent-offset);
+  height: var(--card-accent-size);
+}
+
+.audioItemCard[data-card-kind="file"] .audioItemName {
+  font-size: 0.87rem;
+  letter-spacing: 0;
+}
+
+/* Shared content layout */
+.playableItemHeader,
+.audioItemHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  width: 100%;
+}
+
+.audioItemContent {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  gap: 0.15rem;
+}
+
+.playableItemTitle {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  gap: 0.05rem;
+}
+
+.audioItemName {
+  margin: 0;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 500;
+  line-height: 1.25;
+}
+
+.audioItemInfo {
+  font-size: 0.73rem;
+  line-height: 1.2;
+  color: var(--text-secondary);
+  opacity: 0.92;
+}
+
+.audioItemDetails {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  margin-top: auto;
+}
+
+.itemCount {
+  color: var(--text-secondary);
+  letter-spacing: 0.01em;
+}
+
+.audioItemCard[data-card-kind="collection"] .audioItemDetails {
+  padding-top: 0.35rem;
+}
+
+.audioItemCard[data-card-kind="collection"] .itemCount {
+  font-weight: 600;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 999px;
+}
+
+.audioItemCard[data-card-kind="collection"] .audioItemName {
+  padding-right: 0.4rem;
+}
+
+.audioItemHeader .itemIcon {
+  position: relative;
+  top: 4px;
+  margin-right: 0.5rem;
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+}
+
+.audioItemCard[data-type="macro"] .itemIcon {
+  color: var(--macro);
+}
+
+.itemActions {
+  position: absolute;
+  top: -3px;
+  right: -7px;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: fit-content;
+}
+
+/* Play button */
+.playButton {
+  position: absolute;
+  top: 54%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+
+.playButton:hover {
+  transform: translate(-50%, -50%) scale(1.04);
+  opacity: 1;
+  background-color: transparent;
+}
+
+.playButton .playIcon {
+  color: var(--current-color);
+  font-size: 1.25rem;
+  transition: color 160ms ease;
+}
+
+.audioItemCard[data-card-kind="file"]:hover .playButton,
+.audioItemCard.playing .playButton {
+  opacity: 0.9;
+}
+
+/* SFX progress track */
+.sfxProgressTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 0;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.sfxProgressIndicator {
+  height: 100%;
+  background-color: var(--current-color);
+  border-radius: 2px;
+  transition: width 0.1s linear;
+}
+
+/* Volume slider container */
+.volumeSliderContainer {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  width: 90%;
+  height: 6px;
+  transform: translateX(-50%);
+}
+
+.audioItemContent :global(.volume-slider) {
+  width: 100%;
+  accent-color: var(--current-color);
+}
+
+.audioItemCard .volumeSliderContainer :global(.volume-slider)::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: var(--current-color);
+  border: 1px solid color-mix(in srgb, var(--current-color) 45%, var(--border-color));
+}
+
+.audioItemCard .volumeSliderContainer :global(.volume-slider)::-moz-range-thumb {
+  background-color: var(--current-color);
+  border: 1px solid color-mix(in srgb, var(--current-color) 45%, var(--border-color));
+}
+
+/* Shared interactions */
+.audioItemCard:hover {
+  transform: translateY(-1px);
+}
+
+.audioItemCard:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--type-color) 68%, #fff);
+  outline-offset: 2px;
+}
+
+.audioItemCard.selected {
+  border-bottom: 1px dashed color-mix(in srgb, var(--type-color) 40%, var(--border-color));
+}
+
+.audioItemCard.cardDropTarget {
+  outline: 2px dashed color-mix(in srgb, var(--type-color) 70%, #fff);
+  outline-offset: 2px;
+  transform: translateY(-1px);
+  z-index: 6;
+}
+
+.audioItemCard.active {
+  --current-color: var(--audio-type-color-highlight, var(--type-color));
+  border-color: var(--current-color);
+}
+
+.audioItemCard.playing {
+  --current-color: var(--audio-type-color-highlight, var(--type-color));
+  border-color: color-mix(in srgb, var(--current-color) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--current-color) 4%, var(--card-bg));
+}
+
+.audioItemCard.playing .itemIcon {
+  color: var(--current-color);
+}
+
+/* Create collection card */
+.createCollectionCard,
+.audioItemCard[data-card-kind="create"] {
+  --type-color: var(--accent-primary);
+  border: 1px dashed color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-primary) 8%, var(--bg-tertiary));
+}
+
+.createCollectionContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  height: 100%;
+  padding: 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.createCollectionIcon {
+  width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 45%, var(--border-color));
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 180ms ease, border-color 180ms ease, color 180ms ease;
+}
+
+.createCollectionText {
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.audioItemCard[data-card-kind="create"]:hover {
+  border-color: color-mix(in srgb, var(--accent-primary) 70%, var(--border-color));
+  transform: translateY(-1px);
+}
+
+.audioItemCard[data-card-kind="create"]:hover .createCollectionIcon,
+.audioItemCard[data-card-kind="create"]:hover .createCollectionText {
+  color: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.audioItemCard[data-card-kind="create"]:hover .createCollectionIcon {
+  transform: scale(1.03);
+}
+
+.itemIconPlaying {
+  color: var(--success);
+}
+
+@media (max-width: 640px) {
+  .audioItemCard {
+    min-width: 148px;
+    max-width: 190px;
+    height: 120px;
+    margin-inline: 10px;
+    padding-inline: 0.55rem;
+  }
+
+  .audioItemName {
+    max-width: 132px;
+  }
+
+  .playButton {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .audioItemCard,
+  .playButton,
+  .createCollectionIcon {
+    transition: none;
+  }
+}

@@ -6,7 +6,7 @@ export interface AudioCollectionDTO {
   name: string;
   audioType: 'playlist' | 'sfx' | 'ambience';
   description?: string;
-  imagePath?: string; 
+  imageUrl?: string; 
   itemCount?: number;
   position?: number;
   items?: (AudioFileDTO | AudioMacroDTO)[];

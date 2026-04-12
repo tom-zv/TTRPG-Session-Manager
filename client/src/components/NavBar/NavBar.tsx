@@ -17,8 +17,8 @@ const NavBar: React.FC = () => {
             </NavLink>
           </li>
           <li>
-            <NavLink to="/combat-tracker" className={({isActive}) => isActive ? 'active' : ''}>
-              Combat Tracker
+            <NavLink to="/encounter-manager" className={({isActive}) => isActive ? 'active' : ''}>
+              Encounter Manager
             </NavLink>
           </li>
           <li>

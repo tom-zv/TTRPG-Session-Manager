@@ -3,6 +3,7 @@ import React, {
   useContext,
   useCallback,
   useEffect,
+  useMemo,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { usePlaylistModule } from "./hooks/usePlaylistModule.js";
@@ -11,90 +12,69 @@ import { useSfxModule } from "./hooks/useSfxModule.js";
 import { initQueryClient } from "./queryClient.js";
 import {
   AudioCollection,
-  AudioFile,
-  AudioMacro,
   AudioItem,
   isAudioFile,
   isAudioMacro,
   isAudioCollection,
-  isPlaylistCollection,
-  isAmbienceCollection,
-  isSfxCollection,
 } from "../../types/AudioItem.js";
 
-// Define the context shape
-interface AudioContextType {
-  // Universal audio control
+export type AudioItemPlayState = "unsupported" | "off" | "active" | "playing";
+
+interface AudioItemControlsContextType {
   toggleAudioItem: (
     item: AudioItem,
     parentCollection?: AudioCollection
   ) => Promise<boolean>;
-  // Item status checks
-  isAudioItemPlaying: (
-    item: AudioItem,
-    parentCollection?: AudioCollection
-  ) => boolean;
   updateAudioItemVolume: (
     item: AudioItem,
     volume: number,
     parentCollection?: AudioCollection
   ) => void;
-
-  // Playlist functionality
-  playlist: {
-    currentPlaylistId: number | null;
-    currentIndex: number;
-    isPlaying: boolean;
-    playlistVolume: number;
-    position: number;
-    duration: number;
-    togglePlaylist: (id: number, startIndex?: number) => Promise<boolean>;
-    nextTrack: () => void;
-    previousTrack: () => void;
-    setVolume: (volume: number) => void;
-    seekToPosition: (time: number) => void;
-  };
-
-  // Ambience functionality
-  ambience: {
-    playingCollectionId: number | undefined;
-    volume: number;
-    toggleCollection: (collection: AudioCollection) => Promise<boolean>;
-    toggleFileActivation: (
-      collection: AudioCollection,
-      file: AudioFile
-    ) => boolean;
-    setFileVolume: (
-      collectionId: number,
-      fileId: number,
-      volume: number
-    ) => void;
-    setMasterVolume: (volume: number) => void;
-  };
-
-  // SFX functionality
-  sfx: {
-    volume: number;
-    playingSoundIds: number[];
-    playingMacroIds: number[];
-    toggleFile: (sound: AudioFile) => void;
-    toggleMacro: (macro: AudioMacro) => void;
-    setVolume: (volume: number) => void;
-    setSoundVolume: (
-      parentCollectionId: number,
-      id: number,
-      volume: number
-    ) => void;
-    setMacroVolume: (id: number, volume: number) => void;
-    getFilePosition: (id: number) => number | null;
-  };
 }
 
-// Create the context
-const AudioContext = createContext<AudioContextType | undefined>(undefined);
+interface AudioItemStateContextType {
+  getAudioItemPlayState: (
+    item: AudioItem,
+    parentCollection?: AudioCollection
+  ) => AudioItemPlayState;
+  isCurrentPlaylistTrack: (
+    item: AudioItem,
+    parentCollection: AudioCollection
+  ) => boolean;
+}
+
+type PlaylistAudioContextType = ReturnType<typeof usePlaylistModule>;
+type AmbienceAudioContextType = ReturnType<typeof useAmbienceModule>;
+type SfxAudioContextType = ReturnType<typeof useSfxModule>;
+
+const AudioItemControlsContext = createContext<
+  AudioItemControlsContextType | undefined
+>(undefined);
+const AudioItemStateContext = createContext<
+  AudioItemStateContextType | undefined
+>(undefined);
+const PlaylistAudioContext = createContext<
+  PlaylistAudioContextType | undefined
+>(undefined);
+const AmbienceAudioContext = createContext<
+  AmbienceAudioContextType | undefined
+>(undefined);
+const SfxAudioContext = createContext<SfxAudioContextType | undefined>(
+  undefined
+);
+
+function useRequiredAudioContext<T>(
+  context: React.Context<T | undefined>,
+  hookName: string
+) {
+  const value = useContext(context);
+  if (value === undefined) {
+    throw new Error(`${hookName} must be used within an AudioProvider`);
+  }
+  return value;
+}
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  // Initialize the audio modules
   const playlist = usePlaylistModule();
   const ambience = useAmbienceModule();
   const sfx = useSfxModule();
@@ -105,132 +85,183 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     initQueryClient(queryClient);
   }, [queryClient]);
 
-  // Universal toggle function that works with any audio item type
+  const {
+    currentPlaylistId,
+    currentIndex,
+    isPlaying: isPlaylistPlaying,
+    togglePlaylist,
+    setVolume: setPlaylistVolume,
+  } = playlist;
+  const {
+    playingCollectionId,
+    playingFileIds,
+    toggleCollection,
+    toggleFileActivation,
+    setFileVolume,
+    setMasterVolume,
+  } = ambience;
+  const {
+    playingSoundIds,
+    playingMacroIds,
+    toggleFile,
+    toggleMacro,
+    setVolume: setSfxVolume,
+    setSoundVolume,
+    setMacroVolume,
+  } = sfx;
+
   const toggleAudioItem = useCallback(
-    async (item: AudioItem, parentCollection?: AudioCollection): Promise<boolean> => { 
-      if (isAudioMacro(item)){
-        return sfx.toggleMacro(item);
+    async (
+      item: AudioItem,
+      parentCollection?: AudioCollection
+    ): Promise<boolean> => {
+      if (isAudioMacro(item)) {
+        return toggleMacro(item);
       }
 
       if (isAudioCollection(item)) {
-        if (isPlaylistCollection(item)) {
-          return playlist.togglePlaylist(item.id, 0);
-        } else if (isAmbienceCollection(item)) {
-          return ambience.toggleCollection(item);
-        } else if (isSfxCollection(item)) {
-          return false; // SFX collections are not directly toggled
+        switch (item.audioType) {
+          case "playlist":
+            return togglePlaylist(item.id, 0);
+          case "ambience":
+            return toggleCollection(item);
+          case "sfx":
+            return false;
         }
       }
-      
-      // For audio files, determine the type and use the appropriate toggle
+
       if (isAudioFile(item)) {
-        if (parentCollection) {
-          switch (parentCollection.audioType) {
-            case "playlist":
-              return playlist.togglePlaylist(
-                parentCollection.id,
-                item.position
-              );
-            case "ambience":
-              return ambience.toggleFileActivation(parentCollection, item);
-            case "sfx":
-              return sfx.toggleFile(item);
-          }
-        } else {
-          // Play file with no collection context, for SFX files and files played outside of collections
-          return sfx.toggleFile(item);
+        if (!parentCollection) {
+          return toggleFile(item);
         }
-         
+
+        switch (parentCollection.audioType) {
+          case "playlist":
+            return togglePlaylist(parentCollection.id, item.position);
+          case "ambience":
+            return toggleFileActivation(parentCollection, item);
+          case "sfx":
+            return toggleFile(item);
+        }
       }
+
       console.warn("Invalid audio item type:", item);
       return false;
     },
-    [playlist, ambience, sfx]
+    [
+      toggleMacro,
+      togglePlaylist,
+      toggleCollection,
+      toggleFile,
+      toggleFileActivation,
+    ]
   );
 
-  // Check if an audio item is currently playing
-  const isAudioItemPlaying = useCallback(
-    (item: AudioItem, parentCollection?: AudioCollection): boolean => {
-      // For collections
+  const getAudioItemPlayState = useCallback(
+    (item: AudioItem, parentCollection?: AudioCollection): AudioItemPlayState => {
       if (isAudioCollection(item)) {
         if (isAudioMacro(item)) {
-          return sfx.playingMacroIds.some(macro => macro === item.id);
-        } else
-        if (isPlaylistCollection(item)) {
-          return playlist.currentPlaylistId === item.id && playlist.isPlaying;
-        } else if (isAmbienceCollection(item)) {
-          // Check if this specific ambience collection is the one currently playing
-          return ambience.playingCollectionId === (item as AudioCollection).id
-        } else if (isSfxCollection(item)) {
-          return false; // SFX collections themselves don't "play"
+          return playingMacroIds.some((macro) => macro === item.id)
+            ? "playing"
+            : "off";
+        }
+
+        switch (item.audioType) {
+          case "playlist":
+            return currentPlaylistId === item.id && isPlaylistPlaying
+              ? "playing"
+              : "off";
+          case "ambience": {
+            const isCollectionRunning = playingCollectionId === item.id;
+            if (!isCollectionRunning) {
+              return "off";
+            }
+            return playingFileIds.length > 0 ? "playing" : "active";
+          }
+          case "sfx":
+            return "unsupported";
         }
       }
 
-      // For audio files
       if (isAudioFile(item)) {
         if (parentCollection) {
           switch (parentCollection.audioType) {
             case "playlist":
-              // Check if it's the current track in the playing playlist
-              return (
-                playlist.currentPlaylistId === parentCollection.id &&
-                playlist.isPlaying &&
-                playlist.currentIndex === item.position
-              );
-            case "ambience":
-              // An ambience file is "playing" if its parent collection is playing AND the file itself is active
-              return (
-                ambience.playingCollectionId === parentCollection.id &&
-                ambience.playingFileIds.includes(item.id)
-              );
+              return currentPlaylistId === parentCollection.id &&
+                isPlaylistPlaying &&
+                currentIndex === item.position
+                ? "playing"
+                : "off";
+            case "ambience": {
+              const isFilePlaying = playingFileIds.includes(item.id);
+              if (isFilePlaying) {
+                return "playing";
+              }
+              if (item.active) {
+                return "active";
+              }
+              return "off";
+            }
             case "sfx":
-              // Check if the file is individually active in the SFX module
-              return sfx.playingSoundIds.some(sound => sound === item.id);
+              return playingSoundIds.some((sound) => sound === item.id)
+                ? "playing"
+                : "off";
           }
-        } else {
-          // File without a parent collection context is treated as an SFX
-           return sfx.playingSoundIds.some(sound => sound === item.id);
         }
+
+        return playingSoundIds.some((sound) => sound === item.id)
+          ? "playing"
+          : "off";
       }
 
-      // For macros
-      if (isAudioMacro(item)) {
-        // Check if the macro is active in the SFX module
-        return sfx.playingMacroIds.some(macro => macro === (item as AudioMacro).id);
-      }
-
-      return false; // Default case
+      return "off";
     },
     [
-      playlist.currentPlaylistId,
-      playlist.isPlaying,
-      playlist.currentIndex,
-      ambience.playingCollectionId,
-      ambience.playingFileIds,
-      sfx.playingSoundIds,
-      sfx.playingMacroIds,
+      currentPlaylistId,
+      isPlaylistPlaying,
+      currentIndex,
+      playingCollectionId,
+      playingFileIds,
+      playingSoundIds,
+      playingMacroIds,
     ]
+  );
+
+  const isCurrentPlaylistTrack = useCallback(
+    (item: AudioItem, parentCollection: AudioCollection): boolean => {
+      return (
+        isAudioFile(item) &&
+        parentCollection.audioType === "playlist" &&
+        currentPlaylistId === parentCollection.id &&
+        currentIndex === item.position
+      );
+    },
+    [currentPlaylistId, currentIndex]
   );
 
   const updateAudioItemVolume = useCallback(
     (item: AudioItem, volume: number, parentCollection?: AudioCollection) => {
+      if (isAudioMacro(item)) {
+        setMacroVolume(item.id, volume);
+        return;
+      }
+
       if (isAudioCollection(item)) {
         switch (item.audioType) {
           case "macro":
-            sfx.setMacroVolume(item.id, volume);
             break;
           case "playlist":
-            if (item.id === playlist.currentPlaylistId) {
-              playlist.setVolume(volume);
+            if (item.id === currentPlaylistId) {
+              setPlaylistVolume(volume);
             }
             break;
           case "ambience":
-            if (item.id === ambience.playingCollectionId) {
-              ambience.setMasterVolume(volume);
+            if (item.id === playingCollectionId) {
+              setMasterVolume(volume);
             }
             break;
           case "sfx":
-            sfx.setVolume(volume);
+            setSfxVolume(volume);
             break;
         }
       } else if (isAudioFile(item)) {
@@ -239,54 +270,89 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         }
         switch (parentCollection.audioType) {
           case "playlist":
-            if (parentCollection.id === playlist.currentPlaylistId) {
-              playlist.setVolume(volume);
+            if (parentCollection.id === currentPlaylistId) {
+              setPlaylistVolume(volume);
             }
             break;
           case "ambience":
-              ambience.setFileVolume(parentCollection.id, item.id, volume);
+            setFileVolume(parentCollection.id, item.id, volume);
             break;
           case "sfx":
-            sfx.setSoundVolume(parentCollection.id, item.id, volume);
+            setSoundVolume(parentCollection.id, item.id, volume);
             break;
         }
       }
     },
-    [playlist, ambience, sfx]
+    [
+      currentPlaylistId,
+      playingCollectionId,
+      setFileVolume,
+      setMacroVolume,
+      setMasterVolume,
+      setPlaylistVolume,
+      setSfxVolume,
+      setSoundVolume,
+    ]
   );
 
-  // Combine all modules into a single context value
-  const audioContextValue: AudioContextType = {
-    toggleAudioItem,
-    isAudioItemPlaying,
-    updateAudioItemVolume,
-    playlist,
-    ambience,
-    sfx,
-  };
+  const audioItemControlsValue: AudioItemControlsContextType = useMemo(
+    () => ({
+      toggleAudioItem,
+      updateAudioItemVolume,
+    }),
+    [toggleAudioItem, updateAudioItemVolume]
+  );
+
+  const audioItemStateValue: AudioItemStateContextType = useMemo(
+    () => ({
+      getAudioItemPlayState,
+      isCurrentPlaylistTrack,
+    }),
+    [getAudioItemPlayState, isCurrentPlaylistTrack]
+  );
 
   return (
-    <AudioContext.Provider value={audioContextValue}>
-      {children}
-    </AudioContext.Provider>
+    <PlaylistAudioContext.Provider value={playlist}>
+      <AmbienceAudioContext.Provider value={ambience}>
+        <SfxAudioContext.Provider value={sfx}>
+          <AudioItemControlsContext.Provider value={audioItemControlsValue}>
+            <AudioItemStateContext.Provider value={audioItemStateValue}>
+              {children}
+            </AudioItemStateContext.Provider>
+          </AudioItemControlsContext.Provider>
+        </SfxAudioContext.Provider>
+      </AmbienceAudioContext.Provider>
+    </PlaylistAudioContext.Provider>
   );
 }
 
-// Custom hook for using the audio context
-export function useAudio() {
-  const context = useContext(AudioContext);
-  if (context === undefined) {
-    throw new Error("useAudio must be used within an AudioProvider");
-  }
-  return context;
+export function useAudioItemControls() {
+  return useRequiredAudioContext(
+    AudioItemControlsContext,
+    "useAudioItemControls"
+  );
 }
 
-// Export a named object for easy import of individual modules
-export const Audio = {
-  usePlaylist: () => useAudio().playlist,
-  useAmbience: () => useAudio().ambience,
-  useSfx: () => useAudio().sfx,
-  useAudio,
-};
+export function useAudioItemState() {
+  return useRequiredAudioContext(AudioItemStateContext, "useAudioItemState");
+}
 
-export default AudioContext;
+export function usePlaylistAudio() {
+  return useRequiredAudioContext(PlaylistAudioContext, "usePlaylistAudio");
+}
+
+export function useAmbienceAudio() {
+  return useRequiredAudioContext(AmbienceAudioContext, "useAmbienceAudio");
+}
+
+export function useSfxAudio() {
+  return useRequiredAudioContext(SfxAudioContext, "useSfxAudio");
+}
+
+export const Audio = {
+  usePlaylist: usePlaylistAudio,
+  useAmbience: useAmbienceAudio,
+  useSfx: useSfxAudio,
+  useAudioItemControls,
+  useAudioItemState,
+};

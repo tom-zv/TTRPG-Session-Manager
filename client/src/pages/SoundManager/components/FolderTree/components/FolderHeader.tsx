@@ -7,6 +7,7 @@ import { useFolderTree } from "../context/FolderTreeContext.js";
 import FileScanButton from "./FileScanButton.js";
 import CreateFolderDialog from "./dialogs/CreateFolderDialog.js";
 import CreateFileDialog from "./dialogs/CreateFileDialog.js";
+import styles from "../FolderTree.module.css";
 
 interface FolderHeaderProps {
   folder: Folder;
@@ -40,7 +41,7 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
 
   return (
     <div
-      className={`folder-header ${isSelected ? "selected" : ""}`}
+      className={[styles.folderHeader, isSelected ? styles.selected : ""].filter(Boolean).join(" ")}
       draggable
       onClick={onClick}
       onKeyDown={(e) => {
@@ -64,11 +65,11 @@ const FolderHeader: React.FC<FolderHeaderProps> = ({
       aria-expanded={isOpen}
     >
       <span
-        className={`folder-icon ${hasContents ? (isOpen ? "open" : "closed") : ""}`}
+        className={`${styles.folderIcon} ${hasContents ? (isOpen ? "open" : "closed") : ""}`}
       >
         {getFolderIcon(folder.type, isOpen, hasContents)}
       </span>
-      <span className="folder-name">{folder.name}</span>
+      <span className={styles.folderName}>{folder.name}</span>
       
       <button
         className="icon-button create-button"

@@ -14,7 +14,7 @@ import {
   isPlaylistCollection,
   AudioCollection
 } from "../../types/AudioItem.js";
-import "./AudioItemEditDialog.css";
+import styles from "./AudioItemEditDialog.module.css";
 import EditableField from "../../../../components/EditableField/EditableField.js";
 
 //TODO: folderTree edit sync - folder tree doesnt use react query, causing desync
@@ -52,7 +52,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       initial.description = item.description;
     }
     if (isPlaylistCollection(item)) {
-      initial.imagePath = (item as AudioCollection).imagePath || "";
+      initial.imageUrl = (item as AudioCollection).imageUrl || "";
     }
     setFormData(initial);
   }, [item, parentCollectionType]);
@@ -83,7 +83,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
 
       // Submit based on item type
       if (isAudioCollection(item)) {
-        updateCollection.mutate(payload as { id: number; name?: string; description?: string; imagePath?: string });
+        updateCollection.mutate(payload as { id: number; name?: string; description?: string; imageUrl?: string });
       } else if (isAudioFile(item)) {
         updateAudioFile.mutate(payload as { id: number; collectionId: number; name?: string; path?: string; url?: string; active?: boolean; volume?: number; delay?: number; parentInfo?: {type: CollectionType, id: number} });
       }
@@ -138,7 +138,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
           dialogContentRef={dialogContentRef}
         />
       ) : (
-        <div className="audio-item-edit-form">
+        <div className={styles.audioItemEditForm}>
           {error && <div className="alert alert-danger">{error}</div>}
 
           <EditableField
@@ -185,8 +185,8 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
           {isPlaylistCollection(item) && (
             <EditableField
               label="Image Path"
-              name="imagePath"
-              value={formData.imagePath || ""}
+              name="imageUrl"
+              value={formData.imageUrl || ""}
               onChange={handleChange}
             />
           )}

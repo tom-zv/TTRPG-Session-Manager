@@ -2,7 +2,15 @@ import React, { useMemo } from "react";
 import { useGetCollectionById } from "../../../api/collections/useCollectionQueries.js";
 import { CollectionType } from "shared/audio/types.js";
 import CollectionItemsDisplay from "../../CollectionItemsDisplay/CollectionItemsDisplay.js";
-import "./CollectionDetail.css";
+import styles from "./CollectionDetail.module.css";
+import { IoReturnUpBack } from "react-icons/io5";
+import {
+  useAudioItemControls,
+  useAudioItemState,
+  type AudioItemPlayState,
+} from "src/pages/SoundManager/services/AudioService/AudioContext.js";
+
+type CollectionPlayState = AudioItemPlayState;
 
 interface CollectionDetailProps {
   // Data props
@@ -34,6 +42,8 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
     collectionType,
     collectionId
   );
+  const { toggleAudioItem } = useAudioItemControls();
+  const { getAudioItemPlayState } = useAudioItemState();
 
   // Check if description is short enough to display inline
   const useInlineDescription = useMemo(() => {
@@ -42,40 +52,69 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
 
   // Handle loading and error states
   if (isLoading) {
-    return <div className="collection-detail-view">Loading...</div>;
+    return <div className={styles.collectionDetailView}>Loading...</div>;
   }
 
   if (error) {
     return (
-      <div className="collection-detail-view">
-        <p className="error-message">Failed to load collection details.</p>
+      <div className={styles.collectionDetailView}>
+        <p className={styles.errorMessage}>Failed to load collection details.</p>
       </div>
     );
   }
 
   if (!collection) {
     return (
-      <div className="collection-detail-view">
-        <p className="error-message">Collection not found.</p>
+      <div className={styles.collectionDetailView}>
+        <p className={styles.errorMessage}>Collection not found.</p>
       </div>
     );
   }
 
+  const collectionPlayState =
+    collectionType === "sfx"
+      ? "unsupported"
+      : getAudioItemPlayState(collection);
+
+  const isCollectionPlayable = collectionType !== "sfx";
+  const isCollectionRunning =
+    collectionPlayState === "playing" || collectionPlayState === "active";
+
+  const statusLabelByState: Record<CollectionPlayState, string> = {
+    unsupported: "",
+    off: "off",
+    active: "No files active",
+    playing: "playing",
+  };
+
   return (
-    <div className="collection-detail-view">
-      <div className="collection-detail-header">
+    <div className={styles.collectionDetailView} data-type={collectionType}>
+      <div className={styles.collectionDetailHeader}>
         <button className="back-button" onClick={onBackClick}>
-          ←
+          <IoReturnUpBack />
         </button>
 
-        <div className="collection-title-group">
-          <h2>{collection.name}</h2>
+        <div className={styles.collectionTitleGroup}>
+          <div className={styles.collectionTitleBlock}>
+            <h2> {collection.name} </h2>
+            <div className={styles.collectionStatusRow}>
+              <div
+                className={styles.collectionStatus}
+                data-state={collectionPlayState}
+                data-type={collectionType}
+                title={`Collection state: ${statusLabelByState[collectionPlayState]}`}
+              >
+                {statusLabelByState[collectionPlayState]}
+              </div>
+            </div>
+          </div>
           {useInlineDescription && collection.description && (
-            <p className="collection-description-inline">
+            <p className={styles.collectionDescriptionInline}>
               {collection.description}
             </p>
           )}
         </div>
+
 
         {/* <div className="collection-edit">
           <button className=>
@@ -84,16 +123,23 @@ const CollectionDetail: React.FC<CollectionDetailProps> = ({
         </div> */}
       </div>
 
+      {isCollectionPlayable && (
+      <button
+        className={styles.playButton}
+        onClick={() => toggleAudioItem(collection)}
+      >
+        {isCollectionRunning ? '⏸' : '▶'}
+      </button>
+      )}
       {!useInlineDescription && collection.description && (
-        <p className="collection-description">{collection.description}</p>
+        <p className={styles.collectionDescription}>{collection.description}</p>
       )}
 
       <div
-        className={`collection-detail-view-content ${
-          itemDisplayView === "grid"
-            ? "collection-detail-view-grid"
-            : "collection-detail-view-list"
-        }`}
+        className={[
+          styles.collectionDetailViewContent,
+          itemDisplayView === "list" ? styles.collectionDetailViewList : "",
+        ].filter(Boolean).join(" ")}
       >
         <CollectionItemsDisplay
           collectionType={collectionType}

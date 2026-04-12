@@ -13,7 +13,7 @@ import {
   PanelResizeHandle,
   
 } from "react-resizable-panels";
-import "./ItemDrawer.css";
+import styles from "./ItemDrawer.module.css";
 import { useItemDrawer } from "./ItemDrawerContext.js";
 import { useElementHeightPct } from "../../utils/useElementHeightPct.js";
 
@@ -49,15 +49,15 @@ const ItemDrawer: React.FC = () => {
   }, [isMacroPanelCollapsed]);
 
   return (
-    <div className="item-drawer-container">
-      <div className="item-drawer-accent-line"></div>
-      <div className="item-drawer-header">
-                  <div className="drawer-title">
+    <div className={styles.itemDrawerContainer}>
+      <div className={styles.itemDrawerAccentLine}></div>
+      <div className={styles.itemDrawerHeader}>
+                  <div className={styles.drawerTitle}>
                     <BsFileMusicFill />
                     <span> Audio Library</span>
                   </div>
                   <button 
-                    className="drawer-close-button" 
+                    className={styles.drawerCloseButton} 
                     onClick={hideItemDrawer}
                     title="Close Panel"
                   >
@@ -65,15 +65,15 @@ const ItemDrawer: React.FC = () => {
                   </button>
                 </div>
 
-      <div className="item-drawer-content" ref={drawerContentDivRef}>
+      <div className={styles.itemDrawerContent} ref={drawerContentDivRef}>
         <PanelGroup
           direction="vertical"
-          className="item-drawer-group"
+          className={styles.itemDrawerGroup}
           ref={panelGroupRef}
         >
           {/* Files Panel */}
           <Panel defaultSize={50} minSize={15}>
-            <div className="drawer-section folder-tree-section">
+            <div className={`${styles.drawerSection} folder-tree-section`}>
               <FolderTree />
             </div>
           </Panel>
@@ -87,7 +87,7 @@ const ItemDrawer: React.FC = () => {
             minSize={macroPanelMinPct}
             className="panel-with-table macro-drawer"
           >
-            <div className="drawer-section macro-drawer-section">
+            <div className={`${styles.drawerSection} ${styles.macroDrawerSection}`}>
               <div
                 className={`panel-header${isMacroPanelCollapsed ? " collapsed" : ""}`}
                 ref={macroPanelHeaderRef}
@@ -104,7 +104,7 @@ const ItemDrawer: React.FC = () => {
                   </button>
 
                   <button
-                    className="drawer-toggle-button"
+                    className={styles.drawerToggleButton}
                     onClick={toggleMacroPanel}
                     title={
                       isMacroPanelCollapsed ? "Expand macros" : "Hide macros"
@@ -123,9 +123,7 @@ const ItemDrawer: React.FC = () => {
               </div>
               {/* Content container that collapses */}
               <div
-                className={`macro-content-container ${
-                  isMacroPanelCollapsed ? "collapsed" : ""
-                }`}
+                className={`${styles.macroContentContainer} ${isMacroPanelCollapsed ? styles.collapsed : ""}`}
               >
                 <CollectionItemsDisplay
                   collectionType="macro"

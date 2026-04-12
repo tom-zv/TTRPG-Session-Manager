@@ -17,11 +17,17 @@ export const getSocket = (namespace: string = '/'): Socket => {
     ? window.location.origin 
     : 'http://localhost:3000';
   
+  // Get auth token for socket authentication
+  const token = localStorage.getItem('sessionToken');
+  
   // Create new socket instance
   const socket = io(`${baseUrl}${namespace}`, {
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
     autoConnect: true,
+    auth: {
+      token: token
+    }
   });
 
   // Setup socket event listeners for connection management

@@ -20,25 +20,40 @@
 
   --accent-primary: #3572e3;
   --accent-secondary: #4a90e2;
+  --accent-color: var(--accent-primary);
   --accent-success: #19b47a;
   --accent-info: #2d8cf0;
   --accent-warning: #ff9800;
   --accent-hover: #3846d4;
+  --text-on-accent: #ffffff;
 
   --danger: #d64550;
   --danger-bold: #c53030;
   --danger-rgb: 214, 69, 80;
   --success: #19b47a;
 
+  /* Semantic status aliases used across feature styles */
+  --color-bg-elevated: var(--bg-tertiary);
+  --color-border: var(--border-color);
+  --color-success: var(--accent-success);
+  --color-warning: var(--accent-warning);
+  --color-info: var(--accent-info);
+  --color-error: var(--danger);
+
   /* Category colors */
   --macro: #8e44ad;
   --ambience: #146618;
-  --music: #5db8ff;
+  --playlist: #5db8ff;
   --sfx: #ff9a5d;
+  
+  --macro-highlight: #c779ea;
+  --ambience-highlight: #32d464;
+  --playlist-highlight: #9bd7ff;
+  --sfx-highlight: #ffc08f;
 
   /* State indicators */
   --accent-playing-bg: rgba(25, 180, 122, 0.15);
-  --accent-active-glow: rgba(61, 230, 168, 1);
+  --accent-active-glow: rgb(0, 177, 50);
 
   /* Borders and shadows */
   --border-color: #444c56;
@@ -50,13 +65,32 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
+  --panel-header-height: 52px;
+  --panel-width-left: 340px;
+  --panel-width-drawer: 340px;
+  --separator-width-v: 3px;
+  --separator-width-h: 4px;
+  --playbar-track-info-width: 110px;
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
   --spacing-md: 1rem;
   --spacing-lg: 1.5rem;
   --spacing-xl: 2rem;
 
+  /* Surface and border overlays */
+  --surface-overlay: rgba(25, 28, 36, 0.95);
+  --surface-frosted: rgba(30, 30, 30, 0.85);
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-subtle-2: rgba(255, 255, 255, 0.03);
+
+  /* Shadows */
+  --shadow-sm: 0 2px 4px var(--shadow);
+  --shadow-md: 0 10px 25px rgba(0, 0, 0, 0.3);
+
   /* Transition */
+  --transition-fast: 0.15s;
+  --transition-standard: 0.3s;
+  --transition-slow: 0.5s;
   --transition-duration: 0.3s;
 
   /* Default cutout variables for Dialog component */

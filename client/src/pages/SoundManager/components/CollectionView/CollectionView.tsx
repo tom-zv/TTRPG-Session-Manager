@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { CollectionViewProps } from "./types.js";
 import CollectionsGrid from "./components/CollectionsGrid.js";
 import CollectionDetail from "./components/CollectionDetail.js";
-import "./CollectionView.css";
+import styles from "./CollectionView.module.css";
 
 const CollectionView: React.FC<CollectionViewProps> = (props) => {
   const {
@@ -28,7 +28,7 @@ const CollectionView: React.FC<CollectionViewProps> = (props) => {
   };
 
   return (
-    <div className="collection-view">
+    <div className={styles.collectionView}>
       {viewMode === "grid" ? (
         <CollectionsGrid
           collectionType={collectionType}

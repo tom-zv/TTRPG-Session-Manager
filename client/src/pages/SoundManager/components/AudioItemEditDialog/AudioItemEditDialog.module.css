@@ -1,0 +1,10 @@
+/* Component-private wrapper layout for the audio item edit form.
+   All shared primitives (form-group, form-actions, etc.) live in _forms.css. */
+.audioItemEditForm {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
+  max-width: 550px;
+  margin: 0 auto;
+}

@@ -4,11 +4,14 @@ import { AudioItemActions, AudioCollection, AudioItem } from "../../types.js";
 import { DragDropProps } from "src/types/dragDropProps.js";
 import { useItemDragDrop } from "../../hooks/useItemDragDrop.js";
 import { calculateTableDropIndex } from "src/utils/tableDropUtils.js";
-import { isAudioFile } from "../../../../types/AudioItem.js";
-import { Audio } from "../../../../services/AudioService/AudioContext.js";
+import {
+  useAudioItemControls,
+  useAudioItemState,
+  type AudioItemPlayState,
+} from "../../../../services/AudioService/AudioContext.js";
 import { getColumns, renderCell } from "./listViewColumns.js";
 
-import "./ListView.css";
+import styles from "./ListView.module.css";
 import { ListViewTableHeader } from "./ListViewTableHeader.js";
 
 interface ListViewProps extends AudioItemActions, DragDropProps {
@@ -37,7 +40,9 @@ export const ListView: React.FC<ListViewProps> = ({
   acceptedDropTypes = [],
 }) => {
   const items = collection.items || [];
-  const audioContext = Audio.useAudio();
+  const { toggleAudioItem } = useAudioItemControls();
+  const { getAudioItemPlayState, isCurrentPlaylistTrack } =
+    useAudioItemState();
   const isEmpty = items.length === 0;
   const tableRef = useRef<HTMLTableElement | null>(null);
 
@@ -59,14 +64,13 @@ export const ListView: React.FC<ListViewProps> = ({
   const columns = getColumns(collection);
 
   const handlePlayItem = (item: AudioItem) => {
-    audioContext.toggleAudioItem(item, collection);
+    toggleAudioItem(item, collection);
   };
 
   // Compose row className
   const getRowClassName = (
     item: AudioItem,
-    isPlaying: boolean,
-    isAmbienceActive: boolean,
+    playState: AudioItemPlayState,
     isCurrentTrack: boolean,
     dragClass: string
   ) =>
@@ -74,8 +78,8 @@ export const ListView: React.FC<ListViewProps> = ({
       "audio-item-row",
       item.type,
       selectedItemIds.includes(item.id) && "selected",
-      isPlaying && "playing",
-      isAmbienceActive && "active",
+      playState === "playing" && "playing",
+      playState === "active" && "active",
       isCurrentTrack && "current-track",
       dragClass,
     ]
@@ -97,15 +101,15 @@ export const ListView: React.FC<ListViewProps> = ({
     <div
       {...dropAreaProps}
       className={[
-        "audio-item-list-view",
-        collection.type === "macro" && "macro-list-view",
-        isEmpty && "empty-list-view",
+        styles.audioItemListView,
+        collection.type === "macro" && styles.macroListView,
+        isEmpty && styles.emptyListView,
       ]
         .filter(Boolean)
         .join(" ")}
     >
       {!isEmpty && (
-        <div className="table-wrapper">
+        <div className={styles.tableWrapper}>
           <table ref={tableRef} className="audio-item-table">
             <ListViewTableHeader
               columns={columns}
@@ -116,27 +120,17 @@ export const ListView: React.FC<ListViewProps> = ({
             <tbody>
               {items.map((item, index) => {
                 // Determine item state
-                const isPlaying = audioContext.isAudioItemPlaying(
+                const playState = getAudioItemPlayState(
                   item,
                   collection
                 );
 
-                const isAmbienceActive = !!(
-                  isAudioFile(item) &&
-                  item.audioType === "ambience" &&
-                  item.active
-                );
-
-                const isCurrentTrack =
-                  collection.audioType === "playlist" &&
-                  audioContext.playlist?.currentPlaylistId === collection.id &&
-                  audioContext.playlist?.currentIndex === item.position;
+                const isCurrentTrack = isCurrentPlaylistTrack(item, collection);
 
                 const dragProps = dragItemProps(item);
                 const rowClassName = getRowClassName(
                   item,
-                  isPlaying,
-                  isAmbienceActive,
+                  playState,
                   isCurrentTrack,
                   dragProps.className || ""
                 );
@@ -149,6 +143,7 @@ export const ListView: React.FC<ListViewProps> = ({
                     onClick={(e) => onItemSelect?.(e, item.id)}
                     aria-selected={selectedItemIds.includes(item.id)}
                     data-item-index={index}
+                    data-type={item.audioType}
                   >
                     {columns.map((column) =>
                       renderCell(
@@ -174,7 +169,7 @@ export const ListView: React.FC<ListViewProps> = ({
             isInsertionPoint(index) ? (
               <div
                 key={`insert-marker-${index}`}
-                className="insert-marker-line"
+                className={styles.insertMarkerLine}
                 style={{
                   top: getInsertMarkerTop(index),
                 }}
@@ -184,7 +179,7 @@ export const ListView: React.FC<ListViewProps> = ({
         </div>
       )}
       {isEmpty && isDropTarget && (
-        <div ref={tableRef} className="empty-table-drop-area"></div>
+        <div ref={tableRef} className={styles.emptyTableDropArea}></div>
       )}
     </div>
   );

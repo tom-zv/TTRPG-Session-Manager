@@ -1,0 +1,9 @@
+/* Component-private wrapper layout for the file edit form.
+   All shared primitives (form-section, form-actions, etc.) live in _forms.css. */
+.fileEditForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  max-width: 600px;
+}

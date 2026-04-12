@@ -2,6 +2,7 @@ import React from "react";
 import { Folder } from "../types.js";
 import FolderItem from "./FolderItem.js";
 import { useFolderTree } from "../context/FolderTreeContext.js";
+import styles from "../FolderTree.module.css";
 
 interface FolderDisplayProps {
   folders: Folder[];
@@ -15,7 +16,7 @@ const FolderDisplay: React.FC<FolderDisplayProps> = ({
   const { folderDownloadProgress } = useFolderTree();
   
   return (
-    <ul className="folder-tree" style={{ paddingLeft: level > 0 ? "0" : "0" }}>
+    <ul className={styles.folderTree} style={{ paddingLeft: level > 0 ? "0" : "0" }}>
       {folders.map((folder) => (
         <FolderItem
           key={folder.id}

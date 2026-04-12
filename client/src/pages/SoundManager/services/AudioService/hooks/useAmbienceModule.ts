@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { AudioEventTypes, on, off } from "../events.js";
 import { AmbienceModule } from "../modules/ambienceModule.js";
 import { getVolume } from "../volumeStore.js";
@@ -109,18 +109,30 @@ export function useAmbienceModule() {
     return () => {
       off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
       off(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, handleCollectionChange);
+      off(AudioEventTypes.AMBIENCE_FILE_CHANGE, handleFileChange);
     };
   }, []);
 
-  return {
-    // State
-    playingCollectionId,
-    playingFileIds,
-    volume,
-    // Methods
-    toggleCollection,
-    toggleFileActivation,
-    setFileVolume,
-    setMasterVolume,
-  };
+  return useMemo(
+    () => ({
+      // State
+      playingCollectionId,
+      playingFileIds,
+      volume,
+      // Methods
+      toggleCollection,
+      toggleFileActivation,
+      setFileVolume,
+      setMasterVolume,
+    }),
+    [
+      playingCollectionId,
+      playingFileIds,
+      volume,
+      toggleCollection,
+      toggleFileActivation,
+      setFileVolume,
+      setMasterVolume,
+    ]
+  );
 }

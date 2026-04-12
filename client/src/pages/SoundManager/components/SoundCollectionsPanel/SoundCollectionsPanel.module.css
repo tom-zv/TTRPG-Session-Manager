@@ -1,0 +1,34 @@
+.soundCollectionsPanel {
+  --sm-separator-height: 5px;
+  --sm-drag-handle-width: 30px;
+  --sm-drag-handle-bg: var(--border-color);
+  --sm-drag-handle-pattern: none;
+  --sm-collapse-btn-top: 0px;
+  --sm-collapse-btn-z: 25;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Panel sections */
+.sfxSection,
+.ambienceSection {
+  height: 100%;
+  overflow: auto;
+  position: relative;
+}
+
+/* Override separator-handle shadow — global class from _panel-primitives.css */
+.soundCollectionsPanel :global(.separator-handle)::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.05), transparent);
+  pointer-events: none;
+}

@@ -6,5 +6,4 @@ export const DROP_ZONES = {
   SOUND_MANAGER_SFX: 'sound-manager-sfx',
   SOUND_MANAGER_AMBIENCE: 'sound-manager-ambience',
   SOUND_MANAGER_PLAYLIST: 'sound-manager-playlist',
-  COMBAT_TRACKER_CONTENT: 'combat-tracker-content',
 };

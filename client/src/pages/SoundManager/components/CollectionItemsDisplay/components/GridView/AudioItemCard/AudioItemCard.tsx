@@ -1,17 +1,21 @@
 import React from 'react';
-import { AudioItem, AudioItemActions } from '../../../types.js';
+import {
+  AudioItem,
+  AudioItemActions,
+  isPlayableItem,
+} from '../../../types.js';
 import PlayableItemContent from './PlayableItemContent.js';
 import StandardItemContent from './StandardItemContent.js';
-import './AudioItemCard.css';
+import styles from './AudioItemCard.module.css';
 import type { AudioCollection } from '../../../types.js';
+import type { AudioItemPlayState } from 'src/pages/SoundManager/services/AudioService/AudioContext.js';
 
 interface AudioItemCardProps extends AudioItemActions {
   item: AudioItem;
   collection: AudioCollection;
   isSelected: boolean;
   isDropTarget: boolean;
-  isPlaying?: boolean;
-  isAmbienceActive?: boolean;
+  playState?: AudioItemPlayState;
   showActions: boolean;
   selectedItemIds: number[];
   dragItemProps: React.HTMLAttributes<HTMLDivElement>;
@@ -25,8 +29,7 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
   collection,
   isSelected,
   isDropTarget,
-  isPlaying = false,
-  isAmbienceActive = false,
+  playState = 'off',
   showActions,
   selectedItemIds,
   dragItemProps,
@@ -35,21 +38,34 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
   onEditItem,
   removeItems,
 }) => {
-  const isPlayable = !item.isCreateButton &&
-    !(item.type == 'collection' && item.audioType == 'sfx');
+  const isPlayable = isPlayableItem(item);
+  const cardKind = getItemKind(item);
+  const isPlaying = playState === 'playing';
+  const isActive = playState === 'active';
 
   // Separate drag className from other drag props
   const { className: dragClassName, ...restDragProps } = dragItemProps || {};
 
+  function getItemKind(item: AudioItem){
+  if (item.isCreateButton) {
+    return "create";
+  }
+
+  if (item.type === "collection") {
+    return "collection";
+  }
+
+  return "file";
+}
   // Card class list
   const cardClasses = [
-    'audio-item-card',
-    item.isCreateButton ? 'create-collection-card' : '',
-    isSelected ? 'selected' : '',
-    isDropTarget ? 'card-drop-target' : '',
-    isPlaying ? 'playing' : '',
-    isAmbienceActive ? 'active' : '',
-    dragClassName || ''
+    styles.audioItemCard,
+    item.isCreateButton ? styles.createCollectionCard : '',
+    isSelected ? styles.selected : '',
+    isDropTarget ? styles.cardDropTarget : '',
+    isPlaying ? styles.playing : '',
+    isActive ? styles.active : '',
+    dragClassName || '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -58,6 +74,9 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
     <div
       className={cardClasses}
       data-type={item.audioType}
+      data-card-kind={cardKind}
+
+      data-item-type={item.type}
       onClick={(e) => onSelect(e, item.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -70,9 +89,9 @@ const AudioItemCard: React.FC<AudioItemCardProps> = ({
       {...restDragProps}
     >
       {item.isCreateButton ? (
-        <div className="create-collection-content">
-          <div className="create-collection-icon">+</div>
-          <span className="create-collection-text">{item.name}</span>
+        <div className={styles.createCollectionContent}>
+          <div className={styles.createCollectionIcon}>+</div>
+          <span className={styles.createCollectionText}>{item.name}</span>
         </div>
       ) : isPlayable ? (
         <PlayableItemContent
