@@ -8,17 +8,21 @@
     "start": "cross-env NODE_ENV=production concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:server": "cd server && cross-env NODE_ENV=production npm start",
     "start:client": "cd client && cross-env NODE_ENV=production npm run preview",
+
     "dev:all": "cross-env NODE_ENV=development concurrently \"npm run dev:server:watch\" \"npm run dev:client\"",
     "dev:server": "cd server && cross-env NODE_ENV=development npm run dev",
     "dev:server:watch": "cd server && cross-env NODE_ENV=development npm run dev:watch",
     "dev:client": "cd client && cross-env NODE_ENV=development npm run dev",
+
     "build:shared": "cd shared && tsc && tsc-alias",
     "build:all": "cross-env NODE_ENV=production npm run build:shared && npm run build:client && npm run build:server",
     "build:client": "cd client && cross-env NODE_ENV=production npm run build",
     "build:server": "cd server && cross-env NODE_ENV=production npm run build",
+
     "install:all": "npm install && npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
     "install:client": "cd client && npm install",
+
     "lint": "eslint --config ./eslint.config.js .",
     "lint:client": "eslint --config ./client/eslint.config.js ./client/",
     "lint:server": "eslint --config ./server/eslint.config.js ./server/",
@@ -31,19 +35,19 @@
   },
   "author": "Tom zayev",
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.27.0",
-    "concurrently": "^9.1.2",
-    "cross-env": "^7.0.3",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
     "eslint": "^9.27.0",
-    "eslint-import-resolver-typescript": "^4.3.5",
-    "eslint-plugin-import": "^2.31.0",
+    "eslint-import-resolver-typescript": "^4.4.4",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-hooks": "^7.0.1",
     "tsc-alias": "^1.8.16",
-    "typescript": "^5.3.0",
-    "typescript-eslint": "^8.32.1"
+    "typescript": "^6.0.0",
+    "typescript-eslint": "^8.58.0"
   },
   "bugs": {
     "url": "https://github.com/tom-zv/TTRPG-Session-Manager/issues"
