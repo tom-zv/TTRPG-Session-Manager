@@ -30,27 +30,6 @@ export abstract class EncounterActions<TState, TEvent> {
   applyEvent(event: TEvent): void {
     this.stateManager.applyEvent(this.encounterId, event);
   }
-  
-  /**
-   * Get undo/redo state for UI controls
-   */
-  getUndoRedoState() {
-    return this.stateManager.getUndoRedoState();
-  }
-
-  /**
-   * Undo the last action
-   */
-  undo(): void {
-    this.stateManager.undo(this.encounterId);
-  }
-
-  /**
-   * Redo the last undone action
-   */
-  redo(): void {
-    this.stateManager.redo(this.encounterId);
-  }
 
   /**
    * Get current sync state

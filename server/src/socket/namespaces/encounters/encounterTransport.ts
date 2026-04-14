@@ -1,5 +1,5 @@
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
-import { EncounterOperationDTO } from "shared/sockets/encounters/types.js";
+import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { EncounterError, EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { EncounterMessages } from "shared/sockets/encounters/messages.js";
 import { Namespace, Socket } from "socket.io";
@@ -40,7 +40,7 @@ export const emitEncounterError = (
 
 export const emitEncounterOperation = (
   namespace: Namespace,
-  operation: EncounterOperationDTO,
+  operation: EncounterOperation,
 ): void => {
   namespace.to(getEncounterRoom(operation.encounterId)).emit(EncounterMessages.REQUEST, operation);
 };

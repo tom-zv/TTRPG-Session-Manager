@@ -1,5 +1,5 @@
 import { BaseEncounterState } from "shared/domain/encounters/coreEncounter.js";
-import { EncounterOperation, EncounterOperationDTO, toEncounterOperationDTO } from "shared/sockets/encounters/types.js";
+import { EncounterOperation } from "shared/sockets/encounters/types.js";
 
 export interface IStateCache<TState extends BaseEncounterState> {
   logOperation(operation: EncounterOperation): void;
@@ -14,7 +14,7 @@ export interface IStateCache<TState extends BaseEncounterState> {
  */
 export interface StateData<TState extends BaseEncounterState> {
   state?: TState;
-  operations: EncounterOperationDTO[];
+  operations: EncounterOperation[];
 }
 
 export abstract class BaseStateCache<TState extends BaseEncounterState>
@@ -61,7 +61,7 @@ export abstract class BaseStateCache<TState extends BaseEncounterState>
 
       return {
         state: structuredClone(latestSnapshot),
-        operations: operationsSinceSnapshot.map(toEncounterOperationDTO),
+        operations: structuredClone(operationsSinceSnapshot),
       };
     }
 
@@ -70,7 +70,7 @@ export abstract class BaseStateCache<TState extends BaseEncounterState>
     );
 
     return {
-      operations: operationsSinceClient.map(toEncounterOperationDTO),
+      operations: structuredClone(operationsSinceClient),
     };
   }
 }

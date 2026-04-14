@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   DnD5eEncounter, 
   DnD5eEncounterSummary 
 } from "shared/domain/encounters/dnd5e/encounter.js";
-import { DnD5eEntity, DnD5eEntityDetails, DnD5eEntityState } from "shared/domain/encounters/dnd5e/entity.js";
+import { DnD5eEntity, DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
 import { 
   useDnD5eEncounterState,
   useEncounterEntityTemplates 
@@ -19,16 +19,6 @@ import { ENTITY_KEYS } from "../../api/dnd5e/entities/query/keys.js";
  */
 export function useComposedDnD5eEncounter(encounterId: number) {
   const queryClient = useQueryClient();
-  // Use ref to get stable reference to queryClient for memoization
-  const queryClientRef = useRef(queryClient);
-  queryClientRef.current = queryClient;
-  const composedEntityCacheRef = useRef<Map<number, ComposedEntityCacheEntry>>(new Map());
-  const composedEntityListRef = useRef<DnD5eEntity[]>([]);
-
-  useEffect(() => {
-    composedEntityCacheRef.current.clear();
-    composedEntityListRef.current = [];
-  }, [encounterId]);
   
   // Get encounter state 
   const { data, isLoading: stateLoading } = useDnD5eEncounterState(encounterId);
@@ -40,7 +30,11 @@ export function useComposedDnD5eEncounter(encounterId: number) {
   
   // Extract entity IDs from state
   const entityIds = useMemo(() => {
-    return encounterState?.entityStates.map(e => e.templateId) ?? [];
+    if (!encounterState) {
+      return [];
+    }
+
+    return [...new Set(encounterState.entityStates.map((entityState) => entityState.templateId))];
   }, [encounterState]);
   
   // Batch fetch missing entity details in a single query
@@ -53,20 +47,20 @@ export function useComposedDnD5eEncounter(encounterId: number) {
   
   // Get encounter details from summaries cache
   const encounterDetails = useMemo(() => {
-    const summaries = queryClientRef.current.getQueryData<DnD5eEncounterSummary[]>(
+    const summaries = queryClient.getQueryData<DnD5eEncounterSummary[]>(
       ENCOUNTER_KEYS.summaries()
     );
     return summaries?.find(e => e.id === encounterId);
-  }, [encounterId]);
+  }, [encounterId, queryClient]);
   
   // Compose full encounter from caches 
   const encounter = useMemo(() => {
-    if (!encounterDetails || !encounterState || entitiesLoading) return null;
-    
-    const previousCache = composedEntityCacheRef.current;
-    const nextCache = new Map<number, ComposedEntityCacheEntry>();
-    const composedEntities = encounterState.entityStates.map((entityState) => {
-      const entityDetails = queryClientRef.current.getQueryData<DnD5eEntityDetails>(
+    if (!encounterDetails || !encounterState || entitiesLoading) {
+      return null;
+    }
+
+    const entities = encounterState.entityStates.map((entityState) => {
+      const entityDetails = queryClient.getQueryData<DnD5eEntityDetails>(
         ENTITY_KEYS.template(entityState.templateId)
       );
       
@@ -77,35 +71,13 @@ export function useComposedDnD5eEncounter(encounterId: number) {
         );
         return null;
       }
-
-      const cached = previousCache.get(entityState.instanceId);
-      if (cached && cached.detailsRef === entityDetails && cached.stateRef === entityState) {
-        nextCache.set(entityState.instanceId, cached);
-        return cached.entity;
-      }
       
-      const mergedEntity = {
+      return {
         ...entityDetails,
         ...entityState,
       } as DnD5eEntity;
-      nextCache.set(entityState.instanceId, {
-        entity: mergedEntity,
-        detailsRef: entityDetails,
-        stateRef: entityState,
-      });
-      return mergedEntity;
-    }).filter((e): e is DnD5eEntity => e !== null);
+    }).filter((entity): entity is DnD5eEntity => entity !== null);
 
-    const previousEntities = composedEntityListRef.current;
-    const isSameEntityOrder =
-      previousEntities.length === composedEntities.length &&
-      previousEntities.every((entity, index) => entity === composedEntities[index]);
-    const stableEntities = isSameEntityOrder ? previousEntities : composedEntities;
-
-    composedEntityCacheRef.current = nextCache;
-    if (!isSameEntityOrder) {
-      composedEntityListRef.current = composedEntities;
-    }
     // Compose full encounter object 
     const { entityStates, ...stateWithoutEntityStates } = encounterState;
     void entityStates; // Acknowledge unused var
@@ -113,18 +85,12 @@ export function useComposedDnD5eEncounter(encounterId: number) {
     return {
       ...encounterDetails,
       ...stateWithoutEntityStates,
-      entities: stableEntities,
+      entities,
     } as DnD5eEncounter;
-  }, [encounterDetails, encounterState, entitiesLoading]);
+  }, [encounterDetails, encounterState, entitiesLoading, queryClient]);
   
   return {
     encounter,
     isLoading: stateLoading || !encounterDetails || entitiesLoading,
   };
 }
-
-type ComposedEntityCacheEntry = {
-  entity: DnD5eEntity;
-  detailsRef: DnD5eEntityDetails;
-  stateRef: DnD5eEntityState;
-};

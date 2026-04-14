@@ -1,9 +1,8 @@
 import { encounterEvent } from "shared/sockets/encounters/types.js";
 import { EncounterRequest } from "shared/sockets/encounters/requests.js";
-import { AppliedEventRecord } from "shared/sockets/encounters/types.js";
 
 export interface IRequestHandler {
-  parseRequest(request: EncounterRequest): AppliedEventRecord[];
+  parseRequest(request: EncounterRequest): encounterEvent[];
 }
 
 export abstract class BaseRequestHandler<TState extends { version: number }> 
@@ -13,22 +12,13 @@ export abstract class BaseRequestHandler<TState extends { version: number }>
     protected state: TState,
   ) {}
 
-  parseRequest(request: EncounterRequest): AppliedEventRecord[] {
-      if (request.kind !== "apply") {
-        return [];
-      }
+  parseRequest(request: EncounterRequest): encounterEvent[] {
+      const appliedEvents: encounterEvent[] = [];
 
-      const appliedEvents: AppliedEventRecord[] = [];
-
-      // validate, apply, and generate inverse events for each requested event
       for (const event of request.requestedEvents) {
         const authoritativeEvent = this.validateEvent(event);
         this.applyEvent(authoritativeEvent);
-        // todo: generate inverse events for undo functionality
-        appliedEvents.push({
-          event: structuredClone(authoritativeEvent),
-          inverseEvents: [],
-        });
+        appliedEvents.push(structuredClone(authoritativeEvent));
       }
 
       return appliedEvents;

@@ -1,6 +1,5 @@
 import { QueryClient } from "@tanstack/react-query";
 import { produce } from "immer";
-import { LocalStateCache } from "./LocalEncounterStateCache.js";
 import { EditorSyncManager } from "src/services/EditorSync/EditorSyncManager.js";
 import { EncounterSyncConfig, SyncState } from "src/services/EditorSync/syncConfig.js";
 
@@ -9,7 +8,6 @@ import { EncounterSyncConfig, SyncState } from "src/services/EditorSync/syncConf
  */
 export interface EventProcessor<TState, TEvent> {
   applyEvent(state: TState, event: TEvent): void;
-  undoEvent(state: TState, event: TEvent): void;
 }
 
 /**
@@ -36,7 +34,6 @@ export type SyncStateCallback = (syncState: SyncState) => void;
  * @template TEvent - The event type for this system
  */
 export class LocalStateManager<TState, TEvent> {
-  private stateCache = new LocalStateCache<TEvent>();
   private syncManager: EditorSyncManager<TState> | null = null;
 
   constructor(
@@ -131,56 +128,13 @@ export class LocalStateManager<TState, TEvent> {
    * Apply a local event 
    */
   applyLocalEvent(encounterId: number, event: TEvent) {
-    this.stateCache.logEvent(event);
     this.applyEventToState(encounterId, event, this.eventProcessor.applyEvent);
   }
 
   /**
-   * Undo a local event
-   */
-  undoLocalEvent(encounterId: number, event: TEvent) {
-    this.stateCache.logEvent(event);
-    this.applyEventToState(encounterId, event, this.eventProcessor.undoEvent);
-  }
-
-  /**
-   * Apply an event, without logging it for undo/redo
+   * Apply an event from the live operation stream
    */
   applyEvent(encounterId: number, event: TEvent) {
     this.applyEventToState(encounterId, event, this.eventProcessor.applyEvent);
-  }
-
-  /**
-   * Undo an event, without logging it for undo/redo
-   */
-  undoEvent(encounterId: number, event: TEvent) {
-    this.applyEventToState(encounterId, event, this.eventProcessor.undoEvent);
-  }
-
-  /**
-   * Undo the last action
-   */
-  undo(encounterId: number): void {
-    const event = this.stateCache.popUndo();
-    if (!event) return;
-    
-    this.undoLocalEvent(encounterId, event);
-  }
-
-  /**
-   * Redo the last undone action
-   */
-  redo(encounterId: number): void {
-    const event = this.stateCache.popRedo();
-    if (!event) return;
-    
-    this.applyLocalEvent(encounterId, event);
-  }
-
-  /**
-   * Get current undo/redo state for UI
-   */
-  getUndoRedoState() {
-    return this.stateCache.getUndoRedoState();
   }
 }

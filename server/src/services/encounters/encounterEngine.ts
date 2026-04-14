@@ -7,7 +7,7 @@ import { IRequestHandler } from "./requestHandler.js";
 import dnd5eEncounterService from "src/api/encounter/encounters/dnd5e/dnd5eEncounterService.js";
 
 export interface IEncounterEngine<TState extends AnySystemEncounterState = AnySystemEncounterState> {
-        dispatch(request: EncounterRequest): Promise<EncounterOperation>;
+    dispatch(request: EncounterRequest): Promise<EncounterOperation>;
     snapshot(): TState;
     cleanup(): Promise<void>;
 }
@@ -39,7 +39,6 @@ export abstract class BaseEncounterEngine<
             const operation: EncounterOperation = {
                 encounterId: request.encounterId,
                 operationId: crypto.randomUUID(),
-                kind: request.kind,
                 causedByRequestId: request.requestId,
                 version: this.state.version,
                 createdAt: new Date().toISOString(),

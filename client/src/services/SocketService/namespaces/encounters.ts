@@ -2,11 +2,11 @@ import { Socket } from "socket.io-client";
 import { getSocket } from "../socket.js";
 import { EncounterMessages } from "shared/sockets/encounters/messages.js";
 import { EncounterRequest } from "shared/sockets/encounters/requests.js";
-import { EncounterOperationDTO } from "shared/sockets/encounters/types.js";
+import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { SocketAck } from "shared/sockets/types.js";
 
 export interface EncounterDataCallbacks {
-  applyOperation: (operation: EncounterOperationDTO) => void;
+  applyOperation: (operation: EncounterOperation) => void;
 }
 
 export class EncounterSocketService {
@@ -20,7 +20,7 @@ export class EncounterSocketService {
   }
 
   private setupListeners() {
-    this.socket.on(EncounterMessages.REQUEST, (operation: EncounterOperationDTO) => {
+    this.socket.on(EncounterMessages.REQUEST, (operation: EncounterOperation) => {
        this.callbacks.applyOperation(operation);
     });
   }

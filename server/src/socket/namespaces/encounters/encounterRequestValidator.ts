@@ -23,18 +23,10 @@ export const validateRequest = (request: EncounterRequest): REQUESTValidationRes
     };
   }
 
-  if (request.kind === "apply" && request.requestedEvents.length === 0) {
+  if (request.requestedEvents.length === 0) {
     return {
       valid: false,
       error: "Missing requestedEvents",
-      code: EncounterErrorCode.INVALID_REQUEST,
-    };
-  }
-
-  if (request.kind === "undo" && !request.targetOperationId) {
-    return {
-      valid: false,
-      error: "Missing targetOperationId",
       code: EncounterErrorCode.INVALID_REQUEST,
     };
   }

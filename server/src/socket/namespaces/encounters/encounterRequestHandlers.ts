@@ -1,5 +1,4 @@
 import { EncounterRequest } from "shared/sockets/encounters/requests.js";
-import { toEncounterOperationDTO } from "shared/sockets/encounters/types.js";
 import { EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { Namespace, Socket } from "socket.io";
 import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
@@ -50,13 +49,6 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
 
       assertSocketJoinedEncounter(socket, request.encounterId);
 
-      if (request.kind === "undo") {
-        throw new EncounterHandlerError(
-          EncounterErrorCode.REQUEST_FAILED,
-          "Undo requests are not implemented yet"
-        );
-      }
-
       const userId = socket.data.user.id;
       if (encounterRateLimiter.isRateLimited(String(userId))) {
         throw new EncounterHandlerError(
@@ -70,7 +62,7 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
         return await encounterEngine.dispatch(request);
       });
 
-      emitEncounterOperation(namespace, toEncounterOperationDTO(operation));
+      emitEncounterOperation(namespace, operation);
     } catch (error) {
       if (error instanceof EncounterHandlerError) {
         emitEncounterError(socket, error.code, error.message, request.requestId);
