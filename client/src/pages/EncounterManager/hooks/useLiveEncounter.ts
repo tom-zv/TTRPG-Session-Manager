@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { EncounterSocketService, EncounterDataCallbacks } from "src/services/SocketService/namespaces/encounters.js";
-import { AnySystemEncounterEvent } from "shared/sockets/encounters/types.js"; 
+import { EncounterOperationDTO } from "shared/sockets/encounters/types.js"; 
 import { AnySystemEncounterState, EncounterBySystem, EncounterStateBySystem, SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { EncounterActions } from "../services/EncounterActions.js";
 import { QueryClient, useQueryClient } from "@tanstack/react-query";
@@ -59,8 +59,10 @@ function useGenericLiveEncounter<
   }
 
   const dataCallbacks: EncounterDataCallbacks = {
-    applyEvent: useCallback((event: AnySystemEncounterEvent) => {
-      actionsRef.current?.applyEvent(event as TEvent);
+    applyOperation: useCallback((operation: EncounterOperationDTO) => {
+      for (const event of operation.appliedEvents) {
+        actionsRef.current?.applyEvent(event as TEvent);
+      }
     }, []),
 
   };

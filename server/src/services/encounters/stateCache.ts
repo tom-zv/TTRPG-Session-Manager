@@ -1,16 +1,8 @@
-import { EncounterCommand } from "shared/sockets/encounters/commands.js";
 import { BaseEncounterState } from "shared/domain/encounters/coreEncounter.js";
+import { EncounterOperation, EncounterOperationDTO, toEncounterOperationDTO } from "shared/sockets/encounters/types.js";
 
-export interface VersionedEvent {
-  version: number;
-}
-
-export interface IStateCache<
-  TState extends BaseEncounterState,
-  TEvent extends VersionedEvent
-> {
-  logCommand(command: EncounterCommand): void;
-  logEvent(event: TEvent): void;
+export interface IStateCache<TState extends BaseEncounterState> {
+  logOperation(operation: EncounterOperation): void;
   shouldSnapshot(version: number): boolean;
   addSnapshot(state: TState): void;
 }
@@ -18,23 +10,17 @@ export interface IStateCache<
 /**
  * Response data for client state synchronization
  * - state: Full state snapshot (sent when client needs it)
- * - events: Event stream since client's last version
+ * - operations: Operation stream since client's last version
  */
-export interface StateData<
-  TState extends BaseEncounterState,
-  TEvent extends VersionedEvent
-> {
+export interface StateData<TState extends BaseEncounterState> {
   state?: TState;
-  events: TEvent[];
+  operations: EncounterOperationDTO[];
 }
 
-export abstract class BaseStateCache<
-  TState extends BaseEncounterState,
-  TEvent extends VersionedEvent
-> implements IStateCache<TState, TEvent>
+export abstract class BaseStateCache<TState extends BaseEncounterState>
+  implements IStateCache<TState>
 {
-  protected commandLog: EncounterCommand[] = [];
-  protected eventLog: TEvent[] = [];
+  protected operationLog: EncounterOperation[] = [];
   protected snapshots: TState[] = [];
   protected snapshotInterval: number;
 
@@ -48,12 +34,8 @@ export abstract class BaseStateCache<
     this.snapshotInterval = options.snapshotInterval ?? 100;
   }
 
-  logCommand(command: EncounterCommand): void {
-    this.commandLog.push(structuredClone(command));
-  }
-
-  logEvent(event: TEvent): void {
-    this.eventLog.push(structuredClone(event));
+  logOperation(operation: EncounterOperation): void {
+    this.operationLog.push(structuredClone(operation));
   }
 
   shouldSnapshot(version: number): boolean {
@@ -67,30 +49,28 @@ export abstract class BaseStateCache<
   /**
    * Get the latest state data for a client
    * @param clientVersion - Client's last known version (0 for new clients)
-   * @returns State snapshot + events, or just events if client has recent snapshot
+   * @returns State snapshot + operations, or just operations if client has recent snapshot
    */
-  getLatestState(clientVersion: number = 0): StateData<TState, TEvent> {
+  getLatestState(clientVersion: number = 0): StateData<TState> {
     const latestSnapshot = this.snapshots[this.snapshots.length - 1];
-    
-    // If client's version is older than our latest snapshot, send snapshot + events since 
+
     if (clientVersion < latestSnapshot.version) {
-      const eventsSinceSnapshot = this.eventLog.filter(
-        event => event.version > latestSnapshot.version
+      const operationsSinceSnapshot = this.operationLog.filter(
+        (operation) => operation.version > latestSnapshot.version,
       );
-      
+
       return {
         state: structuredClone(latestSnapshot),
-        events: structuredClone(eventsSinceSnapshot)
+        operations: operationsSinceSnapshot.map(toEncounterOperationDTO),
       };
     }
-    
-    // Client has recent snapshot, just send events since their version
-    const eventsSinceClient = this.eventLog.filter(
-      event => event.version > clientVersion
+
+    const operationsSinceClient = this.operationLog.filter(
+      (operation) => operation.version > clientVersion,
     );
-    
+
     return {
-      events: structuredClone(eventsSinceClient)
+      operations: operationsSinceClient.map(toEncounterOperationDTO),
     };
   }
 }

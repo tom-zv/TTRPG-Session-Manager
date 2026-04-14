@@ -1,5 +1,5 @@
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
-import { EncounterCommand } from "shared/sockets/encounters/commands.js";
+import { EncounterOperationDTO } from "shared/sockets/encounters/types.js";
 import { EncounterError, EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { EncounterMessages } from "shared/sockets/encounters/messages.js";
 import { Namespace, Socket } from "socket.io";
@@ -26,20 +26,23 @@ export const emitEncounterError = (
   socket: Socket,
   code: EncounterErrorCode,
   message: string,
-  commandId?: string
+  requestId?: string
 ): void => {
   const payload: EncounterError = {
     code,
     message,
-    commandId,
+    requestId,
     timestamp: Date.now(),
   };
 
   socket.emit("error", payload);
 };
 
-export const emitEncounterCommand = (namespace: Namespace, command: EncounterCommand): void => {
-  namespace.to(getEncounterRoom(command.encounterId)).emit(EncounterMessages.COMMAND, command);
+export const emitEncounterOperation = (
+  namespace: Namespace,
+  operation: EncounterOperationDTO,
+): void => {
+  namespace.to(getEncounterRoom(operation.encounterId)).emit(EncounterMessages.REQUEST, operation);
 };
 
 export const emitEncounterEnded = (namespace: Namespace, encounterId: number): void => {

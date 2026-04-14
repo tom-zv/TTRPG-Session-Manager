@@ -1,6 +1,6 @@
 type QueueTask<TResult> = () => Promise<TResult>;
 
-export class EncounterCommandQueue {
+export class EncounterRequestQueue {
   private queues = new Map<number, Promise<void>>();
 
   async enqueue<TResult>(encounterId: number, task: QueueTask<TResult>): Promise<TResult> {
@@ -28,6 +28,6 @@ export class EncounterCommandQueue {
   }
 }
 
-const encounterCommandQueue = new EncounterCommandQueue();
+const encounterRequestQueue = new EncounterRequestQueue();
 
-export default encounterCommandQueue;
+export default encounterRequestQueue;

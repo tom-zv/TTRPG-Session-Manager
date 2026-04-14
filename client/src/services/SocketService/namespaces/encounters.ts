@@ -1,12 +1,12 @@
 import { Socket } from "socket.io-client";
 import { getSocket } from "../socket.js";
 import { EncounterMessages } from "shared/sockets/encounters/messages.js";
-import { EncounterCommand } from "shared/sockets/encounters/commands.js";
-import { AnySystemEncounterEvent } from "shared/sockets/encounters/types.js";
+import { EncounterRequest } from "shared/sockets/encounters/requests.js";
+import { EncounterOperationDTO } from "shared/sockets/encounters/types.js";
 import { SocketAck } from "shared/sockets/types.js";
 
 export interface EncounterDataCallbacks {
-  applyEvent: (event: AnySystemEncounterEvent) => void;
+  applyOperation: (operation: EncounterOperationDTO) => void;
 }
 
 export class EncounterSocketService {
@@ -20,19 +20,19 @@ export class EncounterSocketService {
   }
 
   private setupListeners() {
-    this.socket.on(EncounterMessages.COMMAND, (command: EncounterCommand) => {
-       this.callbacks.applyEvent(command.event);
+    this.socket.on(EncounterMessages.REQUEST, (operation: EncounterOperationDTO) => {
+       this.callbacks.applyOperation(operation);
     });
   }
 
   async sendMessage(
     messageType: EncounterMessages,
-    command?: EncounterCommand
+    request?: EncounterRequest
   ): Promise<SocketAck> {
     return new Promise((resolve) => {
       this.socket.emit(
         messageType,
-        command,
+        request,
         
         (ack: SocketAck) => {
           resolve(ack);

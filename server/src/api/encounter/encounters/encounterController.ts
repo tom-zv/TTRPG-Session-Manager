@@ -233,9 +233,6 @@ async function saveEncounterState(
     snapshotType: 'initial' | 'active' 
   };
 
-  console.log("Saving encounter state", { id, system, snapshotType });
-  console.log(encounterState);
-
   try {
     if (!id) {
       throw new ValidationError("Encounter ID is required");

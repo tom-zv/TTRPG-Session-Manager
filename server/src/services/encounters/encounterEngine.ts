@@ -1,48 +1,55 @@
 import { AnySystemEncounterState, SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { BaseEncounterState } from "shared/domain/encounters/coreEncounter.js";
-import { EncounterCommand } from "shared/sockets/encounters/commands.js";
-import { IStateCache, VersionedEvent } from "./stateCache.js";
-import { ICommandHandler } from "./commandHandler.js";
+import { EncounterRequest } from "shared/sockets/encounters/requests.js";
+import { EncounterOperation } from "shared/sockets/encounters/types.js";
+import { IStateCache } from "./stateCache.js";
+import { IRequestHandler } from "./requestHandler.js";
 import dnd5eEncounterService from "src/api/encounter/encounters/dnd5e/dnd5eEncounterService.js";
 
 export interface IEncounterEngine<TState extends AnySystemEncounterState = AnySystemEncounterState> {
-    dispatch(cmd: EncounterCommand): Promise<void>;
+        dispatch(request: EncounterRequest): Promise<EncounterOperation>;
     snapshot(): TState;
     cleanup(): Promise<void>;
 }
 
 export abstract class BaseEncounterEngine<
-  TState extends AnySystemEncounterState & BaseEncounterState,
-  TEvent extends VersionedEvent = VersionedEvent
+    TState extends AnySystemEncounterState & BaseEncounterState
 > implements IEncounterEngine<TState> {
     protected state: TState;
-    protected stateCache: IStateCache<TState, TEvent>;
-    protected commandHandler: ICommandHandler;
+        protected stateCache: IStateCache<TState>;
+    protected requestHandler: IRequestHandler;
     
     constructor(
         initialState: TState,
-        createStateCache: (state: TState) => IStateCache<TState, TEvent>,
-        createCommandHandler: (state: TState, logEvent: (event: TEvent) => void) => ICommandHandler
+        createStateCache: (state: TState) => IStateCache<TState>,
+        createRequestHandler: (state: TState) => IRequestHandler
     ) {
         this.state = initialState;
         this.stateCache = createStateCache(this.state);
-        this.commandHandler = createCommandHandler(
-            this.state,
-            (event) => this.stateCache.logEvent(event)
-            
-        );
+        this.requestHandler = createRequestHandler(this.state);
     }
     
-    async dispatch(cmd: EncounterCommand): Promise<void> {
+    async dispatch(request: EncounterRequest): Promise<EncounterOperation> {
         const previousVersion = this.state.version;
         
         try {
-            this.stateCache.logCommand(cmd);
             this.state.version++;
-            
-            this.commandHandler.parseCommand(cmd);
+
+            const appliedEvents = this.requestHandler.parseRequest(request);
+            const operation: EncounterOperation = {
+                encounterId: request.encounterId,
+                operationId: crypto.randomUUID(),
+                kind: request.kind,
+                causedByRequestId: request.requestId,
+                version: this.state.version,
+                createdAt: new Date().toISOString(),
+                appliedEvents,
+            };
+
+            this.stateCache.logOperation(operation);
             
             await this.checkSnapshot();
+            return operation;
         } catch (error) {
             // Rollback version on failure
             this.state.version = previousVersion;
