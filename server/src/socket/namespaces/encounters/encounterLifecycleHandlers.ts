@@ -29,7 +29,7 @@ const handleLifecycleError = (
   }
 
   const errorMessage = error instanceof Error ? error.message : fallbackMessage;
-  emitEncounterError(socket, EncounterErrorCode.COMMAND_FAILED, errorMessage);
+  emitEncounterError(socket, EncounterErrorCode.REQUEST_FAILED, errorMessage);
   callback?.({ success: false, error: errorMessage });
 };
 
@@ -51,7 +51,7 @@ const requireEncounterId = (
 ): number => {
   if (typeof data?.encounterId !== "number") {
     throw new EncounterHandlerError(
-      EncounterErrorCode.INVALID_COMMAND,
+      EncounterErrorCode.INVALID_REQUEST,
       "Missing encounterId"
     );
   }
@@ -99,7 +99,7 @@ export const registerEncounterLifecycleHandlers = (namespace: Namespace, socket:
 
       if (!data?.system) {
         throw new EncounterHandlerError(
-          EncounterErrorCode.INVALID_COMMAND,
+          EncounterErrorCode.INVALID_REQUEST,
           "Missing encounter system"
         );
       }

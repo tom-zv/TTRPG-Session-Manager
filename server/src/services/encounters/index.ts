@@ -5,6 +5,6 @@ export { EncounterEngineManager } from './encounterEngineManager.js';
 // Default manager instance
 export { default as encounterEngineManager } from './encounterEngineManager.js';
 
-// Command and state cache interfaces
-export type { ICommandHandler } from './commandHandler.js';
-export type { IStateCache, VersionedEvent } from './stateCache.js';
+// request and state cache interfaces
+export type { IRequestHandler } from './requestHandler.js';
+export type { IStateCache } from './stateCache.js';

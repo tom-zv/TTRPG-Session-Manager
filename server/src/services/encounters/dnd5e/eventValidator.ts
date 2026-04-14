@@ -1,10 +1,9 @@
 import { DnD5eEncounterEvent, isEntityEvent } from "shared/domain/encounters/dnd5e/events/types.js";
-import { Versioned, AnySystemEncounterEvent } from "shared/sockets/encounters/types.js";
 
 /**
  * Type guard to check if an event is a valid DnD5e event
  */
-export function isDnD5eEvent(event: AnySystemEncounterEvent): event is Versioned<DnD5eEncounterEvent> {
+export function isDnD5eEvent(event: unknown): event is DnD5eEncounterEvent {
     if (!event || typeof event !== 'object') {
         return false;
     }
@@ -60,7 +59,7 @@ export function isDnD5eEvent(event: AnySystemEncounterEvent): event is Versioned
 /**
  * Validate a DnD5e event, throwing Error if invalid
  */
-export function validateDnD5eEvent(event: AnySystemEncounterEvent): Versioned<DnD5eEncounterEvent> {
+export function validateDnD5eEvent(event: DnD5eEncounterEvent): DnD5eEncounterEvent {
     if (!isDnD5eEvent(event)) {
         throw new Error(
             `Invalid DnD5e event: missing required fields or incorrect types`
@@ -68,7 +67,7 @@ export function validateDnD5eEvent(event: AnySystemEncounterEvent): Versioned<Dn
     }
 
     // Additional business logic validation
-    const e = event as Versioned<DnD5eEncounterEvent>;
+    const e = event as DnD5eEncounterEvent;
     
     if (isEntityEvent(e)) {
         // Entity-targeted events must have a valid targetId

@@ -26,7 +26,7 @@ export class DnD5eEventProcessor {
     }
   }
 
-  static undoEvent(_: DnD5eEncounterState, __: DnD5eEncounterEvent): void {}
+  static undoEvent(): void {}
 
   private static findEntity(state: DnD5eEncounterState, instanceId: number): DnD5eEntityState {
     const entity = state.entityStates.find((e) => e.instanceId === instanceId);

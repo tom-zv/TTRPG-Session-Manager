@@ -5,5 +5,5 @@ export enum EncounterMessages{
     LEAVE = 'encounter:leave',
     END = 'encounter:end',
     // Data sync
-    COMMAND = 'encounter:command', 
+    REQUEST = 'encounter:request', 
 }
