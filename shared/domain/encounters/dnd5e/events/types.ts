@@ -10,6 +10,7 @@ type TargetedEventBase<T extends string, V extends object> = {
 export type DnD5eEncounterEvent = 
   | GlobalEventBase<'addEntity', { templateId: number, name: string, hp: number }>
   | GlobalEventBase<'removeEntity', { instanceId: number }>
+  | GlobalEventBase<'nextTurn', Record<string, never>>
   | TargetedEventBase<'damage', { sourceId: number; amount: number }>
   | TargetedEventBase<'heal', { sourceId: number; amount: number }>
   | TargetedEventBase<'setHp', { hp: number }>

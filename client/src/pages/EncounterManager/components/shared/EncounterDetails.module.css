@@ -5,6 +5,7 @@
   padding: var(--spacing-md);
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
+  max-width: 650px;
 }
 
 .statItem {

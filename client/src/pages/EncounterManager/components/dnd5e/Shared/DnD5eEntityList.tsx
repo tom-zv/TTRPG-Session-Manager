@@ -10,6 +10,10 @@ type EntityListProps = {
   currentTurn?: number;
   mode: "edit" | "live";
   actions: DnD5eEncounterActions;
+  canMutate?: boolean;
+  sourceId?: number;
+  selectedEntityId?: number;
+  onSelectEntity?: (entityId: number) => void;
 };
 
 const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
@@ -18,6 +22,10 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   currentTurn,
   mode,
   actions,
+  canMutate = true,
+  sourceId,
+  selectedEntityId,
+  onSelectEntity,
 }) => {
   const handleRemove = useCallback(
     (id: number) => {
@@ -60,9 +68,13 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
               key={entity.instanceId}
               entity={entity}
               isActive={index === currentTurn}
+              isSelected={entity.instanceId === selectedEntityId}
               mode={mode}
               actions={actions}
               onRemove={handleRemove}
+              canMutate={canMutate}
+              sourceId={sourceId}
+              onSelect={onSelectEntity}
             />
           ))}
         </div>

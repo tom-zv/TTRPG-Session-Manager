@@ -1,13 +1,14 @@
-import { DnD5eLocalStateManager } from "../DnD5eLocalStateManager.js"
+import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
+
+type EmitEvent = (event: DnD5eEncounterEvent) => void;
 
 export class DnD5eStatActions {
     constructor(
-        private stateManager: DnD5eLocalStateManager, 
-        private encounterId: number
+        private emitEvent: EmitEvent,
     ) {}
 
     setInitiative(entityId: number, initiative: number): void {
-        this.stateManager.applyLocalEvent(this.encounterId, {
+        this.emitEvent({
             type: "setInitiative",
             values: { targetId: entityId, initiative },
         });

@@ -21,20 +21,36 @@ export class DnD5eEncounterActions extends EncounterActions<
   constructor(
     stateManager: DnD5eLocalStateManager,
     encounterId: number,
-
+    transmit?: (event: DnD5eEncounterEvent) => Promise<void>
   ) {
-    super(stateManager, encounterId);
-    this.hp = new DnD5eHpActions(stateManager, encounterId);
-    this.stats = new DnD5eStatActions(stateManager, encounterId);
-    this.global = new DnD5eGlobalActions(stateManager, encounterId);
+    super(stateManager, encounterId, transmit);
+
+    const emitEvent = (event: DnD5eEncounterEvent): void => {
+      if (this.transmit) {
+        void this.dispatch(event).catch((error) => {
+          console.error("Failed to dispatch live event", error);
+        });
+        return;
+      }
+
+      stateManager.applyLocalEvent(encounterId, event);
+    };
+
+    this.hp = new DnD5eHpActions(emitEvent);
+    this.stats = new DnD5eStatActions(emitEvent);
+    this.global = new DnD5eGlobalActions(emitEvent);
   }
 
 
   /**
    * Factory method for instantiation
    */
-  static create(queryClient: QueryClient, encounterId: number): DnD5eEncounterActions {
+  static create(
+    queryClient: QueryClient,
+    encounterId: number,
+    transmit?: (event: DnD5eEncounterEvent) => Promise<void>
+  ): DnD5eEncounterActions {
     const stateManager = new DnD5eLocalStateManager(queryClient);
-    return new DnD5eEncounterActions(stateManager, encounterId);
+    return new DnD5eEncounterActions(stateManager, encounterId, transmit);
   }
 }

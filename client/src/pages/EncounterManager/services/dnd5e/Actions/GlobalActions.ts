@@ -1,22 +1,30 @@
-import { DnD5eLocalStateManager } from "../DnD5eLocalStateManager.js";
+import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
+
+type EmitEvent = (event: DnD5eEncounterEvent) => void;
 
 export class DnD5eGlobalActions {
   constructor(
-    private stateManager: DnD5eLocalStateManager,
-    private encounterId: number
+    private emitEvent: EmitEvent,
   ) {}
 
   addEntity = (templateId: number, name: string, hp: number): void => {
-    this.stateManager.applyLocalEvent(this.encounterId, {
+    this.emitEvent({
       type: "addEntity",
       values: { templateId, name, hp },
     });
   };
 
   removeEntity = (instanceId: number): void => {
-    this.stateManager.applyLocalEvent(this.encounterId, {
+    this.emitEvent({
       type: "removeEntity",
       values: { instanceId },
+    });
+  };
+
+  nextTurn = (): void => {
+    this.emitEvent({
+      type: "nextTurn",
+      values: {},
     });
   };
 
