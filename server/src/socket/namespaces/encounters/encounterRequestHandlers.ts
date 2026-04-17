@@ -8,6 +8,9 @@ import { validateRequest, validateUser } from "./encounterRequestValidator.js";
 import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
 import { emitEncounterError, emitEncounterOperation } from "./encounterTransport.js";
+import { SocketAck } from "shared/sockets/types.js";
+
+type AckCallback = (ack: SocketAck) => void;
 
 const getEncounterEngine = (encounterId: number) => {
   const encounterEngine = encounterEngineManager.getEngine(encounterId);
@@ -33,7 +36,7 @@ const assertSocketJoinedEncounter = (socket: Socket, encounterId: number): void 
 };
 
 export const registerEncounterRequestHandlers = (namespace: Namespace, socket: Socket): void => {
-  socket.on("encounter:request", async (request: EncounterRequest) => {
+  socket.on("encounter:request", async (request: EncounterRequest, callback?: AckCallback) => {
     console.log("REQUEST", request);
 
     try {
@@ -63,9 +66,11 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
       });
 
       emitEncounterOperation(namespace, operation);
+      callback?.({ success: true });
     } catch (error) {
       if (error instanceof EncounterHandlerError) {
         emitEncounterError(socket, error.code, error.message, request.requestId);
+        callback?.({ success: false, error: error.message });
         return;
       }
 
@@ -76,6 +81,7 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
         errorMessage,
         request.requestId
       );
+      callback?.({ success: false, error: errorMessage });
     }
   });
 };

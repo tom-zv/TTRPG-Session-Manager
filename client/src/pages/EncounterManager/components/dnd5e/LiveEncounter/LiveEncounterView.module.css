@@ -1,0 +1,45 @@
+.roundBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  background: var(--accent-playing-bg);
+  border: 1px solid var(--accent-primary);
+}
+
+.currentTurn {
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--accent-playing-bg);
+  border-left: 4px solid var(--accent-primary);
+  border-radius: var(--radius-md);
+}
+
+.currentTurn h2 {
+  margin: 0;
+  font-size: 1.125rem;
+  color: var(--accent-primary);
+}
+
+.liveEncounterMain,
+.liveEncounterSidebar,
+.liveEncounterSidebarPanel {
+  min-height: 0;
+}
+
+.liveEncounterSidebar {
+  padding-inline-end: var(--spacing-xs);
+}
+
+.liveMessageError {
+  margin: 0 0 var(--spacing-md);
+  color: var(--danger);
+}
+
+.liveMessageStatus {
+  margin: 0 0 var(--spacing-md);
+  color: var(--text-secondary);
+}

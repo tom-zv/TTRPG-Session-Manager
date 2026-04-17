@@ -9,12 +9,19 @@
   flex-direction: column;
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-sm);
+  cursor: pointer;
+  max-width: 600px;
 }
 
 .entityRow.active {
   border-color: var(--accent-primary);
   background: var(--bg-hover);
   box-shadow: 0 2px 8px var(--accent-active-glow);
+}
+
+.entityRow.selected {
+  outline: 2px solid var(--accent-secondary);
+  outline-offset: 1px;
 }
 
 /* Top Row: Name and Type */

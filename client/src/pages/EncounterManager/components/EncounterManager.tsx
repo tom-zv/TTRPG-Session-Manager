@@ -32,7 +32,9 @@ export const EncounterManager: React.FC = () => {
     />
   ) : isLive ? (
     <LiveEncounter
+      system={system}
       encounterId={selectedEncounterId}
+      isGm={currentUser?.isGm ?? false}
       onExit={() => {
         setSelectedEncounterId(null);
         setIsLive(false)

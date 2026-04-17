@@ -1,0 +1,92 @@
+.encounterShell {
+  padding: var(--spacing-md);
+  width: 100%;
+  height: 100%;
+}
+
+.encounterLoading {
+  text-align: center;
+  padding: var(--spacing-xl);
+  color: var(--text-secondary);
+}
+
+.encounterLoading p {
+  margin-bottom: var(--spacing-md);
+  font-size: 1.1rem;
+}
+
+.encounterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 2px solid var(--border-color);
+}
+
+.encounterTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.encounterTitle h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: var(--text-primary);
+}
+
+.encounterHeaderActions {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.encounterHeaderActions button {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 0.9375rem;
+  transition: background var(--transition-duration);
+}
+
+.encounterHeaderActions button:first-child {
+  background: var(--accent-primary);
+  color: #fff;
+}
+
+.encounterHeaderActions button:first-child:hover:not(:disabled) {
+  background: var(--accent-secondary);
+}
+
+.encounterPanels {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.panelResizeHandle {
+  width: 2px;
+  background: var(--border-color);
+  cursor: col-resize;
+  transition: background var(--transition-duration);
+  margin-inline: 20px;
+}
+
+.panelResizeHandle:hover {
+  background: var(--accent-primary);
+}
+
+@media (max-width: 980px) {
+  .encounterHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .encounterHeaderActions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}

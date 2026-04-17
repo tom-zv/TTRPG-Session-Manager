@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo} from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import styles from "./EncounterEditorView.module.css";
+import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { EncounterDetails } from "../../shared/EncounterDetails.js";
 import { useEncounterEditor } from "src/pages/EncounterManager/hooks/useEncounterEditor.js";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
@@ -28,17 +29,38 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
   } = useEncounterEditor(encounterId, "dnd5e");
   
   const [isEntityPickerOpen, setIsEntityPickerOpen] = useState(false);
-  
-  // Stabilize selectedEntity reference - use memoized first entity
-  const firstEntity = useMemo(() => encounter?.entities[0], [encounter?.entities]);
-  const [selectedEntity, setSelectedEntity] = useState(firstEntity);
-  
-  // Update selected entity when first entity changes (e.g., after loading)
-  useEffect(() => {
-    if (firstEntity && !selectedEntity) {
-      setSelectedEntity(firstEntity);
+  const [selectedEntityId, setSelectedEntityId] = useState<number | undefined>();
+
+  const orderedEntities = useMemo(() => {
+    if (!encounter) {
+      return [];
     }
-  }, [firstEntity, selectedEntity]);
+
+    const byId = new Map(encounter.entities.map((entity) => [entity.instanceId, entity]));
+    const initiativeSet = new Set(encounter.initiativeOrder);
+    const ordered = encounter.initiativeOrder
+      .map((id) => byId.get(id))
+      .filter((entity): entity is NonNullable<typeof entity> => entity !== undefined);
+
+    encounter.entities.forEach((entity) => {
+      if (!initiativeSet.has(entity.instanceId)) {
+        ordered.push(entity);
+      }
+    });
+
+    return ordered;
+  }, [encounter]);
+
+  const resolvedSelectedEntityId = useMemo(() => {
+    const stillPresent = orderedEntities.some((entity) => entity.instanceId === selectedEntityId);
+    if (stillPresent) {
+      return selectedEntityId;
+    }
+
+    return orderedEntities[0]?.instanceId;
+  }, [orderedEntities, selectedEntityId]);
+
+  const selectedEntity = orderedEntities.find((entity) => entity.instanceId === resolvedSelectedEntityId);
   
   const [entityCardMinSize, setEntityCardMinSize] = useState(30);
 
@@ -73,13 +95,13 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
 
   return (
     <div className="page-container">
-      <div className={styles.liveEncounter}>
-        <div className={styles.encounterHeader}>
-          <div className={styles.encounterTitle}>
+      <div className={layoutStyles.encounterShell}>
+        <div className={layoutStyles.encounterHeader}>
+          <div className={layoutStyles.encounterTitle}>
             <h1>{encounter?.name || (hasError ? 'Error' : 'Loading...')}</h1>{" "}
             {syncState && <SyncStatusIndicator syncState={syncState} />}
           </div>
-          <div className={styles.encounterHeaderActions}>
+          <div className={layoutStyles.encounterHeaderActions}>
             <button onClick={forceSyncNow} disabled={!encounter}>
               Save Now
             </button>
@@ -94,16 +116,16 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
         </div>
 
         {hasError ? (
-          <div className={styles.liveEncounterLoading}>
+          <div className={layoutStyles.encounterLoading}>
             <p>Failed to load encounter.</p>
           </div>
         ) : isLoading ? (
-          <div className={styles.liveEncounterLoading}>
+          <div className={layoutStyles.encounterLoading}>
             <p>Loading encounter...</p>
           </div>
         ) : (
-          <PanelGroup direction="horizontal" className={styles.encounterEditorPanels}>
-            <Panel defaultSize={100 - entityCardMinSize} minSize={15}>
+          <PanelGroup direction="horizontal" className={layoutStyles.encounterPanels}>
+            <Panel defaultSize={100 - entityCardMinSize} minSize={15} className={styles.editorMainPanel}>
               <EncounterDetails encounter={encounter!} />
 
               <DnD5eEntityList
@@ -111,16 +133,16 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
                 initiativeOrder={encounter!.initiativeOrder}
                 mode="edit"
                 actions={actions}
+                selectedEntityId={resolvedSelectedEntityId}
+                onSelectEntity={setSelectedEntityId}
               />
             </Panel>
 
-            <PanelResizeHandle className={styles.panelResizeHandle}></PanelResizeHandle>
+            <PanelResizeHandle className={layoutStyles.panelResizeHandle}></PanelResizeHandle>
 
-            <Panel defaultSize={entityCardMinSize} minSize={entityCardMinSize}>
+            <Panel defaultSize={entityCardMinSize} minSize={entityCardMinSize} className={styles.editorCardPanel}>
               <DnD5eEntityCard
-                entity={encounter!.entities.find(
-                  (entity) => entity.instanceId === selectedEntity?.instanceId
-                )}
+                entity={selectedEntity}
               />
             </Panel>
           </PanelGroup>

@@ -18,7 +18,9 @@ export const makeEntityStateful = (templateId: number, instanceId: number, hp: n
 
 export const globalHandler = {
     addEntity(state, event){
-      const instanceId = state.entityStates.length;
+      const instanceId = state.entityStates.reduce((maxId, entity) => {
+        return Math.max(maxId, entity.instanceId);
+      }, -1) + 1;
       const sameTemplate = state.entityStates.filter((entity) => entity.templateId === event.values.templateId);
     
       // Update existing entity of same template to "Name 1" if this is the second instance
@@ -34,5 +36,35 @@ export const globalHandler = {
 
     removeEntity(state, event){
         state.entityStates = state.entityStates.filter((entity) => entity.instanceId !== event.values.instanceId);
-    }
+        state.initiativeOrder = state.initiativeOrder.filter((id) => id !== event.values.instanceId);
+
+        if (state.initiativeOrder.length === 0) {
+          state.currentTurn = 0;
+          return;
+        }
+
+        if (state.currentTurn >= state.initiativeOrder.length) {
+          state.currentTurn = 0;
+        }
+    },
+
+    nextTurn(state) {
+      const initiativeCount = state.initiativeOrder.length;
+
+      if (initiativeCount === 0) {
+        state.currentTurn = 0;
+        return;
+      }
+
+      const normalizedTurn = state.currentTurn < 0 ? 0 : state.currentTurn % initiativeCount;
+      const nextTurn = normalizedTurn + 1;
+
+      if (nextTurn >= initiativeCount) {
+        state.currentTurn = 0;
+        state.currentRound += 1;
+        return;
+      }
+
+      state.currentTurn = nextTurn;
+    },
 } as GlobalHandlerMap

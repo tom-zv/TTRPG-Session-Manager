@@ -27,6 +27,8 @@ export function isDnD5eEvent(event: unknown): event is DnD5eEncounterEvent {
             );
         case 'removeEntity':
             return typeof values.instanceId === 'number';
+        case 'nextTurn':
+            return true;
         case 'damage':
         case 'heal':
             return (
@@ -71,8 +73,8 @@ export function validateDnD5eEvent(event: DnD5eEncounterEvent): DnD5eEncounterEv
     
     if (isEntityEvent(e)) {
         // Entity-targeted events must have a valid targetId
-        if (e.values.targetId <= 0) {
-            throw new Error(`Invalid targetId: must be a positive number, got ${e.values.targetId}`);
+        if (e.values.targetId < 0) {
+            throw new Error(`Invalid targetId: must be a non-negative number, got ${e.values.targetId}`);
         }
     }
 
