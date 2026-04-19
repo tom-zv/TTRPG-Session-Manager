@@ -23,10 +23,6 @@ export function useComposedDnD5eEncounter(encounterId: number) {
   // Get encounter state 
   const { data, isLoading: stateLoading } = useDnD5eEncounterState(encounterId);
   const encounterState = data?.encounterState;
-  const snapshotType = data?.snapshotType;
-  
-  // TODO: Use snapshotType to prompt user if active snapshot was loaded
-  void snapshotType;
   
   // Extract entity IDs from state
   const entityIds = useMemo(() => {

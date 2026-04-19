@@ -50,6 +50,7 @@ export const globalHandler = {
 
     nextTurn(state) {
       const initiativeCount = state.initiativeOrder.length;
+      console.log(`Current turn: ${state.currentTurn}, Initiative count: ${initiativeCount}`);
 
       if (initiativeCount === 0) {
         state.currentTurn = 0;
@@ -59,12 +60,31 @@ export const globalHandler = {
       const normalizedTurn = state.currentTurn < 0 ? 0 : state.currentTurn % initiativeCount;
       const nextTurn = normalizedTurn + 1;
 
+      console.log(`Normalized turn: ${normalizedTurn}, Next turn: ${nextTurn}`);
+
       if (nextTurn >= initiativeCount) {
         state.currentTurn = 0;
         state.currentRound += 1;
+        console.log(`Starting new round: ${state.currentRound}`);
         return;
       }
-
+      
       state.currentTurn = nextTurn;
+    },
+
+    resetEncounter(state) {
+      state.currentRound = 0;
+      state.currentTurn = 0;
+      state.entityStates = state.entityStates.map((entity) => ({
+        ...entity,
+        initiative: 0,
+        currentHp: entity.maxHp,
+        tempHp: 0,
+        deathSaveSuccesses: 0,
+        deathSaveFailures: 0,
+        reactionUsed: false,
+        isConcentrating: false,
+        conditions: [],
+      }));
     },
 } as GlobalHandlerMap

@@ -46,8 +46,12 @@ export abstract class EncounterActions<TState, TEvent> {
   }
 
   async dispatch(event: TEvent): Promise<void> {
+    if (this.transmit) {
+      await this.transmit(event);
+      return;
+    }
+
     this.stateManager.applyEvent(this.encounterId, event);
-    if (this.transmit) await this.transmit(event);
   } 
 
   /**

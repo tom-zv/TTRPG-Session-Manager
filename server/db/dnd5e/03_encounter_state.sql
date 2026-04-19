@@ -1,10 +1,9 @@
--- Encounter snapshots for planning and active sessions
+-- Encounter snapshot for persisted encounter state
 CREATE TABLE
   IF NOT EXISTS dnd5e.encounter_snapshots (
     encounter_id INT PRIMARY KEY,
-    
-    -- Snapshot for planning/restart
-    initial_snapshot JSON NULL COMMENT 'Complete initial state snapshot. Structure: {
+
+    snapshot JSON NULL COMMENT 'Complete encounter state snapshot. Structure: {
       "version": number,
       "currentRound": number,
       "currentTurn": number,
@@ -22,12 +21,8 @@ CREATE TABLE
         "conditions": [{"name": string, "duration": number, "startedOnRound": number}]
       }]
     }',
-    
-    -- Snapshot for persistence
-    active_snapshot JSON NULL COMMENT 'Complete in-progress state snapshot. Same structure as initial_snapshot',
-    
-    initial_snapshot_at TIMESTAMP NULL,
-    active_snapshot_at TIMESTAMP NULL,
+
+    snapshot_at TIMESTAMP NULL,
     
     CONSTRAINT fk_dnd5e_encounter_snapshots 
       FOREIGN KEY (encounter_id) 

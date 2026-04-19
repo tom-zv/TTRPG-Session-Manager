@@ -3,11 +3,12 @@ import { BaseEncounterState } from "shared/domain/encounters/coreEncounter.js";
 import { EncounterRequest } from "shared/sockets/encounters/requests.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { IStateCache } from "./stateCache.js";
-import { IRequestHandler } from "./requestHandler.js";
+import { IEventAuthorizer, IRequestHandler } from "./requestHandler.js";
 import dnd5eEncounterService from "src/api/encounter/encounters/dnd5e/dnd5eEncounterService.js";
+import { UserDB } from "src/api/users/types.js";
 
 export interface IEncounterEngine<TState extends AnySystemEncounterState = AnySystemEncounterState> {
-    dispatch(request: EncounterRequest): Promise<EncounterOperation>;
+    dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation>;
     snapshot(): TState;
     cleanup(): Promise<void>;
 }
@@ -16,26 +17,28 @@ export abstract class BaseEncounterEngine<
     TState extends AnySystemEncounterState & BaseEncounterState
 > implements IEncounterEngine<TState> {
     protected state: TState;
-        protected stateCache: IStateCache<TState>;
+    protected stateCache: IStateCache<TState>;
     protected requestHandler: IRequestHandler;
     
     constructor(
         initialState: TState,
         createStateCache: (state: TState) => IStateCache<TState>,
-        createRequestHandler: (state: TState) => IRequestHandler
+        createRequestHandler: (state: TState, eventAuthorizer: IEventAuthorizer) => IRequestHandler,
+        createEventAuthorizer: (state: TState) => IEventAuthorizer
     ) {
         this.state = initialState;
         this.stateCache = createStateCache(this.state);
-        this.requestHandler = createRequestHandler(this.state);
+        const eventAuthorizer = createEventAuthorizer(this.state);
+        this.requestHandler = createRequestHandler(this.state, eventAuthorizer);
     }
     
-    async dispatch(request: EncounterRequest): Promise<EncounterOperation> {
+    async dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation> {
         const previousVersion = this.state.version;
         
         try {
             this.state.version++;
 
-            const appliedEvents = this.requestHandler.parseRequest(request);
+            const appliedEvents = this.requestHandler.parseRequest(request, user);
             const operation: EncounterOperation = {
                 encounterId: request.encounterId,
                 operationId: crypto.randomUUID(),
@@ -66,6 +69,7 @@ export abstract class BaseEncounterEngine<
      * Ensures final state is persisted to cache.
      */
     async cleanup(): Promise<void> {
+        await this.persistSnapshot();
         this.stateCache.addSnapshot(this.state);
     }
 
@@ -78,6 +82,8 @@ export abstract class BaseEncounterEngine<
     protected createSnapshot(): void {
         this.stateCache.addSnapshot(this.state);
     }
+
+    protected abstract persistSnapshot(): Promise<void>;
 }
 
 export async function createEncounterEngine(system: SystemType, encounterId: number): Promise<IEncounterEngine> {
@@ -87,8 +93,7 @@ export async function createEncounterEngine(system: SystemType, encounterId: num
     if (system === 'dnd5e') {
         const { DnD5eEncounterEngine } = await import('./dnd5e/dnd5eEncounterEngine.js');
         // Load state
-        const result = await dnd5eEncounterService.getEncounterState(encounterId);
-        encounterState = result?.encounterState ?? null;
+        encounterState = await dnd5eEncounterService.getEncounterState(encounterId);
         EncounterEngineClass = DnD5eEncounterEngine;
     } else {
         throw new Error(`Unsupported system: ${system}`);

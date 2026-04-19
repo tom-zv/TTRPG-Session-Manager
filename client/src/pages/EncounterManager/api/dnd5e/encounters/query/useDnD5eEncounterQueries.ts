@@ -62,13 +62,12 @@ export function useEncounterEntityTemplates(
  * Get encounter state (encounter state + entity states bundled together)
  */
 export function useDnD5eEncounterState(
-  id: number, 
-  snapshotType?: 'active' | 'initial' | 'live',
+  id: number,
   options?: { enabled?: boolean }
 ) {
   return useQuery({
-    queryKey: ENCOUNTER_KEYS.state(id, snapshotType),
-    queryFn: () => DnD5eEncounterApi.getEncounterState(id, snapshotType),
+    queryKey: ENCOUNTER_KEYS.state(id),
+    queryFn: () => DnD5eEncounterApi.getEncounterState(id),
     enabled: options?.enabled ?? !!id,
     
     // Cache configuration for event-based synchronization

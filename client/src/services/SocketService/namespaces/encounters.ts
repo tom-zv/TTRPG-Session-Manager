@@ -1,8 +1,7 @@
 import { Socket } from "socket.io-client";
 import { getSocket } from "../socket.js";
-import { EncounterMessages } from "shared/sockets/encounters/messages.js";
-import { EncounterRequest } from "shared/sockets/encounters/requests.js";
-import { EncounterOperation } from "shared/sockets/encounters/types.js";
+import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
+import { EncounterOperation, EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterError } from "shared/sockets/encounters/errors.js";
 import { SocketAck } from "shared/sockets/types.js";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
@@ -26,29 +25,43 @@ export interface EncounterDataCallbacks {
 export class EncounterSocketService {
   private socket: Socket;
   private callbacks: EncounterDataCallbacks;
+  private readonly handleOperation: (operation: EncounterOperation) => void;
+  private readonly handleEncounterEnd: (payload: EncounterRoomRequest) => void;
+  private readonly handleError: (error: EncounterError) => void;
 
   constructor(callbacks: EncounterDataCallbacks) {
     this.callbacks = callbacks;
     this.socket = getSocket("/encounter");
+
+    this.handleOperation = (operation: EncounterOperation) => {
+      this.callbacks.applyOperation(operation);
+    };
+    this.handleEncounterEnd = (payload: EncounterRoomRequest) => {
+      this.callbacks.onEncounterEnd?.(payload);
+    };
+    this.handleError = (error: EncounterError) => {
+      this.callbacks.onError?.(error);
+    };
+
     this.setupListeners();
   }
 
   private setupListeners() {
-    this.socket.on(EncounterMessages.REQUEST, (operation: EncounterOperation) => {
-       this.callbacks.applyOperation(operation);
-    });
+    this.socket.on(EncounterSocketEvents.OPERATION, this.handleOperation);
 
-    this.socket.on(EncounterMessages.END, (payload: EncounterRoomRequest) => {
-      this.callbacks.onEncounterEnd?.(payload);
-    });
+    this.socket.on(EncounterSocketEvents.END, this.handleEncounterEnd);
 
-    this.socket.on("error", (error: EncounterError) => {
-      this.callbacks.onError?.(error);
-    });
+    this.socket.on("error", this.handleError);
+  }
+
+  dispose(): void {
+    this.socket.off(EncounterSocketEvents.OPERATION, this.handleOperation);
+    this.socket.off(EncounterSocketEvents.END, this.handleEncounterEnd);
+    this.socket.off("error", this.handleError);
   }
 
   async sendMessage(
-    messageType: EncounterMessages,
+    messageType: EncounterSocketEvents,
     request?: EncounterSocketRequest
   ): Promise<SocketAck> {
     return new Promise((resolve) => {

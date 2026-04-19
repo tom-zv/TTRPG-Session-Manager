@@ -1,0 +1,78 @@
+.selectionMarker {
+  --selection-marker-size: 2.2rem;
+  --selection-marker-font-size: 2.2rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--selection-marker-size);
+  height: var(--selection-marker-size);
+  border-radius: 999px;
+  font-size: var(--selection-marker-font-size);
+  border: 1px solid rgba(var(--encounter-selected-rgb), 0.36);
+  background: color-mix(in srgb, var(--encounter-selected) 8%, transparent);
+  color: color-mix(in srgb, var(--encounter-selected) 10%, white 90%);
+}
+
+.rowSelectionMarker {
+  position: absolute;
+  top: 50%;
+  right: -1rem;
+  z-index: 3;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.sidepanelSelectionAnchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.sidepanelSelectionMarker {
+  --selection-marker-font-size: 2rem;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  pointer-events: none;
+}
+
+.linkedEntityCard {
+  position: relative;
+  border-color: color-mix(in srgb, var(--encounter-selected) 35%, var(--border-color) 65%);
+  box-shadow: 0 0 0 1px rgba(var(--encounter-selected-rgb), 0.22), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/*-- Cutout --*/
+.linkedEntityCard::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 50%;
+  width: 3rem;
+  height: 1.8rem;
+  background: var(--bg-primary);
+  transform: translate(-50%, -100%);
+  z-index: 2;
+}
+
+.linkedEntityCard::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 3rem;
+  height: 2.8rem;
+  border-radius: 30px;
+  background: var(--bg-primary);
+  box-shadow: inset 0 0 0 2px var(--border-color);
+  transform: translate(-50%, -50%);
+  z-index: 1;
+}
+/*----------*/
+
+@media (max-width: 768px) {
+  .sidepanelSelectionMarker {
+    display: none;
+  }
+}

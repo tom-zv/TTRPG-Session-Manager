@@ -1,4 +1,4 @@
-import { EncounterRequest } from "shared/sockets/encounters/requests.js";
+import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { Namespace, Socket } from "socket.io";
 import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
@@ -9,6 +9,8 @@ import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
 import { emitEncounterError, emitEncounterOperation } from "./encounterTransport.js";
 import { SocketAck } from "shared/sockets/types.js";
+import { EncounterAuthorizationError } from "src/services/encounters/EncounterAuthorizationError.js";
+import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
 
 type AckCallback = (ack: SocketAck) => void;
 
@@ -36,7 +38,7 @@ const assertSocketJoinedEncounter = (socket: Socket, encounterId: number): void 
 };
 
 export const registerEncounterRequestHandlers = (namespace: Namespace, socket: Socket): void => {
-  socket.on("encounter:request", async (request: EncounterRequest, callback?: AckCallback) => {
+  socket.on(EncounterSocketEvents.REQUEST, async (request: EncounterRequest, callback?: AckCallback) => {
     console.log("REQUEST", request);
 
     try {
@@ -62,7 +64,7 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
 
       const operation = await encounterRequestQueue.enqueue(request.encounterId, async () => {
         const encounterEngine = getEncounterEngine(request.encounterId);
-        return await encounterEngine.dispatch(request);
+        return await encounterEngine.dispatch(request, socket.data.user);
       });
 
       emitEncounterOperation(namespace, operation);
@@ -70,6 +72,12 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
     } catch (error) {
       if (error instanceof EncounterHandlerError) {
         emitEncounterError(socket, error.code, error.message, request.requestId);
+        callback?.({ success: false, error: error.message });
+        return;
+      }
+
+      if (error instanceof EncounterAuthorizationError) {
+        emitEncounterError(socket, EncounterErrorCode.NOT_AUTHORIZED, error.message, request.requestId);
         callback?.({ success: false, error: error.message });
         return;
       }

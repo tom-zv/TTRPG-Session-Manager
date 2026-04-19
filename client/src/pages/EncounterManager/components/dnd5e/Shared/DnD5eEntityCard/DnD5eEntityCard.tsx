@@ -4,6 +4,7 @@ import styles from "./DnD5eEntityCard.module.css";
 
 type DnD5eEntityCardProps = {
   entity?: DnD5eEntityDetails;
+  className?: string;
 };
 
 // Helper to calculate ability modifier from score
@@ -42,7 +43,7 @@ const AbilityScore: React.FC<AbilityScoreProps> = ({ abbr, score, save }) => {
   );
 };
 
-const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({ entity }) => {
+const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({ entity, className }) => {
   // Memoize expensive calculations
   const speedsText = useMemo(() => {
     if (!entity?.speeds) return "—";
@@ -69,13 +70,13 @@ const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({ entity }) =>
   }, [entity]);
 
   if (!entity || !saves) {
-    return <div className={styles.entityCard}>No entity selected.</div>;
+    return <div className={`${styles.entityCard}${className ? ' ' + className : ''}`}>No entity selected.</div>;
   }
 
   const { abilityScores } = entity;
 
   return (
-    <div className={styles.entityCard}>
+    <div className={`${styles.entityCard}${className ? ' ' + className : ''}`}>
       {/* Header */}
       <h3>{entity.name}</h3>
 

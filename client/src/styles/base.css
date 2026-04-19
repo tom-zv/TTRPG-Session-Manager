@@ -32,6 +32,28 @@
   --danger-rgb: 214, 69, 80;
   --success: #19b47a;
 
+
+  /* Encounter theme  */
+  --encounter-turn: #3a396d;              
+  --encounter-turn-rgb: 33 33 33;
+
+  --encounter-selected: #8aa7ff;          /* periwinkle */
+  --encounter-selected-rgb: 138, 167, 255;
+
+  /* Surfaces */
+  --encounter-surface: rgba(26, 31, 38, 0.72); /* glassy */
+  --encounter-surface-strong: rgba(26, 31, 38, 0.92);
+
+  /* Background washes for turn banners */
+  --encounter-turn-bg: rgba(46, 233, 166, 0.10);
+  --encounter-selected-bg: rgba(138, 167, 255, 0.12);
+
+  /* Borders / focus */
+  --encounter-border: rgba(255, 255, 255, 0.08);
+  --encounter-border-strong: rgba(255, 255, 255, 0.14);
+  --focus-ring: rgba(var(--accent-primary-rgb), 0.35);
+
+
   /* Semantic status aliases used across feature styles */
   --color-bg-elevated: var(--bg-tertiary);
   --color-border: var(--border-color);
