@@ -1,7 +1,7 @@
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { EncounterError, EncounterErrorCode } from "shared/sockets/encounters/errors.js";
-import { EncounterMessages } from "shared/sockets/encounters/messages.js";
+import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
 import { Namespace, Socket } from "socket.io";
 
 export type EncounterInitData = {
@@ -42,11 +42,11 @@ export const emitEncounterOperation = (
   namespace: Namespace,
   operation: EncounterOperation,
 ): void => {
-  namespace.to(getEncounterRoom(operation.encounterId)).emit(EncounterMessages.REQUEST, operation);
+  namespace.to(getEncounterRoom(operation.encounterId)).emit(EncounterSocketEvents.OPERATION, operation);
 };
 
 export const emitEncounterEnded = (namespace: Namespace, encounterId: number): void => {
-  namespace.to(getEncounterRoom(encounterId)).emit(EncounterMessages.END, { encounterId });
+  namespace.to(getEncounterRoom(encounterId)).emit(EncounterSocketEvents.END, { encounterId });
 };
 
 export const joinEncounterRooms = (socket: Socket, encounterId: number, isGm: boolean, userId: number): void => {

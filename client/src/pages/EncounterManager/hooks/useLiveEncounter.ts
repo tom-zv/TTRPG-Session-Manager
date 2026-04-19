@@ -12,11 +12,11 @@ import { DnD5eEncounter, DnD5eEncounterState } from "shared/domain/encounters/dn
 import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
 import { DnD5eEncounterActions } from "../services/dnd5e/DnD5eEncounterActions.js";
 import { useComposedDnD5eEncounter } from "./dnd5e/useComposedDnD5eEncounter.js";
-import { EncounterMessages } from "shared/sockets/encounters/messages.js";
+import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
 import { EncounterError } from "shared/sockets/encounters/errors.js";
 
 export interface QueryKeyProvider {
-  state(encounterId: number, snapshotType?: string): readonly unknown[];
+  state(encounterId: number): readonly unknown[];
 }
 
 export type LiveEncounterOptions = {
@@ -65,8 +65,6 @@ function useGenericLiveEncounter<
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   const [isLifecycleReady, setIsLifecycleReady] = useState(false);
   const [encounterEnded, setEncounterEnded] = useState(false);
-
-  // TODO: Use snapshotType to prompt user if active snapshot was loaded
   
   const actionsRef = useRef<TActions>();
 
@@ -98,7 +96,7 @@ function useGenericLiveEncounter<
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-      const ack = await socketService.sendMessage(EncounterMessages.REQUEST, {
+      const ack = await socketService.sendMessage(EncounterSocketEvents.REQUEST, {
         encounterId,
         requestId,
         createdAt: new Date().toISOString(),
@@ -128,7 +126,7 @@ function useGenericLiveEncounter<
         setIsLifecycleReady(false);
 
         if (isGm) {
-          const initAck = await socketService.sendMessage(EncounterMessages.INIT, {
+          const initAck = await socketService.sendMessage(EncounterSocketEvents.INIT, {
             encounterId,
             system: config.system,
           });
@@ -141,7 +139,7 @@ function useGenericLiveEncounter<
           }
         }
 
-        const joinAck = await socketService.sendMessage(EncounterMessages.JOIN, {
+        const joinAck = await socketService.sendMessage(EncounterSocketEvents.JOIN, {
           encounterId,
         });
 
@@ -168,7 +166,8 @@ function useGenericLiveEncounter<
 
     return () => {
       isMounted = false;
-      void socketService.sendMessage(EncounterMessages.LEAVE, { encounterId });
+      void socketService.sendMessage(EncounterSocketEvents.LEAVE, { encounterId });
+      socketService.dispose();
     };
   }, [socketService, encounterId, isGm, config.system]);
 

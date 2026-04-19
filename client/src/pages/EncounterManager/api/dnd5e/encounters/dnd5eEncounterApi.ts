@@ -23,10 +23,9 @@ export class DnD5eEncounterApi {
    * Get encounter state (encounter state + entity states bundled together)
    */
   static async getEncounterState(
-    id: number,
-    snapshotType?: 'active' | 'initial' | 'live'
-  ): Promise<{ encounterState: DnD5eEncounterState; snapshotType: 'active' | 'initial' | 'live' }> {
-    return EncounterApi.getEncounterState("dnd5e", id, snapshotType);
+    id: number
+  ): Promise<{ encounterState: DnD5eEncounterState }> {
+    return EncounterApi.getEncounterState("dnd5e", id);
   }
 
   /**
@@ -34,10 +33,9 @@ export class DnD5eEncounterApi {
    */
   static async saveEncounterState(
     id: number,
-    encounterState: DnD5eEncounterState,
-    snapshotType: 'initial' | 'active' = 'active'
+    encounterState: DnD5eEncounterState
   ): Promise<void> {
-    return EncounterApi.saveEncounterState("dnd5e", id, encounterState, snapshotType);
+    return EncounterApi.saveEncounterState("dnd5e", id, encounterState);
   }
 
   /**

@@ -104,7 +104,7 @@ export class LocalStateManager<TState, TEvent> {
     processor: (state: TState, event: TEvent) => void
   ) {
     // Update state in cache and get the updated state
-    const updated = this.queryClient.setQueryData<{ encounterState: TState; snapshotType: 'active' | 'initial' | 'live' }>(
+    const updated = this.queryClient.setQueryData<{ encounterState: TState }>(
       this.queryKeys.state(encounterId),
       (old) => {
         if (!old) return old;

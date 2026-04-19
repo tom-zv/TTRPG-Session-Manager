@@ -54,13 +54,11 @@ export function useSaveEncounterState() {
   return useMutation({
     mutationFn: ({ 
       id, 
-      encounterState, 
-      snapshotType = 'active' 
+      encounterState
     }: { 
       id: number; 
-      encounterState: DnD5eEncounterState; 
-      snapshotType?: 'initial' | 'active' 
-    }) => DnD5eEncounterApi.saveEncounterState(id, encounterState, snapshotType),
+      encounterState: DnD5eEncounterState;
+    }) => DnD5eEncounterApi.saveEncounterState(id, encounterState),
     onSuccess: (_, { id }) => {
       // Invalidate all state queries for this encounter
       queryClient.invalidateQueries({

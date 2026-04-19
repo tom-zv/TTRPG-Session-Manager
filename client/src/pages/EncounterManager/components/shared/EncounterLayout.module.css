@@ -67,6 +67,22 @@
   min-height: 0;
 }
 
+.panelMinHeight {
+  min-height: 0;
+}
+
+.sidePanel {
+  gap: 0.45rem;
+  padding-inline-end: var(--spacing-xs);
+}
+
+.sidePanelContent {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
 .panelResizeHandle {
   width: 2px;
   background: var(--border-color);
@@ -88,5 +104,11 @@
   .encounterHeaderActions {
     width: 100%;
     flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidePanel {
+    border-radius: 18px;
   }
 }

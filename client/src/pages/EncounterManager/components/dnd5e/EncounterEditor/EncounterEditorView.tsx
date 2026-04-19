@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
-import styles from "./EncounterEditorView.module.css";
+import { GiWarlockEye } from "react-icons/gi";
+import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { EncounterDetails } from "../../shared/EncounterDetails.js";
 import { useEncounterEditor } from "src/pages/EncounterManager/hooks/useEncounterEditor.js";
@@ -125,7 +126,7 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
           </div>
         ) : (
           <PanelGroup direction="horizontal" className={layoutStyles.encounterPanels}>
-            <Panel defaultSize={100 - entityCardMinSize} minSize={15} className={styles.editorMainPanel}>
+            <Panel defaultSize={100 - entityCardMinSize} minSize={15} className={layoutStyles.panelMinHeight}>
               <EncounterDetails encounter={encounter!} />
 
               <DnD5eEntityList
@@ -140,10 +141,24 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
 
             <PanelResizeHandle className={layoutStyles.panelResizeHandle}></PanelResizeHandle>
 
-            <Panel defaultSize={entityCardMinSize} minSize={entityCardMinSize} className={styles.editorCardPanel}>
-              <DnD5eEntityCard
-                entity={selectedEntity}
-              />
+            <Panel
+              defaultSize={entityCardMinSize}
+              minSize={entityCardMinSize}
+              className={selectedEntity ? layoutStyles.sidePanel : layoutStyles.panelMinHeight}
+            >
+              <div className={layoutStyles.sidePanelContent}>
+                <div className={linkStyles.sidepanelSelectionAnchor}>
+                  {selectedEntity && (
+                    <div className={`${linkStyles.selectionMarker} ${linkStyles.sidepanelSelectionMarker}`} aria-hidden="true">
+                      <GiWarlockEye />
+                    </div>
+                  )}
+                  <DnD5eEntityCard
+                    entity={selectedEntity}
+                    className={selectedEntity ? linkStyles.linkedEntityCard : undefined}
+                  />
+                </div>
+              </div>
             </Panel>
           </PanelGroup>
         )}

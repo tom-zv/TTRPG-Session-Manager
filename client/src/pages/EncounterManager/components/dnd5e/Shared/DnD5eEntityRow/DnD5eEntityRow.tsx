@@ -1,9 +1,11 @@
 import React, { useCallback, useState } from "react";
+import { GiWarlockEye } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import InlineEditableNumber from "src/components/InlineEditableNumber/InlineEditableNumber.js";
 import { LiveHpActionControl } from "./LiveHpActionControl.js";
 import styles from "./DnD5eEntityRow.module.css";
+import linkStyles from "../SelectionLink.module.css";
 
 type DnD5eEntityRowProps = {
   entity: DnD5eEntity;
@@ -29,6 +31,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   onSelect,
 }) => {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showSecondaryActions, setShowSecondaryActions] = useState(false);
 
   const handleRemoveClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -44,6 +47,11 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   const handleCancelRemove = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     setShowRemoveConfirm(false);
+  }, []);
+
+  const handleToggleSecondaryActions = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setShowSecondaryActions((previous) => !previous);
   }, []);
 
   const handleAcChange = useCallback((newAc: number) => {
@@ -83,23 +91,8 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     actions.hp.heal(sourceId, entity.instanceId, amount);
   }, [actions.hp, canMutate, entity.instanceId, sourceId]);
 
-  const handleLiveInitiative = useCallback(() => {
-    if (!canMutate) {
-      return;
-    }
-
-    const rawValue = window.prompt(`Set initiative for ${entity.displayName ?? entity.name}:`, String(entity.initiative));
-    if (!rawValue) {
-      return;
-    }
-
-    const initiative = Number(rawValue);
-    if (!Number.isFinite(initiative)) {
-      return;
-    }
-
-    actions.stats.setInitiative(entity.instanceId, Math.floor(initiative));
-  }, [actions.stats, canMutate, entity.displayName, entity.initiative, entity.instanceId, entity.name]);
+  const conditionNames = entity.conditions?.map((condition) => condition.name).join(", ");
+  const hasConditions = Boolean(conditionNames);
 
   return (
     <div
@@ -107,52 +100,69 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
       onClick={handleSelectRow}
       role="button"
       tabIndex={0}
+      aria-pressed={isSelected}
+      aria-expanded={mode === "live" ? showSecondaryActions : undefined}
       onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) {
+          return;
+        }
+
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           handleSelectRow();
         }
       }}
     >
-      {/* Top Row: Name, Type, and Remove */}
       <div className={styles.entityRowTop}>
-        <div className={styles.entityNameSection}>
-          <h3>{entity.displayName ?? entity.name}</h3>
-          <span className={styles.entityType}>{entity.entityType}</span>
+        <div className={styles.entityIdentity}>
+          <h3 className={styles.entityName}>{entity.displayName ?? entity.name}</h3>
         </div>
-        {mode === "edit" && showRemoveConfirm ? (
-          <div className={styles.entityRemoveConfirm}>
-            <span className={styles.confirmText}>Remove?</span>
+        <div className={styles.topControls}>
+          {mode === "live" && (
             <button
-              className={`${styles.confirmButton} ${styles.confirmYes}`}
-              onClick={handleConfirmRemove}
-              title="Confirm removal"
-              aria-label="Confirm remove entity"
+              type="button"
+              className={styles.secondaryToggleButton}
+              onClick={handleToggleSecondaryActions}
+              aria-expanded={showSecondaryActions}
+              aria-controls={`entity-secondary-actions-${entity.instanceId}`}
+              title={showSecondaryActions ? "Hide additional actions" : "Show additional actions"}
             >
-              ✓
+              {showSecondaryActions ? "Less" : "More"}
             </button>
+          )}
+          {mode === "edit" && showRemoveConfirm ? (
+            <div className={styles.entityRemoveConfirm}>
+              <span className={styles.confirmText}>Remove?</span>
+              <button
+                className={`${styles.confirmButton} ${styles.confirmYes}`}
+                onClick={handleConfirmRemove}
+                title="Confirm removal"
+                aria-label="Confirm remove entity"
+              >
+                ✓
+              </button>
+              <button
+                className={`${styles.confirmButton} ${styles.confirmNo}`}
+                onClick={handleCancelRemove}
+                title="Cancel"
+                aria-label="Cancel remove entity"
+              >
+                ✕
+              </button>
+            </div>
+          ) : mode === "edit" ? (
             <button
-              className={`${styles.confirmButton} ${styles.confirmNo}`}
-              onClick={handleCancelRemove}
-              title="Cancel"
-              aria-label="Cancel remove entity"
+              className={styles.entityRemoveButton}
+              onClick={handleRemoveClick}
+              title={`Remove ${entity.name}`}
+              aria-label={`Remove ${entity.name} from encounter`}
             >
               ✕
             </button>
-          </div>
-        ) : mode === "edit" ? (
-          <button
-            className={styles.entityRemoveButton}
-            onClick={handleRemoveClick}
-            title={`Remove ${entity.name}`}
-            aria-label={`Remove ${entity.name} from encounter`}
-          >
-            ✕
-          </button>
-        ) : null}
+          ) : null}
+        </div>
       </div>
 
-      {/* Middle Row: Core Stats */}
       <div className={styles.entityRowMiddle}>
         <div className={styles.entityStatsCompact}>
           <div className={styles.statItem}>
@@ -228,37 +238,53 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           </div>
         </div>
 
-        {entity.conditions && entity.conditions.length > 0 && (
+        {hasConditions && (
           <div className={styles.entityConditions}>
-            <strong>Conditions:</strong> {entity.conditions.map(c => c.name).join(", ")}
+            <strong>Conditions:</strong> {conditionNames}
           </div>
         )}
       </div>
 
-      {/* Bottom Row: Actions - only shown in live mode */}
       {mode === "live" && (
         <div className={styles.entityRowBottom}>
-          <div className={styles.entityActions}>
+          <div className={styles.entityActionsPrimary}>
             <LiveHpActionControl
               entityName={entity.displayName ?? entity.name}
               disabled={!canMutate || sourceId === undefined}
               onDamage={handleQuickDamage}
               onHeal={handleQuickHeal}
             />
-
-            <button className={styles.actionButton} disabled title="Coming soon">
-              Condition
-            </button>
-            <button
-              className={styles.actionButton}
-              onClick={handleLiveInitiative}
-              disabled={!canMutate}
-              title={canMutate ? "Set initiative" : "Only the GM can modify entities"}
-            >
-              Initiative
-            </button>
+            
           </div>
+
+          {showSecondaryActions && (
+            <div
+              id={`entity-secondary-actions-${entity.instanceId}`}
+              className={styles.entityActionsSecondary}
+            >
+              <button type="button" className={styles.actionButton} disabled title="Coming soon">
+                Condition
+              </button>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={handleToggleSecondaryActions}
+                title="Collapse additional actions"
+              >
+                Collapse
+              </button>
+            </div>
+          )}
         </div>
+      )}
+
+      {isSelected && (
+        <span
+          className={`${linkStyles.selectionMarker} ${linkStyles.rowSelectionMarker}${isActive ? ' ' + linkStyles.activeSelectionMarker : ''}`}
+          aria-hidden="true"
+        >
+          <GiWarlockEye />
+        </span>
       )}
     </div>
   );

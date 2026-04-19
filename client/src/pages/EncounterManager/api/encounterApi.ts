@@ -12,7 +12,6 @@ interface EncounterDetailsResponse<T = EncounterDetailsbySystem<SystemType>> {
 
 interface EncounterStateResponse<T = EncounterStateBySystem<SystemType>> {
   encounterState: T;
-  snapshotType: 'active' | 'initial' | 'live';
 }
 
 interface EncounterSummariesResponse<T = EncounterSummaryBySystem<SystemType>> {
@@ -76,18 +75,12 @@ export class EncounterApi {
   /**
    * Get encounter state 
    * Includes encounter state + entity states bundled together
-   * @param snapshotType - Which snapshot to load: 'active' | 'initial' | 'live'
-   * Default behavior: prefers active -> initial 
-   * @returns Object with encounterState and which snapshotType was actually returned
    */
   static async getEncounterState<T extends SystemType>(
     system: T,
-    id: number,
-    snapshotType?: 'active' | 'initial' | 'live'
-  ): Promise<{ encounterState: EncounterStateBySystem<T>; snapshotType: 'active' | 'initial' | 'live' }> {
-    const queryParams = snapshotType ? `?snapshotType=${snapshotType}` : '';
-    
-    const response = await fetch(`/api/${system}/encounters/${id}/state${queryParams}`, {
+    id: number
+  ): Promise<{ encounterState: EncounterStateBySystem<T> }> {
+    const response = await fetch(`/api/${system}/encounters/${id}/state`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -105,19 +98,16 @@ export class EncounterApi {
     const data: EncounterStateResponse = await response.json();
     return {
       encounterState: data.encounterState as EncounterStateBySystem<T>,
-      snapshotType: data.snapshotType
     };
   }
 
   /**
    * Save encounter state (encounter state + entity states bundled together)
-   * @param snapshotType - Which snapshot to save: 'initial' | 'active'
    */
   static async saveEncounterState<T extends SystemType>(
     system: T,
     id: number,
-    encounterState: EncounterStateBySystem<T>,
-    snapshotType: 'initial' | 'active' = 'active'
+    encounterState: EncounterStateBySystem<T>
   ): Promise<void> {
     const response = await fetch(`/api/${system}/encounters/${id}/state`, {
       method: "PUT",
@@ -125,7 +115,7 @@ export class EncounterApi {
         "Content-Type": "application/json",
       },
       credentials: "include",
-      body: JSON.stringify({ encounterState, snapshotType }),
+      body: JSON.stringify({ encounterState }),
     });
 
     if (!response.ok) {

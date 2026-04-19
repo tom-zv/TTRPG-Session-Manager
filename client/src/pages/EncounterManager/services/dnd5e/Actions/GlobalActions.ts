@@ -28,4 +28,11 @@ export class DnD5eGlobalActions {
     });
   };
 
+  resetEncounter = (): void => {
+    this.emitEvent({
+      type: "resetEncounter",
+      values: {},
+    });
+  };
+
 }

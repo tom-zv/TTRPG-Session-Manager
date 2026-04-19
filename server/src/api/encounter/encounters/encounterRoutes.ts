@@ -22,12 +22,11 @@ router.delete("/:id", encounterController.deleteEncounter);
 // State management
 
 // GET /encounters/:id/state - Get encounter state (with entity states)
-// Query params: ?snapshotType=active|initial|default
-// Default behavior: prefers active -> initial -> default
+// Prefers live engine state when active, otherwise returns persisted snapshot
 router.get("/:id/state", encounterController.getEncounterState);
 
 // PUT /encounters/:id/state - Save encounter state
-// Body: { encounterState: DnD5eEncounterState, snapshotType: 'initial' | 'active' }
+// Body: { encounterState: DnD5eEncounterState }
 router.put("/:id/state", encounterController.saveEncounterState);
 
 export default router;

@@ -2,11 +2,12 @@ import { BaseRequestHandler } from "../requestHandler.js";
 import { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js";
 import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
 import { DnD5eEventProcessor } from "shared/domain/encounters/dnd5e/events/EventProcessor.js";
-import { validateDnD5eEvent } from "./eventValidator.js";
+import { validateDnD5eEvent } from "./dnd5eEventValidator.js";
+import { IEventAuthorizer } from "../requestHandler.js";
 
 export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState> {
-    constructor(state: DnD5eEncounterState) {
-        super(state);
+    constructor(state: DnD5eEncounterState, eventAuthorizer: IEventAuthorizer) {
+        super(state, eventAuthorizer);
     }
 
     protected validateEvent(event: DnD5eEncounterEvent): DnD5eEncounterEvent {

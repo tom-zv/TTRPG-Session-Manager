@@ -13,7 +13,7 @@ async function insertEncounter(system: SystemType, data: EncounterInsertData): P
 
   switch (system) {
     case 'dnd5e':
-      dnd5eEncounterService.createInitialSnapshot(insertId);
+      await dnd5eEncounterService.createSnapshot(insertId);
       break;
     default:
       throw new Error(`Unsupported system: ${system}`);

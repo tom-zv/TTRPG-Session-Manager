@@ -1,101 +1,204 @@
 .entityRow {
-  border: 2px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-md);
-  background: var(--bg-tertiary);
-  transition: all var(--transition-duration);
+  --entity-row-surface: color-mix(in srgb, var(--bg-tertiary) 86%, #0b1117 14%);
+  --entity-row-border: color-mix(in srgb, var(--border-color) 82%, var(--accent-primary) 18%);
+  position: relative;
+  border: 1px solid var(--entity-row-border);
+  border-radius: 12px;
+  padding: 0.625rem 2.95rem 0.625rem 0.75rem;
+  background: linear-gradient(160deg, var(--entity-row-surface), var(--bg-secondary));
   color: var(--text-primary);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-sm);
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  margin-right: 2rem;
   cursor: pointer;
   max-width: 600px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  overflow: visible;
+  transition: border-color var(--transition-duration), box-shadow var(--transition-duration),
+    background var(--transition-duration), transform var(--transition-duration);
 }
 
-.entityRow.active {
-  border-color: var(--accent-primary);
-  background: var(--bg-hover);
-  box-shadow: 0 2px 8px var(--accent-active-glow);
+.entityRow:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent-primary) 35%, var(--border-color) 65%);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
 }
 
-.entityRow.selected {
-  outline: 2px solid var(--accent-secondary);
-  outline-offset: 1px;
-}
-
-/* Top Row: Name and Type */
-.entityRowTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: var(--spacing-xs);
-  border-bottom: 1px solid var(--border-color-light);
-}
-
-.entityNameSection {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
-}
-
-.entityNameSection h3 {
-  margin: 0;
-  font-size: 1.2rem;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.entityType {
-  font-size: 0.75rem;
-  padding: 0.25rem 0.625rem;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  text-transform: uppercase;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  letter-spacing: 0.5px;
-}
-
-.entityRemoveButton {
-  background: transparent;
-  border: none;
-  color: var(--text-tertiary);
-  font-size: 1.2rem;
-  cursor: pointer;
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-duration);
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.entityRemoveButton:hover {
-  background: var(--danger);
-  color: #fff;
-}
-
-.entityRemoveButton:focus {
-  outline: 2px solid var(--danger);
+.entityRow:focus-visible {
+  outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
 }
 
-/* Remove Confirmation */
-.entityRemoveConfirm {
+.entityRow.active {
+  /* border-color: color-mix(in srgb, var(--accent-secondary) 52%, var(--border-color) 48%);
+  border-top-left-radius: 8px;
+  border-bottom-left-radius: 8px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--entity-row-surface) 86%, var(--accent-secondary) 14%),
+    color-mix(in srgb, var(--bg-secondary) 92%, var(--accent-secondary) 8%)
+  ); */
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-secondary) 82%, white 18%), 0 9px 20px rgba(0, 0, 0, 0.24);
+}
+
+.entityRow.selected {
+  --entity-row-edge-color: color-mix(in srgb, var(--encounter-selected) 62%, var(--border-color) 38%);
+  --entity-row-notch-edge-color: color-mix(in srgb, var(--entity-row-edge-color) 84%, white 16%);
+  /* border-color: var(--entity-row-edge-color); */
+  /* border-top-right-radius: 18px;
+  border-bottom-right-radius: 18px; */
+  /* background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--entity-row-surface) 96%, var(--encounter-selected) 4%),
+    color-mix(in srgb, var(--bg-secondary) 5%, var(--encounter-selected) 5%)
+  ); */
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--entity-row-edge-color) 65%, transparent), 0 10px 20px rgba(0, 0, 0, 0.24);
+}
+
+/*-- Cutout --*/
+
+.entityRow.selected::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -1px;
+  width: 1.55rem;
+  height: 3rem;
+  background: var(--bg-primary);
+  transform: translate(100%, -50%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.entityRow.selected::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: -1.1rem;
+  width: 2.7rem;
+  height: 3rem;
+  border-radius: 50px;
+  background: var(--bg-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--entity-row-edge-color) 65%, transparent), 0 10px 20px rgba(0, 0, 0, 0.24);
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+/*--------*/
+
+.entityRow.active.selected {
+  --entity-row-edge-color: color-mix(in srgb, var(--encounter-selected) 58%, var(--accent-secondary) 42%);
+  --entity-row-notch-edge-color: color-mix(in srgb, var(--entity-row-edge-color) 80%, white 20%);
+  /* border-color: var(--entity-row-edge-color); */
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--accent-secondary) 82%, white 18%),
+    0 0 0 1px color-mix(in srgb, var(--entity-row-edge-color) 62%, transparent),
+    0 10px 22px rgba(0, 0, 0, 0.28);
+}
+
+.entityRowTop {
   display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.entityIdentity {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--spacing-xs);
-  padding: 0.25rem 0.5rem;
+  gap: 0.4rem;
+}
+
+.entityName {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.entityRow.active .entityName {
+  color: color-mix(in srgb, var(--accent-secondary) 48%, var(--text-primary) 52%);
+}
+
+.entityRow.selected .entityName {
+  color: color-mix(in srgb, var(--encounter-selected) 42%, var(--text-primary) 58%);
+}
+
+.entityRow.active.selected .entityName {
+  color: color-mix(in srgb, var(--encounter-selected) 28%, var(--accent-secondary) 24%, var(--text-primary) 48%);
+}
+
+.entityType {
+  font-size: 0.66rem;
+  padding: 0.15rem 0.45rem;
+  background: color-mix(in srgb, var(--bg-secondary) 85%, var(--accent-primary) 15%);
+  border-radius: 999px;
+  text-transform: uppercase;
+  font-weight: 650;
+  color: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+.topControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.secondaryToggleButton,
+.entityRemoveButton {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+  min-height: 1.8rem;
+  transition: border-color var(--transition-duration), color var(--transition-duration),
+    background var(--transition-duration);
+}
+
+.secondaryToggleButton:hover,
+.entityRemoveButton:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.entityRemoveButton:hover {
+  border-color: var(--danger);
+  background: rgba(var(--danger-rgb), 0.15);
+  color: var(--danger);
+}
+
+.entityRemoveButton:focus-visible,
+.secondaryToggleButton:focus-visible,
+.confirmButton:focus-visible,
+.actionButton:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.entityRemoveConfirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.35rem;
   background: rgba(var(--danger-rgb, 220, 38, 38), 0.1);
   border-radius: var(--radius-sm);
   border: 1px solid var(--danger);
 }
 
 .confirmText {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--danger);
 }
 
@@ -103,16 +206,13 @@
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-primary);
-  font-size: 1rem;
+  font-size: 0.9rem;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
+  padding: 0.18rem 0.45rem;
   border-radius: var(--radius-sm);
-  transition: all var(--transition-duration);
   line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 2rem;
+  min-width: 1.65rem;
+  min-height: 1.65rem;
 }
 
 .confirmYes {
@@ -134,101 +234,130 @@
   border-color: var(--text-primary);
 }
 
-.confirmButton:focus {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
-}
-
-/* Middle Row: Stats and Conditions */
 .entityRowMiddle {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-xs);
-  padding: var(--spacing-xs) 0;
-}
-
-.editModeHint {
-  font-size: 0.75rem;
-  color: var(--text-tertiary);
-  padding: 0.25rem 0.5rem;
-  background: var(--bg-secondary);
-  border-radius: var(--radius-sm);
-  text-align: center;
-  margin-bottom: var(--spacing-xs);
-  opacity: 0.8;
+  gap: 0.35rem;
 }
 
 .entityStatsCompact {
   display: flex;
-  align-items: center;
-  gap: var(--spacing-md);
   flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: stretch;
 }
 
 .statItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
-  min-width: 60px;
+  gap: 0.15rem;
+  width: 70px;
+  flex-shrink: 0;
+  min-width: 0;
+  background: color-mix(in srgb, var(--bg-secondary) 88%, #0b1117 12%);
+  border: 1px solid color-mix(in srgb, var(--border-color-light) 75%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.3rem 0.45rem;
 }
 
 .statLabel {
-  font-size: 0.75rem;
+  font-size: 0.62rem;
   color: var(--text-tertiary);
-  font-weight: 500;
+  font-weight: 650;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.06em;
 }
 
 .statValue {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.15;
 }
 
 .statDivider {
-  width: 1px;
-  height: 2rem;
-  background: var(--border-color-light);
+  display: none;
+}
+
+.hpLiveDisplay {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.2rem;
+}
+
+.hpLiveDisplay .hpCurrent {
+  font-weight: 700;
+}
+
+.hpSeparator {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.hpLiveDisplay .hpMax {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .entityConditions {
-  padding: var(--spacing-xs) var(--spacing-sm);
+  padding: 0.3rem 0.5rem;
   background: rgba(var(--danger-rgb, 220, 38, 38), 0.1);
   border-radius: var(--radius-sm);
-  font-size: 0.875rem;
+  font-size: 0.76rem;
   color: var(--danger);
   border-left: 3px solid var(--danger);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .entityConditions strong {
-  font-weight: 600;
-  margin-right: 0.5rem;
+  font-weight: 650;
+  margin-right: 0.3rem;
 }
 
-/* Bottom Row: Actions */
 .entityRowBottom {
-  padding-top: var(--spacing-xs);
-  border-top: 1px solid var(--border-color-light);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-color-light) 60%, transparent);
+  padding-top: 0.45rem;
 }
 
-.entityActions {
+.entityActionsPrimary {
   display: flex;
-  gap: var(--spacing-sm);
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
   flex-wrap: wrap;
 }
 
+.entityActionsSecondary {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+  padding: 0.3rem;
+  border-radius: var(--radius-sm);
+  border: 1px dashed color-mix(in srgb, var(--accent-secondary) 35%, var(--border-color) 65%);
+  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--accent-secondary) 18%);
+}
+
 .actionButton {
-  padding: 0.5rem 1rem;
+  min-height: 1.95rem;
+  padding: 0.28rem 0.7rem;
   background: var(--bg-secondary);
   color: var(--text-primary);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
-  transition: all var(--transition-duration);
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: border-color var(--transition-duration), color var(--transition-duration),
+    background var(--transition-duration);
 }
 
 .actionButton:hover:not(:disabled) {
@@ -237,36 +366,78 @@
   border-color: var(--accent-primary);
 }
 
+.actionButtonGhost {
+  background: color-mix(in srgb, var(--bg-secondary) 76%, transparent);
+  color: var(--text-secondary);
+}
+
 .actionButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.actionButton:focus {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+@media (max-width: 900px) {
+  .entityStatsCompact {
+    gap: 0.28rem;
+  }
+
+  .statItem {
+    flex-basis: calc(50% - 0.14rem);
+  }
 }
 
-/* HP Live Mode Display */
-.hpLiveDisplay {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+@media (max-width: 768px) {
+  .entityRow {
+    padding: 0.55rem 2.7rem 0.55rem 0.6rem;
+    gap: 0.4rem;
+  }
+
+  .entityRowTop {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topControls {
+    justify-content: space-between;
+  }
+
+  .entityActionsPrimary {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actionButton,
+  .secondaryToggleButton,
+  .entityRemoveButton {
+    min-height: 2.2rem;
+  }
+
+  .entityActionsSecondary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
 }
 
-.hpLiveDisplay .hpCurrent {
-  font-weight: 700;
+@media (max-width: 520px) {
+  .statItem {
+    flex-basis: 100%;
+  }
+
+  .entityName {
+    font-size: 0.95rem;
+  }
 }
 
-.hpSeparator {
-  font-size: 1.1rem;
-  font-weight: 500;
-  color: var(--text-tertiary);
-  margin: 0 0.125rem;
-}
+@media (prefers-reduced-motion: reduce) {
+  .entityRow,
+  .secondaryToggleButton,
+  .entityRemoveButton,
+  .actionButton {
+    transition: none;
+  }
 
-.hpLiveDisplay .hpMax {
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--text-secondary);
+  .entityRow:hover {
+    transform: none;
+  }
 }

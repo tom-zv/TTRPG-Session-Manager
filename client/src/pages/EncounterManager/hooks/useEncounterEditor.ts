@@ -138,7 +138,7 @@ export const useEncounterEditor = (encounterId: number, system: SystemType) => {
         system: "dnd5e",
         useComposedEncounter: useComposedDnD5eEncounter,
         saveState: (encounterId, state) => 
-          DnD5eEncounterApi.saveEncounterState(encounterId, state, 'initial'),
+          DnD5eEncounterApi.saveEncounterState(encounterId, state),
         createActions: DnD5eEncounterActions.create,
       });
       

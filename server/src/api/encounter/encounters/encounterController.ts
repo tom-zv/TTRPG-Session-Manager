@@ -180,7 +180,6 @@ async function getEncounterState(
   next: NextFunction
 ) {
   const { id, system } = req.params as { id: string; system?: SystemType };
-  const { snapshotType } = req.query as { snapshotType?: 'active' | 'initial' | 'live' };
 
   try {
     if (!id) {
@@ -191,31 +190,22 @@ async function getEncounterState(
       throw new ValidationError("Unsupported system.");
     }
 
-    // Validate snapshotType if provided
-    if (snapshotType && !['active', 'initial', 'live'].includes(snapshotType)) {
-      throw new ValidationError("snapshotType must be one of: active, initial, live");
-    }
-
-
-    let result: { encounterState: DnD5eEncounterState; returnedSnapshotType: 'active' | 'initial' | 'live' } | null = null;
+    let encounterState: DnD5eEncounterState | null = null;
 
     switch (system) {
       case "dnd5e":
-        result = await dnd5eEncounterService.getEncounterState(Number(id), snapshotType);
+        encounterState = await dnd5eEncounterService.getEncounterState(Number(id));
         break;
 
       default:
         throw new ValidationError(`Unsupported system: ${system}`);
     }
 
-    if (!result || !result.encounterState) {
+    if (!encounterState) {
       throw new ValidationError(`Encounter with ID ${id} not found`);
     }
 
-    res.status(200).json({ 
-      encounterState: result.encounterState,
-      snapshotType: result.returnedSnapshotType
-    });
+    res.status(200).json({ encounterState });
     
   } catch (error) {
     next(error);
@@ -228,10 +218,7 @@ async function saveEncounterState(
   next: NextFunction
 ) {
   const { id, system } = req.params as { id: string; system?: string };
-  const { encounterState, snapshotType } = req.body as { 
-    encounterState: DnD5eEncounterState;
-    snapshotType: 'initial' | 'active' 
-  };
+  const { encounterState } = req.body as { encounterState: DnD5eEncounterState };
 
   try {
     if (!id) {
@@ -246,16 +233,11 @@ async function saveEncounterState(
       throw new ValidationError("encounterState is required");
     }
 
-    if (!snapshotType || !['initial', 'active'].includes(snapshotType)) {
-      throw new ValidationError("snapshotType must be either 'initial' or 'active'");
-    }
-
     switch (system){
       case 'dnd5e':
         await dnd5eEncounterService.saveEncounterState(
           Number(id),
-          encounterState,
-          snapshotType
+          encounterState
         );
         break;
       default:

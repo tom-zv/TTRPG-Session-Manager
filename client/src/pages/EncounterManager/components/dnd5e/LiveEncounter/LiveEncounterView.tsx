@@ -1,13 +1,15 @@
 import React, { useMemo, useState } from "react";
+import { GiWarlockEye } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import styles from "./LiveEncounterView.module.css";
+import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
 import { DnD5eEntityCard } from "../Shared/DnD5eEntityCard/DnD5eEntityCard.js";
-import { EncounterDetails } from "../../shared/EncounterDetails.js";
+// import { EncounterDetails } from "../../shared/EncounterDetails.js";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 type LiveEncounterProps = {
@@ -81,6 +83,22 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     actions.global.nextTurn();
   };
 
+  const handleResetEncounter = () => {
+    if (!canMutate || !encounter || !actions) {
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Reset encounter state? This will set round and turn to 0 and restore all HP to max."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    actions.global.resetEncounter();
+  };
+
   return (
     <div className="page-container">
       <div className={layoutStyles.encounterShell}>
@@ -101,6 +119,14 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             >
               Next Turn
             </button>
+            <button
+              className={styles.resetButton}
+              onClick={handleResetEncounter}
+              disabled={!canMutate || !encounter || encounter.entities.length === 0}
+              title={canMutate ? "Reset round/turn and restore HP to max" : "Only the GM can reset encounters"}
+            >
+              reset
+            </button>
             <button onClick={onExit}>Exit Encounter</button>
           </div>
         </div>
@@ -116,7 +142,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
         )}
 
         {!isBootstrapping && encounter && (
-          <div className={styles.currentTurn}>
+          <div className={`${styles.currentTurn}`}>
             <h2>
               Current Turn: {activeEntity?.displayName ?? activeEntity?.name ?? "No active entity"}
             </h2>
@@ -133,8 +159,10 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
           </div>
         ) : (
           <PanelGroup direction="horizontal" className={layoutStyles.encounterPanels}>
-            <Panel defaultSize={70} minSize={20} className={styles.liveEncounterMain}>
-              <EncounterDetails encounter={encounter!} />
+            <Panel defaultSize={70} minSize={20} className={layoutStyles.panelMinHeight}>
+
+              {/* <EncounterDetails encounter={encounter!} /> */}
+
               <DnD5eEntityList
                 entities={encounter!.entities}
                 initiativeOrder={encounter!.initiativeOrder}
@@ -150,9 +178,23 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
 
             <PanelResizeHandle className={layoutStyles.panelResizeHandle}></PanelResizeHandle>
 
-            <Panel defaultSize={30} minSize={25} className={styles.liveEncounterSidebarPanel}>
-              <aside className={styles.liveEncounterSidebar}>
-                <DnD5eEntityCard entity={selectedEntity} />
+            <Panel
+              defaultSize={30}
+              minSize={34}
+              className={selectedEntity ? layoutStyles.sidePanel : layoutStyles.panelMinHeight}
+            >
+              <aside className={layoutStyles.sidePanelContent}>
+                <div className={linkStyles.sidepanelSelectionAnchor}>
+                  {selectedEntity && (
+                    <div className={`${linkStyles.selectionMarker} ${linkStyles.sidepanelSelectionMarker}`} aria-hidden="true">
+                      <GiWarlockEye />
+                    </div>
+                  )}
+                  <DnD5eEntityCard
+                    entity={selectedEntity}
+                    className={selectedEntity ? linkStyles.linkedEntityCard : undefined}
+                  />
+                </div>
               </aside>
             </Panel>
           </PanelGroup>

@@ -29,6 +29,8 @@ export function isDnD5eEvent(event: unknown): event is DnD5eEncounterEvent {
             return typeof values.instanceId === 'number';
         case 'nextTurn':
             return true;
+        case 'resetEncounter':
+            return true;
         case 'damage':
         case 'heal':
             return (
