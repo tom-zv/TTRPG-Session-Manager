@@ -51,11 +51,11 @@ const CreateEncounterForm: React.FC<CreateEncounterFormProps> = ({system, onCanc
       value: name,
       onChange: (v) => setName(v),
       required: true,
-      placeholder: "Enter entity name",
+      placeholder: "Enter encounter name",
     },
     {
       id: "difficulty",
-      label: "Name",
+      label: "Difficulty",
       type: "text",
       value: difficulty,
       onChange: (v) => setDifficulty(v),

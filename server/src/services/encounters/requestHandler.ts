@@ -1,5 +1,5 @@
 import { encounterEvent } from "shared/sockets/encounters/types.js";
-import { EncounterRequest } from "shared/sockets/encounters/requests.js";
+import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { UserDB } from "src/api/users/types.js";
 
 export interface IRequestHandler {

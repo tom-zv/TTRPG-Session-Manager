@@ -5,3 +5,19 @@ CREATE TABLE
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
+
+-- Standard 5e damage types
+INSERT IGNORE INTO dnd5e.damage_types (name, category) VALUES
+    ('acid',        'elemental'),
+    ('bludgeoning', 'physical'),
+    ('cold',        'elemental'),
+    ('fire',        'elemental'),
+    ('force',       'magical'),
+    ('lightning',   'elemental'),
+    ('necrotic',    'magical'),
+    ('piercing',    'physical'),
+    ('poison',      'elemental'),
+    ('psychic',     'magical'),
+    ('radiant',     'magical'),
+    ('slashing',    'physical'),
+    ('thunder',     'elemental');

@@ -1,5 +1,5 @@
 import { Socket } from "socket.io";
-import { EncounterRequest } from "shared/sockets/encounters/requests.js";
+import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 
 export type REQUESTValidationResult =

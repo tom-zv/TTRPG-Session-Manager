@@ -26,7 +26,7 @@ export const EntityPicker: React.FC<EntityPickerProps> = ({
     return entitySummaries.filter(entity => {
       
       // Filter by type
-      if (selectedType !== 'all' && entity.entityType !== selectedType) return false;
+      if (selectedType !== 'all' && entity.role !== selectedType) return false;
       
       // Filter by search query
       if (searchQuery.trim()) {
@@ -107,8 +107,8 @@ export const EntityPicker: React.FC<EntityPickerProps> = ({
             >
               <div className={styles.entityItemName}>{entity.name}</div>
               <div className={styles.entityItemDetails}>
-                <span className={`${styles.entityTypeBadge} ${styles[entity.entityType as 'pc' | 'npc' | 'creature']}`}>
-                  {entity.entityType.toUpperCase()}
+                <span className={`${styles.entityTypeBadge} ${styles[entity.role as 'pc' | 'npc' | 'creature']}`}>
+                  {entity.role.toUpperCase()}
                 </span>
                 {entity.cr && (
                   <span className={styles.entityCr}>CR {entity.cr}</span>
