@@ -8,3 +8,5 @@
 
 export { useComposedDnD5eEncounter } from './useComposedDnD5eEncounter.js';
 export { extractDnD5eState } from './extractDnD5eState.js';
+export { useOrderedEntities } from './useOrderedEntities.js';
+export { useEntitySelection } from './useEntitySelection.js';

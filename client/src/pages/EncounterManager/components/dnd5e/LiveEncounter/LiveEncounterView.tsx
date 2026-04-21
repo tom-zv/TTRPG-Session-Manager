@@ -1,15 +1,16 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { GiWarlockEye } from "react-icons/gi";
-import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
+import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
+import { useEntitySelection } from "src/pages/EncounterManager/hooks/dnd5e/useEntitySelection.js";
+import { TurnDock } from "./TurnDock.js";
 import styles from "./LiveEncounterView.module.css";
 import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
 import { DnD5eEntityCard } from "../Shared/DnD5eEntityCard/DnD5eEntityCard.js";
-// import { EncounterDetails } from "../../shared/EncounterDetails.js";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 
 type LiveEncounterProps = {
@@ -42,88 +43,61 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
 
   const [userSelectedEntityId, setUserSelectedEntityId] = useState<number | undefined>();
 
-  const orderedEntities = useMemo(() => {
-    if (!encounter) {
-      return [];
-    }
-
-    const byId = new Map(encounter.entities.map((entity) => [entity.instanceId, entity]));
-    const initiativeSet = new Set(encounter.initiativeOrder);
-    const ordered = encounter.initiativeOrder
-      .map((id) => byId.get(id))
-      .filter((entity): entity is DnD5eEntity => entity !== undefined);
-
-    encounter.entities.forEach((entity) => {
-      if (!initiativeSet.has(entity.instanceId)) {
-        ordered.push(entity);
-      }
-    });
-
-    return ordered;
-  }, [encounter]);
+  const orderedEntities = useOrderedEntities(
+    encounter?.entities ?? [],
+    encounter?.initiativeOrder ?? []
+  );
 
   const activeEntity = encounter ? orderedEntities[encounter.currentTurn] : undefined;
 
-  const selectedEntityId = useMemo(() => {
-    const isStillPresent = orderedEntities.some((entity) => entity.instanceId === userSelectedEntityId);
-    if (isStillPresent) {
-      return userSelectedEntityId;
-    }
-
-    return activeEntity?.instanceId ?? orderedEntities[0]?.instanceId;
-  }, [activeEntity?.instanceId, orderedEntities, userSelectedEntityId]);
+  const selectedEntityId = useEntitySelection(
+    orderedEntities,
+    userSelectedEntityId,
+    activeEntity?.instanceId
+  );
 
   const selectedEntity = orderedEntities.find((entity) => entity.instanceId === selectedEntityId);
+  const activeEntityName = activeEntity?.name ?? "No active entity";
+  const nextTurnDisabled = !canMutate || !encounter || encounter.entities.length === 0;
 
   const handleNextTurn = () => {
-    if (!canMutate || !encounter || !actions) {
-      return;
-    }
-
+    if (!canMutate || !encounter || !actions) return;
     actions.global.nextTurn();
   };
 
   const handleResetEncounter = () => {
-    if (!canMutate || !encounter || !actions) {
-      return;
-    }
-
+    if (!canMutate || !encounter || !actions) return;
     const confirmed = window.confirm(
       "Reset encounter state? This will set round and turn to 0 and restore all HP to max."
     );
-
-    if (!confirmed) {
-      return;
-    }
-
+    if (!confirmed) return;
     actions.global.resetEncounter();
   };
 
   return (
     <div className="page-container">
-      <div className={layoutStyles.encounterShell}>
-        <div className={layoutStyles.encounterHeader}>
+      <div className={`${layoutStyles.encounterShell} ${styles.liveEncounterShell}`}>
+        <div className={`${layoutStyles.encounterHeader} ${styles.stickyEncounterHeader}`}>
           <div className={layoutStyles.encounterTitle}>
             <h1>
-              {encounter?.name || (hasDataError ? "Error Loading Encounter" : "Loading Encounter...")}
+              {encounter?.name ||
+                (hasDataError
+                  ? "Error Loading Encounter"
+                  : "Loading Encounter...")}
             </h1>
-            {encounter && (
-              <span className={styles.roundBadge}>Round {encounter.currentRound}</span>
-            )}
           </div>
           <div className={layoutStyles.encounterHeaderActions}>
             <button
-              onClick={handleNextTurn}
-              disabled={!canMutate || !encounter || encounter.entities.length === 0}
-              title={canMutate ? "Advance to the next turn" : "Only the GM can advance turns"}
-            >
-              Next Turn
-            </button>
-            <button
               className={styles.resetButton}
               onClick={handleResetEncounter}
-              disabled={!canMutate || !encounter || encounter.entities.length === 0}
-              title={canMutate ? "Reset round/turn and restore HP to max" : "Only the GM can reset encounters"}
+              disabled={
+                !canMutate || !encounter || encounter.entities.length === 0
+              }
+              title={
+                canMutate
+                  ? "Reset round/turn and restore HP to max"
+                  : "Only the GM can reset encounters"
+              }
             >
               reset
             </button>
@@ -138,15 +112,9 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
         )}
 
         {encounterEnded && (
-          <p role="status" className={styles.liveMessageStatus}>This live encounter has ended.</p>
-        )}
-
-        {!isBootstrapping && encounter && (
-          <div className={`${styles.currentTurn}`}>
-            <h2>
-              Current Turn: {activeEntity?.displayName ?? activeEntity?.name ?? "No active entity"}
-            </h2>
-          </div>
+          <p role="status" className={styles.liveMessageStatus}>
+            This live encounter has ended.
+          </p>
         )}
 
         {hasDataError ? (
@@ -158,11 +126,16 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             <p>Connecting to live encounter...</p>
           </div>
         ) : (
-          <PanelGroup direction="horizontal" className={layoutStyles.encounterPanels}>
-            <Panel defaultSize={70} minSize={20} className={layoutStyles.panelMinHeight}>
-
+          <PanelGroup
+            direction="horizontal"
+            className={`${layoutStyles.encounterPanels} ${styles.panelsLocked}`}
+          >
+            <Panel
+              defaultSize={70}
+              minSize={20}
+              className={`${layoutStyles.panelMinHeight} ${styles.entityListPanel}`}
+            >
               {/* <EncounterDetails encounter={encounter!} /> */}
-
               <DnD5eEntityList
                 entities={encounter!.entities}
                 initiativeOrder={encounter!.initiativeOrder}
@@ -173,26 +146,44 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 sourceId={sourceId}
                 selectedEntityId={selectedEntityId}
                 onSelectEntity={setUserSelectedEntityId}
+                topAdornment={
+                  <TurnDock
+                    currentRound={encounter!.currentRound}
+                    activeEntityName={activeEntityName}
+                    onNextTurn={handleNextTurn}
+                    disabled={nextTurnDisabled}
+                    canMutate={canMutate}
+                  />
+                }
               />
             </Panel>
 
-            <PanelResizeHandle className={layoutStyles.panelResizeHandle}></PanelResizeHandle>
+            <PanelResizeHandle className={layoutStyles.panelResizeHandle} />
 
             <Panel
               defaultSize={30}
               minSize={34}
-              className={selectedEntity ? layoutStyles.sidePanel : layoutStyles.panelMinHeight}
+              className={
+                selectedEntity
+                  ? layoutStyles.sidePanel
+                  : layoutStyles.panelMinHeight
+              }
             >
               <aside className={layoutStyles.sidePanelContent}>
                 <div className={linkStyles.sidepanelSelectionAnchor}>
                   {selectedEntity && (
-                    <div className={`${linkStyles.selectionMarker} ${linkStyles.sidepanelSelectionMarker}`} aria-hidden="true">
+                    <div
+                      className={`${linkStyles.selectionMarker} ${linkStyles.sidepanelSelectionMarker}`}
+                      aria-hidden="true"
+                    >
                       <GiWarlockEye />
                     </div>
                   )}
                   <DnD5eEntityCard
                     entity={selectedEntity}
-                    className={selectedEntity ? linkStyles.linkedEntityCard : undefined}
+                    className={
+                      selectedEntity ? linkStyles.linkedEntityCard : undefined
+                    }
                   />
                 </div>
               </aside>

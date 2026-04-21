@@ -2,10 +2,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  padding: 0.2rem;
+  /* padding: 0.2rem; */
+  margin: 0;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--border-color-light) 70%, transparent);
-  background: color-mix(in srgb, var(--bg-secondary) 88%, #0b1117 12%);
+  /* border: 1px solid color-mix(in srgb, var(--border-color-light) 70%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 88%, #0b1117 12%); */
 }
 
 .hpAmountWrapper {

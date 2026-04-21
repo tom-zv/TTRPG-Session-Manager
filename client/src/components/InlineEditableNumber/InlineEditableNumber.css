@@ -1,49 +1,38 @@
-.inline-editable-number-display {
-  cursor: pointer;
-  padding: 0.125rem 0.25rem;
-  border: 1px dashed transparent; /* match input border size */
-  border-radius: var(--radius-sm);
-  transition: all var(--transition-duration);
-  display: inline-block;
-  min-width: 2rem;
+.inline-editable-number-display,
+.inline-editable-number-input {
+  padding: 1px 4px;
   text-align: center;
-  font: inherit;
-  box-sizing: border-box;
+  font-variant-numeric: tabular-nums; 
+}
+
+.inline-editable-number-display {
+  cursor: text; 
+  
+  border: 1px dashed transparent;
+  border-radius: var(--radius-sm);
+
+  transition: background var(--transition-duration),
+              border-color var(--transition-duration),
+              outline-color var(--transition-duration);
 }
 
 .inline-editable-number-display:hover {
   background: var(--bg-secondary);
-  outline: 1px dashed var(--border-color);
+  border-color: var(--border-color);
+  outline: none; 
 }
 
-.entity-row .inline-editable-number-input,
+
 .inline-editable-number-input {
-  all: unset; /* reset ALL global styles */
-  display: inline-block;
-  padding: 0.125rem 0.25rem;
-  min-width: 2rem;
-  max-width: 32px;
-  height: 34.14px;
-  text-align: center;
-  border: 1px dashed var(--accent-primary);
-  border-radius: var(--radius-sm);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font: inherit;
-  line-height: inherit;
-  box-sizing: border-box;
-  outline: none;
+  field-sizing: content;
+  margin: 0;
+  appearance: textfield; 
 }
 
 
-.entity-row .inline-editable-number-input {
-  width: auto;
-  padding: 0.125rem 0.25rem;
-}
-
-.inline-editable-number-input:focus {
-  border-color: var(--accent-active);
-  box-shadow: 0 0 0 2px var(--accent-active-glow);
+.inline-editable-number-input:focus-visible {
+  outline: 1px solid var(--accent-primary);
+  /* border-color: var(--accent-active); */
 }
 
 /* Remove spinner arrows for cleaner look */

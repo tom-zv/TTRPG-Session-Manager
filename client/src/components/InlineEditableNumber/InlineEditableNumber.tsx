@@ -33,18 +33,13 @@ export const InlineEditableNumber: React.FC<InlineEditableNumberProps> = ({
     }
   }, [isEditing]);
 
-  useEffect(() => {
-    if (!isEditing) {
-      setTempValue(String(value));
-    }
-  }, [value, isEditing]);
-
   const handleDoubleClick = () => {
     setIsEditing(true);
     setTempValue(String(value));
   };
 
   const handleBlur = () => {
+    // return;
     commitValue();
   };
 

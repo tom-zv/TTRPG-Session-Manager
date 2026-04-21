@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { GiWarlockEye } from "react-icons/gi";
 import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { EncounterDetails } from "../../shared/EncounterDetails.js";
 import { useEncounterEditor } from "src/pages/EncounterManager/hooks/useEncounterEditor.js";
+import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
+import { useEntitySelection } from "src/pages/EncounterManager/hooks/dnd5e/useEntitySelection.js";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { EntityPicker } from "../Shared/EntityPicker/EntityPicker.js";
@@ -32,34 +34,12 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
   const [isEntityPickerOpen, setIsEntityPickerOpen] = useState(false);
   const [selectedEntityId, setSelectedEntityId] = useState<number | undefined>();
 
-  const orderedEntities = useMemo(() => {
-    if (!encounter) {
-      return [];
-    }
+  const orderedEntities = useOrderedEntities(
+    encounter?.entities ?? [],
+    encounter?.initiativeOrder ?? []
+  );
 
-    const byId = new Map(encounter.entities.map((entity) => [entity.instanceId, entity]));
-    const initiativeSet = new Set(encounter.initiativeOrder);
-    const ordered = encounter.initiativeOrder
-      .map((id) => byId.get(id))
-      .filter((entity): entity is NonNullable<typeof entity> => entity !== undefined);
-
-    encounter.entities.forEach((entity) => {
-      if (!initiativeSet.has(entity.instanceId)) {
-        ordered.push(entity);
-      }
-    });
-
-    return ordered;
-  }, [encounter]);
-
-  const resolvedSelectedEntityId = useMemo(() => {
-    const stillPresent = orderedEntities.some((entity) => entity.instanceId === selectedEntityId);
-    if (stillPresent) {
-      return selectedEntityId;
-    }
-
-    return orderedEntities[0]?.instanceId;
-  }, [orderedEntities, selectedEntityId]);
+  const resolvedSelectedEntityId = useEntitySelection(orderedEntities, selectedEntityId);
 
   const selectedEntity = orderedEntities.find((entity) => entity.instanceId === resolvedSelectedEntityId);
   
