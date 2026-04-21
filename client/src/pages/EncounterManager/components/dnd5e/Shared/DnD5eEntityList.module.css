@@ -1,8 +1,12 @@
 .entityList {
+  --row-indent: 100px;
+  --dock-inset: 20px;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-sm);
   min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .entityList h2 {
@@ -12,14 +16,30 @@
 }
 
 .entityRows {
+  padding-left: var(--row-indent);
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.75rem;
   min-width: 0;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.35rem;
+}
+
+.entityListTopAdornment {
+  margin-left: calc(var(--row-indent) + var(--dock-inset));
+  align-self: flex-start;
+  display: flex;
+  justify-content: center;
+  width: min(calc(600px - 2 * var(--dock-inset)), 100%);
+  margin-bottom: 0.5rem;
 }
 
 @media (max-width: 768px) {
   .entityRows {
     gap: 0.28rem;
+    padding-left: 2rem;
   }
 }

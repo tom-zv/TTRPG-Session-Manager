@@ -1,0 +1,129 @@
+.turnDock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.85rem;
+  width: min(600px, 100%);
+  padding: 0.1rem 0;
+}
+
+.turnInfoColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.32rem;
+  min-width: 0;
+}
+
+.roundBadge {
+  display: inline-flex;
+  position: relative;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+
+  color: color-mix(in srgb, var(--text-primary) 72%, var(--accent-primary) 28%);
+  background: color-mix(in srgb, var(--encounter-surface-strong) 68%, var(--accent-primary) 8%);
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 26%, var(--border-color) 74%);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+}
+
+.turnContext {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 20rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nextTurnButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent-primary) 48%, black 52%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-primary) 76%, black 24%),
+    color-mix(in srgb, var(--accent-secondary) 68%, black 32%)
+  );
+  color: color-mix(in srgb, #fff 92%, var(--accent-primary) 8%);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    transform var(--transition-duration),
+    filter var(--transition-duration),
+    box-shadow var(--transition-duration),
+    opacity var(--transition-duration);
+  box-shadow:
+    0 6px 14px rgba(0, 0, 0, 0.38),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+}
+
+.nextTurnButton:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.32),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.nextTurnButton:active:not(:disabled) {
+  transform: translateY(0);
+  filter: brightness(0.98);
+}
+
+.nextTurnButton:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .turnDock {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .turnInfoColumn {
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .nextTurnButton {
+    flex-shrink: 0;
+  }
+
+  .turnContext {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .turnDock {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.42rem;
+  }
+
+  .turnInfoColumn {
+    align-items: center;
+  }
+
+  .turnContext {
+    text-align: center;
+  }
+
+  .nextTurnButton {
+    width: 100%;
+    justify-content: center;
+  }
+}

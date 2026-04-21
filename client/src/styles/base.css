@@ -37,11 +37,11 @@
   --encounter-turn: #3a396d;              
   --encounter-turn-rgb: 33 33 33;
 
-  --encounter-selected: #8aa7ff;          /* periwinkle */
+  --encounter-selected: #8aa7ff;          
   --encounter-selected-rgb: 138, 167, 255;
 
   /* Surfaces */
-  --encounter-surface: rgba(26, 31, 38, 0.72); /* glassy */
+  --encounter-surface: rgba(26, 31, 38, 0.72); 
   --encounter-surface-strong: rgba(26, 31, 38, 0.92);
 
   /* Background washes for turn banners */
@@ -49,8 +49,6 @@
   --encounter-selected-bg: rgba(138, 167, 255, 0.12);
 
   /* Borders / focus */
-  --encounter-border: rgba(255, 255, 255, 0.08);
-  --encounter-border-strong: rgba(255, 255, 255, 0.14);
   --focus-ring: rgba(var(--accent-primary-rgb), 0.35);
 
 

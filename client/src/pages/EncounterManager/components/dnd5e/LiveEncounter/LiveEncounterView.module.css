@@ -1,83 +1,27 @@
-.roundBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.34rem 0.7rem;
-  border-radius: 999px;
-  font-size: 0.875rem;
-  font-weight: 650;
-  letter-spacing: 0.2px;
-
-  color: color-mix(in srgb, var(--text-primary) 88%, var(--encounter-selected) 12%);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--encounter-surface-strong) 82%, transparent),
-      color-mix(in srgb, var(--encounter-surface) 70%, transparent)
-    );
-  border: 1px solid var(--encounter-border);
-  box-shadow:
-    0 10px 20px rgba(0, 0, 0, 0.30),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-
-  backdrop-filter: blur(10px);
-}
-
-.currentTurn {
-  margin-bottom: var(--spacing-md);
-  padding: calc(var(--spacing-md) + 2px);
-  border-radius: 16px;
-
-  background:
-    radial-gradient(
-      1200px 220px at 10% 0%,
-      rgba(var(--encounter-turn-rgb), 0.18),
-      transparent 60%
-    ),
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--encounter-surface-strong) 88%, transparent),
-      color-mix(in srgb, var(--encounter-surface) 72%, transparent)
-    );
-
-  border: 1px solid var(--encounter-border);
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.34),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-
-  position: relative;
+.liveEncounterShell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
-
-  backdrop-filter: blur(10px);
-  max-width: 500px;
 }
 
-
-.currentTurn::after {
-  content: "";
-  position: absolute;
-  left: 14px;
-  top: 12px;
-  bottom: 12px;
-  width: 4px;
-  border-radius: 999px;
-  background: linear-gradient(
-    180deg,
-    rgba(var(--encounter-turn-rgb), 0.95),
-    rgba(var(--encounter-turn-rgb), 0.25)
-  );
-  box-shadow: 0 0 18px rgba(var(--encounter-turn-rgb), 0.22);
-  pointer-events: none;
+.stickyEncounterHeader {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: color-mix(in srgb, var(--bg-primary) 88%, transparent);
+  backdrop-filter: blur(8px);
 }
 
-.currentTurn h2 {
-  margin: 0;
-  font-size: 1.06rem;
-  font-weight: 650;
-  letter-spacing: 0.2px;
-  color: color-mix(in srgb, var(--text-primary) 78%, var(--encounter-turn) 22%);
-  position: relative;
-  padding-left: 14px; 
+.panelsLocked {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.entityListPanel {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .liveMessageError {
@@ -101,29 +45,20 @@
   border: 1px solid var(--encounter-border);
 }
 
-.resetButton {
-  background: transparent !important;
-  color: color-mix(in srgb, var(--danger) 90%, var(--text-primary) 10%) !important;
-
-  border: 1px solid rgba(var(--danger-rgb), 0.62) !important;
+.liveEncounterShell .resetButton {
+  background: transparent;
+  color: color-mix(in srgb, var(--danger) 90%, var(--text-primary) 10%);
+  border: 1px solid rgba(var(--danger-rgb), 0.62);
   box-shadow:
     0 8px 18px rgba(0, 0, 0, 0.22),
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
 }
 
-.resetButton:hover:not(:disabled) {
-  background: rgba(var(--danger-rgb), 0.12) !important;
-  border-color: rgba(var(--danger-rgb), 0.80) !important;
+.liveEncounterShell .resetButton:hover:not(:disabled) {
+  background: rgba(var(--danger-rgb), 0.12);
+  border-color: rgba(var(--danger-rgb), 0.80);
 }
 
-.resetButton:active:not(:disabled) {
-  background: rgba(var(--danger-rgb), 0.16) !important;
-}
-
-/* Better keyboard focus for all buttons inside this view */
-:global(.page-container) button:focus-visible {
-  outline: none;
-  box-shadow:
-    0 0 0 3px var(--focus-ring),
-    0 10px 22px rgba(0, 0, 0, 0.22);
+.liveEncounterShell .resetButton:active:not(:disabled) {
+  background: rgba(var(--danger-rgb), 0.16);
 }

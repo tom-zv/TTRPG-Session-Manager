@@ -14,6 +14,7 @@ type EntityListProps = {
   sourceId?: number;
   selectedEntityId?: number;
   onSelectEntity?: (entityId: number) => void;
+  topAdornment?: React.ReactNode;
 };
 
 const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
@@ -26,6 +27,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   sourceId,
   selectedEntityId,
   onSelectEntity,
+  topAdornment,
 }) => {
   const handleRemove = useCallback(
     (id: number) => {
@@ -58,26 +60,31 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
 
   return (
     <div className={styles.entityList}>
-      <h2>Entities</h2>
+      {/* <h2>Entities</h2> */}
       {entities.length === 0 ? (
         <p>No entities in this encounter yet.</p>
       ) : (
-        <div className={styles.entityRows}>
-          {orderedEntities.map((entity, index) => (
-            <DnD5eEntityRow
-              key={entity.instanceId}
-              entity={entity}
-              isActive={index === currentTurn}
-              isSelected={entity.instanceId === selectedEntityId}
-              mode={mode}
-              actions={actions}
-              onRemove={handleRemove}
-              canMutate={canMutate}
-              sourceId={sourceId}
-              onSelect={onSelectEntity}
-            />
-          ))}
-        </div>
+        <>
+          {topAdornment && (
+            <div className={styles.entityListTopAdornment}>{topAdornment}</div>
+          )}
+          <div className={styles.entityRows}>
+            {orderedEntities.map((entity, index) => (
+              <DnD5eEntityRow
+                key={entity.instanceId}
+                entity={entity}
+                isActive={index === currentTurn}
+                isSelected={entity.instanceId === selectedEntityId}
+                mode={mode}
+                actions={actions}
+                onRemove={handleRemove}
+                canMutate={canMutate}
+                sourceId={sourceId}
+                onSelect={onSelectEntity}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

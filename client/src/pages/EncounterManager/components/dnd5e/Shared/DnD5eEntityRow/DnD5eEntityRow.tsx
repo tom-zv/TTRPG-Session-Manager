@@ -3,7 +3,8 @@ import { GiWarlockEye } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import InlineEditableNumber from "src/components/InlineEditableNumber/InlineEditableNumber.js";
-import { LiveHpActionControl } from "./LiveHpActionControl.js";
+import { EntityHpStats } from "./EntityHpStats.js";
+import { EntityRowLiveActions } from "./EntityRowLiveActions.js";
 import styles from "./DnD5eEntityRow.module.css";
 import linkStyles from "../SelectionLink.module.css";
 
@@ -54,11 +55,6 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     setShowSecondaryActions((previous) => !previous);
   }, []);
 
-  const handleAcChange = useCallback((newAc: number) => {
-    // TODO: Implement setAc action when available
-    console.log("AC change not yet implemented", newAc);
-  }, []);
-
   const handleInitiativeChange = useCallback((init: number) => {
     actions.stats.setInitiative(entity.instanceId, init);
   }, [actions.stats, entity.instanceId]);
@@ -74,22 +70,6 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   const handleSelectRow = useCallback(() => {
     onSelect?.(entity.instanceId);
   }, [onSelect, entity.instanceId]);
-
-  const handleQuickDamage = useCallback((amount: number) => {
-    if (!canMutate || sourceId === undefined) {
-      return;
-    }
-
-    actions.hp.damage(sourceId, entity.instanceId, amount);
-  }, [actions.hp, canMutate, entity.instanceId, sourceId]);
-
-  const handleQuickHeal = useCallback((amount: number) => {
-    if (!canMutate || sourceId === undefined) {
-      return;
-    }
-
-    actions.hp.heal(sourceId, entity.instanceId, amount);
-  }, [actions.hp, canMutate, entity.instanceId, sourceId]);
 
   const conditionNames = entity.conditions?.map((condition) => condition.name).join(", ");
   const hasConditions = Boolean(conditionNames);
@@ -113,23 +93,27 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
         }
       }}
     >
+      <div className={styles.initiativeTab} aria-label="Initiative value">
+        {/* <span className={styles.initiativeTabLabel}>Init</span> */}
+        {(mode === "edit" || (mode === "live" && canMutate)) && actions ? (
+          <InlineEditableNumber
+            value={entity.initiative}
+            onChange={handleInitiativeChange}
+            min={-10}
+            max={50}
+            className={`${styles.statValue} ${styles.initiativeTabValue}`}
+          />
+        ) : (
+          <span className={`${styles.statValue} ${styles.initiativeTabValue}`}>{entity.initiative}</span>
+        )}
+      </div>
+
       <div className={styles.entityRowTop}>
         <div className={styles.entityIdentity}>
           <h3 className={styles.entityName}>{entity.displayName ?? entity.name}</h3>
         </div>
         <div className={styles.topControls}>
-          {mode === "live" && (
-            <button
-              type="button"
-              className={styles.secondaryToggleButton}
-              onClick={handleToggleSecondaryActions}
-              aria-expanded={showSecondaryActions}
-              aria-controls={`entity-secondary-actions-${entity.instanceId}`}
-              title={showSecondaryActions ? "Hide additional actions" : "Show additional actions"}
-            >
-              {showSecondaryActions ? "Less" : "More"}
-            </button>
-          )}
+          
           {mode === "edit" && showRemoveConfirm ? (
             <div className={styles.entityRemoveConfirm}>
               <span className={styles.confirmText}>Remove?</span>
@@ -163,121 +147,32 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
         </div>
       </div>
 
-      <div className={styles.entityRowMiddle}>
-        <div className={styles.entityStatsCompact}>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>Init</span>
-            {(mode === "edit" || (mode === "live" && canMutate)) && actions ? (
-              <InlineEditableNumber
-                value={entity.initiative}
-                onChange={handleInitiativeChange}
-                min={-10}
-                max={50}
-                className={styles.statValue}
-              />
-            ) : (
-              <span className={styles.statValue}>{entity.initiative}</span>
-            )}
-          </div>
-          <div className={styles.statDivider}></div>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}> HP </span>
-            {mode === "edit" && actions ? (
-              <InlineEditableNumber
-                value={entity.maxHp}
-                onChange={handleMaxHpChange}
-                min={1}
-                max={9999}
-                className={styles.statValue}
-              />
-            ) : mode === "live" && actions ? (
-              <div className={styles.hpLiveDisplay}>
-                {canMutate ? (
-                  <InlineEditableNumber
-                    value={entity.currentHp}
-                    onChange={handleCurrentHpChange}
-                    min={0}
-                    max={9999}
-                    className={`${styles.statValue} ${styles.hpCurrent}`}
-                  />
-                ) : (
-                  <span className={`${styles.statValue} ${styles.hpCurrent}`}>{entity.currentHp}</span>
-                )}
-                <span className={styles.hpSeparator}>/</span>
-                <span className={`${styles.statValue} ${styles.hpMax}`}>{entity.maxHp}</span>
-              </div>
-            ) : (
-              <span className={styles.statValue}>
-                {entity.currentHp} / {entity.maxHp}
-              </span>
-            )}
-          </div>
-          {entity.tempHp > 0 && mode === "live" && (
-            <>
-              <div className={styles.statDivider}></div>
-              <div className={styles.statItem}>
-                <span className={styles.statLabel}>Temp</span>
-                <span className={styles.statValue}>{entity.tempHp}</span>
-              </div>
-            </>
-          )}
-          <div className={styles.statDivider}></div>
-          <div className={styles.statItem}>
-            <span className={styles.statLabel}>AC</span>
-            {mode === "edit" && actions ? (
-              <InlineEditableNumber
-                value={entity.ac}
-                onChange={handleAcChange}
-                min={1}
-                max={99}
-                className={styles.statValue}
-              />
-            ) : (
-              <span className={styles.statValue}>{entity.ac}</span>
-            )}
-          </div>
-        </div>
+      <div className={styles.entityRowContent}>
+        <EntityHpStats
+          entity={entity}
+          mode={mode}
+          canMutate={canMutate}
+          onMaxHpChange={handleMaxHpChange}
+          onCurrentHpChange={handleCurrentHpChange}
+        />
 
         {hasConditions && (
           <div className={styles.entityConditions}>
             <strong>Conditions:</strong> {conditionNames}
           </div>
         )}
+
+        {mode === "live" && (
+          <EntityRowLiveActions
+            entity={entity}
+            canMutate={canMutate}
+            sourceId={sourceId}
+            actions={actions}
+            showSecondaryActions={showSecondaryActions}
+            onToggleSecondary={handleToggleSecondaryActions}
+          />
+        )}
       </div>
-
-      {mode === "live" && (
-        <div className={styles.entityRowBottom}>
-          <div className={styles.entityActionsPrimary}>
-            <LiveHpActionControl
-              entityName={entity.displayName ?? entity.name}
-              disabled={!canMutate || sourceId === undefined}
-              onDamage={handleQuickDamage}
-              onHeal={handleQuickHeal}
-            />
-            
-          </div>
-
-          {showSecondaryActions && (
-            <div
-              id={`entity-secondary-actions-${entity.instanceId}`}
-              className={styles.entityActionsSecondary}
-            >
-              <button type="button" className={styles.actionButton} disabled title="Coming soon">
-                Condition
-              </button>
-              <button
-                type="button"
-                className={styles.actionButton}
-                onClick={handleToggleSecondaryActions}
-                title="Collapse additional actions"
-              >
-                Collapse
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       {isSelected && (
         <span
           className={`${linkStyles.selectionMarker} ${linkStyles.rowSelectionMarker}${isActive ? ' ' + linkStyles.activeSelectionMarker : ''}`}
