@@ -13,13 +13,16 @@
   color: color-mix(in srgb, var(--encounter-selected) 10%, white 90%);
 }
 
-.rowSelectionMarker {
+.rowSelectionMarker{
   position: absolute;
   top: 50%;
   right: -1rem;
   z-index: 3;
   transform: translateY(-50%);
   pointer-events: none;
+}
+.rowSelectionMarker:hover{
+  transform: translateY(-50%);
 }
 
 .sidepanelSelectionAnchor {
@@ -75,4 +78,36 @@
   .sidepanelSelectionMarker {
     display: none;
   }
+}
+
+/* Interactive row marker (button variant) */
+.selectionMarkerButton {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  pointer-events: all;
+}
+
+.selectionMarkerButton:hover {
+  background: color-mix(in srgb, var(--encounter-selected) 20%, transparent);
+  border-color: rgba(var(--encounter-selected-rgb), 0.55);
+}
+
+.selectionMarkerButton:focus-visible {
+  outline: 2px solid rgba(var(--encounter-selected-rgb), 0.6);
+  outline-offset: 2px;
+}
+
+/* Pinned state: fully saturated and highlighted */
+.pinnedSelectionMarker {
+  color: var(--encounter-selected);
+  background: color-mix(in srgb, var(--encounter-selected) 20%, transparent);
+  border-color: rgba(var(--encounter-selected-rgb), 0.6);
+}
+
+.pinnedSelectionMarker:hover {
+  background: color-mix(in srgb, var(--encounter-selected) 30%, transparent);
 }

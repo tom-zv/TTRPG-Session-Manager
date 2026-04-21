@@ -62,3 +62,52 @@
 .liveEncounterShell .resetButton:active:not(:disabled) {
   background: rgba(var(--danger-rgb), 0.16);
 }
+
+/* Sidebar card container — hosts the pin button absolutely positioned */
+.sidePanelCardContainer {
+  position: relative;
+}
+
+.pinButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s, color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.pinButton:hover {
+  opacity: 1;
+  background: rgba(var(--encounter-selected-rgb), 0.1);
+  border-color: rgba(var(--encounter-selected-rgb), 0.25);
+}
+
+.pinButton:focus-visible {
+  outline: 2px solid rgba(var(--encounter-selected-rgb), 0.6);
+  outline-offset: 2px;
+  opacity: 1;
+}
+
+.pinButtonActive {
+  opacity: 1;
+  color: var(--encounter-selected);
+  background: rgba(var(--encounter-selected-rgb), 0.12);
+  border-color: rgba(var(--encounter-selected-rgb), 0.35);
+}
+
+.pinButtonActive:hover {
+  background: rgba(var(--encounter-selected-rgb), 0.2);
+}
