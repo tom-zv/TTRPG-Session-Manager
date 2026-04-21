@@ -1,6 +1,6 @@
 import { AnySystemEncounterState, SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { BaseEncounterState } from "shared/domain/encounters/coreEncounter.js";
-import { EncounterRequest } from "shared/sockets/encounters/requests.js";
+import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { IStateCache } from "./stateCache.js";
 import { IEventAuthorizer, IRequestHandler } from "./requestHandler.js";

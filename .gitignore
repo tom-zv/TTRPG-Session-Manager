@@ -1,7 +1,5 @@
 .vscode/
-.github/
 .env
-.serena/
 node_modules/
 dist/
 # Logs

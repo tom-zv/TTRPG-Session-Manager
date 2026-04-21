@@ -83,7 +83,7 @@ const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({ entity, clas
       {/* Type line */}
       <div className={styles.kv}>
         <span className={styles.v}>
-          {entity.size && capitalize(entity.size)} {entity.entityType}
+          {entity.size && capitalize(entity.size)} {entity.role}
           {entity.alignment && `, ${entity.alignment}`}
         </span>
       </div>
@@ -138,19 +138,19 @@ const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({ entity, clas
       {entity.resistances && entity.resistances.length > 0 && (
         <div className={styles.kv}>
           <span className={styles.k}>Resistances: </span>
-          <span className={styles.v}>{entity.resistances.join(", ")}</span>
+          <span className={styles.v}>{entity.resistances.map(r => r.conditionNote ? `${r.damageType} (${r.conditionNote})` : r.damageType).join(", ")}</span>
         </div>
       )}
       {entity.immunities && entity.immunities.length > 0 && (
         <div className={styles.kv}>
           <span className={styles.k}>Immunities: </span>
-          <span className={styles.v}>{entity.immunities.join(", ")}</span>
+          <span className={styles.v}>{entity.immunities.map(r => r.conditionNote ? `${r.damageType} (${r.conditionNote})` : r.damageType).join(", ")}</span>
         </div>
       )}
       {entity.vulnerabilities && entity.vulnerabilities.length > 0 && (
         <div className={styles.kv}>
           <span className={styles.k}>Vulnerabilities: </span>
-          <span className={styles.v}>{entity.vulnerabilities.join(", ")}</span>
+          <span className={styles.v}>{entity.vulnerabilities.map(r => r.conditionNote ? `${r.damageType} (${r.conditionNote})` : r.damageType).join(", ")}</span>
         </div>
       )}
 

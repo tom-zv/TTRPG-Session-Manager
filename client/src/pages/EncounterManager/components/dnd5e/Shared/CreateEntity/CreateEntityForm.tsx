@@ -13,7 +13,7 @@ export const CreateEntityForm: React.FC<CreateEntityFormProps> = ({
 }) => {
   // Form state
   const [name, setName] = useState('');
-  const [entityType, setEntityType] = useState<'pc' | 'npc' | 'creature'>('creature');
+  const [role, setRole] = useState<'pc' | 'npc' | 'creature'>('creature');
   const [cr, setCr] = useState('');
   const [ac, setAc] = useState('10');
   const [hp, setHp] = useState('1');
@@ -46,7 +46,7 @@ export const CreateEntityForm: React.FC<CreateEntityFormProps> = ({
     try {
       const entityData: Omit<DnD5eEntityDetails, 'templateId' | 'createdAt'> = {
         name: name.trim(),
-        entityType,
+        role,
         cr: cr.trim() || undefined,
         ac: parseInt(ac) || 10,
         hp: parseInt(hp) || 1,
@@ -87,11 +87,11 @@ export const CreateEntityForm: React.FC<CreateEntityFormProps> = ({
       placeholder: 'Enter entity name',
     },
     {
-      id: 'entityType',
+      id: 'role',
       label: 'Type',
       type: 'select',
-      value: entityType,
-      onChange: (v) => setEntityType(v as 'pc' | 'npc' | 'creature'),
+      value: role,
+      onChange: (v) => setRole(v as 'pc' | 'npc' | 'creature'),
       options: [
         { value: 'creature', label: 'Creature' },
         { value: 'npc', label: 'NPC' },

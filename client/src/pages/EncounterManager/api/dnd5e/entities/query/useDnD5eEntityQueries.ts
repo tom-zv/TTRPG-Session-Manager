@@ -50,7 +50,7 @@ export function useCreateDnD5eEntity() {
           const newSummary: DnD5eEntitySummary = {
             templateId: data.entity.templateId,
             name: data.entity.name,
-            entityType: data.entity.entityType,
+            role: data.entity.role,
             cr: data.entity.cr,
             hp: data.entity.hp,
           };
@@ -84,7 +84,7 @@ export function useUpdateDnD5eEntity() {
               return {
                 templateId: updatedEntity.templateId,
                 name: updatedEntity.name,
-                entityType: updatedEntity.entityType,
+                role: updatedEntity.role,
                 cr: updatedEntity.cr,
                 hp: updatedEntity.hp,
               };
