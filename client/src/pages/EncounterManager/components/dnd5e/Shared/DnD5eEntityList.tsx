@@ -14,6 +14,8 @@ type EntityListProps = {
   sourceId?: number;
   selectedEntityId?: number;
   onSelectEntity?: (entityId: number) => void;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
   topAdornment?: React.ReactNode;
 };
 
@@ -27,6 +29,8 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   sourceId,
   selectedEntityId,
   onSelectEntity,
+  isPinned,
+  onTogglePin,
   topAdornment,
 }) => {
   const handleRemove = useCallback(
@@ -81,6 +85,8 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
                 canMutate={canMutate}
                 sourceId={sourceId}
                 onSelect={onSelectEntity}
+                isPinned={entity.instanceId === selectedEntityId ? isPinned : undefined}
+                onTogglePin={entity.instanceId === selectedEntityId ? onTogglePin : undefined}
               />
             ))}
           </div>

@@ -16,6 +16,7 @@
 }
 
 .entityRows {
+  padding-top: 2px;
   padding-left: var(--row-indent);
   display: flex;
   flex-direction: column;
@@ -33,7 +34,7 @@
   align-self: flex-start;
   display: flex;
   justify-content: center;
-  width: min(calc(600px - 2 * var(--dock-inset)), 100%);
+  width: min(calc(600px - 2 * var(--dock-inset)), 100%); 
   margin-bottom: 0.5rem;
 }
 

@@ -18,6 +18,8 @@ type DnD5eEntityRowProps = {
   canMutate?: boolean;
   sourceId?: number;
   onSelect?: (entityId: number) => void;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
 };
 
 const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
@@ -30,6 +32,8 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   canMutate = true,
   sourceId,
   onSelect,
+  isPinned,
+  onTogglePin,
 }) => {
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showSecondaryActions, setShowSecondaryActions] = useState(false);
@@ -174,12 +178,23 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
         )}
       </div>
       {isSelected && (
-        <span
-          className={`${linkStyles.selectionMarker} ${linkStyles.rowSelectionMarker}${isActive ? ' ' + linkStyles.activeSelectionMarker : ''}`}
-          aria-hidden="true"
-        >
-          <GiWarlockEye />
-        </span>
+        onTogglePin ? (
+          <button
+            className={`${linkStyles.selectionMarker} ${linkStyles.selectionMarkerButton} ${linkStyles.rowSelectionMarker}${isActive ? " " + linkStyles.activeSelectionMarker : ""}${isPinned ? " " + linkStyles.pinnedSelectionMarker : ""}`}
+            onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
+            title={isPinned ? "Pinned — click to follow active turn" : "Following active turn — click to pin"}
+            aria-label={isPinned ? "Unpin entity" : "Pin entity"}
+          >
+            <GiWarlockEye />
+          </button>
+        ) : (
+          <span
+            className={`${linkStyles.selectionMarker} ${linkStyles.rowSelectionMarker}${isActive ? " " + linkStyles.activeSelectionMarker : ""}`}
+            aria-hidden="true"
+          >
+            <GiWarlockEye />
+          </span>
+        )
       )}
     </div>
   );
