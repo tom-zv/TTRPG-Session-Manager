@@ -1,7 +1,7 @@
 -- Extend core entities table with DnD specific properties
 CREATE TABLE
     IF NOT EXISTS dnd5e.entities (
-        id INT PRIMARY KEY REFERENCES core.entities (id) ON DELETE CASCADE,
+        id INT PRIMARY KEY,
         role ENUM ('pc', 'npc', 'creature') NOT NULL DEFAULT 'creature',
         creature_type VARCHAR(64) NULL,              -- 'beast', 'humanoid', 'fiend', etc.
         type_tags JSON NULL,                         -- type.tags or swarmSize: ["elf"], ["shapechanger"]
@@ -18,7 +18,8 @@ CREATE TABLE
         passive_perception SMALLINT NULL,
         languages JSON NULL,                         -- ["Common", "Elvish", "telepathy 120 ft."]
         legendary_action_count TINYINT NOT NULL DEFAULT 0,
-        legendary_header JSON NULL                   -- intro text lines for legendary actions section
+        legendary_header JSON NULL,                  -- intro text lines for legendary actions section
+        CONSTRAINT fk_dnd5e_entities_core_entity FOREIGN KEY (id) REFERENCES core.entities (id) ON DELETE CASCADE
     );
 CREATE TABLE
     IF NOT EXISTS dnd5e.entity_traits (

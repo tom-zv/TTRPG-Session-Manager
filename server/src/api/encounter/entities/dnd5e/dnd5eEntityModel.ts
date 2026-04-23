@@ -11,31 +11,8 @@ import {
 import { RowDataPacket, PoolConnection } from "mysql2/promise";
 import { DnD5eEntityState } from "shared/domain/encounters/dnd5e/entity.js";
 
-// Columns that live on the dnd5e.entities main row
-interface DnD5eEntityTableData {
-  role: 'pc' | 'npc' | 'creature';
-  creature_type?: string;
-  type_tags?: string[];
-  cr?: string;
-  ac: number;
-  hp: number;
-  hp_formula?: string;
-  speeds: { [key: string]: number };
-  size: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
-  alignment: string;
-  ability_scores: {
-    str: number; dex: number; con: number;
-    int: number; wis: number; cha: number;
-  };
-  saves?: { [key: string]: string };
-  skills?: { [key: string]: string };
-  passive_perception?: number;
-  languages?: string[];
-  legendary_action_count?: number;
-  legendary_header?: string[];
-}
-
-function extractDnD5eTableFields(data: Omit<DnD5eEntityDB, "id" | "created_at">): DnD5eEntityTableData {
+// Extract only the columns that live on the dnd5e.entities main row
+function extractDnD5eTableFields(data: Omit<DnD5eEntityDB, "id" | "created_at">) {
   return {
     role: data.role,
     creature_type: data.creature_type,
@@ -440,7 +417,7 @@ export async function getEntitySummaries(): Promise<DnD5eEntitySummaryDB[]> {
 // ─── Private utilities ────────────────────────────────────────────────────────
 
 function prepareEntityFields(
-  data: DnD5eEntityTableData,
+  data: Record<string, unknown>,
   isUpdate: boolean
 ): { fields: string[]; values: unknown[] } {
   const fields: string[] = [];
