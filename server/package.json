@@ -8,6 +8,9 @@
     "start": "node dist/server/src/index.js",
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
+
+    "import:dnd5etools": "tsx src/scripts/import-dnd5etools-entities.ts",
+
     "build": "tsc && tsc-alias",
     "watch": "tsc -w",
     "lint": "eslint src --ext .ts",

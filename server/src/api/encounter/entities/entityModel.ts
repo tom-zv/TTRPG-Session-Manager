@@ -3,6 +3,7 @@ import { DnD5eEntitySummaryDB } from "./dnd5e/types.js";
 import { DnD5eEntityDB } from "./dnd5e/types.js";
 import { CoreEntityDB } from "./types.js";
 import { ResultSetHeader } from "mysql2";
+import type { PoolConnection } from "mysql2/promise";
 import dnd5eModel from "./dnd5e/dnd5eEntityModel.js";
 import { ValidationError } from "src/api/HttpErrors.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
@@ -38,6 +39,47 @@ function extractCoreEntityFields(data: Partial<CoreEntityDB>): Partial<CoreEntit
   }
   
   return coreFields;
+}
+
+export async function insertCoreEntity(
+  connection: PoolConnection,
+  data: Partial<CoreEntityDB>
+): Promise<number> {
+  const coreData = extractCoreEntityFields(data);
+
+  const [coreResult] = await connection.execute<ResultSetHeader>(
+    "INSERT INTO core.entities (name, image_url) VALUES (?, ?)",
+    [coreData.name, coreData.image_url || null]
+  );
+
+  return coreResult.insertId;
+}
+
+export async function updateCoreEntity(
+  connection: PoolConnection,
+  id: number,
+  data: Partial<CoreEntityDB>
+): Promise<void> {
+  const coreData = extractCoreEntityFields(data);
+  const coreFields: string[] = [];
+  const coreValues: unknown[] = [];
+
+  if (coreData.name !== undefined) {
+    coreFields.push("name = ?");
+    coreValues.push(coreData.name);
+  }
+
+  if (coreData.image_url !== undefined) {
+    coreFields.push("image_url = ?");
+    coreValues.push(coreData.image_url);
+  }
+
+  if (coreFields.length === 0) return;
+
+  await connection.execute(
+    `UPDATE core.entities SET ${coreFields.join(", ")} WHERE id = ?`,
+    [...coreValues, id]
+  );
 }
 
 export async function getEntityById<T extends SystemType>(
@@ -107,13 +149,7 @@ async function insertEntity<T extends SystemType>(
   await connection.beginTransaction();
 
   try{
-    // Insert into core entities table
-    const [coreResult] = await connection.execute<ResultSetHeader>(
-        "INSERT INTO core.entities (name, image_url) VALUES (?, ?)",
-        [coreData.name, coreData.image_url || null]
-    );
-
-    const entityId = coreResult.insertId;
+    const entityId = await insertCoreEntity(connection, coreData);
 
     switch (system) {
       case "dnd5e":
@@ -154,32 +190,7 @@ async function updateEntity<T extends SystemType>(
   await connection.beginTransaction();
 
   try {
-    // Extract only core entity fields for core.entities table
-    const coreData = extractCoreEntityFields(data);
-
-    const coreFields: string[] = [];
-    const coreValues: unknown[] = [];
-
-    if (coreData.name !== undefined) {
-      coreFields.push("name = ?");
-      coreValues.push(coreData.name);
-    }
-
-    if (coreData.image_url !== undefined) {
-      coreFields.push("image_url = ?");
-      coreValues.push(coreData.image_url);
-    }
-
-    // Only update core table if there are core fields to update
-    if (coreFields.length > 0) {
-      const coreQuery = `
-        UPDATE core.entities 
-        SET ${coreFields.join(", ")}
-        WHERE id = ?
-      `;
-
-      await connection.execute(coreQuery, [...coreValues, id]);
-    }
+    await updateCoreEntity(connection, id, data);
 
     // Handle system-specific updates
     switch (system) {
@@ -218,6 +229,8 @@ export default {
   getEntitiesByIds,
   getAllEntities,
   getEntitySummaries,
+  insertCoreEntity,
+  updateCoreEntity,
   insertEntity,
   updateEntity,
   deleteEntity
