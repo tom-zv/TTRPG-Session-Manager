@@ -72,6 +72,8 @@
 }
 
 .sidePanel {
+  display: flex;
+  min-height: 0;
   gap: 0.45rem;
   padding-inline-end: var(--spacing-xs);
 }
@@ -80,7 +82,12 @@
   position: relative;
   display: flex;
   align-items: flex-start;
-  margin-top: 20px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-top: 20px;
 }
 
 .panelResizeHandle {
