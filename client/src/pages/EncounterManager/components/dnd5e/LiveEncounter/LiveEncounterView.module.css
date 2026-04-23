@@ -66,6 +66,8 @@
 /* Sidebar card container — hosts the pin button absolutely positioned */
 .sidePanelCardContainer {
   position: relative;
+  width: 100%;
+  max-width: 100%;
 }
 
 .pinButton {

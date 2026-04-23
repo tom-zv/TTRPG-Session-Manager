@@ -15,9 +15,8 @@
 
 /* Card shell */
 .entityCard {
-    align-self: center;
   box-sizing: border-box;
-  width: 480px;
+  width: min(480px, 100%);
   background:
     radial-gradient(120% 100% at 0% 0%, rgba(255, 255, 255, 0.03) 0 20%, transparent 50%),
     radial-gradient(120% 100% at 100% 100%, rgba(0, 0, 0, 0.2) 0 30%, transparent 70%),
@@ -25,22 +24,51 @@
   color: var(--ink);
   border: 2px solid var(--border-color);
   border-radius: 8px;
-  padding: 14px 16px 16px;
+  padding: 22px 16px 16px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
   font-family: ui-serif, Georgia, "Times New Roman", serif;
   line-height: 1.25;
 }
 
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 2px solid var(--accent);
+}
+
+.headerText {
+  min-width: 0;
+}
+
 /* Top name line */
 .entityCard h3 {
-  margin: 0 0 0.35rem 0;
+  margin: 0 0 0.2rem 0;
   font-size: 1.35rem;
   line-height: 1.1;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--text-primary);
   font-weight: 800;
-  padding-bottom: 0.25rem;
+}
+
+.typeLine {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.tokenImage {
+  flex: 0 0 auto;
+  width: 74px;
+  height: 74px;
+  object-fit: cover;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--card-bg-elevated);
 }
 
 /* Small stat line (AC/HP/etc.) */
@@ -55,7 +83,8 @@
 
 .statlineRow {
   display: flex;
-  gap: 1.5rem;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.5rem;
 }
 
 .statline strong {
@@ -71,11 +100,14 @@
   font-size: 0.9rem;
 }
 
+.infoBlock {
+  margin: 0.2rem 0 0.4rem;
+}
+
 .k {
   color: var(--text-tertiary);
   font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.01em;
 }
 
 .v {
@@ -104,6 +136,55 @@
 
 .section p {
   margin: 0.25rem 0 0.5rem;
+}
+
+.sectionIntro {
+  color: var(--text-tertiary);
+  font-style: italic;
+}
+
+.sectionIntro strong {
+  color: var(--text-secondary);
+}
+
+.entry,
+.entryBlock {
+  margin: 0.25rem 0 0.55rem;
+}
+
+.entryName {
+  color: var(--text-primary);
+  font-style: italic;
+  font-weight: 900;
+}
+
+.entryText {
+  white-space: pre-line;
+}
+
+.spellcastingMeta {
+  color: var(--text-tertiary);
+  font-size: 0.84rem;
+  margin-top: -0.25rem;
+}
+
+.spellList {
+  display: grid;
+  gap: 0.12rem;
+  margin: 0.25rem 0 0.45rem;
+}
+
+.spellListLine {
+  color: var(--text-secondary);
+}
+
+.spellListLabel {
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.spellListSpells {
+  color: var(--accent);
 }
 
 .section ul {

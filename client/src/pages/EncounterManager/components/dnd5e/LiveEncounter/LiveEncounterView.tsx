@@ -175,7 +175,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             className={`${layoutStyles.encounterPanels} ${styles.panelsLocked}`}
           >
             <Panel
-              defaultSize={70}
+              defaultSize={72}
               minSize={20}
               className={`${layoutStyles.panelMinHeight} ${styles.entityListPanel}`}
             >
@@ -207,8 +207,8 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             <PanelResizeHandle className={layoutStyles.panelResizeHandle} />
 
             <Panel
-              defaultSize={30}
-              minSize={34}
+              defaultSize={28}
+              minSize={28}
               className={
                 selectedEntity
                   ? layoutStyles.sidePanel
