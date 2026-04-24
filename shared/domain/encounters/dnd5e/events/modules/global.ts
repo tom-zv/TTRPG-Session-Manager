@@ -32,6 +32,7 @@ export const globalHandler = {
       const displayName = sameTemplate.length > 0 ? `${event.values.name} ${sameTemplate.length + 1}` : undefined;
       
       state.entityStates.push(makeEntityStateful(event.values.templateId, instanceId, event.values.hp, displayName));
+      state.initiativeOrder.push(instanceId);
     },
 
     removeEntity(state, event){
@@ -50,7 +51,6 @@ export const globalHandler = {
 
     nextTurn(state) {
       const initiativeCount = state.initiativeOrder.length;
-      console.log(`Current turn: ${state.currentTurn}, Initiative count: ${initiativeCount}`);
 
       if (initiativeCount === 0) {
         state.currentTurn = 0;
@@ -60,12 +60,9 @@ export const globalHandler = {
       const normalizedTurn = state.currentTurn < 0 ? 0 : state.currentTurn % initiativeCount;
       const nextTurn = normalizedTurn + 1;
 
-      console.log(`Normalized turn: ${normalizedTurn}, Next turn: ${nextTurn}`);
-
       if (nextTurn >= initiativeCount) {
         state.currentTurn = 0;
         state.currentRound += 1;
-        console.log(`Starting new round: ${state.currentRound}`);
         return;
       }
       
