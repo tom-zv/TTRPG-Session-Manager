@@ -222,7 +222,6 @@ select {
   padding: 0.75rem;
   border-radius: var(--radius-md);
   width: 100%;
-  margin-bottom: var(--spacing-md);
   transition: border-color var(--transition-duration) ease,
     box-shadow var(--transition-duration) ease;
 }

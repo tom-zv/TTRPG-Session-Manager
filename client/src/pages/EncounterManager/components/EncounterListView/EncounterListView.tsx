@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import styles from './EncounterListView.module.css';
 import { useDeleteDnD5eEncounter} from '../../api/dnd5e/encounters/query/useDnD5eEncounterMutations.js';
 import 
   {AnySystemEncounterSummary, isSupportedSystem, supportedSystems, SystemType} from 'shared/domain/encounters/coreEncounter.js';
 import Dialog from 'src/components/Dialog/Dialog.js';
-import { CreateEntityForm } from '../dnd5e/Shared/CreateEntity/CreateEntityForm.js';
+import { CreateEntityForm } from '../dnd5e/Shared/DnD5eEntityForm/CreateEntityForm.js';
 import CreateEncounterForm from '../dnd5e/EncounterEditor/CreateEncounter/CreateEncounterForm.js';
 
 // const systemOptions = supportedSystems.map((value) => ({
@@ -38,6 +38,11 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
   const [difficulty, setDifficulty] = useState<string>('');
   const [isCreateEntityDialogOpen, setIsCreateEntityDialogOpen] = useState(false);
   const [isCreateEncounterDialogOpen, setIsCreateEncounterDialogOpen] = useState(false);
+  const createEntityButtonRef = useRef<HTMLButtonElement>(null);
+  const closeCreateEntityDialog = () => {
+    setIsCreateEntityDialogOpen(false);
+    window.setTimeout(() => createEntityButtonRef.current?.focus(), 0);
+  };
   const encounters = useMemo(() => {
     if (!encounterSummaries) return [];
     const q = query.trim().toLowerCase();
@@ -106,7 +111,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
           <option value="deadly">Deadly</option>
         </select>
         <button onClick={() => setIsCreateEncounterDialogOpen(true)}>+ New Encounter</button>
-        <button onClick={() => setIsCreateEntityDialogOpen(true)}>+ Create Entity</button>
+        <button ref={createEntityButtonRef} onClick={() => setIsCreateEntityDialogOpen(true)}>+ Create Entity</button>
       </div>
 
   {/* {isLoading && <div>Loading encounters…</div>}
@@ -164,11 +169,13 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
 
       <Dialog
         isOpen={isCreateEntityDialogOpen}
-        onClose={() => setIsCreateEntityDialogOpen(false)}
+        onClose={closeCreateEntityDialog}
         title="Create New Entity"
+        className="entity-form-dialog"
+        returnFocusRef={createEntityButtonRef}
       >
         <CreateEntityForm
-          onCancel={() => setIsCreateEntityDialogOpen(false)}
+          onCancel={closeCreateEntityDialog}
         />
       </Dialog>
 

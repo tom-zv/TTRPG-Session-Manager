@@ -5,7 +5,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 10vh;
+  padding: min(10vh, 72px) 16px 16px;
   z-index: 1000;
   pointer-events: auto;
   background: rgba(0, 0, 0, 0.7);   
@@ -17,15 +17,18 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  /* width: 320px;  */
-  max-width: 90vw; 
-  max-height: 80vh;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - min(10vh, 72px) - 16px);
   display: flex; 
   flex-direction: column; 
   box-shadow: 0 4px 8px var(--shadow);
   z-index: 1001;
   pointer-events: auto;
   overflow: hidden;
+}
+
+.dialog-container.entity-form-dialog {
+  width: min(1120px, calc(100vw - 32px));
 }
 
 /* Standalone dialog container (when noOverlay is true) */
@@ -82,7 +85,8 @@
   padding: 12px 24px;
   color: var(--text-primary);
   overflow-y: auto; 
-  flex-grow: 1; 
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Support for :has() fallback for browsers that don't support it */
@@ -115,7 +119,15 @@
 
 @media (max-width: 600px) {
   .dialog-container {
-    width: 95%;
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+  }
+
+  .dialog-overlay {
+    padding: 12px;
+  }
+
+  .dialog-content {
+    padding: 12px;
   }
 }
-

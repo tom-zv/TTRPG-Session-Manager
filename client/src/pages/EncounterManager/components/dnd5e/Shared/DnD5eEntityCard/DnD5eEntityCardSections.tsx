@@ -62,7 +62,7 @@ export const StatSummary: React.FC<EntitySectionProps> = ({ entity }) => {
         <StatItem label="Initiative" value={initiative} />
       </div>
       <div className={styles.statlineRow}>
-        <StatItem label="CR" value={entity.cr ?? "—"} />
+        <StatItem label="CR" value={entity.cr || "—"} />
         <StatItem label="Role" value={titleCase(entity.role)} />
       </div>
     </div>

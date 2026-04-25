@@ -3,6 +3,7 @@ import React, {
   ReactNode,
   useCallback,
   useEffect,
+  useId,
   useRef,
 } from "react";
 import ReactDOM from "react-dom";
@@ -16,6 +17,8 @@ export interface DialogProps {
   /** if true, use the side-panel cutout style; otherwise full-screen overlay */
   sidePanel?: boolean;
   contentRef?: React.RefObject<HTMLDivElement>;
+  initialFocusRef?: React.RefObject<HTMLElement>;
+  returnFocusRef?: React.RefObject<HTMLElement>;
   className?: string;
   noOverlay?: boolean;
 }
@@ -27,16 +30,19 @@ const Dialog: React.FC<DialogProps> = ({
   onClose,
   title,
   children,
-  contentRef,
+  contentRef: externalContentRef,
+  initialFocusRef,
+  returnFocusRef,
   className = "",
   noOverlay = false,
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
 
   // close on outside click
   const handleOutside = useCallback(
     (e: MouseEvent) => {
-      if ( noOverlay ) return
+      if (noOverlay) return;
       const tgt = e.target as Node;
       if (dialogRef.current?.contains(tgt)) return;
       onClose();
@@ -51,13 +57,117 @@ const Dialog: React.FC<DialogProps> = ({
     }
   }, [isOpen, handleOutside]);
 
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab") return;
+
+      const focusableElements = getFocusableElements(dialogRef.current);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      const activeElement = document.activeElement;
+
+      if (event.shiftKey && activeElement === firstElement) {
+        event.preventDefault();
+        lastElement.focus();
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === lastElement) {
+        event.preventDefault();
+        firstElement.focus();
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown, isOpen]);
+
   // lock scroll
   useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "auto";
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = isOpen ? "hidden" : previousOverflow;
     return () => {
-      document.body.style.overflow = "auto";
+      document.body.style.overflow = previousOverflow;
     };
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const previousActiveElement =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const returnFocusElement = returnFocusRef?.current ?? null;
+
+    const focusTarget =
+      initialFocusRef?.current ??
+      getFocusableElements(getDialogContent(dialogRef.current)).find((element) =>
+        isFormControl(element)
+      ) ??
+      getFocusableElements(dialogRef.current)[0] ??
+      dialogRef.current;
+
+    window.requestAnimationFrame(() => {
+      focusTarget?.focus();
+    });
+
+    return () => {
+      window.setTimeout(() => {
+        (returnFocusElement ?? previousActiveElement)?.focus();
+      }, 0);
+    };
+  }, [initialFocusRef, isOpen, returnFocusRef]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const portalElement =
+      (noOverlay ? dialogRef.current : dialogRef.current?.parentElement) ?? null;
+    if (!portalElement) return;
+
+    const hiddenSiblings = Array.from(document.body.children)
+      .filter((element) => element !== portalElement)
+      .map((element) => {
+        const target = element as HTMLElement & { inert?: boolean };
+        return {
+          element: target,
+          ariaHidden: target.getAttribute("aria-hidden"),
+          inert: target.inert,
+        };
+      });
+
+    hiddenSiblings.forEach(({ element }) => {
+      element.setAttribute("aria-hidden", "true");
+      element.inert = true;
+    });
+
+    return () => {
+      hiddenSiblings.forEach(({ element, ariaHidden, inert }) => {
+        if (ariaHidden == null) {
+          element.removeAttribute("aria-hidden");
+        } else {
+          element.setAttribute("aria-hidden", ariaHidden);
+        }
+        element.inert = inert;
+      });
+    };
+  }, [isOpen, noOverlay]);
 
   // block all drag/drop outside, allow inside
   useEffect(() => {
@@ -96,10 +206,11 @@ const Dialog: React.FC<DialogProps> = ({
         ref={dialogRef}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={titleId}
         tabIndex={-1}
       >
         <header className="dialog-header">
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <button
             className="close-button"
             onClick={(e) => {
@@ -111,7 +222,7 @@ const Dialog: React.FC<DialogProps> = ({
             ×
           </button>
         </header>
-        <div className="dialog-content" ref={contentRef}>
+        <div className="dialog-content" ref={externalContentRef}>
           {children}
         </div>
       </div>
@@ -126,10 +237,11 @@ const Dialog: React.FC<DialogProps> = ({
           ref={dialogRef}
           role="dialog"
           aria-modal="true"
+          aria-labelledby={titleId}
           tabIndex={-1}
         >
           <header className="dialog-header">
-            <h2>{title}</h2>
+            <h2 id={titleId}>{title}</h2>
             <button
               className="close-button"
               onClick={(e) => {
@@ -141,7 +253,7 @@ const Dialog: React.FC<DialogProps> = ({
               ×
             </button>
           </header>
-          <div className="dialog-content" ref={contentRef}>
+          <div className="dialog-content" ref={externalContentRef}>
             {children}
           </div>
         </div>
@@ -150,5 +262,30 @@ const Dialog: React.FC<DialogProps> = ({
     document.body
   );
 };
+
+const FOCUSABLE_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled]):not([type='hidden'])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  "[tabindex]:not([tabindex='-1'])",
+].join(",");
+
+const getFocusableElements = (container: HTMLElement | null): HTMLElement[] => {
+  if (!container) return [];
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (element) =>
+      !element.hasAttribute("disabled") &&
+      element.getAttribute("aria-hidden") !== "true" &&
+      element.offsetParent !== null
+  );
+};
+
+const getDialogContent = (dialog: HTMLElement | null): HTMLElement | null =>
+  dialog?.querySelector<HTMLElement>(".dialog-content") ?? null;
+
+const isFormControl = (element: HTMLElement): boolean =>
+  ["INPUT", "SELECT", "TEXTAREA"].includes(element.tagName);
 
 export default Dialog;
