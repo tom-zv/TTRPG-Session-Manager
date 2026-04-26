@@ -2,7 +2,7 @@ import React, { useCallback, useState } from "react";
 import { GiWarlockEye } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
-import InlineEditableNumber from "src/components/InlineEditableNumber/InlineEditableNumber.js";
+import { EditableField } from "src/components/FormControls/index.js";
 import { EntityHpStats } from "./EntityHpStats.js";
 import { EntityRowLiveActions } from "./EntityRowLiveActions.js";
 import styles from "./DnD5eEntityRow.module.css";
@@ -100,12 +100,16 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
       <div className={styles.initiativeTab} aria-label="Initiative value">
         {/* <span className={styles.initiativeTabLabel}>Init</span> */}
         {(mode === "edit" || (mode === "live" && canMutate)) && actions ? (
-          <InlineEditableNumber
+          <EditableField
+            type="number"
             value={entity.initiative}
             onChange={handleInitiativeChange}
             min={-10}
             max={50}
             className={`${styles.statValue} ${styles.initiativeTabValue}`}
+            displayClassName={styles.inlineNumberDisplay}
+            inputClassName={styles.inlineNumberInput}
+            compact
           />
         ) : (
           <span className={`${styles.statValue} ${styles.initiativeTabValue}`}>{entity.initiative}</span>

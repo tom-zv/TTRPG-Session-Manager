@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { useUpdateFile } from "src/pages/SoundManager/api/files/useFileMutations.js";
-import EditableField from "src/components/EditableField/EditableField.js";
+import { EditableField } from "src/components/FormControls/index.js";
 import styles from "./EditFileDialog.module.css";
 import { AudioFileUI } from "../../types.js";
 
@@ -46,10 +46,7 @@ const EditFileDialog: React.FC<EditProps> = ({
     }
   }, [isOpen, initialData]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
+  const handleChange = (name: string, value: string) => {
     dirtyFields.current.add(name);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -97,9 +94,8 @@ const EditFileDialog: React.FC<EditProps> = ({
 
         <EditableField
           label="Name"
-          name="name"
           value={formData.name || ""}
-          onChange={handleChange}
+          onChange={(value) => handleChange("name", value)}
         />
 
         <div className="form-section">
@@ -107,17 +103,15 @@ const EditFileDialog: React.FC<EditProps> = ({
           
           <EditableField
             label="File URL"
-            name="url"
             type="url"
             value={formData.url || ""}
-            onChange={handleChange}
+            onChange={(value) => handleChange("url", value)}
           />
 
           <EditableField
             label="File Path"
-            name="path"
             value={formData.path || ""}
-            onChange={handleChange}
+            onChange={(value) => handleChange("path", value)}
           />
         </div>
 

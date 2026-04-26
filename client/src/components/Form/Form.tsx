@@ -1,4 +1,5 @@
 import React from 'react';
+import { FormActions, FormErrorAlert, FormField } from 'src/components/FormControls/index.js';
 import './Form.css';
 
 // ---------- Types ----------
@@ -140,10 +141,7 @@ const ConfigForm: React.FC<FormProps> = ({
       name,
       autoComplete
     } = field;
-    const hasError = Boolean(fieldError);
-    const fieldClassName = `form-group ${hasError ? 'has-error' : ''}`;
     const nameAttr = name ?? id;
-    const describedById = hasError ? `${id}-error` : undefined;
 
     const handleString = (v: string) => {
       (field as TextLikeField | SelectField | RadioField).onChange(v);
@@ -169,23 +167,15 @@ const ConfigForm: React.FC<FormProps> = ({
     switch (field.type) {
       case 'select': {
         const f = field as SelectField;
-        const showRequiredPlaceholder =
-          f.required && (!f.value || f.value === '');
-
+        const showRequiredPlaceholder = f.required && (!f.value || f.value === '');
         return (
-          <div className={fieldClassName} key={id}>
-            <label htmlFor={id}>{label}{required ? ' *' : ''}</label>
+          <FormField key={id} label={label} name={nameAttr} error={fieldError}>
             <select
-              id={id}
-              name={nameAttr}
               value={f.value}
               required={required}
               disabled={disabled}
               onChange={(e) => handleString(e.target.value)}
-              aria-invalid={hasError || undefined}
-              aria-describedby={describedById}
               autoComplete={autoComplete}
-              className={hasError ? 'error-field' : ''}
             >
               {showRequiredPlaceholder && (
                 <option value="" disabled>
@@ -198,12 +188,7 @@ const ConfigForm: React.FC<FormProps> = ({
                 </option>
               ))}
             </select>
-            {hasError && (
-              <div id={describedById} className="field-error">
-                {fieldError}
-              </div>
-            )}
-          </div>
+          </FormField>
         );
       }
 
@@ -214,67 +199,45 @@ const ConfigForm: React.FC<FormProps> = ({
           : f.value && 'name' in (f.value as File)
           ? (f.value as File).name
           : '';
-
         const isMultiple = Boolean(f.multiple);
-
         return (
-          <div className={fieldClassName} key={id}>
-            <label htmlFor={id}>{label}{required ? ' *' : ''}</label>
+          <FormField key={id} label={label} name={nameAttr} error={fieldError}>
             <input
-              id={id}
-              name={nameAttr}
               type="file"
               accept={f.accept}
               multiple={isMultiple}
               required={required}
               disabled={disabled}
               onChange={(e) => handleFile(e.target.files, isMultiple)}
-              aria-invalid={hasError || undefined}
-              aria-describedby={describedById}
-              className={hasError ? 'error-field' : ''}
             />
             {fileLabel && <p className="file-name">Selected: {fileLabel}</p>}
-            {hasError && (
-              <div id={describedById} className="field-error">
-                {fieldError}
-              </div>
-            )}
-          </div>
+          </FormField>
         );
       }
 
       case 'textarea': {
         const f = field as TextLikeField;
         return (
-          <div className={fieldClassName} key={id}>
-            <label htmlFor={id}>{label}{required ? ' *' : ''}</label>
+          <FormField key={id} label={label} name={nameAttr} error={fieldError}>
             <textarea
-              id={id}
-              name={nameAttr}
               value={f.value}
               onChange={(e) => handleString(e.target.value)}
               placeholder={placeholder}
               required={required}
               disabled={disabled}
-              aria-invalid={hasError || undefined}
-              aria-describedby={describedById}
               autoComplete={autoComplete}
               rows={f.rows ?? 4}
-              className={hasError ? 'error-field' : ''}
             />
-            {hasError && (
-              <div id={describedById} className="field-error">
-                {fieldError}
-              </div>
-            )}
-          </div>
+          </FormField>
         );
       }
 
       case 'checkbox': {
         const f = field as CheckboxField;
+        const hasError = Boolean(fieldError);
+        const errorId = hasError ? `${id}-error` : undefined;
         return (
-          <div className={`${fieldClassName} checkbox-group`} key={id}>
+          <div className={`form-group checkbox-group${hasError ? ' has-error' : ''}`} key={id}>
             <label>
               <input
                 id={id}
@@ -285,15 +248,12 @@ const ConfigForm: React.FC<FormProps> = ({
                 required={required}
                 disabled={disabled}
                 aria-invalid={hasError || undefined}
-                aria-describedby={describedById}
-                className={hasError ? 'error-field' : ''}
+                aria-describedby={errorId}
               />
               {label}{required ? ' *' : ''}
             </label>
             {hasError && (
-              <div id={describedById} className="field-error">
-                {fieldError}
-              </div>
+              <div id={errorId} className="field-error">{fieldError}</div>
             )}
           </div>
         );
@@ -301,8 +261,10 @@ const ConfigForm: React.FC<FormProps> = ({
 
       case 'radio': {
         const f = field as RadioField;
+        const hasError = Boolean(fieldError);
+        const errorId = hasError ? `${id}-error` : undefined;
         return (
-          <fieldset className={fieldClassName} key={id}>
+          <fieldset className={`form-group${hasError ? ' has-error' : ''}`} key={id}>
             <legend>{label}{required ? ' *' : ''}</legend>
             {f.options.map((opt) => {
               const optId = `${id}__${opt.value}`;
@@ -317,17 +279,14 @@ const ConfigForm: React.FC<FormProps> = ({
                     onChange={() => handleString(opt.value)}
                     required={required}
                     disabled={disabled}
-                    aria-describedby={describedById}
-                    className={hasError ? 'error-field' : ''}
+                    aria-describedby={errorId}
                   />
                   {opt.label}
                 </label>
               );
             })}
             {hasError && (
-              <div id={describedById} className="field-error">
-                {fieldError}
-              </div>
+              <div id={errorId} className="field-error">{fieldError}</div>
             )}
           </fieldset>
         );
@@ -337,28 +296,17 @@ const ConfigForm: React.FC<FormProps> = ({
         // text | url
         const f = field as TextLikeField;
         return (
-          <div className={fieldClassName} key={id}>
-            <label htmlFor={id}>{label}{required ? ' *' : ''}</label>
+          <FormField key={id} label={label} name={nameAttr} error={fieldError}>
             <input
-              id={id}
-              name={nameAttr}
               type={field.type}
               value={f.value}
               onChange={(e) => handleString(e.target.value)}
               placeholder={placeholder}
               required={required}
               disabled={disabled}
-              aria-invalid={hasError || undefined}
-              aria-describedby={describedById}
               autoComplete={autoComplete}
-              className={hasError ? 'error-field' : ''}
             />
-            {hasError && (
-              <div id={describedById} className="field-error">
-                {fieldError}
-              </div>
-            )}
-          </div>
+          </FormField>
         );
       }
     }
@@ -366,22 +314,18 @@ const ConfigForm: React.FC<FormProps> = ({
 
   return (
     <div className={`form-container ${className}`}>
-      {error && <div className="error-message alert alert-danger">{error}</div>}
+      <FormErrorAlert error={error} />
 
       <form onSubmit={onSubmit} {...formProps}>
         {processedFields.map(renderField)}
 
         {children}
 
-        <div className="form-actions">
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="submit-button"
-          >
-            {isSubmitting ? 'Processing...' : submitLabel}
-          </button>
-        </div>
+        <FormActions
+          submitLabel={isSubmitting ? 'Processing...' : submitLabel}
+          isSubmitting={isSubmitting}
+          className="form-actions"
+        />
       </form>
     </div>
   );

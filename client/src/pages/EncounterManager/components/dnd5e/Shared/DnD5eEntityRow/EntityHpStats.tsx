@@ -1,6 +1,6 @@
 import React from "react";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
-import InlineEditableNumber from "src/components/InlineEditableNumber/InlineEditableNumber.js";
+import { EditableField } from "src/components/FormControls/index.js";
 import styles from "./DnD5eEntityRow.module.css";
 
 type EntityHpStatsProps = {
@@ -23,21 +23,29 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
       <div className={`${styles.statItem} ${styles.statItemHp}`}>
         <span className={styles.statLabel}>HP</span>
         {mode === "edit" ? (
-          <InlineEditableNumber
+          <EditableField
+            type="number"
             value={entity.maxHp}
             onChange={onMaxHpChange}
             min={1}
             max={9999}
             className={styles.statValue}
+            displayClassName={styles.inlineNumberDisplay}
+            inputClassName={styles.inlineNumberInput}
+            compact
           />
         ) : canMutate ? (
           <div className={styles.hpLiveDisplay}>
-            <InlineEditableNumber
+            <EditableField
+              type="number"
               value={entity.currentHp}
               onChange={onCurrentHpChange}
               min={0}
               max={9999}
               className={`${styles.statValue} ${styles.hpCurrent}`}
+              displayClassName={styles.inlineNumberDisplay}
+              inputClassName={styles.inlineNumberInput}
+              compact
             />
             <span className={styles.hpSeparator}>/ </span>
             <span className={`${styles.statValue} ${styles.hpMax}`}>{entity.maxHp}</span>

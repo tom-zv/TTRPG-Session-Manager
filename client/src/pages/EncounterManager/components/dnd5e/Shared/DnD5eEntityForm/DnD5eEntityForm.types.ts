@@ -1,10 +1,5 @@
-import type {
-  DamageModifier,
-  DnD5eEntityDetails,
-  EntitySpellcasting,
-  SpellcastingLevel,
-} from "shared/domain/encounters/dnd5e/entity.js";
-import type { AbilityKey } from "../DnD5eEntityCard/DnD5eEntityCard.utils.js";
+import type { DnD5eEntityDetails, EntitySpellcasting, SpellcastingLevel } from "shared/domain/encounters/dnd5e/entity.js";
+import type { AbilityKey } from "../dnd5eUtils.js";
 
 export type EntityFormMode = "create" | "edit";
 
@@ -123,6 +118,26 @@ export type DraftListName =
   | "actions"
   | "spellcasting";
 
-export type DamageModifierInput = Omit<DamageModifier, "conditionNote"> & {
-  conditionNote?: string;
+export type OpenSectionId =
+  | "identity"
+  | "proficiencies"
+  | "defenses"
+  | "entries"
+  | "spellcasting"
+  | "legendary";
+
+export type OpenSections = Record<OpenSectionId, boolean>;
+export type FieldErrors = Record<string, string>;
+export type ProficiencyRowsView = "saves" | "skills";
+
+export type EntityFormValidationState = {
+  fieldErrors: FieldErrors;
+  rowErrors: FieldErrors;
+  sectionsToOpen: OpenSectionId[];
+  firstInvalidField?: string;
+  messages: string[];
 };
+
+export type EntityFormParseResult =
+  | (EntityFormValidationState & { ok: true; entity: EntityFormSubmitValue })
+  | (EntityFormValidationState & { ok: false });

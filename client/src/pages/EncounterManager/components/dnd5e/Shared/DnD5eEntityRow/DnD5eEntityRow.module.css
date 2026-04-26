@@ -134,11 +134,28 @@
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.48);
 }
 
-.initiativeTab :global(.inline-editable-number-display),
-.initiativeTab :global(.inline-editable-number-input){
+.inlineNumberDisplay,
+.inlineNumberInput {
+  min-height: unset;
+  height: 24px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  field-sizing: content;
   margin: 0 0 0 2px;
   font-size: 0.9rem;
-  padding: 0px 3px 0px 3px;
+  padding: 4px 3px 4px 3px;
+  cursor: text;
+}
+
+.inlineNumberDisplay {
+  background: transparent;
+  border-radius: var(--radius-sm);
+  border: 1px dashed transparent;
+  box-shadow: none;
+  transition:
+    background var(--transition-duration),
+    border-color var(--transition-duration),
+    outline-color var(--transition-duration);
 }
 
 .initiativeTab:focus-within {
@@ -380,8 +397,9 @@
 }
 
 .hpLiveDisplay .hpMax {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--text-secondary);
+  margin-top: 1px;
 }
 
 .entityConditions {

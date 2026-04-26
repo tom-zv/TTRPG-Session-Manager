@@ -15,7 +15,7 @@ import {
   AudioCollection
 } from "../../types/AudioItem.js";
 import styles from "./AudioItemEditDialog.module.css";
-import EditableField from "../../../../components/EditableField/EditableField.js";
+import { EditableField } from "src/components/FormControls/index.js";
 
 //TODO: folderTree edit sync - folder tree doesnt use react query, causing desync
 interface AudioItemEditDialogProps {
@@ -57,11 +57,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
     setFormData(initial);
   }, [item, parentCollectionType]);
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-
+  const handleFieldChange = (name: string, value: string) => {
     dirtyFields.current.add(name);
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -143,17 +139,15 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
 
           <EditableField
             label="Name"
-            name="name"
             value={formData.name || ""}
-            onChange={handleChange}
+            onChange={(v) => handleFieldChange("name", v)}
           />
 
           {isAudioCollection(item) && (
             <EditableField
               label="Description"
-              name="description"
               value={formData.description || ""}
-              onChange={handleChange}
+              onChange={(v) => handleFieldChange("description", v)}
               multiline
               rows={3}
             />
@@ -166,17 +160,15 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
 
                 <EditableField
                   label="File URL"
-                  name="fileUrl"
                   type="url"
                   value={formData.url || ""}
-                  onChange={handleChange}
+                  onChange={(v) => handleFieldChange("fileUrl", v)}
                 />
 
                 <EditableField
                   label="File path (Relative)"
-                  name="path"
                   value={formData.path || ""}
-                  onChange={handleChange}
+                  onChange={(v) => handleFieldChange("path", v)}
                 />
               </div>
             </>
@@ -185,9 +177,8 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
           {isPlaylistCollection(item) && (
             <EditableField
               label="Image Path"
-              name="imageUrl"
               value={formData.imageUrl || ""}
-              onChange={handleChange}
+              onChange={(v) => handleFieldChange("imageUrl", v)}
             />
           )}
 

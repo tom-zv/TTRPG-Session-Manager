@@ -1,0 +1,340 @@
+.rowGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.rowGroupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.7rem;
+}
+
+.rowGroupHeader h4 {
+  margin: 0;
+  font-size: 0.94rem;
+  line-height: 1.25;
+}
+
+.rowList,
+.cardRows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-color, #3c4354) 62%, transparent);
+}
+
+.rowItem,
+.compactComposer {
+  animation: rowIn 120ms ease-out;
+}
+
+.rowItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.inlineRow,
+.compactComposer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.recordRow {
+  grid-template-columns: minmax(8rem, 1.15fr) minmax(6rem, 7.5rem) minmax(5.25rem, 6.75rem) auto;
+}
+
+.optionNoteRow {
+  grid-template-columns: minmax(8rem, 11rem) minmax(8rem, 1fr) auto;
+}
+
+.actionRow {
+  grid-template-columns: minmax(12rem, 1fr) minmax(8rem, 10rem) auto;
+}
+
+.compactComposer,
+.entryCard {
+  border: 1px solid color-mix(in srgb, var(--border-color, #3c4354) 58%, transparent);
+  border-radius: 8px;
+  background: var(--form-surface-soft, #202634);
+}
+
+.compactComposer {
+  padding: 0.55rem;
+  background:
+    linear-gradient(180deg, var(--form-accent-soft, transparent), transparent 100%),
+    var(--form-surface-soft, #202634);
+}
+
+.compactComposer .rowError {
+  grid-column: 1 / -1;
+}
+
+.entryCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.8rem;
+}
+
+.entryCard textarea,
+.inlineRow input,
+.inlineRow select,
+.compactComposer input,
+.compactComposer select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--form-control-height, 2.2rem);
+  padding: 0.48rem 0.6rem;
+  border: 1px solid var(--border-color, #3c4354);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--input-bg, #171b25) 92%, black);
+  color: var(--text-primary, #e5e7eb);
+  box-sizing: border-box;
+  font: inherit;
+}
+
+.inlineRow input,
+.inlineRow select,
+.compactComposer input,
+.compactComposer select {
+  height: var(--form-control-height, 2.2rem);
+  line-height: 1.2;
+}
+
+.entryCard textarea {
+  resize: vertical;
+  min-height: 5.25rem;
+}
+
+.entryCard textarea:focus,
+.inlineRow input:focus,
+.inlineRow select:focus,
+.compactComposer input:focus,
+.compactComposer select:focus {
+  outline: none;
+  border-color: var(--accent-primary, #5aa9ff);
+  box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb, 90, 169, 255), 0.22);
+}
+
+.gridTwo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+}
+
+.inlineControl,
+.presetRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.inlineControl > * {
+  flex: 1 1 auto;
+}
+
+.presetRow {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.composerActions {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.entryCardActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.optionalNoteDetails {
+  display: block;
+  min-width: 0;
+}
+
+.optionalNoteSummary {
+  min-height: var(--form-control-height, 2.2rem);
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--text-secondary, #b9c0cf);
+  font-size: 0.78rem;
+  user-select: none;
+}
+
+.optionalNoteDetails[open] .optionalNoteSummary {
+  min-height: 1.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.toolButton,
+.presetButton,
+.secondaryButton,
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-color, #3c4354);
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    color 0.15s,
+    opacity 0.15s;
+}
+
+.toolButton,
+.presetButton,
+.secondaryButton {
+  min-height: 2.1rem;
+  padding: 0.38rem 0.65rem;
+  background: color-mix(in srgb, var(--bg-tertiary, #202634) 86%, black);
+  color: var(--text-primary, #e5e7eb);
+  font-size: 0.84rem;
+}
+
+.presetButton {
+  min-height: 1.7rem;
+  padding: 0.22rem 0.48rem;
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary, #b9c0cf);
+  font-size: 0.74rem;
+  font-weight: 650;
+  opacity: 0.78;
+}
+
+.iconButton {
+  flex: 0 0 auto;
+  width: var(--form-control-height, 2.2rem);
+  height: var(--form-control-height, 2.2rem);
+  padding: 0;
+  background: color-mix(in srgb, var(--bg-tertiary, #202634) 88%, black);
+  color: var(--text-secondary, #b9c0cf);
+}
+
+.plusButton {
+  gap: 0.1rem;
+}
+
+.plusButton > svg {
+  position: relative;
+  top: 1px;
+}
+
+.confirmButton {
+  border-color: color-mix(in srgb, var(--accent-success, #19b47a) 50%, var(--border-color, #3c4354));
+  color: var(--accent-success, #19b47a);
+}
+
+.dangerButton {
+  border-color: color-mix(in srgb, var(--danger, #d64550) 38%, var(--border-color, #3c4354));
+  color: color-mix(in srgb, var(--danger, #d64550) 70%, var(--text-primary, #fff));
+}
+
+.toolButton:hover,
+.presetButton:hover,
+.secondaryButton:hover,
+.iconButton:hover {
+  background: var(--bg-hover, #273044);
+}
+
+.presetButton:hover {
+  opacity: 1;
+  border-color: var(--border-color, #3c4354);
+  color: var(--text-primary, #e5e7eb);
+}
+
+.confirmButton:hover {
+  background: color-mix(in srgb, var(--accent-success, #19b47a) 14%, var(--bg-hover, #273044));
+}
+
+.dangerButton:hover {
+  background: var(--form-danger-soft, transparent);
+  border-color: color-mix(in srgb, var(--danger, #d64550) 62%, var(--border-color, #3c4354));
+}
+
+.toolButton:focus-visible,
+.presetButton:focus-visible,
+.secondaryButton:focus-visible,
+.iconButton:focus-visible {
+  outline: 2px solid rgba(var(--accent-primary-rgb, 90, 169, 255), 0.78);
+  outline-offset: 2px;
+}
+
+.rowError {
+  color: var(--error-color, #fca5a5);
+  font-size: 0.76rem;
+  line-height: 1.3;
+}
+
+.inputError {
+  border-color: var(--error-color, #f87171) !important;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.28);
+}
+
+@keyframes rowIn {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rowItem,
+  .compactComposer {
+    animation: none;
+  }
+
+  .toolButton,
+  .presetButton,
+  .secondaryButton,
+  .iconButton {
+    transition: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .rowGroupHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .inlineRow,
+  .compactComposer,
+  .recordRow,
+  .optionNoteRow,
+  .actionRow {
+    grid-template-columns: 1fr;
+  }
+
+  .iconButton,
+  .composerActions {
+    justify-self: end;
+  }
+
+  .presetRow {
+    justify-content: flex-start;
+  }
+}
