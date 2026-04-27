@@ -1,8 +1,9 @@
 import { useState, useCallback, useRef } from 'react';
 import { 
-  createDropHandlers, 
   DropContext,
-  allowDropEffect
+  allowDropEffect,
+  getDragCountFromEvent,
+  processDropEvent,
 } from 'src/utils/dragDropUtils.js';
 
 export interface DropTargetOptions<T, D = unknown> {
@@ -69,22 +70,39 @@ export function useDropTarget<T, D = unknown>({
     };
   }, [dropIndex, destination]);
 
-  // Create handlers using our utility
-  const handlers = createDropHandlers<T, D>({
-    acceptedTypes,
-    transformItems,
-    onError,
-    onItemsDropped,
-  }, updateDragState, getCurrentContext);
+  const handleDragEnter = useCallback((e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    updateDragState(true, getDragCountFromEvent(e));
+  }, [updateDragState]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent<HTMLElement>) => {
+    e.preventDefault();
+    updateDragState(false, 0);
+  }, [updateDragState]);
   
   // Create an enhanced drop handler that ensures counter reset
   const enhancedOnDrop = useCallback(async (e: React.DragEvent<HTMLElement>) => {
+    const context = getCurrentContext();
+
     // Complete reset of drag counter before handling the drop
     resetDragState();
     
-    // Call the original drop handler
-    await handlers.onDrop(e);
-  }, [handlers, resetDragState]);
+    e.preventDefault();
+    e.stopPropagation();
+
+    await processDropEvent<T, D>(e, acceptedTypes, onItemsDropped, {
+      transformItems,
+      onError,
+      ...context,
+    });
+  }, [
+    acceptedTypes,
+    getCurrentContext,
+    onError,
+    onItemsDropped,
+    resetDragState,
+    transformItems,
+  ]);
 
   // Combined onDragOver that handles both default behavior and calculations
   const enhancedOnDragOver = useCallback((e: React.DragEvent<HTMLElement>) => {
@@ -116,15 +134,15 @@ export function useDropTarget<T, D = unknown>({
     setDropIndex,
     setDestination,
     onDragOver: enhancedOnDragOver,
-    onDragEnter: handlers.onDragEnter,
-    onDragLeave: handlers.onDragLeave,
+    onDragEnter: handleDragEnter,
+    onDragLeave: handleDragLeave,
     onDrop: enhancedOnDrop, // Use the enhanced handler instead
     
     // Convenience prop object for drop zone elements
     dropAreaProps: {
       onDragOver: enhancedOnDragOver,
-      onDragEnter: handlers.onDragEnter,
-      onDragLeave: handlers.onDragLeave,
+      onDragEnter: handleDragEnter,
+      onDragLeave: handleDragLeave,
       onDrop: enhancedOnDrop, // Use the enhanced handler here too
       className: isDraggingOver ? 'drop-target active' : '',
       'data-count': dragCount > 0 ? dragCount.toString() : undefined

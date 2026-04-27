@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   useAmbienceAudio,
   useAudioItemState,
@@ -11,7 +11,7 @@ import styles from "./AmbienceCollapsedView.module.css";
 
 export const AmbienceCollapsed: React.FC = () => {
   // TODO: allow parent to control collectionId - user expects last interacted collection to be selected
-  const [collectionId, setCollectionId] = useState<number | null>(null);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<number | null>(null);
   const [collectionSelectorOpen, setCollectionSelectorOpen] = useState(false);
 
   const AmbienceContext = useAmbienceAudio();
@@ -20,24 +20,19 @@ export const AmbienceCollapsed: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Initialize selected collection
-  useEffect(() => {
-    const available = collections?.items;
-    if (!collectionId) {
-      if (AmbienceContext.playingCollectionId) {
-        setCollectionId(AmbienceContext.playingCollectionId);
-      } else if (available?.length) {
-        setCollectionId(available[0].id);
-      }
-    }
-  }, [collections, AmbienceContext.playingCollectionId, collectionId]);
+  const availableCollections = collections?.items as AudioCollection[] | undefined;
+  const collectionId =
+    selectedCollectionId ??
+    AmbienceContext.playingCollectionId ??
+    availableCollections?.[0]?.id ??
+    null;
 
   const handleCollectionSelect = (id: number) => {
-    setCollectionId(id);
+    setSelectedCollectionId(id);
     setCollectionSelectorOpen(false);
   };
 
-  const currentCollection = collections?.items?.find(
+  const currentCollection = availableCollections?.find(
     (c) => c.id === collectionId
   ) as AudioCollection;
 
@@ -129,7 +124,7 @@ export const AmbienceCollapsed: React.FC = () => {
       <div className={styles.rightPanel}>
         {collectionSelectorOpen ? (
           <div className={styles.collectionsSelectorView}>
-            {(collections?.items as AudioCollection[]).map((c) => (
+            {availableCollections?.map((c) => (
               <button
                 key={c.id}
                 type="button"

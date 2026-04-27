@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { AudioEventTypes, on, off } from "../events.js";
 import { AmbienceModule } from "../modules/ambienceModule.js";
 import { getVolume } from "../volumeStore.js";
@@ -12,15 +12,58 @@ import { useDebounce } from "src/hooks/useDebounce.js";
 
 const ambienceModule = new AmbienceModule();
 
+type AmbienceSnapshot = {
+  playingCollectionId: number | undefined;
+  playingFileIds: number[];
+  volume: number;
+};
+
+let cachedAmbienceSnapshot: AmbienceSnapshot | null = null;
+
+const areNumberArraysEqual = (a: number[], b: number[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+const getAmbienceSnapshot = (): AmbienceSnapshot => {
+  const nextSnapshot: AmbienceSnapshot = {
+    playingCollectionId: ambienceModule.currentCollectionId,
+    playingFileIds: ambienceModule.playingFileIds,
+    volume: getVolume("ambience"),
+  };
+
+  if (
+    cachedAmbienceSnapshot &&
+    cachedAmbienceSnapshot.playingCollectionId === nextSnapshot.playingCollectionId &&
+    cachedAmbienceSnapshot.volume === nextSnapshot.volume &&
+    areNumberArraysEqual(
+      cachedAmbienceSnapshot.playingFileIds,
+      nextSnapshot.playingFileIds
+    )
+  ) {
+    return cachedAmbienceSnapshot;
+  }
+
+  cachedAmbienceSnapshot = nextSnapshot;
+  return nextSnapshot;
+};
+
+const subscribeToAmbienceSnapshot = (onStoreChange: () => void) => {
+  on(AudioEventTypes.VOLUME_CHANGE, onStoreChange);
+  on(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, onStoreChange);
+  on(AudioEventTypes.AMBIENCE_FILE_CHANGE, onStoreChange);
+
+  return () => {
+    off(AudioEventTypes.VOLUME_CHANGE, onStoreChange);
+    off(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, onStoreChange);
+    off(AudioEventTypes.AMBIENCE_FILE_CHANGE, onStoreChange);
+  };
+};
+
 export function useAmbienceModule() {
-  // Ambience state
-  const [playingCollectionId, setPlayingCollectionId] = useState<
-    number | undefined
-  >(undefined);
-  const [playingFileIds, setPlayingFileIds] = useState<number[]>(
-    ambienceModule.playingFileIds
+  const { playingCollectionId, playingFileIds, volume } = useSyncExternalStore(
+    subscribeToAmbienceSnapshot,
+    getAmbienceSnapshot,
+    getAmbienceSnapshot
   );
-  const [volume, setVolume] = useState<number>(getVolume("ambience"));
 
   // Get mutation functions
   const activateMutation = useActivateAmbienceFile();
@@ -77,40 +120,6 @@ export function useAmbienceModule() {
   // Set master volume for all ambience
   const setMasterVolume = useCallback((volume: number) => {
     ambienceModule.setMasterVolume(volume);
-  }, []);
-
-  // Set up event listeners for state changes
-  useEffect(() => {
-    // Handle volume changes
-    const handleVolumeChange = (data: { category: string; volume: number }) => {
-      if (data.category === "ambience") {
-        setVolume(data.volume);
-      }
-    };
-
-    // Handle ambience collection changes
-    const handleCollectionChange = (collectionId: number | null) => {
-      setPlayingCollectionId(collectionId || undefined);
-    };
-
-    const handleFileChange = (fileIds: number[]) => {
-      setPlayingFileIds(fileIds);
-    };
-    // Subscribe to events
-    on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-    on(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, handleCollectionChange);
-    on(AudioEventTypes.AMBIENCE_FILE_CHANGE, handleFileChange);
-
-    // Initial sync
-    setPlayingCollectionId(ambienceModule.currentCollectionId);
-    setVolume(getVolume("ambience"));
-
-    // Cleanup event listeners on unmount
-    return () => {
-      off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-      off(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, handleCollectionChange);
-      off(AudioEventTypes.AMBIENCE_FILE_CHANGE, handleFileChange);
-    };
   }, []);
 
   return useMemo(

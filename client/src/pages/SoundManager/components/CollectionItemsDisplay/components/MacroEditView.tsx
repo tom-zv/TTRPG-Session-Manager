@@ -73,22 +73,8 @@ export const MacroEditView: React.FC<MacroEditViewProps> = ({
   );
 
   // Edited values
-  type Edited = { delay: number; volume: number; isSaving?: boolean; lastSaved?: number };
+  type Edited = { delay: number; volume: number; isSaving?: boolean };
   const [editedValues, setEditedValues] = useState<Record<number, Edited>>({});
-
-  // initialize on items change
-  useEffect(() => {
-    const initial: Record<number, Edited> = {};
-    items.forEach((item) => {
-      initial[item.id] = {
-        delay: item.delay || 0,
-        volume: item.volume ?? 1.0,
-        isSaving: false,
-        lastSaved: Date.now(),
-      };
-    });
-    setEditedValues((prev) => ({ ...initial, ...prev }));
-  }, [items]);
 
   // Drag-drop
   const { dropAreaProps, dragItemProps, isInsertionPoint } = useItemDragDrop({

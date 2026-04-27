@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { sfxModule } from "../modules/sfxModule.js";
 import { AudioEventTypes, on, off } from "../events.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
@@ -6,14 +6,64 @@ import { useUpdateFileVolume } from "src/pages/SoundManager/api/collections/muta
 import { useUpdateMacroVolume } from "src/pages/SoundManager/api/collections/useSfxMutations.js";
 import type { AudioFile, AudioMacro } from "../../../types/AudioItem.js";
 
+type SfxSnapshot = {
+  volume: number;
+  playingSoundIds: number[];
+  playingMacroIds: number[];
+};
+
+let cachedSfxSnapshot: SfxSnapshot | null = null;
+
+const areNumberArraysEqual = (a: number[], b: number[]) =>
+  a.length === b.length && a.every((value, index) => value === b[index]);
+
+const getSfxSnapshot = (): SfxSnapshot => {
+  const nextSnapshot: SfxSnapshot = {
+    volume: sfxModule.volume,
+    playingSoundIds: sfxModule.playingSoundIds,
+    playingMacroIds: sfxModule.playingMacroIds,
+  };
+
+  if (
+    cachedSfxSnapshot &&
+    cachedSfxSnapshot.volume === nextSnapshot.volume &&
+    areNumberArraysEqual(
+      cachedSfxSnapshot.playingSoundIds,
+      nextSnapshot.playingSoundIds
+    ) &&
+    areNumberArraysEqual(
+      cachedSfxSnapshot.playingMacroIds,
+      nextSnapshot.playingMacroIds
+    )
+  ) {
+    return cachedSfxSnapshot;
+  }
+
+  cachedSfxSnapshot = nextSnapshot;
+  return nextSnapshot;
+};
+
+const subscribeToSfxSnapshot = (onStoreChange: () => void) => {
+  on(AudioEventTypes.VOLUME_CHANGE, onStoreChange);
+  on(AudioEventTypes.SFX_FILE_CHANGE, onStoreChange);
+  on(AudioEventTypes.SFX_MACRO_CHANGE, onStoreChange);
+
+  return () => {
+    off(AudioEventTypes.VOLUME_CHANGE, onStoreChange);
+    off(AudioEventTypes.SFX_FILE_CHANGE, onStoreChange);
+    off(AudioEventTypes.SFX_MACRO_CHANGE, onStoreChange);
+  };
+};
+
 export function useSfxModule() {
-  // SFX state
-  const [masterVolume, setVolume] = useState<number>(sfxModule.volume);
-  const [playingSoundIds, setPlayingSoundIds] = useState<number[]>(
-    sfxModule.playingSoundIds
-  );
-  const [playingMacroIds, setPlayingMacroIds] = useState<number[]>(
-    sfxModule.playingMacroIds
+  const {
+    volume: masterVolume,
+    playingSoundIds,
+    playingMacroIds,
+  } = useSyncExternalStore(
+    subscribeToSfxSnapshot,
+    getSfxSnapshot,
+    getSfxSnapshot
   );
 
   const updateVolumeMutation = useUpdateFileVolume("sfx");
@@ -67,43 +117,6 @@ export function useSfxModule() {
       return sfxModule.getFilePosition(id);
     }, []
   );
-
-  // Set up event listeners for state changes
-  useEffect(() => {
-    // Handle volume changes
-    const handleVolumeChange = (data: { category: string; volume: number }) => {
-      if (data.category === "sfx") {
-        setVolume(data.volume);
-      }
-    };
-
-    // Handle active sound changes
-    const handleSfxFileChange = (fileIds: number[]) => {
-      setPlayingSoundIds(fileIds);
-    };
-
-    // Handle active macro changes
-    const handleSfxMacroChange = (macroIds: number[]) => {
-      setPlayingMacroIds(macroIds);
-    };
-
-    // Subscribe to events
-    on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-    on(AudioEventTypes.SFX_FILE_CHANGE, handleSfxFileChange);
-    on(AudioEventTypes.SFX_MACRO_CHANGE, handleSfxMacroChange);
-
-    // Initial sync
-    setVolume(sfxModule.volume);
-    setPlayingSoundIds(sfxModule.playingSoundIds);
-    setPlayingMacroIds(sfxModule.playingMacroIds);
-
-    // Cleanup event listeners on unmount
-    return () => {
-      off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-      off(AudioEventTypes.SFX_FILE_CHANGE, handleSfxFileChange);
-      off(AudioEventTypes.SFX_MACRO_CHANGE, handleSfxMacroChange);
-    };
-  }, []);
 
   return useMemo(
     () => ({

@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { AudioItemActions, AudioCollection, AudioItem } from "../../types.js";
 
 import { DragDropProps } from "src/types/dragDropProps.js";
@@ -23,6 +23,21 @@ interface ListViewProps extends AudioItemActions, DragDropProps {
   onEditItem?: (itemId: number) => void;
 }
 
+const getInsertMarkerTop = (
+  tableElement: HTMLElement | null,
+  index: number
+): number | null => {
+  if (!tableElement) return null;
+  if (index === 0) {
+    return tableElement.querySelector("thead")?.clientHeight ?? 0;
+  }
+
+  const prevRow = tableElement.querySelector(
+    `[data-item-index="${index - 1}"]`
+  ) as HTMLElement | null;
+  return prevRow ? prevRow.offsetTop + prevRow.offsetHeight : null;
+};
+
 export const ListView: React.FC<ListViewProps> = ({
   collection,
   selectedItemIds = [],
@@ -45,8 +60,23 @@ export const ListView: React.FC<ListViewProps> = ({
     useAudioItemState();
   const isEmpty = items.length === 0;
   const tableRef = useRef<HTMLTableElement | null>(null);
+  const [insertMarkerTop, setInsertMarkerTop] = useState<number | null>(null);
 
-  const { dropAreaProps, dragItemProps, isInsertionPoint } = useItemDragDrop({
+  const calculateListDropTarget = useCallback(
+    (e: React.DragEvent, element: HTMLElement | null) => {
+      const index = calculateTableDropIndex(e, element);
+      if (index !== undefined) {
+        const nextMarkerTop = getInsertMarkerTop(element, index);
+        setInsertMarkerTop((currentMarkerTop) =>
+          currentMarkerTop === nextMarkerTop ? currentMarkerTop : nextMarkerTop
+        );
+      }
+      return index;
+    },
+    []
+  );
+
+  const { dropAreaProps, dragItemProps, targetIndex } = useItemDragDrop({
     items,
     selectedItemIds,
     contentType: collection.type === "macro" ? "macro" : "file",
@@ -58,7 +88,7 @@ export const ListView: React.FC<ListViewProps> = ({
     containerRef: tableRef,
     addItems,
     updateItemPosition,
-    calculateDropTarget: calculateTableDropIndex,
+    calculateDropTarget: calculateListDropTarget,
   });
 
   const columns = getColumns(collection);
@@ -85,17 +115,6 @@ export const ListView: React.FC<ListViewProps> = ({
     ]
       .filter(Boolean)
       .join(" ");
-
-  // Calculate insert marker position
-  const getInsertMarkerTop = (index: number) => {
-    if (index === 0) {
-      return `${tableRef.current?.querySelector("thead")?.offsetHeight || 0}px`;
-    }
-    const prevRow = tableRef.current?.querySelector(
-      `[data-item-index="${index - 1}"]`
-    ) as HTMLElement | null;
-    return prevRow ? `${prevRow.offsetTop + prevRow.offsetHeight}px` : "0px";
-  };
 
   return (
     <div
@@ -164,17 +183,13 @@ export const ListView: React.FC<ListViewProps> = ({
             </tbody>
           </table>
 
-          {/* Absolutely positioned insert markers */}
-          {Array.from({ length: items.length + 1 }, (_, index) =>
-            isInsertionPoint(index) ? (
-              <div
-                key={`insert-marker-${index}`}
-                className={styles.insertMarkerLine}
-                style={{
-                  top: getInsertMarkerTop(index),
-                }}
-              />
-            ) : null
+          {targetIndex !== undefined && insertMarkerTop !== null && (
+            <div
+              className={styles.insertMarkerLine}
+              style={{
+                top: `${insertMarkerTop}px`,
+              }}
+            />
           )}
         </div>
       )}

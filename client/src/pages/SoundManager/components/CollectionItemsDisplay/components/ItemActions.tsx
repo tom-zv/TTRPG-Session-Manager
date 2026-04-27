@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AudioItem, AudioItemActions } from "../types.js";
 import { MdEdit, MdClose, MdMoreVert } from "react-icons/md";
@@ -54,7 +54,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
 
   // Position calculation function
-  const updateDropdownPosition = () => {
+  const updateDropdownPosition = useCallback(() => {
     if (buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
       setDropdownPosition({
@@ -62,7 +62,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
         left: rect.right - 160 + window.scrollX, // 160px is dropdown width
       });
     }
-  };
+  }, []);
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -92,8 +92,19 @@ const ItemActions: React.FC<ItemActionsProps> = ({
     if (!isOpen) {
       updateDropdownPosition();
     }
-    setIsOpen(!isOpen);
+    setIsOpen((current) => !current);
   };
+
+  const handleClickOutside = useCallback((event: MouseEvent) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node) &&
+      buttonRef.current &&
+      !buttonRef.current.contains(event.target as Node)
+    ) {
+      setIsOpen(false);
+    }
+  }, []);
 
   // Update position on scroll or resize
   useEffect(() => {
@@ -108,18 +119,7 @@ const ItemActions: React.FC<ItemActionsProps> = ({
       window.removeEventListener("resize", updateDropdownPosition);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen]);
-
-  const handleClickOutside = (event: MouseEvent) => {
-    if (
-      dropdownRef.current &&
-      !dropdownRef.current.contains(event.target as Node) &&
-      buttonRef.current &&
-      !buttonRef.current.contains(event.target as Node)
-    ) {
-      setIsOpen(false);
-    }
-  };
+  }, [handleClickOutside, isOpen, updateDropdownPosition]);
   
   // Don't show actions for create buttons
   if (item.isCreateButton) return null;

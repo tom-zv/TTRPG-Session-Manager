@@ -36,25 +36,30 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
   onEditItem,
   isPlaying = false,
 }) => {
-  const [localVolume, setLocalVolume] = useState<number>(1);
-  const [position, setPosition] = useState(0);
+  const itemVolume = isAudioFile(item) || isAudioMacro(item) ? item.volume ?? 1 : 1;
+  const [volumeDraft, setVolumeDraft] = useState<{
+    itemId: number;
+    volume: number;
+  } | null>(null);
+  const [positionSample, setPositionSample] = useState<{
+    itemId: number;
+    position: number;
+  } | null>(null);
   const { updateAudioItemVolume } = useAudioItemControls();
   const { getFilePosition } = useSfxAudio();
 
-
-  useEffect(() => {
-    if (isAudioFile(item) || isAudioMacro(item)) {
-      setLocalVolume(item.volume ?? 1);
-    } else {
-      setLocalVolume(1);
-    }
-  }, [item]);
+  const localVolume =
+    volumeDraft?.itemId === item.id ? volumeDraft.volume : itemVolume;
+  const position =
+    isPlaying && positionSample?.itemId === item.id
+      ? positionSample.position
+      : 0;
 
   const handleVolumeChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       e.stopPropagation();
       const newVolume = parseFloat(e.target.value);
-      setLocalVolume(newVolume);
+      setVolumeDraft({ itemId: item.id, volume: newVolume });
       updateAudioItemVolume(item, newVolume, parentCollection);
     },
     [item, parentCollection, updateAudioItemVolume]
@@ -75,10 +80,12 @@ const PlayableItemContent: React.FC<PlayableItemContentProps> = ({
   // Add effect to update position for playing SFX items
   useEffect(() => {
     if (isPlaying && isSfxCollection(parentCollection)) {
-      setPosition(0); // reset to prevent any intermediate values showing
       const interval = setInterval(() => {
         const pos = getFilePosition(item.id);
-        setPosition(pos !== null ? pos : 0);
+        setPositionSample({
+          itemId: item.id,
+          position: pos !== null ? pos : 0,
+        });
       }, 100); // Update 10 times per second
       
       return () => clearInterval(interval);

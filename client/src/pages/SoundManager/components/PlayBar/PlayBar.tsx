@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   useAudioItemControls,
   usePlaylistAudio,
@@ -44,16 +44,7 @@ const PlayBar: React.FC<PlayBarProps> = React.memo(({ className = '' }) => {
     return currentCollection?.items?.[currentIndex] as AudioFile | undefined;
   }, [currentCollection, currentIndex]);
 
-  const [displayName, setDisplayName] = useState<string>("No track selected");
-
-  // Update display name when the track changes
-  useEffect(() => {
-    if (currentTrack) {
-      setDisplayName(currentTrack.name);
-    } else {
-      setDisplayName("No track selected");
-    }
-  }, [currentTrack]); 
+  const displayName = currentTrack?.name ?? "No track selected";
 
   // Memoize formatted time values to prevent recalculations
   const formattedPosition = useMemo(() => formatTime(position), [position]);

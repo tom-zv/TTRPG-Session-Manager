@@ -1,4 +1,10 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { PlaylistModule } from '../modules/playlistModule.js';
 import { AudioEventTypes, on, off } from '../events.js';
 import { getVolume } from '../volumeStore.js';
@@ -6,17 +12,69 @@ import { getVolume } from '../volumeStore.js';
 // Create a singleton instance of PlaylistModule
 const playlistModule = new PlaylistModule();
 
+type PlaylistSnapshot = {
+  currentPlaylistId: number | null;
+  currentIndex: number;
+  isPlaying: boolean;
+  playlistVolume: number;
+  duration: number;
+};
+
+let cachedPlaylistSnapshot: PlaylistSnapshot | null = null;
+
+const getPlaylistSnapshot = (): PlaylistSnapshot => {
+  const nextSnapshot: PlaylistSnapshot = {
+    currentPlaylistId: playlistModule.getCurrentPlaylistId(),
+    currentIndex: playlistModule.getCurrentTrackIndex(),
+    isPlaying: playlistModule.isPlaylistPlaying(),
+    playlistVolume: getVolume('playlist'),
+    duration: playlistModule.getDuration(),
+  };
+
+  if (
+    cachedPlaylistSnapshot &&
+    cachedPlaylistSnapshot.currentPlaylistId === nextSnapshot.currentPlaylistId &&
+    cachedPlaylistSnapshot.currentIndex === nextSnapshot.currentIndex &&
+    cachedPlaylistSnapshot.isPlaying === nextSnapshot.isPlaying &&
+    cachedPlaylistSnapshot.playlistVolume === nextSnapshot.playlistVolume &&
+    cachedPlaylistSnapshot.duration === nextSnapshot.duration
+  ) {
+    return cachedPlaylistSnapshot;
+  }
+
+  cachedPlaylistSnapshot = nextSnapshot;
+  return nextSnapshot;
+};
+
+const subscribeToPlaylistSnapshot = (onStoreChange: () => void) => {
+  on(AudioEventTypes.VOLUME_CHANGE, onStoreChange);
+  on(AudioEventTypes.PLAYLIST_CHANGE, onStoreChange);
+  on(AudioEventTypes.PLAYLIST_TRACK_CHANGE, onStoreChange);
+  on(AudioEventTypes.PLAYLIST_STATE_CHANGE, onStoreChange);
+
+  return () => {
+    off(AudioEventTypes.VOLUME_CHANGE, onStoreChange);
+    off(AudioEventTypes.PLAYLIST_CHANGE, onStoreChange);
+    off(AudioEventTypes.PLAYLIST_TRACK_CHANGE, onStoreChange);
+    off(AudioEventTypes.PLAYLIST_STATE_CHANGE, onStoreChange);
+  };
+};
+
 export function usePlaylistModule() {
-  // Playlist playback state
-  const [currentPlaylistId, setCurrentPlaylistId] = useState<number | null>(null);
-  const [currentIndex, setCurrentIndex] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playlistVolume, setPlaylistVolume] = useState<number>(getVolume('playlist'));
-  const [position, setPosition] = useState<number>(0);
-  const [duration, setDuration] = useState<number>(0);
-  
-  // Use ref for tracking the interval to avoid recreation on each render
-  const positionIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const {
+    currentPlaylistId,
+    currentIndex,
+    isPlaying,
+    playlistVolume,
+    duration,
+  } = useSyncExternalStore(
+    subscribeToPlaylistSnapshot,
+    getPlaylistSnapshot,
+    getPlaylistSnapshot
+  );
+  const [position, setPosition] = useState<number>(() =>
+    playlistModule.getCurrentPlaylistPosition()
+  );
   
   /* Methods
   ***********/
@@ -42,93 +100,30 @@ export function usePlaylistModule() {
     setPosition(time); // Optimistic UI update
   }, []);
 
-  // Set up event listeners for state changes
+  // Keep time position in sync with playback events and while actively playing.
   useEffect(() => {
-    // Handle volume changes
-    const handleVolumeChange = (data: {category: string, volume: number}) => {
-      if (data.category === 'playlist') {
-        setPlaylistVolume(data.volume);
-      }
+    const syncPosition = () => {
+      setPosition(playlistModule.getCurrentPlaylistPosition());
     };
 
-    // Handle playlist changes
-    const handlePlaylistChange = (data: {
-      id: number;
-      currentIndex: number;
-    }) => {
-      setCurrentPlaylistId(data.id || null);
-      setCurrentIndex(data.currentIndex);
-    };
+    on(AudioEventTypes.PLAYLIST_TRACK_CHANGE, syncPosition);
+    on(AudioEventTypes.PLAYLIST_STATE_CHANGE, syncPosition);
 
-    // Handle track changes
-    const handleTrackChange = (data: {index: number}) => {
-      setCurrentIndex(data.index);
-      setPosition(0);
-      setDuration(playlistModule.getDuration());
-    };
-
-    // Handle play state changes
-    const handlePlayStateChange = (playing: boolean) => {
-      setIsPlaying(playing);
-    };
-
-    // Subscribe to events using the events system
-    on(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-    on(AudioEventTypes.PLAYLIST_CHANGE, handlePlaylistChange);
-    on(AudioEventTypes.PLAYLIST_TRACK_CHANGE, handleTrackChange);
-    on(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChange);
-
-    // Initial sync with PlaylistModule
-    setCurrentPlaylistId(playlistModule.getCurrentPlaylistId());
-    setCurrentIndex(playlistModule.getCurrentTrackIndex());
-    setPlaylistVolume(getVolume('playlist'));
-    setIsPlaying(playlistModule.isPlaylistPlaying());
-    setPosition(playlistModule.getCurrentPlaylistPosition());
-    setDuration(playlistModule.getDuration());
-
-    // Set up position update interval only if currently playing
-    const setupPositionInterval = () => {
-      // Clear any existing interval first
-      if (positionIntervalRef.current) {
-        clearInterval(positionIntervalRef.current);
-      }
-      
-      // Only create interval if we're playing
-      if (playlistModule.isPlaylistPlaying()) {
-        positionIntervalRef.current = setInterval(() => {
-          setPosition(playlistModule.getCurrentPlaylistPosition());
-        }, 1000); // Update every second 
-      }
-    };
-    
-    // Initial setup
-    setupPositionInterval();
-    
-    // Update interval when playing state changes
-    const handlePlayStateChangeForInterval = (playing: boolean) => {
-      if (playing) {
-        setupPositionInterval();
-      } else if (positionIntervalRef.current) {
-        clearInterval(positionIntervalRef.current);
-      }
-    };
-    
-    on(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChangeForInterval);
-    
-    // Cleanup event listeners and interval on unmount
     return () => {
-      off(AudioEventTypes.VOLUME_CHANGE, handleVolumeChange);
-      off(AudioEventTypes.PLAYLIST_CHANGE, handlePlaylistChange);
-      off(AudioEventTypes.PLAYLIST_TRACK_CHANGE, handleTrackChange);
-      off(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChange);
-      off(AudioEventTypes.PLAYLIST_STATE_CHANGE, handlePlayStateChangeForInterval);
-      
-      if (positionIntervalRef.current) {
-        clearInterval(positionIntervalRef.current);
-        positionIntervalRef.current = null;
-      }
+      off(AudioEventTypes.PLAYLIST_TRACK_CHANGE, syncPosition);
+      off(AudioEventTypes.PLAYLIST_STATE_CHANGE, syncPosition);
     };
   }, []);
+
+  useEffect(() => {
+    if (!isPlaying) return undefined;
+
+    const intervalId = window.setInterval(() => {
+      setPosition(playlistModule.getCurrentPlaylistPosition());
+    }, 1000);
+
+    return () => window.clearInterval(intervalId);
+  }, [isPlaying]);
   
   return useMemo(
     () => ({

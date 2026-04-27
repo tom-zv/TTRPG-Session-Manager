@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { useUpdateFile } from "src/pages/SoundManager/api/files/useFileMutations.js";
 import { EditableField } from "src/components/FormControls/index.js";
@@ -17,6 +17,17 @@ type EditProps = {
   onClose?: () => void;
 };
 
+type EditFileFormData = {
+  name: string;
+  path: string;
+  url: string;
+};
+
+type EditFileFormDraft = {
+  key: string;
+  formData: EditFileFormData;
+};
+
 const EditFileDialog: React.FC<EditProps> = ({
   isOpen,
   id,
@@ -25,30 +36,43 @@ const EditFileDialog: React.FC<EditProps> = ({
   onClose = () => null,
 }) => {
   const updateFile = useUpdateFile();
-  const [formData, setFormData] = useState<Record<string, string>>({
-    name: "",
-    path: "",
-    url: "",
-  });
+  const initialFormData = useMemo(
+    () => ({
+      name: initialData.name || "",
+      path: initialData.path || "",
+      url: initialData.url || "",
+    }),
+    [initialData]
+  );
+  const formKey = useMemo(
+    () => `${id}:${initialFormData.name}:${initialFormData.path}:${initialFormData.url}`,
+    [id, initialFormData]
+  );
+  const [formDraft, setFormDraft] = useState<EditFileFormDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const dirtyFields = useRef<Set<string>>(new Set());
   const dialogContentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (isOpen) {
-      setFormData({
-        name: initialData.name || "",
-        path: initialData.path || "",
-        url: initialData.url || "",
-      });
-      dirtyFields.current.clear();
-      setError(null);
-    }
-  }, [isOpen, initialData]);
+  const activeDraft = formDraft?.key === formKey ? formDraft : null;
+  const formData = activeDraft?.formData ?? initialFormData;
+
+  const handleClose = useCallback(() => {
+    setFormDraft(null);
+    setError(null);
+    onClose();
+  }, [onClose]);
 
   const handleChange = (name: string, value: string) => {
-    dirtyFields.current.add(name);
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormDraft((currentDraft) => {
+      const baseFormData =
+        currentDraft?.key === formKey
+          ? currentDraft.formData
+          : initialFormData;
+
+      return {
+        key: formKey,
+        formData: { ...baseFormData, [name]: value },
+      };
+    });
   };
 
   const handleSave = async () => {
@@ -70,7 +94,7 @@ const EditFileDialog: React.FC<EditProps> = ({
       updateFile.mutate(payload, {
         onSuccess: (updatedFile) => {
           onEdit(updatedFile);
-          onClose();
+          handleClose();
         },
         onError: (err: unknown) => {
           setError(err instanceof Error ? err.message : "Failed to save file");
@@ -84,7 +108,7 @@ const EditFileDialog: React.FC<EditProps> = ({
   return (
     <Dialog 
       isOpen={isOpen} 
-      onClose={onClose} 
+      onClose={handleClose}
       title="Edit File" 
       contentRef={dialogContentRef}
       className="modern-dialog"
@@ -116,7 +140,7 @@ const EditFileDialog: React.FC<EditProps> = ({
         </div>
 
         <div className="form-actions">
-          <button className="btn btn-muted" onClick={onClose}>
+          <button className="btn btn-muted" onClick={handleClose}>
             Cancel
           </button>
           <button 

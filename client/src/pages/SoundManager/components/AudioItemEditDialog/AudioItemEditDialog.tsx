@@ -1,5 +1,5 @@
 // AudioItemEditDialog.tsx
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useUpdateCollection } from "../../api/collections/mutations/useCollectionBaseMutations.js";
 import { useUpdateCollectionFile } from "../../api/collections/mutations/useCollectionItemMutations.js";
 import Dialog from "../../../../components/Dialog/Dialog.js";
@@ -27,6 +27,37 @@ interface AudioItemEditDialogProps {
   parentCollectionType: string;
 }
 
+type AudioItemFormData = Record<string, string | undefined>;
+
+type AudioItemFormDraft = {
+  key: string;
+  formData: AudioItemFormData;
+  dirtyFields: Set<string>;
+};
+
+const EMPTY_DIRTY_FIELDS = new Set<string>();
+
+const getAudioItemFormKey = (
+  item: AudioItem,
+  parentCollectionId: number,
+  parentCollectionType: string
+) => `${parentCollectionType}:${parentCollectionId}:${item.type}:${item.id}`;
+
+const buildInitialFormData = (item: AudioItem): AudioItemFormData => {
+  const initial: AudioItemFormData = { name: item.name };
+  if (isAudioFile(item)) {
+    initial.url = item.url;
+    initial.path = item.path;
+  }
+  if (isAudioCollection(item)) {
+    initial.description = item.description;
+  }
+  if (isPlaylistCollection(item)) {
+    initial.imageUrl = (item as AudioCollection).imageUrl || "";
+  }
+  return initial;
+};
+
 const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   isOpen,
   onClose,
@@ -34,32 +65,44 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   parentCollectionType,
   parentCollectionId,
 }) => {
-  const [formData, setFormData] = useState<Record<string, string | undefined>>({});
+  const initialFormData = useMemo(() => buildInitialFormData(item), [item]);
+  const formKey = useMemo(
+    () => getAudioItemFormKey(item, parentCollectionId, parentCollectionType),
+    [item, parentCollectionId, parentCollectionType]
+  );
+  const [formDraft, setFormDraft] = useState<AudioItemFormDraft | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const dirtyFields = useRef<Set<string>>(new Set());
   const dialogContentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!item) return;
-    dirtyFields.current.clear();
-    const initial: Record<string, string | undefined> = { name: item.name };
-    if (isAudioFile(item)) {
-      initial.url = item.url;
-      initial.path = item.path;
-    }
-    if (isAudioCollection(item)) {
-      initial.description = item.description;
-    }
-    if (isPlaylistCollection(item)) {
-      initial.imageUrl = (item as AudioCollection).imageUrl || "";
-    }
-    setFormData(initial);
-  }, [item, parentCollectionType]);
+  const activeDraft = formDraft?.key === formKey ? formDraft : null;
+  const formData = activeDraft?.formData ?? initialFormData;
+  const dirtyFields = activeDraft?.dirtyFields ?? EMPTY_DIRTY_FIELDS;
+
+  const handleClose = useCallback(() => {
+    setFormDraft(null);
+    setError(null);
+    onClose();
+  }, [onClose]);
 
   const handleFieldChange = (name: string, value: string) => {
-    dirtyFields.current.add(name);
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormDraft((currentDraft) => {
+      const baseDraft =
+        currentDraft?.key === formKey
+          ? currentDraft
+          : {
+              key: formKey,
+              formData: initialFormData,
+              dirtyFields: EMPTY_DIRTY_FIELDS,
+            };
+      const nextDirtyFields = new Set(baseDraft.dirtyFields);
+      nextDirtyFields.add(name);
+      return {
+        key: formKey,
+        formData: { ...baseDraft.formData, [name]: value },
+        dirtyFields: nextDirtyFields,
+      };
+    });
   };
 
   const updateCollection = useUpdateCollection(parentCollectionType as CollectionType);
@@ -73,7 +116,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
       const payload: Record<string, string | number | boolean | {type: CollectionType, id: number} | undefined> = { id: item.id, collectionId: parentCollectionId };
       
       // Only include fields that were edited
-      Array.from(dirtyFields.current).forEach(field => {
+      Array.from(dirtyFields).forEach(field => {
         payload[field] = formData[field];
       });
 
@@ -84,7 +127,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
         updateAudioFile.mutate(payload as { id: number; collectionId: number; name?: string; path?: string; url?: string; active?: boolean; volume?: number; delay?: number; parentInfo?: {type: CollectionType, id: number} });
       }
       
-      onClose();
+      handleClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save");
     }
@@ -121,7 +164,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
   return (
     <Dialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={getTitle()}
       contentRef={dialogContentRef}
       noOverlay={item.type === "macro"}
@@ -162,7 +205,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
                   label="File URL"
                   type="url"
                   value={formData.url || ""}
-                  onChange={(v) => handleFieldChange("fileUrl", v)}
+                  onChange={(v) => handleFieldChange("url", v)}
                 />
 
                 <EditableField
@@ -183,7 +226,7 @@ const AudioItemEditDialog: React.FC<AudioItemEditDialogProps> = ({
           )}
 
           <div className="form-actions">
-            <button className="btn btn-muted" onClick={onClose}>
+            <button className="btn btn-muted" onClick={handleClose}>
               Cancel
             </button>
             <button className="btn btn-primary" onClick={handleSave}>
