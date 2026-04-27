@@ -1,10 +1,10 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 import CollectionView from "../CollectionView/CollectionView.js";
 import {
   Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  ImperativePanelHandle,
+  Group,
+  Separator,
+  usePanelRef,
 } from "react-resizable-panels";
 import { DropArea } from "src/components/DropTargetContext/DropTargetContext.js";
 import { DROP_ZONES } from "src/components/DropTargetContext/dropZones.js";
@@ -13,7 +13,7 @@ import { AmbienceCollapsed } from "./AmbienceCollapsedView.js";
 
 const SoundCollectionsPanel: React.FC = () => {
   const [isAmbienceCollapsed, setIsAmbienceCollapsed] = useState(false);
-  const ambiencePanelRef = useRef<ImperativePanelHandle>(null);
+  const ambiencePanelRef = usePanelRef();
 
   const toggleAmbienceCollapse = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -29,7 +29,7 @@ const SoundCollectionsPanel: React.FC = () => {
 
   return (
     <div className={styles.soundCollectionsPanel}>
-      <PanelGroup direction="vertical">
+      <Group orientation="vertical">
         <Panel defaultSize={60} minSize={25}>
           <DropArea
             zoneId={DROP_ZONES.SOUND_MANAGER_SFX}
@@ -44,7 +44,7 @@ const SoundCollectionsPanel: React.FC = () => {
           </DropArea>
         </Panel>
 
-        <PanelResizeHandle className="separator-handle">
+        <Separator className="separator-handle">
           <div className="drag-handle"></div>
           <button
             className={`collapse-btn ${isAmbienceCollapsed ? "collapsed" : ""}`}
@@ -52,15 +52,14 @@ const SoundCollectionsPanel: React.FC = () => {
           >
             {isAmbienceCollapsed ? "▲" : "▼"}
           </button>
-        </PanelResizeHandle>
+        </Separator>
 
         <Panel
-          ref={ambiencePanelRef}
+          panelRef={ambiencePanelRef}
           defaultSize={40}
           minSize={20}
           collapsible={true}
-          onCollapse={() => setIsAmbienceCollapsed(true)}
-          onExpand={() => setIsAmbienceCollapsed(false)}
+          onResize={() => setIsAmbienceCollapsed(ambiencePanelRef.current?.isCollapsed() ?? false)}
           collapsedSize={20}
         >
           <DropArea
@@ -79,7 +78,7 @@ const SoundCollectionsPanel: React.FC = () => {
             )}
           </DropArea>
         </Panel>
-      </PanelGroup>
+      </Group>
     </div>
   );
 };

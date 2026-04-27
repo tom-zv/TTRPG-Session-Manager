@@ -9,9 +9,9 @@ import CreateCollectionDialog from "../CollectionView/components/CreateCollectio
 import { useCollectionMutations } from "../CollectionItemsDisplay/hooks/useCollectionActions.js";
 import {
   Panel,
-  PanelGroup,
-  PanelResizeHandle,
-  
+  Group,
+  Separator,
+
 } from "react-resizable-panels";
 import styles from "./ItemDrawer.module.css";
 import { useItemDrawer } from "./ItemDrawerContext.js";
@@ -26,7 +26,6 @@ const ItemDrawer: React.FC = () => {
 
   const macroPanelHeaderRef = useRef<HTMLDivElement>(null);
   const drawerContentDivRef = useRef<HTMLDivElement | null>(null);
-  const panelGroupRef = useRef(null);
   const macroPanelMinPct = useElementHeightPct(drawerContentDivRef, macroPanelHeaderRef, 5);
 
   // Set up collection mutation hooks for creating macros
@@ -66,10 +65,9 @@ const ItemDrawer: React.FC = () => {
                 </div>
 
       <div className={styles.itemDrawerContent} ref={drawerContentDivRef}>
-        <PanelGroup
-          direction="vertical"
+        <Group
+          orientation="vertical"
           className={styles.itemDrawerGroup}
-          ref={panelGroupRef}
         >
           {/* Files Panel */}
           <Panel defaultSize={50} minSize={15}>
@@ -78,9 +76,9 @@ const ItemDrawer: React.FC = () => {
             </div>
           </Panel>
 
-          <PanelResizeHandle className="separator-handle">
+          <Separator className="separator-handle">
             <div className="drag-handle"></div>
-          </PanelResizeHandle>
+          </Separator>
 
           <Panel
             defaultSize={50}
@@ -139,7 +137,7 @@ const ItemDrawer: React.FC = () => {
               </div>
             </div>
           </Panel>
-        </PanelGroup>
+        </Group>
 
         {/* Dialog for creating macros */}
         {createMacroDialogOpen && (

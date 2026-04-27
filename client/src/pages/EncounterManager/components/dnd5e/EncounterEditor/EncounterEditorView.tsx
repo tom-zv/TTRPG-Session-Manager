@@ -10,7 +10,7 @@ import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { EntityPicker } from "../Shared/EntityPicker/EntityPicker.js";
 import { SyncStatusIndicator } from "src/components/SyncStatusIndicator/SyncStatusIndicator.js";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { DnD5eEntityCard } from "../Shared/DnD5eEntityCard/DnD5eEntityCard.js";
 
 interface EncounterEditorProps {
@@ -105,9 +105,9 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
             <p>Loading encounter...</p>
           </div>
         ) : (
-          <PanelGroup direction="horizontal" className={layoutStyles.encounterPanels}>
+          <Group orientation="horizontal" className={layoutStyles.encounterPanels}>
             <Panel defaultSize={100 - entityCardMinSize} minSize={15} className={layoutStyles.panelMinHeight}>
-              <EncounterDetails encounter={encounter!} />
+              {/* <EncounterDetails encounter={encounter!} /> */}
 
               <DnD5eEntityList
                 entities={encounter!.entities}
@@ -119,7 +119,7 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
               />
             </Panel>
 
-            <PanelResizeHandle className={layoutStyles.panelResizeHandle}></PanelResizeHandle>
+            <Separator className={layoutStyles.panelResizeHandle}></Separator>
 
             <Panel
               defaultSize={entityCardMinSize}
@@ -140,7 +140,7 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
                 </div>
               </div>
             </Panel>
-          </PanelGroup>
+          </Group>
         )}
         
         <Dialog

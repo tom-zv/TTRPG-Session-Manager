@@ -12,7 +12,7 @@ import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
 import { DnD5eEntityCard } from "../Shared/DnD5eEntityCard/DnD5eEntityCard.js";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 
 type LiveEncounterProps = {
   system: SystemType;
@@ -170,8 +170,8 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             <p>Connecting to live encounter...</p>
           </div>
         ) : (
-          <PanelGroup
-            direction="horizontal"
+          <Group
+            orientation="horizontal"
             className={`${layoutStyles.encounterPanels} ${styles.panelsLocked}`}
           >
             <Panel
@@ -204,7 +204,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
               />
             </Panel>
 
-            <PanelResizeHandle className={layoutStyles.panelResizeHandle} />
+            <Separator className={layoutStyles.panelResizeHandle} />
 
             <Panel
               defaultSize={28}
@@ -254,7 +254,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 </div>
               </aside>
             </Panel>
-          </PanelGroup>
+          </Group>
         )}
       </div>
     </div>
