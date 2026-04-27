@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { GiWarlockEye } from "react-icons/gi";
 import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
-import { EncounterDetails } from "../../shared/EncounterDetails.js";
+// import { EncounterDetails } from "../../shared/EncounterDetails.js";
 import { useEncounterEditor } from "src/pages/EncounterManager/hooks/useEncounterEditor.js";
 import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
 import { useEntitySelection } from "src/pages/EncounterManager/hooks/dnd5e/useEntitySelection.js";

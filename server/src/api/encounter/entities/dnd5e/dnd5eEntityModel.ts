@@ -8,7 +8,7 @@ import {
   EntityActionDB,
   EntitySpellcastingDB,
 } from "./types.js";
-import { RowDataPacket, PoolConnection } from "mysql2/promise";
+import { RowDataPacket, PoolConnection, ExecuteValues } from "mysql2/promise";
 import { DnD5eEntityState } from "shared/domain/encounters/dnd5e/entity.js";
 
 // Extract only the columns that live on the dnd5e.entities main row
@@ -419,13 +419,13 @@ export async function getEntitySummaries(): Promise<DnD5eEntitySummaryDB[]> {
 function prepareEntityFields(
   data: Record<string, unknown>,
   isUpdate: boolean
-): { fields: string[]; values: unknown[] } {
+): { fields: string[]; values: ExecuteValues[] } {
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: ExecuteValues[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     if (value === undefined) continue;
-    const serialized = typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
+    const serialized = (typeof value === 'object' && value !== null ? JSON.stringify(value) : value) as ExecuteValues;
     fields.push(isUpdate ? `${key} = ?` : key);
     values.push(serialized);
   }

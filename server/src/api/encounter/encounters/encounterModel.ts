@@ -1,5 +1,5 @@
 import { corePool } from "src/db.js";
-import { QueryResult, ResultSetHeader, RowDataPacket } from "mysql2";
+import { ExecuteValues, QueryResult, ResultSetHeader, RowDataPacket } from "mysql2";
 import { EncounterDB, encounterUpdateDataDB, EncounterInsertData } from "./types.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
 
@@ -19,12 +19,12 @@ export async function insertEncounter(
 ): Promise<number> {
   const query =
     "INSERT INTO encounters (system_id, name, description, location, difficulty, gm_notes) VALUES (?, ?, ?, ?, ?, ?)";
-  const values = [
+  const values: ExecuteValues[] = [
     data.system_id,
     data.name,
-    data.description,
-    data.location,
-    data.difficulty,
+    data.description ?? null,
+    data.location ?? null,
+    data.difficulty ?? null,
     JSON.stringify(data.gm_notes)
   ];
 
@@ -67,7 +67,7 @@ export async function updateEncounter(
 ): Promise<boolean> {
   // Build dynamic SET clause and values array
   const updateFields: string[] = [];
-  const values: (string | unknown)[] = [];
+  const values: ExecuteValues[] = [];
 
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) {

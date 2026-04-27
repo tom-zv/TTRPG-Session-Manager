@@ -2,7 +2,7 @@ import { corePool } from "src/db.js";
 import { DnD5eEntitySummaryDB } from "./dnd5e/types.js";
 import { DnD5eEntityDB } from "./dnd5e/types.js";
 import { CoreEntityDB } from "./types.js";
-import { ResultSetHeader } from "mysql2";
+import { ExecuteValues, ResultSetHeader } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import dnd5eModel from "./dnd5e/dnd5eEntityModel.js";
 import { ValidationError } from "src/api/HttpErrors.js";
@@ -62,7 +62,7 @@ export async function updateCoreEntity(
 ): Promise<void> {
   const coreData = extractCoreEntityFields(data);
   const coreFields: string[] = [];
-  const coreValues: unknown[] = [];
+  const coreValues: ExecuteValues[] = [];
 
   if (coreData.name !== undefined) {
     coreFields.push("name = ?");

@@ -1,5 +1,5 @@
 import { audioPool } from "src/db.js";
-import { RowDataPacket, ResultSetHeader } from "mysql2";
+import { ExecuteValues, RowDataPacket, ResultSetHeader } from "mysql2";
 import type {
   CollectionDB,
   CollectionAudioFileDB,
@@ -95,14 +95,14 @@ export async function updateCollection(
     throw new Error(`Invalid collection type: ${type}`);
   }
 
-  const updates: [string, unknown][] = [
+  const updates: [string, ExecuteValues | undefined][] = [
     ['name = ?', name],
     ['description = ?', description],
     ['image_url = ?', imageUrl],
   ];
 
   const fields: string[] = [];
-  const params: unknown[] = [];
+  const params: ExecuteValues[] = [];
 
   for (const [field, value] of updates) {
     if (value !== undefined) {
