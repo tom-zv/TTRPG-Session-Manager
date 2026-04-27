@@ -21,12 +21,14 @@ export enum AudioEventTypes {
   SFX_MACRO_CHANGE = "sfx-macro-change",
 }
 
-export const emitter: Emitter<any> = (mitt as any)();
+type AudioEventMap = Record<AudioEventTypes, unknown>;
+
+export const emitter: Emitter<AudioEventMap> = mitt<AudioEventMap>();
 
 /** Subscribe to an event */
 export function on(
   event: AudioEventTypes,
-  handler: (payload?: any) => void
+  handler: (payload?: unknown) => void
 ): void {
   emitter.on(event, handler);
 }
@@ -34,7 +36,7 @@ export function on(
 /** Unsubscribe from an event */
 export function off(
   event: AudioEventTypes,
-  handler: (payload?: any) => void
+  handler: (payload?: unknown) => void
 ): void {
   emitter.off(event, handler);
 }
@@ -42,7 +44,7 @@ export function off(
 /** Emit an event with an arbitrary payload */
 export function emit(
   event: AudioEventTypes,
-  payload?: any
+  payload?: unknown
 ): void {
   emitter.emit(event, payload);
 }

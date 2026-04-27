@@ -66,7 +66,7 @@ export const addCollectionToPack = async (
       `SELECT id FROM collections WHERE id = ?`,
       [collectionId]
     );
-    if (!collections[0] || (collections[0] as any[]).length === 0) {
+    if (!collections[0] || (collections[0] as RowDataPacket[]).length === 0) {
       throw new NotFoundError('Collection not found');
     }
     const affectedRows = await packModel.addCollectionToPack(packId, collectionId);

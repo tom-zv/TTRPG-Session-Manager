@@ -5,7 +5,7 @@ import { dragMode } from 'src/hooks/useDragSource.js';
 /**
  * Context object passed to drop handlers
  */
-export interface DropContext<D = any> {
+export interface DropContext<D = unknown> {
   destination?: D;
   index?: number;
   mode?: dragMode;
@@ -52,7 +52,7 @@ export interface DropHandlers {
 /**
  * Provides current drop context values
  */
-export interface DropContextGetter<D = any> {
+export interface DropContextGetter<D = unknown> {
   (): {
     destination?: D;
     index?: number;
@@ -64,14 +64,14 @@ export interface DropContextGetter<D = any> {
 /**
  * Factory function that returns the full set of drop event handlers.
  */
-export interface DropHandlerOptions<T, D = any> {
+export interface DropHandlerOptions<T, D = unknown> {
   acceptedTypes: string[];
-  transformItems?: (sourceItems: any[]) => T[];
+  transformItems?: (sourceItems: unknown[]) => T[];
   onError?: (error: Error) => void;
   onItemsDropped: (items: T[], context: DropContext<D>) => Promise<void>;
 }
 
-export function createDropHandlers<T, D = any>(
+export function createDropHandlers<T, D = unknown>(
   options: DropHandlerOptions<T, D>,
   updateDragState?: (isDragging: boolean, count: number) => void,
   getContext?: DropContextGetter<D>
@@ -115,15 +115,15 @@ export function createDropHandlers<T, D = any>(
 /**
  * Process a drop event: parse data, validate content type, optionally transform items, and invoke the drop handler.
  */
-interface DropOptions<T = any, D = any> {
+interface DropOptions<T = unknown, D = unknown> {
   destination?: D;
   index?: number;
   zoneId?: string;
-  transformItems?: (sourceItems: any[]) => T[];
+  transformItems?: (sourceItems: unknown[]) => T[];
   onError?: (error: Error) => void;
 }
 
-export async function processDropEvent<T, D = any>(
+export async function processDropEvent<T, D = unknown>(
   e: DragEvent,
   acceptedTypes: string[],
   dropHandler: (items: T[], context: DropContext<D>) => Promise<void>,

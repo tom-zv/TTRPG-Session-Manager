@@ -48,11 +48,10 @@ export const collectionKeys = {
 
 // Fetch all collections of a specific type
 export const useGetCollectionsOfType = (type: CollectionType, options = {}) => {
-  const api = getApiForType(type);
-
   return useQuery({
     queryKey: collectionKeys.type(type),
     queryFn: async () => {
+      const api = getApiForType(type);
       const collections = await api.getAllCollections();
       // Transform the array of collections into a virtual collection object
       return {
@@ -73,11 +72,9 @@ export const useGetCollectionById = (
   id: number,
   options = {}
 ) => {
-  const api = getApiForType(type);
-
   return useQuery({
     queryKey: collectionKeys.collection(type, id),
-    queryFn: () => api.getCollectionById(id, true),
+    queryFn: () => getApiForType(type).getCollectionById(id, true),
     enabled: id > 0,
     ...options,
   });

@@ -31,6 +31,7 @@ export function useEncounterEntityTemplates(
 ) {
   const queryClient = useQueryClient();
   
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps -- queryClient is a stable singleton, not a query dependency
   return useQuery({
     queryKey: [...ENCOUNTER_KEYS.entityTemplates(encounterId), entityIds],
     queryFn: async () => {
