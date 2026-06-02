@@ -10,6 +10,7 @@
     "dev:watch": "tsx watch src/index.ts",
     "import:dnd5etools": "tsx src/scripts/import-dnd5etools-entities.ts",
     "build": "tsc && tsc-alias",
+    "test:downloads": "npm run build && node --import tsx tests/fileDownload.test.ts && node --import tsx tests/downloadWorker.test.ts",
     "watch": "tsc -w",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"

@@ -19,6 +19,8 @@ export abstract class BaseEncounterEngine<
     protected state: TState;
     protected stateCache: IStateCache<TState>;
     protected requestHandler: IRequestHandler;
+    private operationsByRequestId = new Map<string, EncounterOperation>();
+    private readonly MAX_DEDUPED_REQUESTS = 500;
     
     constructor(
         initialState: TState,
@@ -33,6 +35,11 @@ export abstract class BaseEncounterEngine<
     }
     
     async dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation> {
+        const existingOperation = this.operationsByRequestId.get(request.requestId);
+        if (existingOperation) {
+            return existingOperation;
+        }
+
         const previousVersion = this.state.version;
         
         try {
@@ -49,6 +56,7 @@ export abstract class BaseEncounterEngine<
             };
 
             this.stateCache.logOperation(operation);
+            this.rememberOperation(request.requestId, operation);
             
             await this.checkSnapshot();
             return operation;
@@ -81,6 +89,17 @@ export abstract class BaseEncounterEngine<
     
     protected createSnapshot(): void {
         this.stateCache.addSnapshot(this.state);
+    }
+
+    private rememberOperation(requestId: string, operation: EncounterOperation): void {
+        if (this.operationsByRequestId.size >= this.MAX_DEDUPED_REQUESTS) {
+            const firstRequestId = this.operationsByRequestId.keys().next().value;
+            if (firstRequestId) {
+                this.operationsByRequestId.delete(firstRequestId);
+            }
+        }
+
+        this.operationsByRequestId.set(requestId, operation);
     }
 
     protected abstract persistSnapshot(): Promise<void>;

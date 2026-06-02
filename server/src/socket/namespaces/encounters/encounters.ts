@@ -6,7 +6,7 @@ export const initEncounterHandlers = (namespace: Namespace): void => {
   namespace.on("connection", (socket) => {
     console.log(`User ${socket.data.user?.username} connected to encounters`);
     
-    registerEncounterLifecycleHandlers(namespace, socket);
+    registerEncounterLifecycleHandlers(socket);
     registerEncounterRequestHandlers(namespace, socket);
   });
 };

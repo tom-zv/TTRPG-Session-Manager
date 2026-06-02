@@ -1,16 +1,13 @@
 import { useMemo } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { 
   DnD5eEncounter, 
-  DnD5eEncounterSummary 
 } from "shared/domain/encounters/dnd5e/encounter.js";
-import { DnD5eEntity, DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
+import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { 
+  useDnD5eEncounterSummaries,
   useDnD5eEncounterState,
   useEncounterEntityTemplates 
 } from "../../api/dnd5e/encounters/query/useDnD5eEncounterQueries.js";
-import { ENCOUNTER_KEYS } from "../../api/dnd5e/encounters/query/keys.js";
-import { ENTITY_KEYS } from "../../api/dnd5e/entities/query/keys.js";
 
 /**
  * Compose DnD5e encounter from caches
@@ -18,11 +15,14 @@ import { ENTITY_KEYS } from "../../api/dnd5e/entities/query/keys.js";
  * 
  */
 export function useComposedDnD5eEncounter(encounterId: number) {
-  const queryClient = useQueryClient();
-  
   // Get encounter state 
   const { data, isLoading: stateLoading } = useDnD5eEncounterState(encounterId);
   const encounterState = data?.encounterState;
+  const {
+    data: encounterSummaries,
+    isError: summariesError,
+    isLoading: summariesLoading,
+  } = useDnD5eEncounterSummaries();
   
   // Extract entity IDs from state
   const entityIds = useMemo(() => {
@@ -30,24 +30,24 @@ export function useComposedDnD5eEncounter(encounterId: number) {
       return [];
     }
 
-    return [...new Set(encounterState.entityStates.map((entityState) => entityState.templateId))];
+    return [...new Set(encounterState.entityStates.map((entityState) => entityState.templateId))]
+      .sort((a, b) => a - b);
   }, [encounterState]);
   
   // Batch fetch missing entity details in a single query
   // Only fetches entities not already in cache
   const { 
-    isLoading: entitiesLoading 
+    data: entityTemplatesById,
+    isError: entityTemplatesError,
+    isLoading: entitiesLoading,
   } = useEncounterEntityTemplates(encounterId, entityIds, { 
     enabled: !!encounterState && entityIds.length > 0
   });
   
   // Get encounter details from summaries cache
   const encounterDetails = useMemo(() => {
-    const summaries = queryClient.getQueryData<DnD5eEncounterSummary[]>(
-      ENCOUNTER_KEYS.summaries()
-    );
-    return summaries?.find(e => e.id === encounterId);
-  }, [encounterId, queryClient]);
+    return encounterSummaries?.find(e => e.id === encounterId);
+  }, [encounterId, encounterSummaries]);
   
   // Compose full encounter from caches 
   const encounter = useMemo(() => {
@@ -55,24 +55,30 @@ export function useComposedDnD5eEncounter(encounterId: number) {
       return null;
     }
 
-    const entities = encounterState.entityStates.map((entityState) => {
-      const entityDetails = queryClient.getQueryData<DnD5eEntityDetails>(
-        ENTITY_KEYS.template(entityState.templateId)
+    if (entityIds.length > 0 && !entityTemplatesById) {
+      return null;
+    }
+
+    const missingTemplate = encounterState.entityStates.find(
+      (entityState) => !entityTemplatesById?.[entityState.templateId]
+    );
+
+    if (missingTemplate) {
+      console.error(
+        `Entity template not found in cache for ID: ${missingTemplate.templateId}. ` +
+        `This indicates a cache synchronization issue.`
       );
-      
-      if (!entityDetails) {
-        console.error(
-          `Entity template not found in cache for ID: ${entityState.templateId}. ` +
-          `This indicates a cache synchronization issue.`
-        );
-        return null;
-      }
-      
+      return null;
+    }
+
+    const entities = encounterState.entityStates.map((entityState) => {
+      const entityDetails = entityTemplatesById![entityState.templateId]!;
+
       return {
         ...entityDetails,
         ...entityState,
       } as DnD5eEntity;
-    }).filter((entity): entity is DnD5eEntity => entity !== null);
+    });
 
     // Compose full encounter object 
     const { entityStates, ...stateWithoutEntityStates } = encounterState;
@@ -83,10 +89,14 @@ export function useComposedDnD5eEncounter(encounterId: number) {
       ...stateWithoutEntityStates,
       entities,
     } as DnD5eEncounter;
-  }, [encounterDetails, encounterState, entitiesLoading, queryClient]);
+  }, [encounterDetails, encounterState, entitiesLoading, entityIds.length, entityTemplatesById]);
   
   return {
     encounter,
-    isLoading: stateLoading || !encounterDetails || entitiesLoading,
+    isLoading: stateLoading ||
+      summariesLoading ||
+      (!encounterDetails && !encounterSummaries && !summariesError) ||
+      entitiesLoading ||
+      (entityIds.length > 0 && !entityTemplatesById && !entityTemplatesError),
   };
 }

@@ -5,66 +5,47 @@ import { serverConfig } from 'src/config/server-config.js';
 
 /**
  * Sanitizes a downloaded file by renaming it if necessary
- * @param filePath The full path to the file
- * @returns updated name
+ * @param relPath Path relative to the public directory
+ * @returns The actual filename, including its extension
  */
 export function sanitizeFilename(relPath: string): string {
   const filePath = path.join(serverConfig.publicDir, relPath);
-  const dir = path.dirname(filePath);
   const parsedPath = path.parse(filePath);
-  
-  // If no sanitized name provided, sanitize the existing filename
-  const baseName = sanitizeName(parsedPath.name);
-  const newFileName = `${baseName}${parsedPath.ext}`;
-  const newFilePath = path.join(dir, newFileName);
-  
-  // Only rename if the filename changed
-  if (filePath !== newFilePath) {
-    try {
-      fs.renameSync(filePath, newFilePath);
-    } catch {
-      // Continue with original filename if rename fails
-      return path.basename(relPath)
-    }
+  const baseName = sanitizeName(parsedPath.name, 255 - Buffer.byteLength(parsedPath.ext));
+  const filename = `${baseName}${parsedPath.ext}`;
+  const newFilePath = path.join(parsedPath.dir, filename);
 
+  if (filePath !== newFilePath) {
+    // Never replace an existing file that sanitizes to the same name.
+    fs.copyFileSync(filePath, newFilePath, fs.constants.COPYFILE_EXCL);
+    fs.unlinkSync(filePath);
   }
-  
-  return baseName;
+
+  return filename;
 }
 
 /**
  * Sanitize filename to ensure it's valid across operating systems
  * Removes/replaces invalid filename characters and handles edge cases
  */
-export function sanitizeName(name: string): string {
-  if (!name) return `unnamed-${Date.now()}`;
-
-  // Replace invalid characters with underscores
-  // eslint-disable-next-line no-useless-escape
-  let sanitized = name.replace(/[\/\\?%*:|"<>]/g, "_")
-    .replace(/\s+/g, " ") // replace multiple whitespace with single space
-    .replace(/#/g, '') // Remove hash symbols
-    .replace(/[｜|]/g, '-') // Replace fullwidth and regular vertical bars
+export function sanitizeName(name: string, maxBytes = 255): string {
+  // eslint-disable-next-line no-control-regex
+  let sanitized = (name || "unnamed").replace(/[/\\?%*:|"<>\u0000-\u001f\u007f]/g, "_")
+    .replace(/\s+/g, " ")
+    .replace(/#/g, "")
+    .replace(/｜/g, "-")
     .trim();
 
-  // Limit length to 255
-  const extIndex = sanitized.lastIndexOf(".");
-  if (extIndex !== -1) {
-    const base = sanitized.substring(0, extIndex);
-    const ext = sanitized.substring(extIndex);
-    const maxBaseLength = 255 - ext.length;
-    sanitized = base.substring(0, maxBaseLength) + ext;
-  } else if (sanitized.length > 255) {
-    sanitized = sanitized.substring(0, 255);
+  // Windows reserves these names even when an extension is present.
+  if (/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(sanitized)) {
+    sanitized = `_${sanitized}`;
   }
 
-  // Handle dots at the end (problematic on Windows)
-  sanitized = sanitized.replace(/\.+$/, "");
+  let byteLength = 0;
+  sanitized = Array.from(sanitized).filter((character) => {
+    byteLength += Buffer.byteLength(character);
+    return byteLength <= maxBytes;
+  }).join("").replace(/[. ]+$/, "");
 
-  // If sanitization left us with nothing, provide a default
-  if (!sanitized) {
-    sanitized = `file-${Date.now()}`;
-  }
-
-  return sanitized;
+  return sanitized || "file";
 }

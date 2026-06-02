@@ -1,12 +1,11 @@
 import { EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { SocketAck } from "shared/sockets/types.js";
-import { Namespace, Socket } from "socket.io";
+import { Socket } from "socket.io";
 import encounterConnectionManager from "src/services/encounters/encounterConnectionManager.js";
 import encounterEngineManager from "src/services/encounters/encounterEngineManager.js";
 import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
 import {
-  emitEncounterEnded,
   emitEncounterError,
   EncounterInitData,
   EncounterRoomData,
@@ -70,7 +69,7 @@ const leaveTrackedEncounter = (socket: Socket, encounterId: number, userId: numb
   }
 };
 
-export const registerEncounterLifecycleHandlers = (namespace: Namespace, socket: Socket): void => {
+export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
   socket.on("disconnect", () => {
     console.log(`User ${socket.data.user?.username} disconnected from encounters`);
 
@@ -105,11 +104,6 @@ export const registerEncounterLifecycleHandlers = (namespace: Namespace, socket:
       }
 
       const encounterId = requireEncounterId(data);
-
-      if (encounterEngineManager.hasEngine(encounterId)) {
-        await encounterEngineManager.cleanupEngine(encounterId);
-        emitEncounterEnded(namespace, encounterId);
-      }
 
       await encounterEngineManager.initializeEngine(data.system, encounterId);
       callback?.({ success: true });

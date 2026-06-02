@@ -2,6 +2,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import DnD5eEncounterApi from '../dnd5eEncounterApi.js';
 import { ENCOUNTER_KEYS } from './keys.js';
 import { ENTITY_KEYS } from '../../entities/query/keys.js';
+import type { DnD5eEntityDetails } from 'shared/domain/encounters/dnd5e/entity.js';
+
+export type EncounterEntityTemplatesById = Record<number, DnD5eEntityDetails>;
 
 /**
  * Get encounter summaries (encounter details + entity summaries)
@@ -30,15 +33,17 @@ export function useEncounterEntityTemplates(
   options?: { enabled?: boolean }
 ) {
   const queryClient = useQueryClient();
+  const normalizedEntityIds = [...new Set(entityIds)].sort((a, b) => a - b);
   
   // eslint-disable-next-line @tanstack/query/exhaustive-deps -- queryClient is a stable singleton, not a query dependency
   return useQuery({
-    queryKey: [...ENCOUNTER_KEYS.entityTemplates(encounterId), entityIds],
+    queryKey: [...ENCOUNTER_KEYS.entityTemplates(encounterId), normalizedEntityIds],
     queryFn: async () => {
       // Filter out entities that are already in cache
-      const missingEntityIds = entityIds.filter(
+      const missingEntityIds = normalizedEntityIds.filter(
         entityId => !queryClient.getQueryData(ENTITY_KEYS.template(entityId))
       );
+      const templatesById: EncounterEntityTemplatesById = {};
       
       // Only fetch missing entities
       if (missingEntityIds.length > 0) {
@@ -50,11 +55,30 @@ export function useEncounterEntityTemplates(
           queryClient.setQueryData(ENTITY_KEYS.template(entity.templateId), entity);
         });
       }
+
+      normalizedEntityIds.forEach((entityId) => {
+        const entity = queryClient.getQueryData<DnD5eEntityDetails>(
+          ENTITY_KEYS.template(entityId)
+        );
+
+        if (entity) {
+          templatesById[entityId] = entity;
+        }
+      });
+
+      const missingAfterFetch = normalizedEntityIds.filter(
+        (entityId) => !templatesById[entityId]
+      );
+
+      if (missingAfterFetch.length > 0) {
+        throw new Error(
+          `Entity template(s) not found for ID(s): ${missingAfterFetch.join(", ")}`
+        );
+      }
       
-      // Return all entity IDs (the "result" of this query)
-      return entityIds;
+      return templatesById;
     },
-    enabled: options?.enabled ?? (!!encounterId && entityIds.length > 0),
+    enabled: options?.enabled ?? (!!encounterId && normalizedEntityIds.length > 0),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

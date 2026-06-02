@@ -106,12 +106,15 @@ export async function getFolderPath(id: number | null): Promise<string> {
   const visitedIds = new Set<number>();
 
   // Traverse up the folder hierarchy until we reach a root folder
-  while (currentId && !visitedIds.has(currentId)) {
+  while (currentId) {
+    if (visitedIds.has(currentId)) {
+      throw new Error(`Circular folder hierarchy at folder ${currentId}`);
+    }
     visitedIds.add(currentId);
 
     const folder = await getFolderById(currentId);
     if (!folder) {
-      break;
+      throw new Error(`Folder with id ${currentId} does not exist`);
     }
 
     pathParts.unshift(folder.name); // Add folder name to the beginning of path

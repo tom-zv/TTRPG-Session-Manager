@@ -6,6 +6,7 @@ import path from "path";
 import { toAbsolutePath, toRelativePath } from "../../../utils/path-utils.js";
 import { NotFoundError, ValidationError } from "src/api/HttpErrors.js";
 import { PoolConnection } from "mysql2/promise";
+import { sanitizeName } from "../../../utils/file-utils.js";
 
 export async function getAllAudioFiles(): Promise<AudioFileDB[]> {
   return await fileModel.getAllAudioFiles();
@@ -71,63 +72,74 @@ export async function updateAudioFile(
   }
 ): Promise<AudioFileDB> {
   const audioFileParams: typeof params = {};
+  let originalPath: string | undefined;
+  let renamedPath: string | undefined;
 
-  // Rename file-system file
-  if (params.name) {
-    audioFileParams.name = params.name;
+  if (params.rel_path !== undefined) audioFileParams.rel_path = params.rel_path;
+  if (params.url !== undefined) audioFileParams.url = params.url;
 
-    // Get the current file record to access rel_path
-    const fileRecord = await fileModel.getAudioFile(fileId);
+  if (params.name !== undefined) {
+    if (typeof params.name !== "string" || !params.name.trim()) {
+      throw new ValidationError("File name is required");
+    }
+    const currentFile = await fileModel.getAudioFile(fileId);
+    if (!currentFile) throw new NotFoundError();
 
-    const currentFile = fileRecord;
-    if (currentFile && currentFile.rel_path) {
-      try {
-        const currentAbsolutePath = toAbsolutePath(currentFile.rel_path);
-        const fileDir = path.dirname(currentAbsolutePath);
-        const fileExt = path.extname(currentAbsolutePath);
+    const extension = currentFile.rel_path ? path.extname(currentFile.rel_path) : "";
+    const stem = extension && params.name.toLowerCase().endsWith(extension.toLowerCase())
+      ? params.name.slice(0, -extension.length)
+      : params.name;
+    audioFileParams.name = sanitizeName(stem, 128);
 
-        // Create new file path with the new name but same extension
-        const newFileName = `${params.name}${fileExt}`;
-        const newAbsolutePath = path.join(fileDir, newFileName);
+    if (currentFile.rel_path) {
+      const currentAbsolutePath = toAbsolutePath(currentFile.rel_path);
+      const newAbsolutePath = path.join(path.dirname(currentAbsolutePath),
+        audioFileParams.name + extension);
+      const newRelativePath = toRelativePath(newAbsolutePath);
+      if (Array.from(newRelativePath).length > 256) {
+        throw new ValidationError("Renamed file path is too long");
+      }
 
-        // Check if file exists before trying to rename
-        await fs.access(currentAbsolutePath);
-
-        await fs.rename(currentAbsolutePath, newAbsolutePath);
-
-        // Update the rel_path in params to reflect the new name
-        const newRelativePath = toRelativePath(newAbsolutePath);
+      if (newAbsolutePath !== currentAbsolutePath) {
+        // Edit dialogs include the unchanged old path alongside the new name.
+        // Only an independently changed path conflicts with this rename.
+        if (params.rel_path !== undefined && params.rel_path !== currentFile.rel_path &&
+          params.rel_path !== newRelativePath) {
+          throw new ValidationError("Cannot rename a file and change its path independently");
+        }
+        try {
+          // Keep the original until the DB update succeeds, without overwriting a destination.
+          await fs.link(currentAbsolutePath, newAbsolutePath);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+            throw new ValidationError("A file with that name already exists");
+          }
+          throw error;
+        }
+        originalPath = currentAbsolutePath;
+        renamedPath = newAbsolutePath;
         audioFileParams.rel_path = newRelativePath;
-      } catch (fsError) {
-        console.error(`Error renaming file:`, fsError);
-        // Don't fail the whole operation if file renaming fails
       }
     }
   }
 
-  if (params.rel_path !== undefined) {
-    audioFileParams.rel_path = params.rel_path;
+  if (Object.keys(audioFileParams).length === 0) throw new ValidationError();
+
+  try {
+    const affectedRows = await fileModel.updateAudioFile(fileId, audioFileParams);
+    if (!affectedRows) throw new NotFoundError();
+  } catch (error) {
+    if (renamedPath) await fs.unlink(renamedPath);
+    throw error;
   }
 
-  if (params.url !== undefined) {
-    audioFileParams.url = params.url;
+  if (originalPath) {
+    // The committed DB row already points to the complete new file.
+    await fs.unlink(originalPath).catch((error) => {
+      console.warn("Unable to remove the old file after renaming:", error);
+    });
   }
-
-  if (Object.keys(audioFileParams).length === 0) {
-    throw new ValidationError();
-  }
-
-  const affectedRows = await fileModel.updateAudioFile(
-    fileId,
-    audioFileParams
-  );
-
-  if (!affectedRows) {
-    throw new NotFoundError();
-  }
-
-  const file = getAudioFile(fileId);
-  return file;
+  return getAudioFile(fileId);
 }
 
 export async function deleteAudioFiles(fileIds: number[]): Promise<{ success: boolean, deletedCount: number, errors?: string[] }> {

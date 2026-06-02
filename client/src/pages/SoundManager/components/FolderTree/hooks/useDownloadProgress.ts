@@ -73,7 +73,7 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
             const folderMap = { ...(updated[folderId] || {}) };
 
             // Overwrite or insert this job's progress
-            folderMap[jobId] = newProgress;
+            folderMap[jobId] = { ...folderMap[jobId], ...newProgress };
             updated[folderId] = folderMap;
             return updated;
           });
@@ -94,7 +94,9 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
                 const existingProgress = folderMap[jobId];
                 
                 const newProgress: DownloadProgress = {
-                  ...existingProgress, 
+                  ...existingProgress,
+                  index: existingProgress?.index ?? 0,
+                  complete: existingProgress?.complete ?? false,
                   jobId,
                   total: totalFiles,
                 };
@@ -124,12 +126,13 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
             if (folderId) {
               const folderMap = { ...(updated[folderId] || {}) };
             
-              if (folderMap[jobId]) {
-                folderMap[jobId] = {
-                  ...folderMap[jobId],
-                  complete: true
-                };
-              }
+              folderMap[jobId] = {
+                ...folderMap[jobId],
+                jobId,
+                index: folderMap[jobId]?.index ?? 1,
+                total: folderMap[jobId]?.total ?? 1,
+                complete: true
+              };
               
               updated[folderId] = folderMap;
             } else {
@@ -174,6 +177,7 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
               // Append to existing fileErrors array
               folderMap[jobId] = {
                 ...current,
+                index: payload.fileIndex,
                 fileErrors: [...(current.fileErrors || []), errorEntry],
               };
             } else {
@@ -182,7 +186,7 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
                 jobId,
                 index: payload.fileIndex,
                 total: payload.totalFiles,
-                complete: payload.fileIndex == payload.totalFiles,
+                complete: false,
                 fileErrors: [errorEntry],
               };
             }
@@ -199,25 +203,22 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
           setFolderDownloadProgress((prev) => {
             const updated = { ...prev };
 
-            // Search for the folderId containing this jobId
-            const folderEntry = Object.entries(updated).find(
-              ([, jobMap]) => jobMap[jobId] !== undefined
-            );
-
-            if (folderEntry) {
-              const folderId = Number(folderEntry[0]);
+            // A worker can fail before metadata or request completion initializes the job.
+            const folderId = payload.folderId;
+            if (folderId) {
               const folderMap = { ...updated[folderId] };
               const current = folderMap[jobId];
-
-              if (current) {
-                folderMap[jobId] = {
-                  ...current,
-                  jobError: {
-                    message: payload.errorMessage || "Download job failed",
-                  },
-                };
-                updated[folderId] = folderMap;
-              }
+              folderMap[jobId] = {
+                ...current,
+                jobId,
+                index: current?.index ?? 0,
+                total: current?.total ?? 1,
+                complete: current?.complete ?? false,
+                jobError: {
+                  message: payload.errorMessage || "Download job failed",
+                },
+              };
+              updated[folderId] = folderMap;
             }
 
             return updated;
@@ -245,7 +246,7 @@ export function useDownloadProgress({ onFileCreated }: UseDownloadProgressProps)
         const folderMap = { ...(updated[folderId] || {}) };
 
         // Initialize a new progress entry
-        folderMap[jobId] = {
+        folderMap[jobId] = folderMap[jobId] || {
           jobId,
           index: 0,
           total: 1,

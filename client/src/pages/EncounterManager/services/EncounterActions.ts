@@ -32,6 +32,13 @@ export abstract class EncounterActions<TState, TEvent> {
   }
 
   /**
+   * Apply a server-confirmed operation to the encounter state.
+   */
+  applyOperation(events: TEvent[], version?: number): void {
+    this.stateManager.applyOperation(this.encounterId, events, version);
+  }
+
+  /**
    * Get current sync state
    */
   getSyncState(): SyncState | null {

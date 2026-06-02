@@ -49,7 +49,7 @@ export async function insertCoreEntity(
 
   const [coreResult] = await connection.execute<ResultSetHeader>(
     "INSERT INTO core.entities (name, image_url) VALUES (?, ?)",
-    [coreData.name, coreData.image_url || null]
+    [coreData.name || null, coreData.image_url || null]
   );
 
   return coreResult.insertId;

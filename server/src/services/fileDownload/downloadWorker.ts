@@ -3,8 +3,10 @@ import fs from "fs";
 import path from "path";
 import { serverConfig } from "src/config/server-config.js";
 import { getFolderPath } from "../../api/audio/folders/folderModel.js";
+import { audioPool } from "../../db.js";
 import {
   isExplicitYoutubePlaylist,
+  isYoutubeUrl,
   downloadYouTubePlaylist,
   downloadYouTubeSingle,
   downloadDirectUrl,
@@ -13,9 +15,9 @@ import type { CompleteMessage, WorkerErrorMessage } from "./types.js";
 import { FOLDERS } from "../../api/audio/folders/constants.js";
 
 async function executeDownload() {
-  const { jobId, fileData } = workerData;
-
-  const folderId = fileData.folder_id || FOLDERS.UPLOAD;
+  const { jobId } = workerData;
+  const folderId = workerData.fileData.folder_id || FOLDERS.UPLOAD;
+  const fileData = { ...workerData.fileData, folder_id: folderId };
 
   try {
     const folderPath = await getFolderPath(folderId);
@@ -24,14 +26,19 @@ async function executeDownload() {
       serverConfig.publicDir,
       folderPath
     );
+    const relativeOutputPath = path.relative(serverConfig.audioDir, absoluteOutputPath);
+    if (relativeOutputPath === ".." || relativeOutputPath.startsWith(".." + path.sep) ||
+      path.isAbsolute(relativeOutputPath)) {
+      throw new Error("Download folder must be inside the audio library");
+    }
     fs.mkdirSync(absoluteOutputPath, { recursive: true });
 
     const url = fileData.url;
 
-    let downloadedFileData = null;
+    let downloadedFileData: CompleteMessage["file"];
     
     // Execute the appropriate download function
-    if (url.includes("youtube.com") || url.includes("youtu.be")) {
+    if (isYoutubeUrl(url)) {
       if (isExplicitYoutubePlaylist(url)) {
         await downloadYouTubePlaylist(fileData, absoluteOutputPath);
       } else {
@@ -44,7 +51,7 @@ async function executeDownload() {
     parentPort?.postMessage({
       type: "complete",
       jobId,
-      file: downloadedFileData, // null for batch downloads
+      file: downloadedFileData,
     } as CompleteMessage);
 
   } catch (error) {
@@ -60,7 +67,9 @@ async function executeDownload() {
       folderId,
       error: errorDetails 
     } as WorkerErrorMessage);
-    throw error;
+  } finally {
+    await audioPool.end();
+    parentPort?.close();
   }
 }
 

@@ -185,14 +185,21 @@ export const downloadAudioUrls = async (
 
     // Validate each file entry
     for (const file of filesToProcess) {
-
-      if (!file.folder_id) {
+      if (!file || typeof file !== "object" ||
+        (file.name !== undefined && typeof file.name !== "string")) {
+        throw new ValidationError("Each download must have a valid file name");
+      }
+      if (file.folder_id == null) {
         file.folder_id = FOLDERS.UPLOAD;
-      } else if (typeof file.folder_id === "string") {
-        file.folder_id = parseInt(file.folder_id);
+      } else {
+        const folderId = Number(file.folder_id);
+        if (!Number.isSafeInteger(folderId) || folderId <= 0) {
+          throw new ValidationError("folder_id must be a positive integer");
+        }
+        file.folder_id = folderId;
       }
 
-      if (!file.url) {
+      if (typeof file.url !== "string" || !file.url.trim()) {
         throw new ValidationError(`URL is required for file "${file.name}"`);
       }
 
@@ -369,23 +376,9 @@ export const scan = async (
 // Helper functions for validation
 function isValidAudioUrl(url: string): boolean {
   try {
-    // First check if it's a valid URL
-    new URL(url);
-
-    // Check if it's a known audio/video platform
-    if (
-      url.includes("youtube.com") ||
-      url.includes("youtu.be") ||
-      url.includes("soundcloud.com") ||
-      url.includes("spotify.com") ||
-      url.includes("bandcamp.com")
-    ) {
-      return true;
-    }
-
-    // Check if URL points to an audio file extension
-    const audioExtensions = [".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"];
-    return audioExtensions.some((ext) => url.toLowerCase().endsWith(ext));
+    // Signed URLs and Content-Disposition downloads need not end in an extension.
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" || parsed.protocol === "http:";
   } catch {
     return false;
   }

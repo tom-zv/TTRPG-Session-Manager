@@ -7,7 +7,7 @@ CREATE TABLE
       "version": number,
       "currentRound": number,
       "currentTurn": number,
-      "initiativeOrder": number,
+      "initiativeOrder": number[],
       "entities": [{
         "entityId": number,
         "initiative": number,

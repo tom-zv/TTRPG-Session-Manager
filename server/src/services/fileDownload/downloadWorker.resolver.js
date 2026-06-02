@@ -10,23 +10,26 @@
  */
 import { register } from "tsx/esm/api";
 import { parentPort, workerData } from "node:worker_threads";
+import { fileURLToPath, pathToFileURL, URL } from "node:url";
 
 // Register tsx runtime compiler to handle TypeScript files
-register();
+register({ tsconfig: fileURLToPath(new URL("../../../tsconfig.json", import.meta.url)) });
 
 if (workerData.scriptPath) {
   try {
     // Dynamic import of the TypeScript worker file
-    await import(workerData.scriptPath);
+    await import(pathToFileURL(workerData.scriptPath).href);
 
   } catch (error) {
     parentPort?.postMessage({ 
       type: "error", 
+      jobId: workerData.jobId,
       error: { 
-        message: error.message,
-        stack: error.stack,
-        name: error.name 
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : "Error"
       } 
     });
+    parentPort?.close();
   }
 }

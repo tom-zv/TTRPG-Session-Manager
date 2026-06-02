@@ -39,7 +39,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
 
   const hasDataError = !isLoading && !encounter;
   const isBootstrapping = isLoading || !isLifecycleReady || !actions;
-  const canMutate = isGm;
+  const canMutate = isGm && isLifecycleReady && !encounterEnded;
   const sourceId = currentUser?.id;
 
   const [userSelectedEntityId, setUserSelectedEntityId] = useState<number | undefined>();

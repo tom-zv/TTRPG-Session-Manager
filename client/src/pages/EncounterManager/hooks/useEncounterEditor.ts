@@ -70,7 +70,7 @@ function useGenericEncounterEditor<
 
   const [syncState, setSyncState] = useState<SyncState | null>(null);
   
-  const actionsRef = useRef<TActions>();
+  const actionsRef = useRef<TActions|null>(null);
   const syncInitializedRef = useRef(false);
 
   // Initialize actions

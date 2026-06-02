@@ -1,5 +1,6 @@
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { IEncounterEngine, createEncounterEngine } from "./encounterEngine.js";
+import encounterConnectionManager from "./encounterConnectionManager.js";
 
 /**
  * Manages active encounter engine instances.
@@ -8,29 +9,46 @@ import { IEncounterEngine, createEncounterEngine } from "./encounterEngine.js";
  */
 export class EncounterEngineManager {
     private engines = new Map<number, IEncounterEngine>();
+    private engineInitializations = new Map<number, Promise<IEncounterEngine>>();
     private inactivityTimeouts = new Map<number, NodeJS.Timeout>();
     private readonly TIMEOUT_DURATION = 5 * 60 * 1000; // 5 minutes
     
     /**
-     * Initialize or retrieve an encounter engine.
-     * If an engine already exists for this encounter, it will be cleaned up first.
+     * Initialize or retrieve an encounter engine for this encounter.
      */
     async initializeEngine(system: SystemType, encounterId: number): Promise<IEncounterEngine> {
-        // Clean up existing engine if present
         const existingEngine = this.engines.get(encounterId);
         if (existingEngine) {
-            await this.cleanupEngine(encounterId);
+            this.clearInactivityTimeout(encounterId);
+            return existingEngine;
+        }
+
+        const existingInitialization = this.engineInitializations.get(encounterId);
+        if (existingInitialization) {
+            this.clearInactivityTimeout(encounterId);
+            return existingInitialization;
         }
         
-        // Create new engine
-        const engine = await createEncounterEngine(system, encounterId);
-        this.engines.set(encounterId, engine);
-        
-        // Clear any existing timeout
-        this.clearInactivityTimeout(encounterId);
-        
-        console.log(`Initialized encounter engine for encounter ${encounterId}`);
-        return engine;
+        const initialization = createEncounterEngine(system, encounterId)
+            .then((engine) => {
+                const currentEngine = this.engines.get(encounterId);
+                if (currentEngine) {
+                    return currentEngine;
+                }
+
+                this.engines.set(encounterId, engine);
+                this.clearInactivityTimeout(encounterId);
+                console.log(`Initialized encounter engine for encounter ${encounterId}`);
+                return engine;
+            })
+            .finally(() => {
+                if (this.engineInitializations.get(encounterId) === initialization) {
+                    this.engineInitializations.delete(encounterId);
+                }
+            });
+
+        this.engineInitializations.set(encounterId, initialization);
+        return initialization;
     }
     
     /**
@@ -59,9 +77,13 @@ export class EncounterEngineManager {
      * Clean up and remove an encounter engine.
      * Persists final state before removal.
      */
-    async cleanupEngine(encounterId: number): Promise<void> {
+    async cleanupEngine(encounterId: number, options: { onlyIfInactive?: boolean } = {}): Promise<void> {
         const engine = this.engines.get(encounterId);
         if (!engine) {
+            return;
+        }
+
+        if (options.onlyIfInactive && encounterConnectionManager.getUserCount(encounterId) > 0) {
             return;
         }
         
@@ -73,8 +95,14 @@ export class EncounterEngineManager {
         // Persist final state
         await engine.cleanup();
         
-        // Remove from active engines
-        this.engines.delete(encounterId);
+        if (options.onlyIfInactive && encounterConnectionManager.getUserCount(encounterId) > 0) {
+            return;
+        }
+
+        // Remove from active engines only if this cleanup still owns the current engine.
+        if (this.engines.get(encounterId) === engine) {
+            this.engines.delete(encounterId);
+        }
     }
     
     /**
@@ -93,8 +121,12 @@ export class EncounterEngineManager {
         console.log(`Starting inactivity timeout for encounter ${encounterId}`);
         
         const timeout = setTimeout(async () => {
+            if (encounterConnectionManager.getUserCount(encounterId) > 0) {
+                return;
+            }
+
             console.log(`Inactivity timeout reached for encounter ${encounterId}, cleaning up`);
-            await this.cleanupEngine(encounterId);
+            await this.cleanupEngine(encounterId, { onlyIfInactive: true });
         }, this.TIMEOUT_DURATION);
         
         this.inactivityTimeouts.set(encounterId, timeout);

@@ -100,8 +100,9 @@ export class LocalStateManager<TState, TEvent> {
    */
   private applyEventToState(
     encounterId: number, 
-    event: TEvent, 
-    processor: (state: TState, event: TEvent) => void
+    events: TEvent[], 
+    processor: (state: TState, event: TEvent) => void,
+    version?: number
   ) {
     // Update state in cache and get the updated state
     const updated = this.queryClient.setQueryData<{ encounterState: TState }>(
@@ -109,7 +110,16 @@ export class LocalStateManager<TState, TEvent> {
       (old) => {
         if (!old) return old;
         const updatedEncounterState = produce(old.encounterState, (draft) => {
-          processor(draft as TState, event);
+          for (const event of events) {
+            processor(draft as TState, event);
+          }
+
+          if (version !== undefined) {
+            const versionedDraft = draft as TState & { version?: unknown };
+            if (typeof versionedDraft.version === "number") {
+              versionedDraft.version = version;
+            }
+          }
         }) as TState;
         return {
           ...old,
@@ -128,13 +138,20 @@ export class LocalStateManager<TState, TEvent> {
    * Apply a local event 
    */
   applyLocalEvent(encounterId: number, event: TEvent) {
-    this.applyEventToState(encounterId, event, this.eventProcessor.applyEvent);
+    this.applyEventToState(encounterId, [event], this.eventProcessor.applyEvent);
   }
 
   /**
    * Apply an event from the live operation stream
    */
   applyEvent(encounterId: number, event: TEvent) {
-    this.applyEventToState(encounterId, event, this.eventProcessor.applyEvent);
+    this.applyEventToState(encounterId, [event], this.eventProcessor.applyEvent);
+  }
+
+  /**
+   * Apply a full operation from the live stream in a single cache update.
+   */
+  applyOperation(encounterId: number, events: TEvent[], version?: number) {
+    this.applyEventToState(encounterId, events, this.eventProcessor.applyEvent, version);
   }
 }
