@@ -24,6 +24,7 @@ type EncounterSocketRequest<TEvent = EncounterEvent> =
   | EncounterInitRequest;
 
 export interface EncounterDataCallbacks<TEvent = EncounterEvent> {
+  onTemplateUpdated?: (payload: { templateId: number }) => void;
   applyOperation: (operation: EncounterOperation<TEvent>) => void;
   onError?: (error: EncounterError) => void;
   onEncounterEnd?: (payload: EncounterRoomRequest) => void;
@@ -41,10 +42,12 @@ export class EncounterSocketService<TEvent = EncounterEvent> {
   private readonly handleError: (error: EncounterError) => void;
   private readonly handleDisconnect: () => void;
   private readonly handleConnect: () => void;
+  private readonly handleTemplateUpdated: (payload: { templateId: number }) => void;
   private readonly ACK_TIMEOUT_MS = 10_000;
 
   constructor(callbacks: EncounterDataCallbacks<TEvent>) {
     this.callbacks = callbacks;
+    this.handleTemplateUpdated = (payload) => this.callbacks.onTemplateUpdated?.(payload);
     this.socket = getSocket("/encounter");
 
     this.handleOperation = (operation: EncounterOperation<TEvent>) => {
@@ -73,6 +76,7 @@ export class EncounterSocketService<TEvent = EncounterEvent> {
   }
 
   private setupListeners() {
+    this.socket.on(EncounterSocketEvents.TEMPLATE_UPDATED, this.handleTemplateUpdated);
     this.socket.on(EncounterSocketEvents.OPERATION, this.handleOperation);
 
     this.socket.on(EncounterSocketEvents.END, this.handleEncounterEnd);
@@ -88,6 +92,7 @@ export class EncounterSocketService<TEvent = EncounterEvent> {
     }
 
     this.disposed = true;
+    this.socket.off(EncounterSocketEvents.TEMPLATE_UPDATED, this.handleTemplateUpdated);
     this.socket.off(EncounterSocketEvents.OPERATION, this.handleOperation);
     this.socket.off(EncounterSocketEvents.END, this.handleEncounterEnd);
     this.socket.off("error", this.handleError);

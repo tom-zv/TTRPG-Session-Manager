@@ -1,5 +1,6 @@
 import type { DnD5eEntityDetails, EntitySpellcasting, SpellcastingLevel } from "shared/domain/encounters/dnd5e/entity.js";
 import type { AbilityKey } from "../dnd5eUtils.js";
+import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 
 export type EntityFormMode = "create" | "edit";
 
@@ -68,6 +69,7 @@ export type SpellcastingDraft = {
 export type PassivePerceptionMode = "auto" | "manual";
 
 export type DnD5eEntityFormDraft = {
+  settings: EntitySettings;
   name: string;
   imageUrl: string;
   role: DnD5eEntityDetails["role"];

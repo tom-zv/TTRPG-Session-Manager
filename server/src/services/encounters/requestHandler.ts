@@ -3,7 +3,7 @@ import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { UserDB } from "src/api/users/types.js";
 
 export interface IRequestHandler {
-  parseRequest(request: EncounterRequest, user: UserDB): encounterEvent[];
+  parseRequest(request: EncounterRequest, user: UserDB): Promise<encounterEvent[]>;
 }
 
 export interface IEventAuthorizer {
@@ -18,19 +18,26 @@ export abstract class BaseRequestHandler<TState extends { version: number }>
     protected eventAuthorizer: IEventAuthorizer,
   ) {}
 
-  parseRequest(request: EncounterRequest, user: UserDB): encounterEvent[] {
+  async parseRequest(request: EncounterRequest, user: UserDB): Promise<encounterEvent[]> {
       const validatedEvents = request.requestedEvents.map((event) => this.validateEvent(event));
 
       this.eventAuthorizer.authorizeEvents(validatedEvents, user);
+      await this.prepareEvents(validatedEvents);
 
       const appliedEvents: encounterEvent[] = [];
 
       for (const event of validatedEvents) {
-        this.applyEvent(event);
-        appliedEvents.push(structuredClone(event));
+        appliedEvents.push(...structuredClone(this.applyValidatedEvent(event)));
       }
 
       return appliedEvents;
+  }
+
+  protected async prepareEvents(_events: encounterEvent[]): Promise<void> {}
+
+  protected applyValidatedEvent(event: encounterEvent): encounterEvent[] {
+    this.applyEvent(event);
+    return [event];
   }
 
   protected abstract validateEvent(event: encounterEvent): encounterEvent;

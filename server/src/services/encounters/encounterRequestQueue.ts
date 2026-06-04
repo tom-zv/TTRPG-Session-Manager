@@ -10,7 +10,9 @@ export class EncounterRequestQueue {
       .catch(() => undefined)
       .then(task);
 
-    const nextQueue = nextTask.then(() => undefined);
+    // The caller receives nextTask's rejection. The internal tail must always settle
+    // successfully, even when there is no subsequent request to consume it.
+    const nextQueue = nextTask.then(() => undefined, () => undefined);
 
     this.queues.set(encounterId, nextQueue);
 

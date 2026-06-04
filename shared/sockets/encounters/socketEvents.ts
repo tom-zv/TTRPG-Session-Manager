@@ -7,4 +7,5 @@ export enum EncounterSocketEvents {
     // Data sync
     REQUEST = 'encounter:request',
     OPERATION = 'encounter:operation',
+    TEMPLATE_UPDATED = 'encounter:templateUpdated',
 }

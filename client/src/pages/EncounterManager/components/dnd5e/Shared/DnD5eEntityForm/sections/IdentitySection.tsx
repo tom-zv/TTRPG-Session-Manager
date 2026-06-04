@@ -10,9 +10,21 @@ import {
 } from "../model/options.js";
 import type { AdvancedSectionsProps } from "./AdvancedSections.types.js";
 import styles from "./DnD5eEntityFormSections.module.css";
+import { mergeSettings } from "shared/domain/encounters/settings.js";
+import { ENTITY_SETTINGS } from "shared/domain/encounters/dnd5e/settings.js";
 
 export const IdentitySection: React.FC<AdvancedSectionsProps> = ({ draft, updateDraft }) => (
   <>
+    {draft.role === "npc" && (
+      <label>
+        <input
+          type="checkbox"
+          checked={draft.settings.combat?.deathSaves ?? false}
+          onChange={(event) => updateDraft("settings", mergeSettings(draft.settings, { combat: { deathSaves: event.target.checked } }))}
+        /> {ENTITY_SETTINGS.combat.deathSaves.label}
+        <small> {ENTITY_SETTINGS.combat.deathSaves.help}</small>
+      </label>
+    )}
     <div className={styles.gridTwo}>
       <FormField label="Image URL" name="imageUrl" className={styles.wideField}>
         <input

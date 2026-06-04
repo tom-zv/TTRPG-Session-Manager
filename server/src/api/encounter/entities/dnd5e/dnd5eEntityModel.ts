@@ -10,11 +10,16 @@ import {
 } from "./types.js";
 import { RowDataPacket, PoolConnection, ExecuteValues } from "mysql2/promise";
 import { DnD5eEntityState } from "shared/domain/encounters/dnd5e/entity.js";
+import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
+import { mergeSettings } from "shared/domain/encounters/settings.js";
+import { readJsonObjectColumn } from "src/utils/jsonColumn.js";
+import { NotFoundError } from "src/api/HttpErrors.js";
 
 // Extract only the columns that live on the dnd5e.entities main row
 function extractDnD5eTableFields(data: Omit<DnD5eEntityDB, "id" | "created_at">) {
   return {
     role: data.role,
+    settings: data.settings,
     creature_type: data.creature_type,
     type_tags: data.type_tags,
     cr: data.cr,
@@ -38,7 +43,7 @@ function extractDnD5eTableFields(data: Omit<DnD5eEntityDB, "id" | "created_at">)
 const ENTITY_SELECT = `
   SELECT
     c.id, c.name, c.image_url, c.created_at,
-    e.role, e.creature_type, e.type_tags, e.cr,
+    e.role, e.settings, e.creature_type, e.type_tags, e.cr,
     e.ac, e.hp, e.hp_formula, e.speeds, e.size, e.alignment,
     e.ability_scores, e.saves, e.skills,
     e.passive_perception, e.languages,
@@ -439,6 +444,7 @@ async function createDefaultEntityState(
   const entity = await getEntityById(templateId);
   return {
     instanceId,
+    inGrave: false,
     templateId,
     initiative: 0,
     maxHp: entity.hp,
@@ -453,6 +459,8 @@ async function createDefaultEntityState(
 }
 
 export default {
+  getCombatProfiles,
+  patchSettings,
   getAllEntities,
   getEntityById,
   getEntitiesByIds,
@@ -461,3 +469,34 @@ export default {
   insertEntity,
   createDefaultEntityState,
 };
+
+export type EntityCombatProfile = { id: number; role: DnD5eEntityDB["role"]; settings: EntitySettings };
+
+export async function getCombatProfiles(ids: number[]): Promise<EntityCombatProfile[]> {
+  if (!ids.length) return [];
+  const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
+    `SELECT id, role, settings FROM dnd5e.entities WHERE id IN (${ids.map(() => "?").join(",")})`, ids,
+  );
+  return rows.map((row) => ({ id: row.id, role: row.role, settings: readJsonObjectColumn(row.settings) }));
+}
+
+/** Merge just the settings row, without replacing any entity collections. */
+export async function patchSettings(entityId: number, patch: EntitySettings): Promise<EntitySettings> {
+  const connection = await dnd5ePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      "SELECT settings FROM dnd5e.entities WHERE id = ? FOR UPDATE", [entityId],
+    );
+    if (!rows[0]) throw new NotFoundError("Entity not found");
+    const settings = mergeSettings<EntitySettings>(readJsonObjectColumn(rows[0].settings), patch);
+    await connection.execute("UPDATE dnd5e.entities SET settings = ? WHERE id = ?", [JSON.stringify(settings), entityId]);
+    await connection.commit();
+    return settings;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}

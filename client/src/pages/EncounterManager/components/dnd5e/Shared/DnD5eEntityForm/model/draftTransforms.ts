@@ -89,6 +89,7 @@ export const createEntityDraft = (
     name: entity?.name ?? "",
     imageUrl: entity?.imageUrl ?? "",
     role: entity?.role ?? "creature",
+    settings: structuredClone(entity?.settings ?? {}),
     creatureType: entity?.creatureType ?? "",
     typeTags: entity?.typeTags ?? [],
     cr: entity?.cr ?? "",

@@ -1,5 +1,7 @@
 import express from "express";
 import entityController from "./entityController.js";
+import { patchEntitySettings } from "./entitySettingsController.js";
+import { userAuth, requireGm } from "src/middleware/userAuth.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -18,10 +20,11 @@ router.get("/", entityController.getAllEntities);
 router.get("/:id", entityController.getEntityById);
 
 // POST /entities - Insert a new entity
-router.post("/", entityController.insertEntity);
+router.post("/", userAuth(), requireGm, entityController.insertEntity);
 
 // PUT /entities/:id - Update an entity
-router.put("/:id", entityController.updateEntity);
+router.put("/:id", userAuth(), requireGm, entityController.updateEntity);
+router.patch("/:id/settings", userAuth(), requireGm, patchEntitySettings);
 
 // DELETE /entities/:id - Delete an entity
 router.delete("/:id", entityController.deleteEntity);

@@ -1,4 +1,5 @@
 import React, { useCallback } from "react";
+import { GiTombstone } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import { LiveHpActionControl } from "./LiveHpActionControl.js";
@@ -9,8 +10,8 @@ type EntityRowLiveActionsProps = {
   canMutate: boolean;
   sourceId?: number;
   actions: DnD5eEncounterActions;
-  showSecondaryActions: boolean;
-  onToggleSecondary: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  /** Show the Bury button in the primary actions (the entity is waiting for the DM's decision). */
+  offerBurial: boolean;
 };
 
 export const EntityRowLiveActions: React.FC<EntityRowLiveActionsProps> = ({
@@ -18,9 +19,10 @@ export const EntityRowLiveActions: React.FC<EntityRowLiveActionsProps> = ({
   canMutate,
   sourceId,
   actions,
-  showSecondaryActions,
-  onToggleSecondary,
+  offerBurial,
 }) => {
+  const entityName = entity.displayName ?? entity.name;
+
   const handleQuickDamage = useCallback(
     (amount: number) => {
       if (!canMutate || sourceId === undefined) return;
@@ -38,34 +40,28 @@ export const EntityRowLiveActions: React.FC<EntityRowLiveActionsProps> = ({
   );
 
   return (
-    <>
-      <div className={styles.entityActionsPrimary}>
-        <LiveHpActionControl
-          entityName={entity.displayName ?? entity.name}
-          disabled={!canMutate || sourceId === undefined}
-          onDamage={handleQuickDamage}
-          onHeal={handleQuickHeal}
-        />
-      </div>
-
-      {showSecondaryActions && (
-        <div
-          id={`entity-secondary-actions-${entity.instanceId}`}
-          className={styles.entityActionsSecondary}
+    <div className={styles.entityActionsPrimary}>
+      <LiveHpActionControl
+        entityName={entityName}
+        disabled={!canMutate || sourceId === undefined}
+        onDamage={handleQuickDamage}
+        onHeal={handleQuickHeal}
+      />
+      {canMutate && offerBurial && (
+        <button
+          type="button"
+          className={`${styles.actionButton} ${styles.buryButton}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            actions.combat.moveToGrave(entity.instanceId);
+          }}
+          title={`Move ${entityName} to the grave`}
+          aria-label={`Move ${entityName} to the grave`}
         >
-          <button type="button" className={styles.actionButton} disabled title="Coming soon">
-            Condition
-          </button>
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={onToggleSecondary}
-            title="Collapse additional actions"
-          >
-            Collapse
-          </button>
-        </div>
+          <GiTombstone aria-hidden="true" />
+          Bury
+        </button>
       )}
-    </>
+    </div>
   );
 };

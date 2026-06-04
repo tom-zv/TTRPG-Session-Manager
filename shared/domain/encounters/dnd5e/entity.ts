@@ -1,4 +1,5 @@
 import { CoreEntity } from "../coreEntity.js";
+import type { EntitySettings } from "./settings.js";
 
 export interface DamageModifier {
   damageType: string;
@@ -45,6 +46,7 @@ export interface EntitySpellcasting {
 }
 
 export interface DnD5eEntityDetails extends CoreEntity {
+  settings?: EntitySettings;
   role: 'pc' | 'npc' | 'creature';
   creatureType?: string;   // 5etools type: 'beast', 'humanoid', 'fiend', etc.
   typeTags?: string[];     // 5etools type.tags: ['elf'], ['shapechanger']
@@ -89,6 +91,7 @@ export interface DnD5eEntitySummary {
 }
 
 export interface DnD5eEntityState {
+  inGrave: boolean;
   // runtime combat state
   instanceId: number; // Unique ID for this entity instance in the encounter
   templateId: number; // Reference to the base entity details

@@ -1,6 +1,7 @@
 import { dnd5ePool } from "src/db.js";
 import { ResultSetHeader, RowDataPacket } from "mysql2";
 import { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js";
+import { normalizeDnD5eEncounterState } from "shared/domain/encounters/dnd5e/normalizeEncounterState.js";
 
 export async function createEncounterSnapshot(
   encounterId: number,
@@ -36,7 +37,7 @@ export async function getSnapshot(
   if (!parsed.id) parsed.id = encounterId;
   if (!parsed.system) parsed.system = "dnd5e";
 
-  return parsed;
+  return normalizeDnD5eEncounterState(parsed);
 }
 
 export async function saveSnapshot(
@@ -48,7 +49,7 @@ export async function saveSnapshot(
      SET snapshot = ?,
          snapshot_at = CURRENT_TIMESTAMP
      WHERE encounter_id = ?`,
-    [JSON.stringify(snapshot), encounterId]
+    [JSON.stringify(normalizeDnD5eEncounterState(snapshot)), encounterId]
   );
 }
 

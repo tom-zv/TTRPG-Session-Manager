@@ -42,7 +42,7 @@
   gap: var(--spacing-sm);
 }
 
-.encounterHeaderActions button {
+.encounterHeaderActions > button {
   padding: 0.625rem 1.25rem;
   border: none;
   border-radius: var(--radius-md);
@@ -51,12 +51,12 @@
   transition: background var(--transition-duration);
 }
 
-.encounterHeaderActions button:first-child {
+.encounterHeaderActions > button:first-child {
   background: var(--accent-primary);
   color: #fff;
 }
 
-.encounterHeaderActions button:first-child:hover:not(:disabled) {
+.encounterHeaderActions > button:first-child:hover:not(:disabled) {
   background: var(--accent-secondary);
 }
 

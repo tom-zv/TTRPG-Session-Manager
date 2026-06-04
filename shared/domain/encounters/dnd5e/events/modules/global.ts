@@ -1,8 +1,11 @@
 import { GlobalHandlerMap} from "../types.js";
 import { DnD5eEntityState, } from "../../entity.js";
+import { rebuildInitiativeOrder, setInitiativeOrder } from "../../initiative.js";
+import { mergeSettings } from "../../../settings.js";
 
 export const makeEntityStateful = (templateId: number, instanceId: number, hp: number, displayName?: string): DnD5eEntityState => ({
     templateId,
+    inGrave: false,
     instanceId, 
     displayName,
     maxHp: hp,
@@ -37,16 +40,7 @@ export const globalHandler = {
 
     removeEntity(state, event){
         state.entityStates = state.entityStates.filter((entity) => entity.instanceId !== event.values.instanceId);
-        state.initiativeOrder = state.initiativeOrder.filter((id) => id !== event.values.instanceId);
-
-        if (state.initiativeOrder.length === 0) {
-          state.currentTurn = 0;
-          return;
-        }
-
-        if (state.currentTurn >= state.initiativeOrder.length) {
-          state.currentTurn = 0;
-        }
+        setInitiativeOrder(state, state.initiativeOrder.filter((id) => id !== event.values.instanceId));
     },
 
     nextTurn(state) {
@@ -74,6 +68,7 @@ export const globalHandler = {
       state.currentTurn = 0;
       state.entityStates = state.entityStates.map((entity) => ({
         ...entity,
+        inGrave: false,
         initiative: 0,
         currentHp: entity.maxHp,
         tempHp: 0,
@@ -83,5 +78,9 @@ export const globalHandler = {
         isConcentrating: false,
         conditions: [],
       }));
+      rebuildInitiativeOrder(state);
+    },
+    updateEncounterSettings(state, event) {
+      state.settings = mergeSettings(state.settings, event.values.patch);
     },
 } as GlobalHandlerMap

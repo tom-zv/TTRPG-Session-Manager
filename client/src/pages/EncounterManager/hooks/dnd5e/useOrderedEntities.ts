@@ -11,14 +11,15 @@ export function useOrderedEntities(
   initiativeOrder: number[]
 ): DnD5eEntity[] {
   return useMemo(() => {
-    const byId = new Map(entities.map((entity) => [entity.instanceId, entity]));
+    const activeEntities = entities.filter((entity) => !entity.inGrave);
+    const byId = new Map(activeEntities.map((entity) => [entity.instanceId, entity]));
     const initiativeSet = new Set(initiativeOrder);
 
     const ordered = initiativeOrder
       .map((id) => byId.get(id))
       .filter((entity): entity is DnD5eEntity => entity !== undefined);
 
-    entities.forEach((entity) => {
+    activeEntities.forEach((entity) => {
       if (!initiativeSet.has(entity.instanceId)) {
         ordered.push(entity);
       }

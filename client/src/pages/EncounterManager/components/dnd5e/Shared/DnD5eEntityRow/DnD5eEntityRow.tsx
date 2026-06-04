@@ -1,12 +1,17 @@
 import React, { useCallback, useState } from "react";
-import { GiWarlockEye } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import { EditableField } from "src/components/FormControls/index.js";
 import { EntityHpStats } from "./EntityHpStats.js";
 import { EntityRowLiveActions } from "./EntityRowLiveActions.js";
+import { EntityRowSecondaryActions } from "./EntityRowSecondaryActions.js";
+import { DeathSaveTracker } from "./DeathSaveTracker.js";
+import { EntityVitalBadge } from "./EntityVitalBadge.js";
+import { InlineConfirm } from "./InlineConfirm.js";
+import { RowSelectionMarker } from "./RowSelectionMarker.js";
+import { getVitalStatus, isAwaitingBurial } from "./vitalStatus.js";
+import { isFromNestedControl } from "./rowEvents.js";
 import styles from "./DnD5eEntityRow.module.css";
-import linkStyles from "../SelectionLink.module.css";
 
 type DnD5eEntityRowProps = {
   entity: DnD5eEntity;
@@ -43,20 +48,22 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     setShowRemoveConfirm(true);
   }, []);
 
-  const handleConfirmRemove = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleConfirmRemove = useCallback(() => {
     onRemove(entity.instanceId);
     setShowRemoveConfirm(false);
   }, [entity.instanceId, onRemove]);
 
-  const handleCancelRemove = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleCancelRemove = useCallback(() => {
     setShowRemoveConfirm(false);
   }, []);
 
   const handleToggleSecondaryActions = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setShowSecondaryActions((previous) => !previous);
+  }, []);
+
+  const handleCloseSecondaryActions = useCallback(() => {
+    setShowSecondaryActions(false);
   }, []);
 
   const handleInitiativeChange = useCallback((init: number) => {
@@ -71,21 +78,40 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     actions.hp.setCurrentHp(entity.instanceId, newCurrentHp);
   }, [actions.hp, entity.instanceId]);
 
+  const handleDeathSavesChange = useCallback((successes: number, failures: number) => {
+    actions.combat.setDeathSaves(entity.instanceId, successes, failures);
+  }, [actions.combat, entity.instanceId]);
+
   const handleSelectRow = useCallback(() => {
     onSelect?.(entity.instanceId);
   }, [onSelect, entity.instanceId]);
 
+  const isLive = mode === "live";
+  const entityName = entity.displayName ?? entity.name;
+  const vitalStatus = isLive ? getVitalStatus(entity) : null;
+  const offerBurial = isAwaitingBurial(vitalStatus);
+  const showDeathSaves = vitalStatus === "dying" || vitalStatus === "stable" || vitalStatus === "dead";
+  const secondaryActionsId = `entity-secondary-actions-${entity.instanceId}`;
+
   const conditionNames = entity.conditions?.map((condition) => condition.name).join(", ");
   const hasConditions = Boolean(conditionNames);
 
+  const rowClassName = [
+    styles.entityRow,
+    isActive && styles.active,
+    isSelected && styles.selected,
+    vitalStatus && styles.down,
+  ].filter(Boolean).join(" ");
+
   return (
     <div
-      className={`${styles.entityRow}${isActive ? ' ' + styles.active : ''}${isSelected ? ' ' + styles.selected : ''}`}
-      onClick={handleSelectRow}
+      className={rowClassName}
+      onClick={(e) => {
+        if (!isFromNestedControl(e)) handleSelectRow();
+      }}
       role="button"
       tabIndex={0}
       aria-pressed={isSelected}
-      aria-expanded={mode === "live" ? showSecondaryActions : undefined}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) {
           return;
@@ -98,8 +124,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
       }}
     >
       <div className={styles.initiativeTab} aria-label="Initiative value">
-        {/* <span className={styles.initiativeTabLabel}>Init</span> */}
-        {(mode === "edit" || (mode === "live" && canMutate)) && actions ? (
+        {(mode === "edit" || (isLive && canMutate)) && actions ? (
           <EditableField
             type="number"
             value={entity.initiative}
@@ -118,38 +143,39 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
 
       <div className={styles.entityRowTop}>
         <div className={styles.entityIdentity}>
-          <h3 className={styles.entityName}>{entity.displayName ?? entity.name}</h3>
+          <h3 className={styles.entityName}>{entityName}</h3>
+          {vitalStatus && <EntityVitalBadge status={vitalStatus} />}
         </div>
         <div className={styles.topControls}>
-          
           {mode === "edit" && showRemoveConfirm ? (
-            <div className={styles.entityRemoveConfirm}>
-              <span className={styles.confirmText}>Remove?</span>
-              <button
-                className={`${styles.confirmButton} ${styles.confirmYes}`}
-                onClick={handleConfirmRemove}
-                title="Confirm removal"
-                aria-label="Confirm remove entity"
-              >
-                ✓
-              </button>
-              <button
-                className={`${styles.confirmButton} ${styles.confirmNo}`}
-                onClick={handleCancelRemove}
-                title="Cancel"
-                aria-label="Cancel remove entity"
-              >
-                ✕
-              </button>
-            </div>
+            <InlineConfirm
+              label="Remove?"
+              confirmLabel="Confirm remove entity"
+              cancelLabel="Cancel remove entity"
+              onConfirm={handleConfirmRemove}
+              onCancel={handleCancelRemove}
+            />
           ) : mode === "edit" ? (
             <button
+              type="button"
               className={styles.entityRemoveButton}
               onClick={handleRemoveClick}
               title={`Remove ${entity.name}`}
               aria-label={`Remove ${entity.name} from encounter`}
             >
               ✕
+            </button>
+          ) : canMutate ? (
+            <button
+              type="button"
+              className={`${styles.secondaryToggleButton}${showSecondaryActions ? ` ${styles.secondaryToggleOpen}` : ""}`}
+              onClick={handleToggleSecondaryActions}
+              aria-expanded={showSecondaryActions}
+              aria-controls={secondaryActionsId}
+              aria-label={`More actions for ${entityName}`}
+              title="More actions"
+            >
+              ⋯
             </button>
           ) : null}
         </div>
@@ -170,35 +196,38 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           </div>
         )}
 
-        {mode === "live" && (
+        {isLive && (
           <EntityRowLiveActions
             entity={entity}
             canMutate={canMutate}
             sourceId={sourceId}
             actions={actions}
-            showSecondaryActions={showSecondaryActions}
-            onToggleSecondary={handleToggleSecondaryActions}
+            offerBurial={offerBurial}
           />
         )}
       </div>
+
+      {showDeathSaves && (
+        <DeathSaveTracker
+          entityName={entityName}
+          successes={entity.deathSaveSuccesses}
+          failures={entity.deathSaveFailures}
+          onChange={canMutate ? handleDeathSavesChange : undefined}
+        />
+      )}
+
+      {isLive && canMutate && showSecondaryActions && (
+        <EntityRowSecondaryActions
+          id={secondaryActionsId}
+          entity={entity}
+          actions={actions}
+          showMoveToGrave={!offerBurial}
+          onClose={handleCloseSecondaryActions}
+        />
+      )}
+
       {isSelected && (
-        onTogglePin ? (
-          <button
-            className={`${linkStyles.selectionMarker} ${linkStyles.selectionMarkerButton} ${linkStyles.rowSelectionMarker}${isActive ? " " + linkStyles.activeSelectionMarker : ""}${isPinned ? " " + linkStyles.pinnedSelectionMarker : ""}`}
-            onClick={(e) => { e.stopPropagation(); onTogglePin(); }}
-            title={isPinned ? "Pinned — click to follow active turn" : "Following active turn — click to pin"}
-            aria-label={isPinned ? "Unpin entity" : "Pin entity"}
-          >
-            <GiWarlockEye />
-          </button>
-        ) : (
-          <span
-            className={`${linkStyles.selectionMarker} ${linkStyles.rowSelectionMarker}${isActive ? " " + linkStyles.activeSelectionMarker : ""}`}
-            aria-hidden="true"
-          >
-            <GiWarlockEye />
-          </span>
-        )
+        <RowSelectionMarker isActive={isActive} isPinned={isPinned} onTogglePin={onTogglePin} />
       )}
     </div>
   );

@@ -1,0 +1,103 @@
+.tracker {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--border-color-light) 75%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 88%, #0b1117 12%);
+  align-self: flex-start;
+  cursor: default;
+}
+
+.trackerLabel {
+  font-size: 0.62rem;
+  color: var(--text-tertiary);
+  font-weight: 650;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pipGroup {
+  --pip-color: var(--text-tertiary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+}
+
+.success {
+  --pip-color: var(--success, #22c55e);
+}
+
+.failure {
+  --pip-color: var(--danger);
+}
+
+.pipLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: color-mix(in srgb, var(--pip-color) 70%, var(--text-tertiary) 30%);
+  margin-right: 0.1rem;
+}
+
+.pip {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.8rem;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border-radius: 999px;
+  border: 1.5px solid color-mix(in srgb, var(--pip-color) 55%, var(--border-color) 45%);
+  background: transparent;
+  box-shadow: none;
+  transition: background var(--transition-duration), border-color var(--transition-duration),
+    box-shadow var(--transition-duration);
+}
+
+button.pip {
+  cursor: pointer;
+}
+
+button.pip:hover {
+  background: color-mix(in srgb, var(--pip-color) 30%, transparent);
+  border-color: var(--pip-color);
+  transform: none;
+}
+
+.pip.filled,
+button.pip.filled:hover {
+  background: var(--pip-color);
+  border-color: var(--pip-color);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--pip-color) 45%, transparent);
+}
+
+button.pip:focus-visible,
+.clearButton:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.clearButton {
+  padding: 0.12rem 0.45rem;
+  min-height: 0;
+  font-size: 0.68rem;
+  font-weight: 650;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.clearButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pip {
+    transition: none;
+  }
+}

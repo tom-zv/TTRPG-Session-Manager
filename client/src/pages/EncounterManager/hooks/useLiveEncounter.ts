@@ -6,6 +6,7 @@ import { DnD5eEncounterActions } from "../services/dnd5e/DnD5eEncounterActions.j
 import { useComposedDnD5eEncounter } from "./dnd5e/useComposedDnD5eEncounter.js";
 import { useGenericLiveEncounter } from "./useGenericLiveEncounter.js";
 import type { LiveEncounterOptions } from "./useGenericLiveEncounter.js";
+import { refreshDnD5eEncounterTemplates } from "../services/dnd5e/entityTemplateCache.js";
 
 export type { LiveEncounterConfig, LiveEncounterOptions } from "./useGenericLiveEncounter.js";
 
@@ -31,6 +32,7 @@ export const useLiveEncounter = (
         queryKeys: ENCOUNTER_KEYS,
         useComposedEncounter: useComposedDnD5eEncounter,
         createActions: DnD5eEncounterActions.create,
+        refreshTemplates: refreshDnD5eEncounterTemplates,
       });
 
     default:

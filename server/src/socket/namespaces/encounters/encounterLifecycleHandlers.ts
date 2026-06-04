@@ -3,6 +3,7 @@ import { SocketAck } from "shared/sockets/types.js";
 import { Socket } from "socket.io";
 import encounterConnectionManager from "src/services/encounters/encounterConnectionManager.js";
 import encounterEngineManager from "src/services/encounters/encounterEngineManager.js";
+import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
 import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
 import {
@@ -105,7 +106,7 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
 
       const encounterId = requireEncounterId(data);
 
-      await encounterEngineManager.initializeEngine(data.system, encounterId);
+      await encounterRequestQueue.enqueue(encounterId, () => encounterEngineManager.initializeEngine(data.system, encounterId));
       callback?.({ success: true });
     } catch (error) {
       handleLifecycleError(socket, callback, error, "Failed to initialize encounter");

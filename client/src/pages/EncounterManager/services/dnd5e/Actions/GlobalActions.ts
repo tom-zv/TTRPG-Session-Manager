@@ -1,8 +1,12 @@
 import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
+import type { EncounterSettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
 
 type EmitEvent = (event: DnD5eEncounterEvent) => void;
 
 export class DnD5eGlobalActions {
+  updateEncounterSettings = (patch: EncounterSettingsPatch): void => {
+    this.emitEvent({ type: "updateEncounterSettings", values: { patch } });
+  };
   constructor(
     private emitEvent: EmitEvent,
   ) {}

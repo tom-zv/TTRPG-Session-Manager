@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { GiWarlockEye } from "react-icons/gi";
 import linkStyles from "../Shared/SelectionLink.module.css";
 import layoutStyles from "../../shared/EncounterLayout.module.css";
@@ -7,6 +7,7 @@ import { useEncounterEditor } from "src/pages/EncounterManager/hooks/useEncounte
 import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
 import { useEntitySelection } from "src/pages/EncounterManager/hooks/dnd5e/useEntitySelection.js";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
+import { GraveSection } from "../Shared/GraveSection/GraveSection.js";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { EntityPicker } from "../Shared/EntityPicker/EntityPicker.js";
 import { SyncStatusIndicator } from "src/components/SyncStatusIndicator/SyncStatusIndicator.js";
@@ -39,9 +40,19 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
     encounter?.initiativeOrder ?? []
   );
 
-  const resolvedSelectedEntityId = useEntitySelection(orderedEntities, selectedEntityId);
+  // Entities buried during a live session stay visible (and restorable) here.
+  const graveEntities = useMemo(
+    () => encounter?.entities.filter((entity) => entity.inGrave) ?? [],
+    [encounter?.entities]
+  );
+  const selectableEntities = useMemo(
+    () => [...orderedEntities, ...graveEntities],
+    [orderedEntities, graveEntities]
+  );
 
-  const selectedEntity = orderedEntities.find((entity) => entity.instanceId === resolvedSelectedEntityId);
+  const resolvedSelectedEntityId = useEntitySelection(selectableEntities, selectedEntityId);
+
+  const selectedEntity = selectableEntities.find((entity) => entity.instanceId === resolvedSelectedEntityId);
   
   const [entityCardMinSize, setEntityCardMinSize] = useState(30);
 
@@ -116,6 +127,16 @@ export const EncounterEditor: React.FC<EncounterEditorProps> = ({
                 actions={actions}
                 selectedEntityId={resolvedSelectedEntityId}
                 onSelectEntity={setSelectedEntityId}
+                bottomAdornment={
+                  <GraveSection
+                    encounterId={encounterId}
+                    entities={graveEntities}
+                    actions={actions}
+                    canMutate
+                    selectedEntityId={resolvedSelectedEntityId}
+                    onSelectEntity={setSelectedEntityId}
+                  />
+                }
               />
             </Panel>
 

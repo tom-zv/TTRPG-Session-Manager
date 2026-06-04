@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from "express";
 import entityService from "./entityService.js";
 import { ValidationError } from "../../HttpErrors.js";
 import { isSupportedSystem } from "shared/domain/encounters/coreEncounter.js";
+import { validateEntitySettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
+import { notifyEntityTemplateUpdated } from "src/socket/namespaces/encounters/entityTemplateUpdates.js";
 import {
   dnd5eEntityToUpdateDb,
   dnd5eEntityToInsertDb,
@@ -143,6 +145,10 @@ async function insertEntity(req: Request, res: Response, next: NextFunction) {
 
     switch (system) {
       case "dnd5e": // TODO: validation
+        if (data.settings !== undefined) {
+          try { validateEntitySettingsPatch(data.settings); }
+          catch (error) { throw new ValidationError((error as Error).message); }
+        }
         formattedData = dnd5eEntityToInsertDb(data);
         break;
       default:
@@ -196,7 +202,12 @@ async function updateEntity(
         throw new ValidationError("Unsupported system.");
     }
     
+    if (data.settings !== undefined) {
+      try { validateEntitySettingsPatch(data.settings); }
+      catch (error) { throw new ValidationError((error as Error).message); }
+    }
     const updatedEntity = await entityService.updateEntity(system, Number(id), formattedData);
+    notifyEntityTemplateUpdated(Number(id));
     
     // Transform to domain format
     let transformedEntity;

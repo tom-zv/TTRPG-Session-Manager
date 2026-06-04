@@ -7,9 +7,12 @@ CREATE TABLE
       "version": number,
       "currentRound": number,
       "currentTurn": number,
+      "settings": {"automation": {"zeroHpTransfer": "manual"}},
       "initiativeOrder": number[],
-      "entities": [{
-        "entityId": number,
+      "entityStates": [{
+        "instanceId": number,
+        "templateId": number,
+        "inGrave": boolean,
         "initiative": number,
         "maxHp": number,
         "currentHp": number,

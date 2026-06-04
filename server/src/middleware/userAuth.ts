@@ -1,10 +1,18 @@
 import { Request, Response, NextFunction } from "express";
 import authModel from "src/api/auth/authModel.js";
 import { UserSessionDB } from "src/api/auth/types.js";
-import { UnauthorizedError } from "src/api/HttpErrors.js";
+import { HttpError, UnauthorizedError } from "src/api/HttpErrors.js";
 
 export interface AuthRequest extends Request {
   userSession?: UserSessionDB
+}
+
+export function requireGm(req: Request, _res: Response, next: NextFunction): void {
+  if (!(req as AuthRequest).userSession?.userDb.is_gm) {
+    next(new HttpError(403, "Only GMs can change encounter behavior"));
+    return;
+  }
+  next();
 }
 
 /**

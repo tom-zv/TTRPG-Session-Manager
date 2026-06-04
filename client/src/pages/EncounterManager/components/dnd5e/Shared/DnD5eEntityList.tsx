@@ -1,4 +1,5 @@
-import React, { useCallback, useMemo } from "react";
+import { useOrderedEntities } from "../../../hooks/dnd5e/useOrderedEntities.js";
+import React, { useCallback } from "react";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEntityRow } from "./DnD5eEntityRow/DnD5eEntityRow.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
@@ -17,6 +18,8 @@ type EntityListProps = {
   isPinned?: boolean;
   onTogglePin?: () => void;
   topAdornment?: React.ReactNode;
+  /** Rendered after the rows, inside the same scroll container (e.g. the grave). */
+  bottomAdornment?: React.ReactNode;
 };
 
 const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
@@ -32,6 +35,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   isPinned,
   onTogglePin,
   topAdornment,
+  bottomAdornment,
 }) => {
   const handleRemove = useCallback(
     (id: number) => {
@@ -40,57 +44,38 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
     [actions]
   );
 
-  const entityByInstanceId = useMemo(
-    () => new Map(entities.map((e) => [e.instanceId, e])),
-    [entities]
-  );
-
-  const orderedEntities = useMemo(() => {
-    const initiativeSet = new Set(initiativeOrder);
-
-    // Get ordered entities
-    const ordered = initiativeOrder
-      .map((instanceId) => entityByInstanceId.get(instanceId))
-      .filter((entity): entity is DnD5eEntity => entity !== undefined);
-
-    entities.forEach((entity) => {
-      if (!initiativeSet.has(entity.instanceId)) {
-        ordered.push(entity);
-      }
-    });
-
-    return ordered;
-  }, [entities, entityByInstanceId, initiativeOrder]);
+  const orderedEntities = useOrderedEntities(entities, initiativeOrder);
 
   return (
     <div className={styles.entityList}>
-      {/* <h2>Entities</h2> */}
-      {entities.length === 0 ? (
-        <p>No entities in this encounter yet.</p>
+      {topAdornment && <div className={styles.entityListTopAdornment}>{topAdornment}</div>}
+      {orderedEntities.length === 0 && !bottomAdornment ? (
+        <p>{entities.length ? "No entities remain in initiative." : "No entities in this encounter yet."}</p>
       ) : (
-        <>
-          {topAdornment && (
-            <div className={styles.entityListTopAdornment}>{topAdornment}</div>
+        <div className={styles.entityRows}>
+          {orderedEntities.length === 0 && (
+            <p className={styles.emptyMessage}>
+              {entities.length ? "No entities remain in initiative." : "No entities in this encounter yet."}
+            </p>
           )}
-          <div className={styles.entityRows}>
-            {orderedEntities.map((entity, index) => (
-              <DnD5eEntityRow
-                key={entity.instanceId}
-                entity={entity}
-                isActive={index === currentTurn}
-                isSelected={entity.instanceId === selectedEntityId}
-                mode={mode}
-                actions={actions}
-                onRemove={handleRemove}
-                canMutate={canMutate}
-                sourceId={sourceId}
-                onSelect={onSelectEntity}
-                isPinned={entity.instanceId === selectedEntityId ? isPinned : undefined}
-                onTogglePin={entity.instanceId === selectedEntityId ? onTogglePin : undefined}
-              />
-            ))}
-          </div>
-        </>
+          {orderedEntities.map((entity) => (
+            <DnD5eEntityRow
+              key={entity.instanceId}
+              entity={entity}
+              isActive={currentTurn !== undefined && entity.instanceId === initiativeOrder[currentTurn]}
+              isSelected={entity.instanceId === selectedEntityId}
+              mode={mode}
+              actions={actions}
+              onRemove={handleRemove}
+              canMutate={canMutate}
+              sourceId={sourceId}
+              onSelect={onSelectEntity}
+              isPinned={entity.instanceId === selectedEntityId ? isPinned : undefined}
+              onTogglePin={entity.instanceId === selectedEntityId ? onTogglePin : undefined}
+            />
+          ))}
+          {bottomAdornment}
+        </div>
       )}
     </div>
   );

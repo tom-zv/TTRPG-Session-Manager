@@ -18,20 +18,17 @@ export abstract class BaseEncounterEngine<
 > implements IEncounterEngine<TState> {
     protected state: TState;
     protected stateCache: IStateCache<TState>;
-    protected requestHandler: IRequestHandler;
     private operationsByRequestId = new Map<string, EncounterOperation>();
     private readonly MAX_DEDUPED_REQUESTS = 500;
     
     constructor(
         initialState: TState,
         createStateCache: (state: TState) => IStateCache<TState>,
-        createRequestHandler: (state: TState, eventAuthorizer: IEventAuthorizer) => IRequestHandler,
-        createEventAuthorizer: (state: TState) => IEventAuthorizer
+        private readonly createRequestHandler: (state: TState, eventAuthorizer: IEventAuthorizer) => IRequestHandler,
+        private readonly createEventAuthorizer: (state: TState) => IEventAuthorizer
     ) {
-        this.state = initialState;
+        this.state = structuredClone(initialState);
         this.stateCache = createStateCache(this.state);
-        const eventAuthorizer = createEventAuthorizer(this.state);
-        this.requestHandler = createRequestHandler(this.state, eventAuthorizer);
     }
     
     async dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation> {
@@ -40,32 +37,28 @@ export abstract class BaseEncounterEngine<
             return existingOperation;
         }
 
-        const previousVersion = this.state.version;
-        
-        try {
-            this.state.version++;
+        const draft = structuredClone(this.state);
+        const requestHandler = this.createRequestHandler(draft, this.createEventAuthorizer(draft));
+        const appliedEvents = await requestHandler.parseRequest(request, user);
+        draft.version = this.state.version + 1;
+        const operation: EncounterOperation = {
+            encounterId: request.encounterId,
+            operationId: crypto.randomUUID(),
+            causedByRequestId: request.requestId,
+            version: draft.version,
+            createdAt: new Date().toISOString(),
+            appliedEvents,
+        };
 
-            const appliedEvents = this.requestHandler.parseRequest(request, user);
-            const operation: EncounterOperation = {
-                encounterId: request.encounterId,
-                operationId: crypto.randomUUID(),
-                causedByRequestId: request.requestId,
-                version: this.state.version,
-                createdAt: new Date().toISOString(),
-                appliedEvents,
-            };
-
-            this.stateCache.logOperation(operation);
-            this.rememberOperation(request.requestId, operation);
-            
-            await this.checkSnapshot();
-            return operation;
-        } catch (error) {
-            // Rollback version on failure
-            this.state.version = previousVersion;
-            
-            throw error;
+        const persist = this.stateCache.shouldSnapshot(draft.version) || this.shouldPersistOperation(this.state, draft, operation);
+        if (persist) {
+            await this.persistSnapshot(draft);
         }
+        this.state = draft;
+        this.stateCache.logOperation(operation);
+        this.rememberOperation(request.requestId, operation);
+        if (persist) this.stateCache.addSnapshot(draft);
+        return operation;
     }
     
     snapshot(): TState {
@@ -77,18 +70,12 @@ export abstract class BaseEncounterEngine<
      * Ensures final state is persisted to cache.
      */
     async cleanup(): Promise<void> {
-        await this.persistSnapshot();
+        await this.persistSnapshot(this.state);
         this.stateCache.addSnapshot(this.state);
     }
 
-    protected async checkSnapshot(): Promise<void> {
-        if (this.stateCache.shouldSnapshot(this.state.version)) {
-            this.createSnapshot();
-        }
-    }
-    
-    protected createSnapshot(): void {
-        this.stateCache.addSnapshot(this.state);
+    protected shouldPersistOperation(_previous: TState, _next: TState, _operation: EncounterOperation): boolean {
+        return false;
     }
 
     private rememberOperation(requestId: string, operation: EncounterOperation): void {
@@ -102,7 +89,7 @@ export abstract class BaseEncounterEngine<
         this.operationsByRequestId.set(requestId, operation);
     }
 
-    protected abstract persistSnapshot(): Promise<void>;
+    protected abstract persistSnapshot(state: TState): Promise<void>;
 }
 
 export async function createEncounterEngine(system: SystemType, encounterId: number): Promise<IEncounterEngine> {

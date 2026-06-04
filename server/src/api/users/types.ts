@@ -1,4 +1,5 @@
 export type UserDB = {
+    preferences?: import("shared/domain/users/preferences.js").UserPreferences,
     id: number,
     username: string,
     password_hash: string,

@@ -90,9 +90,15 @@ export function useDnD5eEncounterState(
   id: number,
   options?: { enabled?: boolean }
 ) {
+  const queryClient = useQueryClient();
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps -- queryClient is stable; the encounter ID is the query dependency
   return useQuery({
     queryKey: ENCOUNTER_KEYS.state(id),
-    queryFn: () => DnD5eEncounterApi.getEncounterState(id),
+    queryFn: async () => {
+      const incoming = await DnD5eEncounterApi.getEncounterState(id);
+      const current = queryClient.getQueryData<typeof incoming>(ENCOUNTER_KEYS.state(id));
+      return current && current.encounterState.version > incoming.encounterState.version ? current : incoming;
+    },
     enabled: options?.enabled ?? !!id,
     
     // Cache configuration for event-based synchronization

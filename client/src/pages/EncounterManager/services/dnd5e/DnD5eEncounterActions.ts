@@ -6,6 +6,7 @@ import { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js
 import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
 import { DnD5eStatActions } from "./Actions/StatActions.js";
 import { DnD5eGlobalActions } from "./Actions/GlobalActions.js";
+import { DnD5eCombatActions } from "./Actions/CombatActions.js";
 
 /**
  * D&D 5e specific encounter actions
@@ -17,6 +18,7 @@ export class DnD5eEncounterActions extends EncounterActions<
   public readonly hp: DnD5eHpActions;
   public readonly stats: DnD5eStatActions;
   public readonly global: DnD5eGlobalActions;
+  public readonly combat: DnD5eCombatActions;
   
   constructor(
     stateManager: DnD5eLocalStateManager,
@@ -39,6 +41,7 @@ export class DnD5eEncounterActions extends EncounterActions<
     this.hp = new DnD5eHpActions(emitEvent);
     this.stats = new DnD5eStatActions(emitEvent);
     this.global = new DnD5eGlobalActions(emitEvent);
+    this.combat = new DnD5eCombatActions(emitEvent);
   }
 
 

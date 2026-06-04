@@ -105,6 +105,7 @@ export const parseEntityDraft = (
       name,
       imageUrl: draft.imageUrl.trim(),
       role: draft.role,
+      settings: draft.settings,
       creatureType: draft.creatureType.trim(),
       typeTags: normalizeStringArray(draft.typeTags),
       cr: draft.cr.trim(),

@@ -9,12 +9,16 @@ export function extractDnD5eState(encounter: DnD5eEncounter): DnD5eEncounterStat
     id: encounter.id,
     system: encounter.system,
     version: encounter.version,
+    settings: encounter.settings,
     currentRound: encounter.currentRound,
     currentTurn: encounter.currentTurn,
     initiativeOrder: encounter.initiativeOrder,
     // Extract state from full entities
     entityStates: encounter.entities.map(entity => ({
       instanceId: entity.instanceId,
+      inGrave: entity.inGrave,
+      displayName: entity.displayName,
+      group: entity.group,
       templateId: entity.templateId,
       initiative: entity.initiative,
       currentHp: entity.currentHp,

@@ -5,6 +5,7 @@ CREATE TABLE
     password_hash VARCHAR(128),
     email VARCHAR(128) DEFAULT NULL,
     is_gm BOOLEAN NOT NULL DEFAULT FALSE,
+    preferences JSON NULL,
     last_login TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );

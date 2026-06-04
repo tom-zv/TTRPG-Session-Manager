@@ -1,3 +1,4 @@
+import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
 import type { 
   EntityDetailsBySystem,
   EntitySummaryBySystem,
@@ -37,9 +38,7 @@ export class EntityApi {
   ): Promise<EntityDetailsBySystem<T>[]> {
     const response = await fetch(`/api/${system}/entities`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
     });
 
@@ -60,9 +59,7 @@ export class EntityApi {
   ): Promise<EntitySummaryBySystem<T>[]> {
     const response = await fetch(`/api/${system}/entities/summary`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
     });
 
@@ -84,9 +81,7 @@ export class EntityApi {
   ): Promise<EntityDetailsBySystem<T>> {
     const response = await fetch(`/api/${system}/entities/${id}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
     });
 
@@ -112,9 +107,7 @@ export class EntityApi {
 
     const response = await fetch(`/api/${system}/entities/batch`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
       body: JSON.stringify({ entityIds }),
     });
@@ -137,9 +130,7 @@ export class EntityApi {
   ): Promise<{ insertId: number; entity: EntityDetailsBySystem<T> }> {
     const response = await fetch(`/api/${system}/entities`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
       body: JSON.stringify({ data: entityData }),
     });
@@ -167,9 +158,7 @@ export class EntityApi {
   ): Promise<EntityDetailsBySystem<T>> {
     const response = await fetch(`/api/${system}/entities/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
       body: JSON.stringify({ data: updateData }),
     });
@@ -192,9 +181,7 @@ export class EntityApi {
   ): Promise<boolean> {
     const response = await fetch(`/api/${system}/entities/${id}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: 'include',
     });
 

@@ -1,13 +1,18 @@
 import { DnD5eEntityState } from "../entity.js";
 import { DnD5eEncounterState } from "../encounter.js";
+import type { EncounterSettingsPatch } from "../settings.js";
 
 type GlobalEventBase<T extends string, V extends object> = { type: T; values: V };
-type TargetedEventBase<T extends string, V extends object> = { 
+type TargetedEventBase<T extends string, V extends object = object> = { 
   type: T; 
   values: V & { targetId: number } 
 };
 
 export type DnD5eEncounterEvent = 
+  | TargetedEventBase<'moveToGrave'>
+  | TargetedEventBase<'restoreFromGrave', { hp: number }>
+  | GlobalEventBase<'updateEncounterSettings', { patch: EncounterSettingsPatch }>
+  | TargetedEventBase<'setDeathSaves', { successes: number; failures: number }>
   | GlobalEventBase<'addEntity', { templateId: number, name: string, hp: number }>
   | GlobalEventBase<'removeEntity', { instanceId: number }>
   | GlobalEventBase<'nextTurn', Record<string, never>>

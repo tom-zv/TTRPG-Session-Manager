@@ -16,12 +16,11 @@ import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js
 import { EncounterError } from "shared/sockets/encounters/errors.js";
 import { EncounterActions } from "../services/EncounterActions.js";
 import type { QueryKeyProvider } from "../services/LocalStateManager.js";
+import { LiveOperationQueue } from "../services/LiveOperationQueue.js";
 
 export type LiveEncounterOptions = {
   isGm: boolean;
 };
-
-const MAX_TRACKED_OPERATION_IDS = 500;
 
 export interface LiveEncounterConfig<
   T extends SystemType,
@@ -31,6 +30,7 @@ export interface LiveEncounterConfig<
   TActions extends EncounterActions<TState, TEvent>
 > {
   system: T;
+  refreshTemplates?: (queryClient: QueryClient, encounterId: number, templateId?: number) => Promise<void>;
   queryKeys: QueryKeyProvider;
   useComposedEncounter: (encounterId: number) => {
     encounter: TEncounter | null;
@@ -59,6 +59,7 @@ export function useGenericLiveEncounter<
     createActions,
     queryKeys,
     useComposedEncounter,
+    refreshTemplates,
   } = config;
   const { isGm } = options;
 
@@ -67,13 +68,13 @@ export function useGenericLiveEncounter<
   const [isLifecycleReady, setIsLifecycleReady] = useState(false);
   const [encounterEnded, setEncounterEnded] = useState(false);
   const [actions, setActions] = useState<TActions | null>(null);
+  const [lastOperation, setLastOperation] = useState<EncounterOperation<TEvent> | null>(null);
 
   const actionsRef = useRef<TActions | null>(null);
   const actionsEncounterIdRef = useRef<number | null>(null);
   const socketServiceRef = useRef<EncounterSocketService<TEvent> | null>(null);
   const lifecycleSessionRef = useRef<symbol | null>(null);
   const isLifecycleReadyRef = useRef(false);
-  const appliedOperationIdsRef = useRef(new Set<string>());
 
   const transmitEvent = useCallback(
     async (event: TEvent): Promise<void> => {
@@ -92,6 +93,7 @@ export function useGenericLiveEncounter<
       const request: EncounterRequest<TEvent> = {
         encounterId,
         requestId,
+        baseVersion: queryClient.getQueryData<{ encounterState: TState }>(queryKeys.state(encounterId))?.encounterState.version,
         createdAt: new Date().toISOString(),
         requestedEvents: [event],
       };
@@ -103,7 +105,7 @@ export function useGenericLiveEncounter<
         throw new Error(ack.error);
       }
     },
-    [encounterId]
+    [encounterId, queryClient, queryKeys]
   );
 
   useEffect(() => {
@@ -127,29 +129,24 @@ export function useGenericLiveEncounter<
   useEffect(() => {
     const sessionId = Symbol("live-encounter-session");
     lifecycleSessionRef.current = sessionId;
-    appliedOperationIdsRef.current.clear();
 
     const isCurrentSession = () => lifecycleSessionRef.current === sessionId;
 
+    const operationQueue = new LiveOperationQueue<TEvent>({
+      getVersion: () => queryClient.getQueryData<{ encounterState: TState }>(queryKeys.state(encounterId))?.encounterState.version,
+      isReady: () => isCurrentSession() && isLifecycleReadyRef.current,
+      apply: (operation) => {
+        actionsRef.current?.applyOperation(operation.appliedEvents, operation.version);
+        setLastOperation(operation);
+      },
+      resync: () => queryClient.refetchQueries({ queryKey: queryKeys.state(encounterId), exact: true }),
+      onError: (error) => {
+        if (isCurrentSession()) setLifecycleError(error instanceof Error ? error.message : "Failed to synchronize encounter");
+      },
+    });
+
     const applyOperation = (operation: EncounterOperation<TEvent>) => {
-      if (!isCurrentSession() || operation.encounterId !== encounterId) {
-        return;
-      }
-
-      const appliedOperationIds = appliedOperationIdsRef.current;
-      if (appliedOperationIds.has(operation.operationId)) {
-        return;
-      }
-
-      if (appliedOperationIds.size >= MAX_TRACKED_OPERATION_IDS) {
-        appliedOperationIds.clear();
-      }
-
-      appliedOperationIds.add(operation.operationId);
-      actionsRef.current?.applyOperation(
-        operation.appliedEvents,
-        operation.version
-      );
+      if (isCurrentSession() && operation.encounterId === encounterId) operationQueue.receive(operation);
     };
 
     const handleError = (error: EncounterError) => {
@@ -181,6 +178,7 @@ export function useGenericLiveEncounter<
 
       try {
         setLifecycleError(null);
+        setLastOperation(null);
         setEncounterEnded(false);
         setIsLifecycleReady(false);
         isLifecycleReadyRef.current = false;
@@ -223,8 +221,11 @@ export function useGenericLiveEncounter<
           return;
         }
 
+        await refreshTemplates?.(queryClient, encounterId);
+        if (!isCurrentSession()) return;
         isLifecycleReadyRef.current = true;
         setIsLifecycleReady(true);
+        operationQueue.flush();
       } catch (error) {
         if (isCurrentSession()) {
           isLifecycleReadyRef.current = false;
@@ -237,6 +238,11 @@ export function useGenericLiveEncounter<
     };
 
     const dataCallbacks: EncounterDataCallbacks<TEvent> = {
+      onTemplateUpdated: ({ templateId }) => {
+        void refreshTemplates?.(queryClient, encounterId, templateId).catch((error) => {
+          if (isCurrentSession()) setLifecycleError(error instanceof Error ? error.message : "Failed to refresh NPC settings");
+        });
+      },
       applyOperation,
       onError: handleError,
       onEncounterEnd: handleEncounterEnd,
@@ -253,6 +259,7 @@ export function useGenericLiveEncounter<
     void connectToEncounter();
 
     return () => {
+      operationQueue.dispose();
       if (isCurrentSession()) {
         lifecycleSessionRef.current = null;
       }
@@ -265,7 +272,7 @@ export function useGenericLiveEncounter<
       void socketService.sendMessage(EncounterSocketEvents.LEAVE, { encounterId });
       socketService.dispose();
     };
-  }, [encounterId, isGm, config.system, queryClient, queryKeys]);
+  }, [encounterId, isGm, config.system, queryClient, queryKeys, refreshTemplates]);
 
   const currentActions = actionsEncounterIdRef.current === encounterId
     ? actions
@@ -277,6 +284,7 @@ export function useGenericLiveEncounter<
     isLifecycleReady,
     lifecycleError,
     encounterEnded,
+    lastOperation,
     socketService: socketServiceRef.current,
     actions: currentActions,
   };

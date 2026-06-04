@@ -1,3 +1,4 @@
+import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
 import type {
   SystemType,
   EncounterSummaryBySystem,
@@ -28,9 +29,7 @@ export class EncounterApi {
   ): Promise<EncounterSummaryBySystem<T>[]> {
     const response = await fetch(`/api/${system}/encounters/summaries`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
     });
 
@@ -54,9 +53,7 @@ export class EncounterApi {
   ): Promise<EncounterDetailsbySystem<T>> {
     const response = await fetch(`/api/${system}/encounters/${id}/details`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
     });
 
@@ -82,9 +79,7 @@ export class EncounterApi {
   ): Promise<{ encounterState: EncounterStateBySystem<T> }> {
     const response = await fetch(`/api/${system}/encounters/${id}/state`, {
       method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
     });
 
@@ -111,9 +106,7 @@ export class EncounterApi {
   ): Promise<void> {
     const response = await fetch(`/api/${system}/encounters/${id}/state`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
       body: JSON.stringify({ encounterState }),
     });
@@ -135,9 +128,7 @@ export class EncounterApi {
   ): Promise<number> {
     const response = await fetch(`/api/${system}/encounters`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
       body: JSON.stringify({ data: encounterData }),
     });
@@ -163,9 +154,7 @@ export class EncounterApi {
   ): Promise<void> {
     const response = await fetch(`/api/${system}/encounters/${id}`, {
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
       body: JSON.stringify({ data: updateData }),
     });
@@ -187,9 +176,7 @@ export class EncounterApi {
   ): Promise<boolean> {
     const response = await fetch(`/api/${system}/encounters/${id}`, {
       method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: authenticatedJsonHeaders(),
       credentials: "include",
     });
 

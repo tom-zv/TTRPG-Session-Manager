@@ -1,11 +1,24 @@
 import EntityApi, { CreateEntityRequest, UpdateEntityRequest } from "../../entityApi.js";
 import type { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
+import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
+import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
 
 /**
  * API wrapper for DnD5e specific entity operations
  * Provides type-safe access to entity details and summaries
  */
 export class DnD5eEntityApi {
+  static async patchSettings(id: number, patch: EntitySettings): Promise<EntitySettings> {
+    const response = await fetch(`/api/dnd5e/entities/${id}/settings`, {
+      method: "PATCH",
+      headers: authenticatedJsonHeaders(),
+      credentials: "include",
+      body: JSON.stringify(patch),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Failed to update entity settings");
+    return data.settings;
+  }
   /**
    * Get entity summaries for DnD5e (lightweight for lists)
    */

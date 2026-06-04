@@ -1,4 +1,5 @@
 import { CoreEncounter } from "../coreEncounter.js";
+import type { EncounterSettings } from "./settings.js";
 import { BaseEncounterState } from "../coreEncounter.js";
 import { DnD5eEntitySummary, DnD5eEntity, DnD5eEntityState } from "./entity.js";
 
@@ -21,6 +22,7 @@ export interface DnD5eEncounterSummary extends DnD5eEncounterDetails {
  * DnD5e Encounter State 
  */
 export interface DnD5eEncounterState extends BaseEncounterState {
+  settings: EncounterSettings;
   system: "dnd5e";
   currentRound: number;
   currentTurn: number;

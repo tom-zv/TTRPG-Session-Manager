@@ -1,5 +1,6 @@
 import { DnD5eEntityUpdateDB, DnD5eEntitySummaryDB, DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
 import { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
+import { readJsonObjectColumn } from "src/utils/jsonColumn.js";
 
 export function dnd5eEntityToUpdateDb(entity: DnD5eEntityDetails): DnD5eEntityUpdateDB {
   return {
@@ -9,6 +10,7 @@ export function dnd5eEntityToUpdateDb(entity: DnD5eEntityDetails): DnD5eEntityUp
     created_at: entity.createdAt,
 
     role: entity.role,
+    settings: entity.settings,
     creature_type: entity.creatureType,
     type_tags: entity.typeTags,
     cr: entity.cr,
@@ -55,6 +57,7 @@ export function dnd5eEntityDbToDomain(db: DnD5eEntityDB): DnD5eEntityDetails {
     createdAt: db.created_at,
 
     role: db.role,
+    settings: readJsonObjectColumn(db.settings),
     creatureType: db.creature_type,
     typeTags: db.type_tags,
     cr: db.cr,
@@ -100,6 +103,7 @@ export function dnd5eEntityToInsertDb(entity: DnD5eEntityDetails): Omit<DnD5eEnt
     created_at: entity.createdAt || new Date().toISOString(),
 
     role: entity.role,
+    settings: entity.settings,
     creature_type: entity.creatureType,
     type_tags: entity.typeTags,
     cr: entity.cr,

@@ -109,6 +109,8 @@ export class LocalStateManager<TState, TEvent> {
       this.queryKeys.state(encounterId),
       (old) => {
         if (!old) return old;
+        const currentVersion = (old.encounterState as TState & { version?: number }).version;
+        if (version !== undefined && currentVersion !== undefined && version <= currentVersion) return old;
         const updatedEncounterState = produce(old.encounterState, (draft) => {
           for (const event of events) {
             processor(draft as TState, event);

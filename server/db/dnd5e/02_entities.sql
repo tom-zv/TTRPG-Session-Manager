@@ -3,6 +3,7 @@ CREATE TABLE
     IF NOT EXISTS dnd5e.entities (
         id INT PRIMARY KEY,
         role ENUM ('pc', 'npc', 'creature') NOT NULL DEFAULT 'creature',
+        settings JSON NULL,
         creature_type VARCHAR(64) NULL,              -- 'beast', 'humanoid', 'fiend', etc.
         type_tags JSON NULL,                         -- type.tags or swarmSize: ["elf"], ["shapechanger"]
         cr VARCHAR(8),

@@ -45,7 +45,8 @@
   border: 1px solid var(--encounter-border);
 }
 
-.liveEncounterShell .resetButton {
+/* Extra class beats the layout's `> button:first-child` accent fill. */
+.liveEncounterShell .stickyEncounterHeader .resetButton {
   background: transparent;
   color: color-mix(in srgb, var(--danger) 90%, var(--text-primary) 10%);
   border: 1px solid rgba(var(--danger-rgb), 0.62);
@@ -54,12 +55,12 @@
     0 0 0 1px rgba(255, 255, 255, 0.03) inset;
 }
 
-.liveEncounterShell .resetButton:hover:not(:disabled) {
+.liveEncounterShell .stickyEncounterHeader .resetButton:hover:not(:disabled) {
   background: rgba(var(--danger-rgb), 0.12);
   border-color: rgba(var(--danger-rgb), 0.80);
 }
 
-.liveEncounterShell .resetButton:active:not(:disabled) {
+.liveEncounterShell .stickyEncounterHeader .resetButton:active:not(:disabled) {
   background: rgba(var(--danger-rgb), 0.16);
 }
 
@@ -112,4 +113,21 @@
 
 .pinButtonActive:hover {
   background: rgba(var(--encounter-selected-rgb), 0.2);
+}
+
+.resetConfirm {
+  align-self: center;
+  padding: 0.35rem 0.5rem;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }

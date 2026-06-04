@@ -1,5 +1,6 @@
 
 import { CoreEntityDB, CoreEntitySummaryDB } from "../types.js";
+import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 
 export interface DamageModifierDB {
   damage_type: string;
@@ -46,6 +47,7 @@ export interface EntitySpellcastingDB {
 }
 
 export interface DnD5eEntityDB extends CoreEntityDB {
+  settings?: EntitySettings;
   role: 'pc' | 'npc' | 'creature';
   creature_type?: string;
   type_tags?: string[];

@@ -1,10 +1,13 @@
 import encounterModel from "./encounterModel.js";
+import userModel from "src/api/users/userModel.js";
+import { resolveEncounterSettings } from "shared/domain/encounters/dnd5e/settings.js";
 import { EncounterDB, encounterUpdateDataDB, EncounterInsertData } from "./types.js";
 import { dnd5eEncounterDbToDomainDetails } from "src/utils/format-transformers/encounter-transformers/dnd5e/encounter-transformer.js";
 import { AnySystemEncounterDetails, SystemType } from "shared/domain/encounters/coreEncounter.js";
 import dnd5eEncounterService from "./dnd5e/dnd5eEncounterService.js";
 
-async function insertEncounter(system: SystemType, data: EncounterInsertData): Promise<number> {
+async function insertEncounter(system: SystemType, data: EncounterInsertData, creatorId: number): Promise<number> {
+  const preferences = await userModel.getPreferences(creatorId);
   const insertId = await encounterModel.insertEncounter(data);
 
   if (!insertId) {
@@ -13,7 +16,7 @@ async function insertEncounter(system: SystemType, data: EncounterInsertData): P
 
   switch (system) {
     case 'dnd5e':
-      await dnd5eEncounterService.createSnapshot(insertId);
+      await dnd5eEncounterService.createSnapshot(insertId, resolveEncounterSettings(preferences.encounterDefaults?.dnd5e));
       break;
     default:
       throw new Error(`Unsupported system: ${system}`);

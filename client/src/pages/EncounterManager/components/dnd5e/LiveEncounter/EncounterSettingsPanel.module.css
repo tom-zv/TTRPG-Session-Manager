@@ -1,0 +1,107 @@
+.anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.gearButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 100%;
+  min-height: 2.4rem;
+  padding: 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.3rem;
+  transition: color var(--transition-duration), background var(--transition-duration),
+    border-color var(--transition-duration);
+}
+
+.gearButton:hover {
+  background: rgba(var(--encounter-selected-rgb), 0.1);
+  border-color: rgba(var(--encounter-selected-rgb), 0.35);
+  color: var(--text-primary);
+  transform: none;
+}
+
+.gearButtonOpen,
+.gearButtonOpen:hover {
+  color: var(--encounter-selected);
+  background: rgba(var(--encounter-selected-rgb), 0.12);
+  border-color: rgba(var(--encounter-selected-rgb), 0.45);
+}
+
+.gearButton:focus-visible {
+  outline: 2px solid rgba(var(--encounter-selected-rgb), 0.6);
+  outline-offset: 2px;
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  width: min(22rem, calc(100vw - 2rem));
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--encounter-border, var(--border-color));
+  background: color-mix(in srgb, var(--bg-secondary) 94%, #0b1117 6%);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.38);
+  text-align: left;
+}
+
+.title {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+}
+
+.saveButton {
+  padding: 0.38rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.saveButton:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-secondary);
+  transform: none;
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.message {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gearButton {
+    transition: none;
+  }
+}

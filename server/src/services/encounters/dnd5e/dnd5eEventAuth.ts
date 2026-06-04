@@ -48,6 +48,10 @@ const authorizeTurnControl = (context: DnD5eAuthContext): boolean => {
 const authorizeUnrestricted = (): boolean => true;
 
 const DND5E_EVENT_AUTH_RULES = {
+  moveToGrave: (context) => authorizeGmOnly(context),
+  restoreFromGrave: (context) => authorizeGmOnly(context),
+  setDeathSaves: (context) => authorizeGmOnly(context),
+  updateEncounterSettings: (context) => authorizeGmOnly(context),
   addEntity: (context) => authorizeGmOnly(context),
   removeEntity: (context) => authorizeGmOnly(context),
   resetEncounter: (context) => authorizeGmOnly(context),

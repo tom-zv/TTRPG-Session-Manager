@@ -1,4 +1,16 @@
 import { PartialEntityHandlerMap } from "../types.js";
+import { DnD5eEntityState } from "../../entity.js";
+
+/**
+ * Assign current HP. Recovering from 0 HP clears the death-save counters.
+ */
+function assignCurrentHp(entity: DnD5eEntityState, hp: number): void {
+  if (entity.currentHp === 0 && hp > 0) {
+    entity.deathSaveSuccesses = 0;
+    entity.deathSaveFailures = 0;
+  }
+  entity.currentHp = hp;
+}
 
 // TODO add stat logging
 export const hpHandlers = {
@@ -18,14 +30,14 @@ export const hpHandlers = {
    * Heal an entity up to their maximum HP
    */
   heal(_s, entity, event){
-    entity.currentHp = Math.min(entity.maxHp, entity.currentHp + event.values.amount);
+    assignCurrentHp(entity, Math.min(entity.maxHp, entity.currentHp + event.values.amount));
   },
 
   /**
    * Set both current and maximum HP to the specified value
    */
   setHp(_s, entity, event){
-    entity.currentHp = event.values.hp;
+    assignCurrentHp(entity, event.values.hp);
     entity.maxHp = event.values.hp;
   },
 
@@ -34,7 +46,7 @@ export const hpHandlers = {
    * If the new current HP exceeds max HP, max HP is also increased
    */
   setCurrentHp(_s, entity, event){
-    entity.currentHp = Math.max(0, event.values.hp);
+    assignCurrentHp(entity, Math.max(0, event.values.hp));
     // If current HP exceeds max HP, increase max HP to match
     if (entity.currentHp > entity.maxHp) {
       entity.maxHp = entity.currentHp;

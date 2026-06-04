@@ -1,4 +1,9 @@
 import { Request, Response, NextFunction } from "express";
+import { AuthRequest } from "src/middleware/userAuth.js";
+import encounterEngineManager from "src/services/encounters/encounterEngineManager.js";
+import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
+import { HttpError } from "src/api/HttpErrors.js";
+import { validateEncounterSettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
 import encounterService from "./encounterService.js";
 import { ValidationError } from "../../HttpErrors.js";
 import { isSupportedSystem, SystemType } from "shared/domain/encounters/coreEncounter.js";
@@ -41,7 +46,7 @@ async function insertEncounter(
         throw new ValidationError("Unsupported system.");
     }
 
-    const insertId = await encounterService.insertEncounter(system, formattedData);
+    const insertId = await encounterService.insertEncounter(system, formattedData, (req as AuthRequest).userSession!.userDb.id);
     res.status(201).json({ insertId });
     
   } catch (error) {
@@ -235,10 +240,24 @@ async function saveEncounterState(
 
     switch (system){
       case 'dnd5e':
-        await dnd5eEncounterService.saveEncounterState(
-          Number(id),
-          encounterState
-        );
+        await encounterRequestQueue.enqueue(Number(id), async () => {
+          if (encounterEngineManager.hasEngine(Number(id))) {
+            throw new HttpError(409, "A live encounter must be changed through live actions");
+          }
+          try { validateEncounterSettingsPatch(encounterState.settings ?? {}); }
+          catch (error) { throw new ValidationError((error as Error).message); }
+          if (encounterState.id !== Number(id) || encounterState.system !== system) {
+            throw new ValidationError("Encounter state does not match the requested encounter");
+          }
+          if (!Array.isArray(encounterState.entityStates) || !Array.isArray(encounterState.initiativeOrder) ||
+              encounterState.entityStates.some((entity) =>
+                (entity.inGrave !== undefined && typeof entity.inGrave !== "boolean") ||
+                !Number.isInteger(entity.deathSaveSuccesses) || entity.deathSaveSuccesses < 0 || entity.deathSaveSuccesses > 3 ||
+                !Number.isInteger(entity.deathSaveFailures) || entity.deathSaveFailures < 0 || entity.deathSaveFailures > 3)) {
+            throw new ValidationError("Invalid encounter membership or death-save counters");
+          }
+          await dnd5eEncounterService.saveEncounterState(Number(id), encounterState);
+        });
         break;
       default:
         throw new ValidationError(`Unsupported system: ${system}`);
