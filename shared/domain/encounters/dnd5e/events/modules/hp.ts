@@ -54,9 +54,10 @@ export const hpHandlers = {
   },
 
   /**
-   * Set an entity's temporary HP (takes the higher value)
+   * Set an entity's temporary HP to exactly this value; 0 clears it.
+   * Whether a new source replaces an existing one is the GM's call, not enforced here.
    */
   setTempHp(_s, entity, event){
-    entity.tempHp = Math.max(entity.tempHp, event.values.tempHp);
+    entity.tempHp = event.values.tempHp;
   }
 } satisfies PartialEntityHandlerMap;

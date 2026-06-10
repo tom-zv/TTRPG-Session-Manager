@@ -7,6 +7,8 @@ export function normalizeDnD5eEncounterState(state: DnD5eEncounterState): DnD5eE
   const normalized = structuredClone(state);
   normalized.settings = resolveEncounterSettings(state.settings);
   normalized.entityStates = state.entityStates.map((entity) => ({ ...entity, inGrave: entity.inGrave ?? false }));
+  const highestInstanceId = normalized.entityStates.reduce((max, entity) => Math.max(max, entity.instanceId), -1);
+  normalized.nextInstanceId = Math.max(Number.isInteger(state.nextInstanceId) ? state.nextInstanceId : 0, highestInstanceId + 1);
   const activeIds = new Set(normalized.entityStates.filter((entity) => !entity.inGrave).map((entity) => entity.instanceId));
   setInitiativeOrder(normalized, [...new Set(state.initiativeOrder)].filter((id) => activeIds.has(id)));
   return normalized;

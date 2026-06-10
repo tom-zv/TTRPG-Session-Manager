@@ -11,6 +11,11 @@ import path from 'path';
 import { initSocketServer } from './socket/index.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
+// A rejected promise nobody awaited must not take down the server (and every live encounter with it).
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+
 // Initialize Express app
 const app = express();
 const httpServer = http.createServer(app);

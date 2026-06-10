@@ -53,8 +53,21 @@ export async function saveSnapshot(
   );
 }
 
+/** Encounters whose state contains at least one copy of this entity template. */
+export async function getEncounterIdsUsingTemplate(templateId: number): Promise<number[]> {
+  const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
+    `SELECT encounter_id
+     FROM dnd5e.encounter_snapshots
+     WHERE JSON_CONTAINS(JSON_EXTRACT(snapshot, '$.entityStates[*].templateId'), CAST(? AS JSON))`,
+    [String(templateId)]
+  );
+
+  return rows.map((row) => row.encounter_id as number);
+}
+
 export default {
   createEncounterSnapshot,
   getSnapshot,
   saveSnapshot,
+  getEncounterIdsUsingTemplate,
 };

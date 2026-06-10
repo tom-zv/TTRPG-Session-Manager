@@ -18,6 +18,8 @@ import { EncounterActions } from "../services/EncounterActions.js";
 import type { QueryKeyProvider } from "../services/LocalStateManager.js";
 import { LiveOperationQueue } from "../services/LiveOperationQueue.js";
 
+const COMMAND_ERROR_DISPLAY_MS = 6000;
+
 export type LiveEncounterOptions = {
   isGm: boolean;
 };
@@ -64,7 +66,10 @@ export function useGenericLiveEncounter<
   const { isGm } = options;
 
   const { encounter, isLoading } = useComposedEncounter(encounterId);
+  // Connection problems (join failed, sync failed) stay until the session recovers.
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
+  // A rejected action says nothing about the connection, so it is reported separately and fades.
+  const [commandError, setCommandError] = useState<string | null>(null);
   const [isLifecycleReady, setIsLifecycleReady] = useState(false);
   const [encounterEnded, setEncounterEnded] = useState(false);
   const [actions, setActions] = useState<TActions | null>(null);
@@ -101,12 +106,20 @@ export function useGenericLiveEncounter<
       const ack = await socketService.sendMessage(EncounterSocketEvents.REQUEST, request);
 
       if (!ack.success) {
-        setLifecycleError(ack.error);
+        setCommandError(ack.error);
         throw new Error(ack.error);
       }
+
+      setCommandError(null);
     },
     [encounterId, queryClient, queryKeys]
   );
+
+  useEffect(() => {
+    if (!commandError) return;
+    const timer = setTimeout(() => setCommandError(null), COMMAND_ERROR_DISPLAY_MS);
+    return () => clearTimeout(timer);
+  }, [commandError]);
 
   useEffect(() => {
     const nextActions = createActions(queryClient, encounterId, transmitEvent);
@@ -150,7 +163,8 @@ export function useGenericLiveEncounter<
     };
 
     const handleError = (error: EncounterError) => {
-      if (isCurrentSession()) {
+      // An error tied to a request is also delivered through that request's acknowledgement.
+      if (isCurrentSession() && !error.requestId) {
         setLifecycleError(error.message);
       }
     };
@@ -178,6 +192,7 @@ export function useGenericLiveEncounter<
 
       try {
         setLifecycleError(null);
+        setCommandError(null);
         setLastOperation(null);
         setEncounterEnded(false);
         setIsLifecycleReady(false);
@@ -283,6 +298,7 @@ export function useGenericLiveEncounter<
     isLoading,
     isLifecycleReady,
     lifecycleError,
+    commandError,
     encounterEnded,
     lastOperation,
     socketService: socketServiceRef.current,

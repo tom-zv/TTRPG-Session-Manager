@@ -5,8 +5,11 @@ import { userAuth, requireGm } from "src/middleware/userAuth.js";
 const router = express.Router({ mergeParams: true });
 
 // Base route - /api/:system/encounters
+// Every route needs a signed-in user; changes need a GM.
+router.use(userAuth());
+
 // POST /encounters - Insert a new encounter
-router.post("/", userAuth(), requireGm, encounterController.insertEncounter);
+router.post("/", requireGm, encounterController.insertEncounter);
 
 // GET /encounters/summaries - Get summaries of all encounters
 router.get("/summaries", encounterController.getAllEncounterSummaries)
@@ -15,10 +18,10 @@ router.get("/summaries", encounterController.getAllEncounterSummaries)
 router.get("/:id/details", encounterController.getEncounterDetails);
 
 // PUT /encounters/:id - Update an encounter
-router.put("/:id", encounterController.updateEncounter);
+router.put("/:id", requireGm, encounterController.updateEncounter);
 
 // DELETE /encounters/:id - Delete an encounter
-router.delete("/:id", encounterController.deleteEncounter);
+router.delete("/:id", requireGm, encounterController.deleteEncounter);
 
 // State management
 
@@ -28,6 +31,6 @@ router.get("/:id/state", encounterController.getEncounterState);
 
 // PUT /encounters/:id/state - Save encounter state
 // Body: { encounterState: DnD5eEncounterState }
-router.put("/:id/state", userAuth(), requireGm, encounterController.saveEncounterState);
+router.put("/:id/state", requireGm, encounterController.saveEncounterState);
 
 export default router;

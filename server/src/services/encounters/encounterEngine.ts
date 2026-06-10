@@ -2,7 +2,6 @@ import { AnySystemEncounterState, SystemType } from "shared/domain/encounters/co
 import { BaseEncounterState } from "shared/domain/encounters/coreEncounter.js";
 import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
-import { IStateCache } from "./stateCache.js";
 import { IEventAuthorizer, IRequestHandler } from "./requestHandler.js";
 import dnd5eEncounterService from "src/api/encounter/encounters/dnd5e/dnd5eEncounterService.js";
 import { UserDB } from "src/api/users/types.js";
@@ -17,18 +16,15 @@ export abstract class BaseEncounterEngine<
     TState extends AnySystemEncounterState & BaseEncounterState
 > implements IEncounterEngine<TState> {
     protected state: TState;
-    protected stateCache: IStateCache<TState>;
     private operationsByRequestId = new Map<string, EncounterOperation>();
     private readonly MAX_DEDUPED_REQUESTS = 500;
     
     constructor(
         initialState: TState,
-        createStateCache: (state: TState) => IStateCache<TState>,
         private readonly createRequestHandler: (state: TState, eventAuthorizer: IEventAuthorizer) => IRequestHandler,
         private readonly createEventAuthorizer: (state: TState) => IEventAuthorizer
     ) {
         this.state = structuredClone(initialState);
-        this.stateCache = createStateCache(this.state);
     }
     
     async dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation> {
@@ -50,14 +46,11 @@ export abstract class BaseEncounterEngine<
             appliedEvents,
         };
 
-        const persist = this.stateCache.shouldSnapshot(draft.version) || this.shouldPersistOperation(this.state, draft, operation);
-        if (persist) {
-            await this.persistSnapshot(draft);
-        }
+        // Every operation is stored before it takes effect: a failed write leaves the engine
+        // unchanged, and a restart never loses an acknowledged change.
+        await this.persistSnapshot(draft);
         this.state = draft;
-        this.stateCache.logOperation(operation);
         this.rememberOperation(request.requestId, operation);
-        if (persist) this.stateCache.addSnapshot(draft);
         return operation;
     }
     
@@ -66,16 +59,11 @@ export abstract class BaseEncounterEngine<
     }
 
     /**
-     * Cleanup method called when encounter is ending or being unloaded.
-     * Ensures final state is persisted to cache.
+     * Called when the encounter is being unloaded. The state is already stored after every
+     * operation; this write is a final safety net.
      */
     async cleanup(): Promise<void> {
         await this.persistSnapshot(this.state);
-        this.stateCache.addSnapshot(this.state);
-    }
-
-    protected shouldPersistOperation(_previous: TState, _next: TState, _operation: EncounterOperation): boolean {
-        return false;
     }
 
     private rememberOperation(requestId: string, operation: EncounterOperation): void {

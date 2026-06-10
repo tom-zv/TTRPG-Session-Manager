@@ -27,6 +27,8 @@ export interface DnD5eEncounterState extends BaseEncounterState {
   currentRound: number;
   currentTurn: number;
   initiativeOrder: number[]; // Array of entity IDs in initiative order
+  /** Instance ID for the next added entity. Only ever grows, so a removed entity's ID is never reused. */
+  nextInstanceId: number;
   entityStates: DnD5eEntityState[];
 }
 

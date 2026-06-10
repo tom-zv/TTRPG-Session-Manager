@@ -46,6 +46,7 @@ async function createSnapshot(insertId: number, settings: EncounterSettings = re
     currentRound: 0,
     currentTurn: 0,
     initiativeOrder: [],
+    nextInstanceId: 0,
     entityStates: [],
   };
 

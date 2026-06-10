@@ -36,6 +36,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     isLoading,
     isLifecycleReady,
     lifecycleError,
+    commandError,
     encounterEnded,
     lastOperation,
     actions,
@@ -194,6 +195,12 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
         {lifecycleError && (
           <p role="alert" className={styles.liveMessageError}>
             Live connection error: {lifecycleError}
+          </p>
+        )}
+
+        {commandError && (
+          <p role="alert" className={styles.liveMessageError}>
+            Action failed: {commandError}
           </p>
         )}
 

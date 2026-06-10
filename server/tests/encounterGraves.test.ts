@@ -16,7 +16,6 @@ import { mergeUserPreferences, validatePreferencesPatch } from "../../shared/dom
 import type { UserDB } from "../src/api/users/types.js";
 import type { EncounterOperation } from "../../shared/sockets/encounters/types.js";
 import { LiveOperationQueue } from "../../client/src/pages/EncounterManager/services/LiveOperationQueue.js";
-import { DnD5eStateCache } from "../src/services/encounters/dnd5e/dnd5eStateCache.js";
 import { dnd5ePool, corePool } from "../src/db.js";
 import dnd5eEntityModel from "../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
 import userModel from "../src/api/users/userModel.js";
@@ -27,6 +26,13 @@ import { EncounterRequestQueue } from "../src/services/encounters/encounterReque
 import encounterController from "../src/api/encounter/encounters/encounterController.js";
 import encounterEngineManager from "../src/services/encounters/encounterEngineManager.js";
 import type { Request, Response } from "express";
+import { EventEmitter } from "node:events";
+import type { Namespace, Socket } from "socket.io";
+import { registerEncounterRequestHandlers } from "../src/socket/namespaces/encounters/encounterRequestHandlers.js";
+import { EncounterErrorCode, type EncounterError } from "../../shared/sockets/encounters/errors.js";
+import type { SocketAck } from "../../shared/sockets/types.js";
+import entityModel from "../src/api/encounter/entities/entityModel.js";
+import entityService from "../src/api/encounter/entities/entityService.js";
 import type { DnD5eEntityDetails } from "../../shared/domain/encounters/dnd5e/entity.js";
 import { createEntityDraft } from "../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/draftTransforms.js";
 import { parseEntityDraft } from "../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/validation.js";
@@ -42,6 +48,7 @@ function state(count = 3, auto = false): DnD5eEncounterState {
     id: 12, system: "dnd5e", version: 0, currentRound: 1, currentTurn: 0,
     settings: { automation: { zeroHpTransfer: auto ? "auto" : "manual" } },
     initiativeOrder: Array.from({ length: count }, (_, index) => index),
+    nextInstanceId: count,
     entityStates: Array.from({ length: count }, (_, index) => ({ ...makeEntityStateful(index + 100, index, 10), initiative: 20 - index })),
   };
 }
@@ -53,7 +60,6 @@ class Engine extends DnD5eEncounterEngine {
     if (this.failSave) throw new Error("Storage unavailable");
     this.saved.push(structuredClone(snapshot));
   }
-  history() { return (this.stateCache as DnD5eStateCache).getLatestState(); }
 }
 
 function request(events: DnD5eEncounterEvent[], requestId = crypto.randomUUID()) {
@@ -191,12 +197,12 @@ test("reset revives grave members and clears combat counters, preserving encount
   assert.equal(engine.snapshot().entityStates.length, 1);
 });
 
-test("invalid events, missing targets, authorization and persistence failures leave no partial state or history", async () => {
+test("invalid events, missing targets, authorization and persistence failures leave no partial state", async () => {
   const engine = new Engine(state(2, true), defaultProfiles);
   const original = engine.snapshot();
   await assert.rejects(engine.dispatch(request([damage(0), bury(999)]), gm), /not found/);
   assert.deepEqual(engine.snapshot(), original);
-  assert.equal(engine.history().operations.length, 0);
+  assert.equal(engine.saved.length, 0);
   for (const event of [bury(0), { type: "restoreFromGrave", values: { targetId: 0, hp: 1 } },
     { type: "setDeathSaves", values: { targetId: 0, successes: 0, failures: 0 } },
     { type: "updateEncounterSettings", values: { patch: {} } }] as DnD5eEncounterEvent[]) {
@@ -206,12 +212,85 @@ test("invalid events, missing targets, authorization and persistence failures le
   const failing = request([damage(0)]);
   await assert.rejects(engine.dispatch(failing, gm), /Storage/);
   assert.deepEqual(engine.snapshot(), original);
-  assert.equal(engine.history().operations.length, 0);
+  assert.equal(engine.saved.length, 0);
   engine.failSave = false;
   const successful = await engine.dispatch(failing, gm);
   assert.equal(successful.version, 1);
   assert.deepEqual(await engine.dispatch(failing, gm), successful);
   assert.equal(engine.saved.length, 1);
+});
+
+test("every operation is stored before it takes effect, including plain HP changes", async () => {
+  const engine = new Engine(state(2), defaultProfiles);
+  await engine.dispatch(request([damage(0, 3)]), gm);
+  await engine.dispatch(request([{ type: "setInitiative", values: { targetId: 1, initiative: 30 } }]), gm);
+  await engine.dispatch(request([{ type: "nextTurn", values: {} }]), gm);
+  assert.deepEqual(engine.saved.map((snapshot) => snapshot.version), [1, 2, 3]);
+  assert.deepEqual(engine.saved.at(-1), engine.snapshot());
+});
+
+test("instance IDs are never reused and labels are assigned once", () => {
+  const combat = state(0);
+  const add = () => DnD5eEventProcessor.applyEvent(combat, { type: "addEntity", values: { templateId: 7, name: "Goblin", hp: 7 } });
+  const labels = () => combat.entityStates.map((entity) => `${entity.instanceId}:${entity.displayName ?? ""}`);
+  add();
+  assert.deepEqual(labels(), ["0:"]);
+  add();
+  assert.deepEqual(labels(), ["0:Goblin 1", "1:Goblin 2"]);
+  DnD5eEventProcessor.applyEvent(combat, { type: "removeEntity", values: { instanceId: 0 } });
+  add();
+  assert.deepEqual(labels(), ["1:Goblin 2", "2:Goblin 3"]);
+  DnD5eEventProcessor.applyEvent(combat, { type: "removeEntity", values: { instanceId: 2 } });
+  add();
+  assert.deepEqual(labels(), ["1:Goblin 2", "3:Goblin 3"]);
+  const legacy = state(2) as Partial<DnD5eEncounterState>;
+  delete legacy.nextInstanceId;
+  assert.equal(normalizeDnD5eEncounterState(legacy as DnD5eEncounterState).nextInstanceId, 2);
+});
+
+test("temporary HP is set to the given value and can be cleared", () => {
+  const combat = state(1);
+  DnD5eEventProcessor.applyEvent(combat, { type: "setTempHp", values: { targetId: 0, sourceId: 1, tempHp: 10 } });
+  DnD5eEventProcessor.applyEvent(combat, { type: "setTempHp", values: { targetId: 0, sourceId: 1, tempHp: 4 } });
+  assert.equal(combat.entityStates[0].tempHp, 4);
+  DnD5eEventProcessor.applyEvent(combat, { type: "setTempHp", values: { targetId: 0, sourceId: 1, tempHp: 0 } });
+  assert.equal(combat.entityStates[0].tempHp, 0);
+});
+
+test("malformed socket payloads are rejected through the acknowledgement, not by throwing", async () => {
+  const socket = Object.assign(new EventEmitter(), { id: "socket-1", data: { user: player } });
+  registerEncounterRequestHandlers({} as Namespace, socket as unknown as Socket);
+  const rejections: unknown[] = [];
+  const onRejection = (reason: unknown) => { rejections.push(reason); };
+  process.on("unhandledRejection", onRejection);
+  const acks: SocketAck[] = [];
+  const errors: EncounterError[] = [];
+  socket.on("error", () => {}); // An EventEmitter throws on an unhandled "error" event; a real socket does not.
+  socket.emit = ((event: string, payload: EncounterError) => { if (event === "error") errors.push(payload); return true; }) as typeof socket.emit;
+  const listener = socket.listeners("encounter:request")[0] as (payload: unknown, ack?: unknown) => Promise<void>;
+  for (const payload of [null, undefined, "text", 42, {}, { encounterId: 12 }, { encounterId: 12, requestId: "a" },
+    { encounterId: 12, requestId: "a", requestedEvents: "nope" }]) {
+    await listener(payload, (ack: SocketAck) => acks.push(ack));
+  }
+  await listener(null, "not a function");
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off("unhandledRejection", onRejection);
+  assert.deepEqual(rejections, []);
+  assert.equal(acks.length, 8);
+  assert(acks.every((ack) => !ack.success));
+  assert.equal(errors.length, 9);
+  assert(errors.every((error) => error.code === EncounterErrorCode.INVALID_REQUEST));
+});
+
+test("an entity template in use by an encounter cannot be deleted", async () => {
+  const remove = mock.method(entityModel, "deleteEntity", async () => true);
+  const usage = mock.method(snapshotModel, "getEncounterIdsUsingTemplate", async () => [12, 15]);
+  await assert.rejects(entityService.deleteEntity("dnd5e", 100), (error: { statusCode?: number; message: string }) =>
+    error.statusCode === 409 && /2 encounters/.test(error.message));
+  assert.equal(remove.mock.callCount(), 0);
+  usage.mock.mockImplementation(async () => []);
+  assert.equal(await entityService.deleteEntity("dnd5e", 100), true);
+  assert.equal(remove.mock.callCount(), 1);
 });
 
 test("numeric and settings validation reject malformed or unsupported writes", () => {

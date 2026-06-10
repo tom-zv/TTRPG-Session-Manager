@@ -6,29 +6,30 @@ export type REQUESTValidationResult =
   | { valid: true }
   | { valid: false; error: string; code: EncounterErrorCode };
 
-export const validateRequest = (request: EncounterRequest): REQUESTValidationResult => {
-  if (!request.encounterId || typeof request.encounterId !== "number") {
-    return {
-      valid: false,
-      error: "Missing encounterId",
-      code: EncounterErrorCode.INVALID_REQUEST,
-    };
+const invalid = (error: string): REQUESTValidationResult => ({
+  valid: false,
+  error,
+  code: EncounterErrorCode.INVALID_REQUEST,
+});
+
+/** Checks the envelope of a payload that arrives untyped from the socket. */
+export const validateRequest = (request: unknown): REQUESTValidationResult => {
+  if (!request || typeof request !== "object") {
+    return invalid("Malformed request");
   }
 
-  if (!request.requestId) {
-    return {
-      valid: false,
-      error: "Missing requestId",
-      code: EncounterErrorCode.INVALID_REQUEST,
-    };
+  const { encounterId, requestId, requestedEvents } = request as Partial<EncounterRequest>;
+
+  if (typeof encounterId !== "number" || !Number.isInteger(encounterId) || encounterId <= 0) {
+    return invalid("Missing encounterId");
   }
 
-  if (request.requestedEvents.length === 0) {
-    return {
-      valid: false,
-      error: "Missing requestedEvents",
-      code: EncounterErrorCode.INVALID_REQUEST,
-    };
+  if (typeof requestId !== "string" || !requestId) {
+    return invalid("Missing requestId");
+  }
+
+  if (!Array.isArray(requestedEvents) || requestedEvents.length === 0) {
+    return invalid("Missing requestedEvents");
   }
 
   return { valid: true };

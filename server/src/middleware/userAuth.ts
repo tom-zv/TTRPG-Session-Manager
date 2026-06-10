@@ -9,7 +9,7 @@ export interface AuthRequest extends Request {
 
 export function requireGm(req: Request, _res: Response, next: NextFunction): void {
   if (!(req as AuthRequest).userSession?.userDb.is_gm) {
-    next(new HttpError(403, "Only GMs can change encounter behavior"));
+    next(new HttpError(403, "Only GMs can do this"));
     return;
   }
   next();

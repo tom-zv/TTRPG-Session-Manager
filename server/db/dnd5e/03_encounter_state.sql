@@ -9,6 +9,7 @@ CREATE TABLE
       "currentTurn": number,
       "settings": {"automation": {"zeroHpTransfer": "manual"}},
       "initiativeOrder": number[],
+      "nextInstanceId": number,
       "entityStates": [{
         "instanceId": number,
         "templateId": number,

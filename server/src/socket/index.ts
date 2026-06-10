@@ -1,6 +1,6 @@
 import { Server as HttpServer } from 'http';
 import { ExtendedError, Server, Socket } from 'socket.io';
-import { getUserByToken } from 'src/api/auth/authModel.js';
+import { getSessionByToken, getUserByToken } from 'src/api/auth/authModel.js';
 import { initEncounterHandlers } from './namespaces/encounters/encounters.js';
 
 // Socket.IO server instance
@@ -47,6 +47,11 @@ export const socketAuth = async (socket: Socket, next: (err?: ExtendedError) => 
       socket.handshake.query.token;
     
     if (!token) return next(new Error('Auth error: token required'));
+
+    const session = await getSessionByToken(token);
+    if (!session || new Date(session.expires_at) < new Date()) {
+      return next(new Error('Auth error: invalid token'));
+    }
 
     const user = await getUserByToken(token);
 

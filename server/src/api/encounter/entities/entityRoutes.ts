@@ -6,6 +6,8 @@ import { userAuth, requireGm } from "src/middleware/userAuth.js";
 const router = express.Router({ mergeParams: true });
 
 // Base route - /api/:system/entities
+// Every route needs a signed-in user; changes need a GM.
+router.use(userAuth());
 
 // POST /entities/batch - Batch fetch entities by IDs
 router.post("/batch", entityController.getEntitiesByIds);
@@ -20,13 +22,13 @@ router.get("/", entityController.getAllEntities);
 router.get("/:id", entityController.getEntityById);
 
 // POST /entities - Insert a new entity
-router.post("/", userAuth(), requireGm, entityController.insertEntity);
+router.post("/", requireGm, entityController.insertEntity);
 
 // PUT /entities/:id - Update an entity
-router.put("/:id", userAuth(), requireGm, entityController.updateEntity);
-router.patch("/:id/settings", userAuth(), requireGm, patchEntitySettings);
+router.put("/:id", requireGm, entityController.updateEntity);
+router.patch("/:id/settings", requireGm, patchEntitySettings);
 
 // DELETE /entities/:id - Delete an entity
-router.delete("/:id", entityController.deleteEntity);
+router.delete("/:id", requireGm, entityController.deleteEntity);
 
 export default router;

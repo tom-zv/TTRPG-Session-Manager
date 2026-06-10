@@ -7,12 +7,9 @@ import encounterEngineManager from "src/services/encounters/encounterEngineManag
 import { validateRequest, validateUser } from "./encounterRequestValidator.js";
 import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
-import { emitEncounterError, emitEncounterOperation } from "./encounterTransport.js";
-import { SocketAck } from "shared/sockets/types.js";
+import { emitEncounterError, emitEncounterOperation, toAck } from "./encounterTransport.js";
 import { EncounterAuthorizationError } from "src/services/encounters/EncounterAuthorizationError.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
-
-type AckCallback = (ack: SocketAck) => void;
 
 const getEncounterEngine = (encounterId: number) => {
   const encounterEngine = encounterEngineManager.getEngine(encounterId);
@@ -38,14 +35,21 @@ const assertSocketJoinedEncounter = (socket: Socket, encounterId: number): void 
 };
 
 export const registerEncounterRequestHandlers = (namespace: Namespace, socket: Socket): void => {
-  socket.on(EncounterSocketEvents.REQUEST, async (request: EncounterRequest, callback?: AckCallback) => {
-    console.log("REQUEST", request);
+  socket.on(EncounterSocketEvents.REQUEST, async (payload: unknown, ackCallback?: unknown) => {
+    console.log("REQUEST", payload);
+
+    // The payload is untrusted until validated; the error path must not assume its shape.
+    const callback = toAck(ackCallback);
+    const requestId = typeof (payload as { requestId?: unknown } | null)?.requestId === "string"
+      ? (payload as { requestId: string }).requestId
+      : undefined;
 
     try {
-      const requestValidation = validateRequest(request);
+      const requestValidation = validateRequest(payload);
       if (!requestValidation.valid) {
         throw new EncounterHandlerError(requestValidation.code, requestValidation.error);
       }
+      const request = payload as EncounterRequest;
 
       const userValidation = validateUser(socket);
       if (!userValidation.valid) {
@@ -71,13 +75,13 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
       callback?.({ success: true });
     } catch (error) {
       if (error instanceof EncounterHandlerError) {
-        emitEncounterError(socket, error.code, error.message, request.requestId);
+        emitEncounterError(socket, error.code, error.message, requestId);
         callback?.({ success: false, error: error.message });
         return;
       }
 
       if (error instanceof EncounterAuthorizationError) {
-        emitEncounterError(socket, EncounterErrorCode.NOT_AUTHORIZED, error.message, request.requestId);
+        emitEncounterError(socket, EncounterErrorCode.NOT_AUTHORIZED, error.message, requestId);
         callback?.({ success: false, error: error.message });
         return;
       }
@@ -87,7 +91,7 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
         socket,
         EncounterErrorCode.REQUEST_FAILED,
         errorMessage,
-        request.requestId
+        requestId
       );
       callback?.({ success: false, error: errorMessage });
     }

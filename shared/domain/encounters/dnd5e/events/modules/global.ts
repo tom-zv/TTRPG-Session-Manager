@@ -19,22 +19,30 @@ export const makeEntityStateful = (templateId: number, instanceId: number, hp: n
     conditions: [],
 });
 
+/** The N of a "Name N" label, or 0 when the label is absent or not numbered. */
+function labelNumber(displayName: string | undefined, name: string): number {
+  if (!displayName?.startsWith(`${name} `)) return 0;
+  const number = Number(displayName.slice(name.length + 1));
+  return Number.isInteger(number) && number > 0 ? number : 0;
+}
+
 export const globalHandler = {
     addEntity(state, event){
-      const instanceId = state.entityStates.reduce((maxId, entity) => {
-        return Math.max(maxId, entity.instanceId);
-      }, -1) + 1;
-      const sameTemplate = state.entityStates.filter((entity) => entity.templateId === event.values.templateId);
-    
-      // Update existing entity of same template to "Name 1" if this is the second instance
-      if (sameTemplate.length === 1) {
-        sameTemplate[0].displayName = `${event.values.name} 1`;
+      const { templateId, name, hp } = event.values;
+      const instanceId = state.nextInstanceId;
+      state.nextInstanceId = instanceId + 1;
+
+      // A lone copy uses the template name. From the second copy on, each gets a numbered
+      // label. A label is assigned once and never changed, so removing "Goblin 1" does not
+      // rename "Goblin 2".
+      const sameTemplate = state.entityStates.filter((entity) => entity.templateId === templateId);
+      let highest = sameTemplate.reduce((max, entity) => Math.max(max, labelNumber(entity.displayName, name)), 0);
+      for (const entity of sameTemplate) {
+        if (entity.displayName === undefined) entity.displayName = `${name} ${++highest}`;
       }
-      
-      // Set display name for new entity
-      const displayName = sameTemplate.length > 0 ? `${event.values.name} ${sameTemplate.length + 1}` : undefined;
-      
-      state.entityStates.push(makeEntityStateful(event.values.templateId, instanceId, event.values.hp, displayName));
+      const displayName = sameTemplate.length > 0 ? `${name} ${++highest}` : undefined;
+
+      state.entityStates.push(makeEntityStateful(templateId, instanceId, hp, displayName));
       state.initiativeOrder.push(instanceId);
     },
 

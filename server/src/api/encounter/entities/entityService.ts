@@ -5,6 +5,8 @@ import {
   EntitySummaryDB,
 } from "./entityModel.js";
 import entityModel from "./entityModel.js";
+import dnd5eEncounterSnapshotsModel from "../encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
+import { HttpError } from "src/api/HttpErrors.js";
 
 async function getEntityById<T extends SystemType>(system: T, id: number): Promise<EntityDB<T>> {
   const entity = await getEntityByIdFromModel(system, id);
@@ -82,7 +84,19 @@ async function updateEntity<T extends SystemType>(
   return updatedEntity;
 }
 
-async function deleteEntity(id: number): Promise<boolean> {
+async function deleteEntity(system: SystemType, id: number): Promise<boolean> {
+  // Encounter state refers to templates by ID only, so deleting one that is still in use
+  // would leave those encounters unable to load.
+  if (system === "dnd5e") {
+    const encounterIds = await dnd5eEncounterSnapshotsModel.getEncounterIdsUsingTemplate(id);
+    if (encounterIds.length > 0) {
+      throw new HttpError(
+        409,
+        `This entity is used in ${encounterIds.length} encounter${encounterIds.length === 1 ? "" : "s"}. Remove it from them first.`
+      );
+    }
+  }
+
   const result = await entityModel.deleteEntity(id);
   
   if (!result) {

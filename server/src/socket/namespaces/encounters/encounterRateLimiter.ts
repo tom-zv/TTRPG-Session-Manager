@@ -2,7 +2,8 @@ export class EncounterRateLimiter {
   private userCommandTimestamps = new Map<string, number[]>();
   private readonly maxCommandsPerSecond: number;
 
-  constructor(maxCommandsPerSecond = 3) {
+  // Each request carries one action, so a GM working through several targets sends short bursts.
+  constructor(maxCommandsPerSecond = 20) {
     this.maxCommandsPerSecond = maxCommandsPerSecond;
   }
 

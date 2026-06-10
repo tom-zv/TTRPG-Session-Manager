@@ -13,6 +13,7 @@ export function extractDnD5eState(encounter: DnD5eEncounter): DnD5eEncounterStat
     currentRound: encounter.currentRound,
     currentTurn: encounter.currentTurn,
     initiativeOrder: encounter.initiativeOrder,
+    nextInstanceId: encounter.nextInstanceId,
     // Extract state from full entities
     entityStates: encounter.entities.map(entity => ({
       instanceId: entity.instanceId,
