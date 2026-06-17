@@ -1,5 +1,4 @@
 import { LocalStateManager } from "./LocalStateManager.js";
-import { SyncState } from "src/services/EditorSync/syncConfig.js";
 
 /**
  * Base class for encounter actions
@@ -8,63 +7,25 @@ import { SyncState } from "src/services/EditorSync/syncConfig.js";
  * @template TState - The encounter state type for this system
  * @template TEvent - The event type for this system
  */
-export abstract class EncounterActions<TState, TEvent> {
+export abstract class EncounterActions<TState extends { version: number }, TEvent> {
   constructor(
     protected stateManager: LocalStateManager<TState, TEvent>,
     protected encounterId: number,
-    protected transmit?: (event: TEvent) => Promise<void>
+    protected transmit: (event: TEvent) => Promise<void>
   ) {}
-  
-  /**
-   * Get the underlying state manager
-   * Used by hooks to subscribe to state changes
-   */
-  getStateManager(): LocalStateManager<TState, TEvent> {
-    return this.stateManager;
-  }
-
-  /**
-   * Apply an event to the encounter state
-   * @param event - The event to apply
-   */
-  applyEvent(event: TEvent): void {
-    this.stateManager.applyEvent(this.encounterId, event);
-  }
 
   /**
    * Apply a server-confirmed operation to the encounter state.
    */
-  applyOperation(events: TEvent[], version?: number): void {
+  applyOperation(events: TEvent[], version: number): void {
     this.stateManager.applyOperation(this.encounterId, events, version);
   }
 
   /**
-   * Get current sync state
+   * Send an event to the server. The change shows up when the server broadcasts the
+   * resulting operation; a rejected event rejects the promise.
    */
-  getSyncState(): SyncState | null {
-    return this.stateManager.getSyncState();
-  }
-
-  /**
-   * Force an immediate sync 
-   */
-  async forceSyncNow(): Promise<boolean> {
-    return await this.stateManager.forceSyncNow();
-  }
-
   async dispatch(event: TEvent): Promise<void> {
-    if (this.transmit) {
-      await this.transmit(event);
-      return;
-    }
-
-    this.stateManager.applyEvent(this.encounterId, event);
-  } 
-
-  /**
-   * Clean up resources
-   */
-  async destroy(): Promise<void> {
-    await this.stateManager.destroy();
+    await this.transmit(event);
   }
 }

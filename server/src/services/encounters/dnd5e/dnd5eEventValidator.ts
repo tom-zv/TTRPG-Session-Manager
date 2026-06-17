@@ -16,6 +16,8 @@ export function isDnD5eEvent(event: unknown): event is DnD5eEncounterEvent {
       return id(values.templateId) && typeof values.name === "string" && values.name.trim().length > 0 &&
         nonNegative(values.hp) && values.hp > 0;
     case "removeEntity": return id(values.instanceId);
+    case "startCombat":
+    case "endCombat":
     case "nextTurn":
     case "resetEncounter": return true;
     case "moveToGrave": return id(values.targetId);

@@ -1,8 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { 
-  DnD5eEncounterState,
-  DnD5eEncounterDetails
-} from 'shared/domain/encounters/dnd5e/encounter.js';
+import type { DnD5eEncounterDetails } from 'shared/domain/encounters/dnd5e/encounter.js';
 import type { CreatePayload, UpdatePayload } from 'src/pages/EncounterManager/types.js';
 import DnD5eEncounterApi from '../dnd5eEncounterApi.js';
 import { ENCOUNTER_KEYS } from "./keys.js";
@@ -43,26 +40,6 @@ export function useDeleteDnD5eEncounter() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ENCOUNTER_KEYS.summaries(),
-      });
-    },
-  });
-}
-
-export function useSaveEncounterState() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ 
-      id, 
-      encounterState
-    }: { 
-      id: number; 
-      encounterState: DnD5eEncounterState;
-    }) => DnD5eEncounterApi.saveEncounterState(id, encounterState),
-    onSuccess: (_, { id }) => {
-      // Invalidate all state queries for this encounter
-      queryClient.invalidateQueries({
-        queryKey: ENCOUNTER_KEYS.state(id),
       });
     },
   });

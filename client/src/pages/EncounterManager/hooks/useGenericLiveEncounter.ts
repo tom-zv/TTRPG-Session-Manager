@@ -7,7 +7,6 @@ import {
 } from "src/services/SocketService/namespaces/encounters.js";
 import { EncounterOperation, EncounterRequest } from "shared/sockets/encounters/types.js";
 import {
-  AnySystemEncounterState,
   EncounterBySystem,
   EncounterStateBySystem,
   SystemType,
@@ -20,14 +19,10 @@ import { LiveOperationQueue } from "../services/LiveOperationQueue.js";
 
 const COMMAND_ERROR_DISPLAY_MS = 6000;
 
-export type LiveEncounterOptions = {
-  isGm: boolean;
-};
-
 export interface LiveEncounterConfig<
   T extends SystemType,
   TEncounter extends EncounterBySystem<T>,
-  TState extends AnySystemEncounterState,
+  TState extends EncounterStateBySystem<T>,
   TEvent,
   TActions extends EncounterActions<TState, TEvent>
 > {
@@ -41,10 +36,17 @@ export interface LiveEncounterConfig<
   createActions: (
     queryClient: QueryClient,
     encounterId: number,
-    transmit?: (event: TEvent) => Promise<void>
+    transmit: (event: TEvent) => Promise<void>
   ) => TActions;
 }
 
+/**
+ * One session with an encounter, used for preparing it and for running it.
+ *
+ * The server owns the state. Joining the encounter's socket room returns the current state;
+ * after that the cache only changes through the operations the server broadcasts. Every action
+ * is sent as a request and shows up when its operation arrives.
+ */
 export function useGenericLiveEncounter<
   T extends SystemType,
   TEncounter extends EncounterBySystem<T>,
@@ -53,7 +55,6 @@ export function useGenericLiveEncounter<
   TActions extends EncounterActions<TState, TEvent>
 >(
   encounterId: number,
-  options: LiveEncounterOptions,
   config: LiveEncounterConfig<T, TEncounter, TState, TEvent, TActions>
 ) {
   const queryClient = useQueryClient();
@@ -63,7 +64,6 @@ export function useGenericLiveEncounter<
     useComposedEncounter,
     refreshTemplates,
   } = config;
-  const { isGm } = options;
 
   const { encounter, isLoading } = useComposedEncounter(encounterId);
   // Connection problems (join failed, sync failed) stay until the session recovers.
@@ -71,6 +71,7 @@ export function useGenericLiveEncounter<
   // A rejected action says nothing about the connection, so it is reported separately and fades.
   const [commandError, setCommandError] = useState<string | null>(null);
   const [isLifecycleReady, setIsLifecycleReady] = useState(false);
+  // The encounter was deleted while this session was open.
   const [encounterEnded, setEncounterEnded] = useState(false);
   const [actions, setActions] = useState<TActions | null>(null);
   const [lastOperation, setLastOperation] = useState<EncounterOperation<TEvent> | null>(null);
@@ -85,7 +86,7 @@ export function useGenericLiveEncounter<
     async (event: TEvent): Promise<void> => {
       const socketService = socketServiceRef.current;
       if (!socketService || !isLifecycleReadyRef.current) {
-        const error = "Live encounter is not connected";
+        const error = "Not connected to the encounter";
         setLifecycleError(error);
         throw new Error(error);
       }
@@ -132,10 +133,6 @@ export function useGenericLiveEncounter<
         actionsRef.current = null;
         actionsEncounterIdRef.current = null;
       }
-
-      void nextActions.destroy().catch((error) => {
-        console.error("Failed to destroy live encounter actions", error);
-      });
     };
   }, [createActions, encounterId, queryClient, transmitEvent]);
 
@@ -144,15 +141,38 @@ export function useGenericLiveEncounter<
     lifecycleSessionRef.current = sessionId;
 
     const isCurrentSession = () => lifecycleSessionRef.current === sessionId;
+    const stateKey = queryKeys.state(encounterId);
+    const getState = () => queryClient.getQueryData<{ encounterState: TState }>(stateKey)?.encounterState;
+
+    /**
+     * Join (or re-join) the encounter and replace the cached state with the server's.
+     * The server's state always wins, also when the cache holds a higher version: that can only
+     * mean the server lost changes, and the cache would otherwise never agree with it again.
+     */
+    const syncFromServer = async (): Promise<void> => {
+      const socketService = socketServiceRef.current;
+      if (!socketService || !isCurrentSession()) return;
+
+      const joinAck = await socketService.join<TState>(encounterId);
+      if (!isCurrentSession()) return;
+      if (!joinAck.success) throw new Error(joinAck.error);
+
+      queryClient.setQueryData<{ encounterState: TState }>(stateKey, { encounterState: joinAck.encounterState });
+    };
 
     const operationQueue = new LiveOperationQueue<TEvent>({
-      getVersion: () => queryClient.getQueryData<{ encounterState: TState }>(queryKeys.state(encounterId))?.encounterState.version,
+      getVersion: () => getState()?.version,
       isReady: () => isCurrentSession() && isLifecycleReadyRef.current,
       apply: (operation) => {
+        const phaseBefore = getState()?.phase;
         actionsRef.current?.applyOperation(operation.appliedEvents, operation.version);
         setLastOperation(operation);
+        // The encounter list shows a status derived from the phase.
+        if (getState()?.phase !== phaseBefore) {
+          void queryClient.invalidateQueries({ queryKey: queryKeys.summaries() });
+        }
       },
-      resync: () => queryClient.refetchQueries({ queryKey: queryKeys.state(encounterId), exact: true }),
+      resync: syncFromServer,
       onError: (error) => {
         if (isCurrentSession()) setLifecycleError(error instanceof Error ? error.message : "Failed to synchronize encounter");
       },
@@ -185,8 +205,7 @@ export function useGenericLiveEncounter<
     };
 
     const connectToEncounter = async () => {
-      const socketService = socketServiceRef.current;
-      if (!socketService || !isCurrentSession()) {
+      if (!socketServiceRef.current || !isCurrentSession()) {
         return;
       }
 
@@ -198,46 +217,12 @@ export function useGenericLiveEncounter<
         setIsLifecycleReady(false);
         isLifecycleReadyRef.current = false;
 
-        if (isGm) {
-          const initAck = await socketService.sendMessage(EncounterSocketEvents.INIT, {
-            encounterId,
-            system: config.system,
-          });
-
-          if (!isCurrentSession()) {
-            return;
-          }
-
-          if (!initAck.success) {
-            setLifecycleError(initAck.error);
-            return;
-          }
-        }
-
-        const joinAck = await socketService.sendMessage(EncounterSocketEvents.JOIN, {
-          encounterId,
-        });
-
-        if (!isCurrentSession()) {
-          return;
-        }
-
-        if (!joinAck.success) {
-          setLifecycleError(joinAck.error);
-          return;
-        }
-
-        await queryClient.refetchQueries({
-          queryKey: queryKeys.state(encounterId),
-          exact: true,
-        });
-
-        if (!isCurrentSession()) {
-          return;
-        }
+        await syncFromServer();
+        if (!isCurrentSession()) return;
 
         await refreshTemplates?.(queryClient, encounterId);
         if (!isCurrentSession()) return;
+
         isLifecycleReadyRef.current = true;
         setIsLifecycleReady(true);
         operationQueue.flush();
@@ -246,7 +231,7 @@ export function useGenericLiveEncounter<
           isLifecycleReadyRef.current = false;
           setIsLifecycleReady(false);
           setLifecycleError(
-            error instanceof Error ? error.message : "Failed to connect live encounter"
+            error instanceof Error ? error.message : "Failed to connect to the encounter"
           );
         }
       }
@@ -286,8 +271,10 @@ export function useGenericLiveEncounter<
 
       void socketService.sendMessage(EncounterSocketEvents.LEAVE, { encounterId });
       socketService.dispose();
+      // Without a session nothing keeps the cached state current, so it must not be shown again.
+      queryClient.removeQueries({ queryKey: stateKey, exact: true });
     };
-  }, [encounterId, isGm, config.system, queryClient, queryKeys, refreshTemplates]);
+  }, [encounterId, queryClient, queryKeys, refreshTemplates]);
 
   const currentActions = actionsEncounterIdRef.current === encounterId
     ? actions
@@ -301,7 +288,6 @@ export function useGenericLiveEncounter<
     commandError,
     encounterEnded,
     lastOperation,
-    socketService: socketServiceRef.current,
     actions: currentActions,
   };
 }

@@ -23,19 +23,15 @@ export class DnD5eEncounterActions extends EncounterActions<
   constructor(
     stateManager: DnD5eLocalStateManager,
     encounterId: number,
-    transmit?: (event: DnD5eEncounterEvent) => Promise<void>
+    transmit: (event: DnD5eEncounterEvent) => Promise<void>
   ) {
     super(stateManager, encounterId, transmit);
 
+    // UI handlers fire and forget; the session reports a rejected event to the user.
     const emitEvent = (event: DnD5eEncounterEvent): void => {
-      if (this.transmit) {
-        void this.dispatch(event).catch((error) => {
-          console.error("Failed to dispatch live event", error);
-        });
-        return;
-      }
-
-      stateManager.applyLocalEvent(encounterId, event);
+      void this.dispatch(event).catch((error) => {
+        console.error("Failed to dispatch encounter event", error);
+      });
     };
 
     this.hp = new DnD5eHpActions(emitEvent);
@@ -51,7 +47,7 @@ export class DnD5eEncounterActions extends EncounterActions<
   static create(
     queryClient: QueryClient,
     encounterId: number,
-    transmit?: (event: DnD5eEncounterEvent) => Promise<void>
+    transmit: (event: DnD5eEncounterEvent) => Promise<void>
   ): DnD5eEncounterActions {
     const stateManager = new DnD5eLocalStateManager(queryClient);
     return new DnD5eEncounterActions(stateManager, encounterId, transmit);

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import EncounterListView from "./EncounterListView/EncounterListView.js";
-import EncounterEditor from "./dnd5e/EncounterEditor/EncounterEditorView.js";
 import { useDataSummaries } from "../hooks/useDataSummaries.js";
 import {
   supportedSystems,
@@ -14,41 +13,24 @@ export const EncounterManager: React.FC = () => {
   const [selectedEncounterId, setSelectedEncounterId] = useState<number | null>(
     null
   );
-  const [isLive, setIsLive] = useState<boolean>(false);
   const { encounterSummaries } = useDataSummaries(system);
   const { currentUser } = useAuth();
+  const isGm = currentUser?.isGm ?? false;
 
   return selectedEncounterId === null ? (
     <EncounterListView
       system={system}
       setSystem={setSystem}
-      onOpenEditor={(encounterId) => setSelectedEncounterId(encounterId)}
-      onLaunchLive={(encounterId) => {
-        setSelectedEncounterId(encounterId);
-        setIsLive(true);
-      }}
+      onOpen={setSelectedEncounterId}
       encounterSummaries={encounterSummaries}
-      setIsLive={setIsLive}
+      isGm={isGm}
     />
-  ) : isLive ? (
+  ) : (
     <LiveEncounter
       system={system}
       encounterId={selectedEncounterId}
-      isGm={currentUser?.isGm ?? false}
-      onExit={() => {
-        setSelectedEncounterId(null);
-        setIsLive(false)
-      }}
-    />
-  ) : (
-    <EncounterEditor
-      encounterId={selectedEncounterId}
+      isGm={isGm}
       onExit={() => setSelectedEncounterId(null)}
-      isGm={currentUser?.isGm ?? false}
     />
   );
 };
-
-//TODO:
-// - Init change animation
-// -

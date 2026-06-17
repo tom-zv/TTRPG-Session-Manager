@@ -5,6 +5,7 @@ CREATE TABLE
 
     snapshot JSON NULL COMMENT 'Complete encounter state snapshot. Structure: {
       "version": number,
+      "phase": "setup" | "running" | "ended",
       "currentRound": number,
       "currentTurn": number,
       "settings": {"automation": {"zeroHpTransfer": "manual"}},

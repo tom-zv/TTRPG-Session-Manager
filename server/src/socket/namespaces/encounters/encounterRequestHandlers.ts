@@ -9,19 +9,8 @@ import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
 import { emitEncounterError, emitEncounterOperation, toAck } from "./encounterTransport.js";
 import { EncounterAuthorizationError } from "src/services/encounters/EncounterAuthorizationError.js";
+import { EncounterNotFoundError } from "src/services/encounters/encounterSystems.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
-
-const getEncounterEngine = (encounterId: number) => {
-  const encounterEngine = encounterEngineManager.getEngine(encounterId);
-  if (!encounterEngine) {
-    throw new EncounterHandlerError(
-      EncounterErrorCode.NO_ACTIVE_ENCOUNTER,
-      "No active encounter"
-    );
-  }
-
-  return encounterEngine;
-};
 
 const assertSocketJoinedEncounter = (socket: Socket, encounterId: number): void => {
   const trackedEncounterId = encounterConnectionManager.getEncounterIdBySocketId(socket.id);
@@ -67,7 +56,7 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
       }
 
       const operation = await encounterRequestQueue.enqueue(request.encounterId, async () => {
-        const encounterEngine = getEncounterEngine(request.encounterId);
+        const encounterEngine = await encounterEngineManager.getOrLoadEngine(request.encounterId);
         return await encounterEngine.dispatch(request, socket.data.user);
       });
 
@@ -76,6 +65,12 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
     } catch (error) {
       if (error instanceof EncounterHandlerError) {
         emitEncounterError(socket, error.code, error.message, requestId);
+        callback?.({ success: false, error: error.message });
+        return;
+      }
+
+      if (error instanceof EncounterNotFoundError) {
+        emitEncounterError(socket, EncounterErrorCode.ENCOUNTER_NOT_FOUND, error.message, requestId);
         callback?.({ success: false, error: error.message });
         return;
       }

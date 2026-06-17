@@ -18,7 +18,9 @@ const CreateEncounterForm: React.FC<CreateEncounterFormProps> = ({system, onCanc
   
   const createMutation = useCreateDnD5eEncounter();
 
-  const onCreate = async () => {
+  const onCreate = async (event: React.FormEvent) => {
+      // Without this the browser submits the form itself and reloads the page.
+      event.preventDefault();
       switch (system) {
         case 'dnd5e': {
           const payload: CreatePayload<DnD5eEncounterDetails> = {
@@ -33,6 +35,7 @@ const CreateEncounterForm: React.FC<CreateEncounterFormProps> = ({system, onCanc
   
           try {
             await createMutation.mutateAsync(payload);
+            onCancel();
           } catch (e) {
             console.error(e);
           }

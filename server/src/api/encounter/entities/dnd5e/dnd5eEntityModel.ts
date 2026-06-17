@@ -470,14 +470,18 @@ export default {
   createDefaultEntityState,
 };
 
-export type EntityCombatProfile = { id: number; role: DnD5eEntityDB["role"]; settings: EntitySettings };
+/** The template facts the encounter engine needs; the full template stays out of encounter state. */
+export type EntityCombatProfile = { id: number; name: string; hp: number; role: DnD5eEntityDB["role"]; settings: EntitySettings };
 
 export async function getCombatProfiles(ids: number[]): Promise<EntityCombatProfile[]> {
   if (!ids.length) return [];
   const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
-    `SELECT id, role, settings FROM dnd5e.entities WHERE id IN (${ids.map(() => "?").join(",")})`, ids,
+    `SELECT e.id, c.name, e.hp, e.role, e.settings
+     FROM dnd5e.entities e
+     JOIN core.entities c ON c.id = e.id
+     WHERE e.id IN (${ids.map(() => "?").join(",")})`, ids,
   );
-  return rows.map((row) => ({ id: row.id, role: row.role, settings: readJsonObjectColumn(row.settings) }));
+  return rows.map((row) => ({ id: row.id, name: row.name, hp: row.hp, role: row.role, settings: readJsonObjectColumn(row.settings) }));
 }
 
 /** Merge just the settings row, without replacing any entity collections. */

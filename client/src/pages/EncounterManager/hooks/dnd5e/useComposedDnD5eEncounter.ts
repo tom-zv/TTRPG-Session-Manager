@@ -15,8 +15,8 @@ import {
  * 
  */
 export function useComposedDnD5eEncounter(encounterId: number) {
-  // Get encounter state 
-  const { data, isLoading: stateLoading } = useDnD5eEncounterState(encounterId);
+  // The state is written by the encounter session; it is absent until the session has joined.
+  const { data } = useDnD5eEncounterState(encounterId);
   const encounterState = data?.encounterState;
   const {
     data: encounterSummaries,
@@ -93,8 +93,7 @@ export function useComposedDnD5eEncounter(encounterId: number) {
   
   return {
     encounter,
-    isLoading: stateLoading ||
-      summariesLoading ||
+    isLoading: summariesLoading ||
       (!encounterDetails && !encounterSummaries && !summariesError) ||
       entitiesLoading ||
       (entityIds.length > 0 && !entityTemplatesById && !entityTemplatesError),

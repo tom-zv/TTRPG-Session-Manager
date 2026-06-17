@@ -5,20 +5,14 @@ import { ENCOUNTER_KEYS } from "../api/dnd5e/encounters/query/keys.js";
 import { DnD5eEncounterActions } from "../services/dnd5e/DnD5eEncounterActions.js";
 import { useComposedDnD5eEncounter } from "./dnd5e/useComposedDnD5eEncounter.js";
 import { useGenericLiveEncounter } from "./useGenericLiveEncounter.js";
-import type { LiveEncounterOptions } from "./useGenericLiveEncounter.js";
 import { refreshDnD5eEncounterTemplates } from "../services/dnd5e/entityTemplateCache.js";
 
-export type { LiveEncounterConfig, LiveEncounterOptions } from "./useGenericLiveEncounter.js";
+export type { LiveEncounterConfig } from "./useGenericLiveEncounter.js";
 
 /**
- * System specific live encounter hook
- *
+ * System specific encounter session hook
  */
-export const useLiveEncounter = (
-  system: SystemType,
-  encounterId: number,
-  options: LiveEncounterOptions
-) => {
+export const useLiveEncounter = (system: SystemType, encounterId: number) => {
   switch (system) {
     case "dnd5e":
       return useGenericLiveEncounter<
@@ -27,7 +21,7 @@ export const useLiveEncounter = (
         DnD5eEncounterState,
         DnD5eEncounterEvent,
         DnD5eEncounterActions
-      >(encounterId, options, {
+      >(encounterId, {
         system: "dnd5e",
         queryKeys: ENCOUNTER_KEYS,
         useComposedEncounter: useComposedDnD5eEncounter,

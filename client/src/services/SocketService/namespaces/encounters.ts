@@ -3,25 +3,20 @@ import { getSocket } from "../socket.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
 import {
   EncounterEvent,
+  EncounterJoinAck,
   EncounterOperation,
   EncounterRequest,
 } from "shared/sockets/encounters/types.js";
 import { EncounterError } from "shared/sockets/encounters/errors.js";
 import { SocketAck } from "shared/sockets/types.js";
-import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 
 export type EncounterRoomRequest = {
   encounterId: number;
 };
 
-export type EncounterInitRequest = EncounterRoomRequest & {
-  system: SystemType;
-};
-
 type EncounterSocketRequest<TEvent = EncounterEvent> =
   | EncounterRequest<TEvent>
-  | EncounterRoomRequest
-  | EncounterInitRequest;
+  | EncounterRoomRequest;
 
 export interface EncounterDataCallbacks<TEvent = EncounterEvent> {
   onTemplateUpdated?: (payload: { templateId: number }) => void;
@@ -100,10 +95,18 @@ export class EncounterSocketService<TEvent = EncounterEvent> {
     this.socket.off("connect", this.handleConnect);
   }
 
-  async sendMessage(
+  /**
+   * Join the encounter's room. The acknowledgement carries the current state, so this is also
+   * how a client catches up after a reconnect or a gap in the operation stream.
+   */
+  join<TState>(encounterId: number): Promise<EncounterJoinAck<TState>> {
+    return this.sendMessage<EncounterJoinAck<TState>>(EncounterSocketEvents.JOIN, { encounterId });
+  }
+
+  async sendMessage<TAck extends { success: boolean } = SocketAck>(
     messageType: EncounterSocketEvents,
     request?: EncounterSocketRequest<TEvent>
-  ): Promise<SocketAck> {
+  ): Promise<TAck | { success: false; error: string }> {
     if (this.disposed) {
       return { success: false, error: "Encounter socket service is disposed" };
     }
@@ -112,7 +115,7 @@ export class EncounterSocketService<TEvent = EncounterEvent> {
       this.socket.timeout(this.ACK_TIMEOUT_MS).emit(
         messageType,
         request,
-        (error: Error | null, ack?: SocketAck) => {
+        (error: Error | null, ack?: TAck) => {
           if (error) {
             resolve({ success: false, error: "Encounter socket acknowledgement timed out" });
             return;

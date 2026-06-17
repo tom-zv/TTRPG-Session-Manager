@@ -55,6 +55,8 @@ const DND5E_EVENT_AUTH_RULES = {
   addEntity: (context) => authorizeGmOnly(context),
   removeEntity: (context) => authorizeGmOnly(context),
   resetEncounter: (context) => authorizeGmOnly(context),
+  startCombat: (context) => authorizeGmOnly(context),
+  endCombat: (context) => authorizeGmOnly(context),
 
   nextTurn: (context) => authorizeTurnControl(context),
   

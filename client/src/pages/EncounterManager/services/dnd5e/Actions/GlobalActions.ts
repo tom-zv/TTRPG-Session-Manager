@@ -25,6 +25,14 @@ export class DnD5eGlobalActions {
     });
   };
 
+  startCombat = (): void => {
+    this.emitEvent({ type: "startCombat", values: {} });
+  };
+
+  endCombat = (): void => {
+    this.emitEvent({ type: "endCombat", values: {} });
+  };
+
   nextTurn = (): void => {
     this.emitEvent({
       type: "nextTurn",

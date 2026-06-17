@@ -41,6 +41,27 @@ export type CoreEncounter = {
 };
 
 /**
+ * Where an encounter is in its life. Membership, HP and initiative can be changed in any phase;
+ * turns only advance while running.
+ * - setup: being prepared, combat has not started
+ * - running: combat is in progress
+ * - ended: combat is over; a reset returns it to setup
+ */
+export const ENCOUNTER_PHASES = ["setup", "running", "ended"] as const;
+export type EncounterPhase = (typeof ENCOUNTER_PHASES)[number];
+
+export function isEncounterPhase(value: unknown): value is EncounterPhase {
+  return typeof value === "string" && ENCOUNTER_PHASES.includes(value as EncounterPhase);
+}
+
+/** The stored encounter status is derived from the phase and never set on its own. */
+export const STATUS_BY_PHASE: Record<EncounterPhase, CoreEncounter["status"]> = {
+  setup: "planned",
+  running: "active",
+  ended: "completed",
+};
+
+/**
  * Base interface for versioned encounter state
  * All stateful encounter types should extend this
  */
@@ -48,6 +69,7 @@ export interface BaseEncounterState {
   id: number;
   system: SystemType;
   version: number;
+  phase: EncounterPhase;
 }
 
 // Helper types to extract encounter types based on system

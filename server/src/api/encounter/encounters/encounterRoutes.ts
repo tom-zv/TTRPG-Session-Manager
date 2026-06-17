@@ -23,14 +23,7 @@ router.put("/:id", requireGm, encounterController.updateEncounter);
 // DELETE /encounters/:id - Delete an encounter
 router.delete("/:id", requireGm, encounterController.deleteEncounter);
 
-// State management
-
-// GET /encounters/:id/state - Get encounter state (with entity states)
-// Prefers live engine state when active, otherwise returns persisted snapshot
-router.get("/:id/state", encounterController.getEncounterState);
-
-// PUT /encounters/:id/state - Save encounter state
-// Body: { encounterState: DnD5eEncounterState }
-router.put("/:id/state", requireGm, encounterController.saveEncounterState);
+// Encounter state is not served over HTTP: clients receive it when they join the encounter's
+// socket room and change it through encounter requests.
 
 export default router;

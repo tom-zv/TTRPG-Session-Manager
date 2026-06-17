@@ -16,6 +16,8 @@ import layoutStyles from "../../shared/EncounterLayout.module.css";
 import { DnD5eEntityList } from "../Shared/DnD5eEntityList.js";
 import { DnD5eEntityCard } from "../Shared/DnD5eEntityCard/DnD5eEntityCard.js";
 import { Group, Panel, Separator } from "react-resizable-panels";
+import Dialog from "src/components/Dialog/Dialog.js";
+import { EntityPicker } from "../Shared/EntityPicker/EntityPicker.js";
 
 type LiveEncounterProps = {
   system: SystemType;
@@ -24,6 +26,10 @@ type LiveEncounterProps = {
   onExit: () => void;
 };
 
+/**
+ * The one view of an encounter. What it offers follows the encounter's phase: preparing it
+ * (setup), running combat (running) or looking at the outcome (ended).
+ */
 export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   system,
   encounterId,
@@ -40,12 +46,16 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     encounterEnded,
     lastOperation,
     actions,
-  } = useLiveEncounter(system, encounterId, { isGm });
+  } = useLiveEncounter(system, encounterId);
 
-  const hasDataError = !isLoading && !encounter;
+  const phase = encounter?.phase;
+  const isRunning = phase === "running";
+  const connectionFailed = !isLifecycleReady && lifecycleError !== null;
+  const hasDataError = (isLifecycleReady && !isLoading && !encounter) || connectionFailed;
   const isBootstrapping = isLoading || !isLifecycleReady || !actions;
   const canMutate = isGm && isLifecycleReady && !encounterEnded;
   const sourceId = currentUser?.id;
+  const [isEntityPickerOpen, setIsEntityPickerOpen] = useState(false);
 
   const [userSelectedEntityId, setUserSelectedEntityId] = useState<number | undefined>();
   const [isPinned, setIsPinned] = useState(false);
@@ -69,7 +79,10 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     [orderedEntities, graveEntities]
   );
 
-  const activeEntity = encounter?.entities.find((entity) => entity.instanceId === encounter.initiativeOrder[encounter.currentTurn]);
+  // Nobody holds the turn before combat starts or after it ends.
+  const activeEntity = isRunning
+    ? encounter?.entities.find((entity) => entity.instanceId === encounter.initiativeOrder[encounter.currentTurn])
+    : undefined;
   const currentTurnIndex = encounter?.currentTurn;
   const currentRound = encounter?.currentRound;
 
@@ -140,6 +153,12 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     actions.global.nextTurn();
   };
 
+  const handleAddEntity = (templateId: number, name: string, hp: number) => {
+    setIsEntityPickerOpen(false);
+    if (!canMutate || !actions) return;
+    actions.global.addEntity(templateId, name, hp);
+  };
+
   const handleResetEncounter = () => {
     setConfirmingReset(false);
     if (!canMutate || !encounter || !actions) return;
@@ -162,10 +181,38 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             {isGm && encounter && actions && (
               <EncounterSettingsPanel settings={encounter.settings} actions={actions} canMutate={canMutate} />
             )}
-            {confirmingReset && canMutate ? (
+            {canMutate && encounter && actions && (
+              <button type="button" onClick={() => setIsEntityPickerOpen(true)}>
+                + Add Entity
+              </button>
+            )}
+            {canMutate && encounter && actions && phase === "setup" && (
+              <button
+                type="button"
+                onClick={() => actions.global.startCombat()}
+                disabled={encounter.initiativeOrder.length === 0}
+                title={
+                  encounter.initiativeOrder.length === 0
+                    ? "Add at least one entity before starting combat"
+                    : "Begin round 1 with the current initiative order"
+                }
+              >
+                Start combat
+              </button>
+            )}
+            {canMutate && actions && isRunning && (
+              <button
+                type="button"
+                onClick={() => actions.global.endCombat()}
+                title="Stop advancing turns and mark the encounter as completed"
+              >
+                End combat
+              </button>
+            )}
+            {phase === "setup" ? null : confirmingReset && canMutate ? (
               <InlineConfirm
                 label="Reset encounter?"
-                confirmLabel="Confirm reset: return everyone from the grave, reset round and turn, and restore all HP"
+                confirmLabel="Confirm reset: return to setup, return everyone from the grave, and restore all HP"
                 cancelLabel="Cancel reset"
                 onConfirm={handleResetEncounter}
                 onCancel={() => setConfirmingReset(false)}
@@ -181,7 +228,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 }
                 title={
                   canMutate
-                    ? "Reset round and turn, return everyone from the grave, and restore HP to max"
+                    ? "Return to setup: reset round and turn, return everyone from the grave, and restore HP to max"
                     : "Only the GM can reset encounters"
                 }
               >
@@ -194,7 +241,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
 
         {lifecycleError && (
           <p role="alert" className={styles.liveMessageError}>
-            Live connection error: {lifecycleError}
+            Connection error: {lifecycleError}
           </p>
         )}
 
@@ -206,7 +253,13 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
 
         {encounterEnded && (
           <p role="status" className={styles.liveMessageStatus}>
-            This live encounter has ended.
+            This encounter was deleted.
+          </p>
+        )}
+
+        {phase === "ended" && !encounterEnded && (
+          <p role="status" className={styles.liveMessageStatus}>
+            Combat has ended.{isGm ? " Reset the encounter to run it again." : ""}
           </p>
         )}
 
@@ -219,7 +272,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
           </div>
         ) : isBootstrapping ? (
           <div className={layoutStyles.encounterLoading}>
-            <p>Connecting to live encounter...</p>
+            <p>Connecting to encounter...</p>
           </div>
         ) : (
           <Group
@@ -235,8 +288,8 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
               <DnD5eEntityList
                 entities={encounter!.entities}
                 initiativeOrder={encounter!.initiativeOrder}
-                currentTurn={encounter!.currentTurn}
-                mode="live"
+                currentTurn={isRunning ? encounter!.currentTurn : undefined}
+                mode={phase === "setup" ? "edit" : "live"}
                 actions={actions}
                 canMutate={canMutate}
                 sourceId={sourceId}
@@ -244,7 +297,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 onSelectEntity={handleSelectEntity}
                 isPinned={effectiveIsPinned}
                 onTogglePin={handleTogglePin}
-                topAdornment={
+                topAdornment={isRunning &&
                   <TurnDock
                     currentRound={encounter!.currentRound}
                     activeEntityName={activeEntityName}
@@ -320,6 +373,18 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             </Panel>
           </Group>
         )}
+
+        <Dialog
+          isOpen={isEntityPickerOpen}
+          onClose={() => setIsEntityPickerOpen(false)}
+          title="Add Entity to Encounter"
+        >
+          <EntityPicker
+            onSelect={handleAddEntity}
+            onCancel={() => setIsEntityPickerOpen(false)}
+            title="Select an entity to add"
+          />
+        </Dialog>
       </div>
     </div>
   );

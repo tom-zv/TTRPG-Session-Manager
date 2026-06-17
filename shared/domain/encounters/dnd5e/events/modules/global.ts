@@ -51,7 +51,22 @@ export const globalHandler = {
         setInitiativeOrder(state, state.initiativeOrder.filter((id) => id !== event.values.instanceId));
     },
 
+    /** Setup to running: round 1 begins with whoever is first in initiative. */
+    startCombat(state) {
+      if (state.phase !== "setup") return;
+      rebuildInitiativeOrder(state);
+      state.phase = "running";
+      state.currentRound = 1;
+      state.currentTurn = 0;
+    },
+
+    endCombat(state) {
+      if (state.phase !== "running") return;
+      state.phase = "ended";
+    },
+
     nextTurn(state) {
+      if (state.phase !== "running") return;
       const initiativeCount = state.initiativeOrder.length;
 
       if (initiativeCount === 0) {
@@ -72,6 +87,7 @@ export const globalHandler = {
     },
 
     resetEncounter(state) {
+      state.phase = "setup";
       state.currentRound = 0;
       state.currentTurn = 0;
       state.entityStates = state.entityStates.map((entity) => ({

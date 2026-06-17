@@ -1,7 +1,15 @@
 import type { DnD5eEncounterState } from "./encounter.js";
 
-/** Change membership/order without changing the actor whose turn is in progress. */
+/**
+ * Change membership/order. While combat is running the actor whose turn is in progress keeps the
+ * turn; outside combat there is no turn to preserve.
+ */
 export function setInitiativeOrder(state: DnD5eEncounterState, order: number[]): void {
+  if (state.phase !== "running") {
+    state.initiativeOrder = order;
+    state.currentTurn = 0;
+    return;
+  }
   const previous = state.initiativeOrder;
   const turn = previous.length ? Math.max(0, state.currentTurn) % previous.length : 0;
   const actor = previous[turn];

@@ -5,6 +5,9 @@ import { EncounterDB, encounterUpdateDataDB, EncounterInsertData } from "./types
 import { dnd5eEncounterDbToDomainDetails } from "src/utils/format-transformers/encounter-transformers/dnd5e/encounter-transformer.js";
 import { AnySystemEncounterDetails, SystemType } from "shared/domain/encounters/coreEncounter.js";
 import dnd5eEncounterService from "./dnd5e/dnd5eEncounterService.js";
+import encounterEngineManager from "src/services/encounters/encounterEngineManager.js";
+import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
+import { NotFoundError } from "src/api/HttpErrors.js";
 
 async function insertEncounter(system: SystemType, data: EncounterInsertData, creatorId: number): Promise<number> {
   const preferences = await userModel.getPreferences(creatorId);
@@ -66,13 +69,17 @@ async function updateEncounter(
 }
 
 async function deleteEncounter(id: number): Promise<boolean> {
-  const result = await encounterModel.deleteEncounter(id);
+  // Queued behind any request in progress, so a running engine cannot store state for a deleted row.
+  return encounterRequestQueue.enqueue(id, async () => {
+    const result = await encounterModel.deleteEncounter(id);
 
-  if (!result) {
-    throw new Error(`Failed to delete encounter with ID ${id}`);
-  }
+    if (!result) {
+      throw new NotFoundError(`Encounter with ID ${id} not found`);
+    }
 
-  return result;
+    encounterEngineManager.discardEngine(id);
+    return result;
+  });
 }
 
 

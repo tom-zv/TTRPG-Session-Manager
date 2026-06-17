@@ -1,5 +1,5 @@
-import { SystemType } from "shared/domain/encounters/coreEncounter.js";
-import { IEncounterEngine, createEncounterEngine } from "./encounterEngine.js";
+import { IEncounterEngine } from "./encounterEngine.js";
+import { loadEncounterEngine } from "./encounterSystems.js";
 import encounterConnectionManager from "./encounterConnectionManager.js";
 
 /**
@@ -14,9 +14,10 @@ export class EncounterEngineManager {
     private readonly TIMEOUT_DURATION = 5 * 60 * 1000; // 5 minutes
     
     /**
-     * Initialize or retrieve an encounter engine for this encounter.
+     * Returns the engine for this encounter, loading it from storage on first use.
+     * Any command or join can be the first use; there is no separate "start" step.
      */
-    async initializeEngine(system: SystemType, encounterId: number): Promise<IEncounterEngine> {
+    async getOrLoadEngine(encounterId: number): Promise<IEncounterEngine> {
         const existingEngine = this.engines.get(encounterId);
         if (existingEngine) {
             this.clearInactivityTimeout(encounterId);
@@ -29,7 +30,7 @@ export class EncounterEngineManager {
             return existingInitialization;
         }
         
-        const initialization = createEncounterEngine(system, encounterId)
+        const initialization = loadEncounterEngine(encounterId)
             .then((engine) => {
                 const currentEngine = this.engines.get(encounterId);
                 if (currentEngine) {
@@ -105,6 +106,14 @@ export class EncounterEngineManager {
         }
     }
     
+    /**
+     * Drop an engine without storing its state, for an encounter that no longer exists.
+     */
+    discardEngine(encounterId: number): void {
+        this.clearInactivityTimeout(encounterId);
+        this.engines.delete(encounterId);
+    }
+
     /**
      * Start inactivity timeout for an encounter.
      * If timeout expires, the engine will be cleaned up.

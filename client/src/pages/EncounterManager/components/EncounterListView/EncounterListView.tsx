@@ -25,13 +25,13 @@ function formatDate(iso: string) {
 interface EncounterListViewProps {
   system: SystemType;
   setSystem: (sys: SystemType) => void;
-  onOpenEditor: (encounterId: number) => void;
-  onLaunchLive: (encounterId: number) => void;
+  /** Open an encounter. What can be done there follows its phase and the user's role. */
+  onOpen: (encounterId: number) => void;
   encounterSummaries: AnySystemEncounterSummary[];
-  setIsLive: (bool: boolean) => void;
+  isGm: boolean;
 }
 
-export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, setSystem, onOpenEditor, onLaunchLive, encounterSummaries }) => {
+export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, setSystem, onOpen, encounterSummaries, isGm }) => {
   
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<string>('');
@@ -110,8 +110,12 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
           <option value="hard">Hard</option>
           <option value="deadly">Deadly</option>
         </select>
-        <button onClick={() => setIsCreateEncounterDialogOpen(true)}>+ New Encounter</button>
-        <button ref={createEntityButtonRef} onClick={() => setIsCreateEntityDialogOpen(true)}>+ Create Entity</button>
+        {isGm && (
+          <>
+            <button onClick={() => setIsCreateEncounterDialogOpen(true)}>+ New Encounter</button>
+            <button ref={createEntityButtonRef} onClick={() => setIsCreateEntityDialogOpen(true)}>+ Create Entity</button>
+          </>
+        )}
       </div>
 
   {/* {isLoading && <div>Loading encounters…</div>}
@@ -125,7 +129,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
                 <th>Name</th>
                 <th>Status</th>
                 <th>Difficulty</th>
-                <th className={styles.textRight}>Entities (PC/NPC/Creature)</th>
+                <th>Location</th>
                 <th>Created</th>
                 <th className={styles.textRight}>Actions</th>
               </tr>
@@ -148,16 +152,17 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
     
                     <td>{formatDate(enc.createdAt)}</td>
                     <td className={styles.encounterActions}>
-                      <button onClick={() => onLaunchLive(enc.id)}>launch</button>
-                      <button onClick={() => onOpenEditor(enc.id)}>Plan</button>
-                      <button onClick={() => onDelete(enc.id)} disabled={deleteMutation.isPending}>Delete</button>
+                      <button onClick={() => onOpen(enc.id)}>Open</button>
+                      {isGm && (
+                        <button onClick={() => onDelete(enc.id)} disabled={deleteMutation.isPending}>Delete</button>
+                      )}
                     </td>
                   </tr>
                 );
               })}
               {encounters.length === 0 && (
                 <tr>
-                  <td colSpan={8} className={styles.encounterEmpty}>
+                  <td colSpan={6} className={styles.encounterEmpty}>
                     No encounters match your filters.
                   </td>
                 </tr>
@@ -182,7 +187,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
       <Dialog
         isOpen={isCreateEncounterDialogOpen}
         onClose={() => setIsCreateEncounterDialogOpen(false)}
-        title="Create New Entity"
+        title="Create New Encounter"
       >
         <CreateEncounterForm
           system={system}

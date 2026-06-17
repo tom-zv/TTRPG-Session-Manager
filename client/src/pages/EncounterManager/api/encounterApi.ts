@@ -2,17 +2,12 @@ import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
 import type {
   SystemType,
   EncounterSummaryBySystem,
-  EncounterStateBySystem,
   EncounterDetailsbySystem,
 } from "shared/domain/encounters/coreEncounter.js";
 import { CreatePayload, UpdatePayload } from "../types.js";
 
 interface EncounterDetailsResponse<T = EncounterDetailsbySystem<SystemType>> {
   encounterDetails: T;
-}
-
-interface EncounterStateResponse<T = EncounterStateBySystem<SystemType>> {
-  encounterState: T;
 }
 
 interface EncounterSummariesResponse<T = EncounterSummaryBySystem<SystemType>> {
@@ -68,56 +63,6 @@ export class EncounterApi {
     return data.encounterDetails as EncounterDetailsbySystem<T>;
   }
 
-
-  /**
-   * Get encounter state 
-   * Includes encounter state + entity states bundled together
-   */
-  static async getEncounterState<T extends SystemType>(
-    system: T,
-    id: number
-  ): Promise<{ encounterState: EncounterStateBySystem<T> }> {
-    const response = await fetch(`/api/${system}/encounters/${id}/state`, {
-      method: "GET",
-      headers: authenticatedJsonHeaders(),
-      credentials: "include",
-    });
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ message: "Failed to fetch encounter state" }));
-      throw new Error(error.message || "Failed to fetch encounter state");
-    }
-
-    const data: EncounterStateResponse = await response.json();
-    return {
-      encounterState: data.encounterState as EncounterStateBySystem<T>,
-    };
-  }
-
-  /**
-   * Save encounter state (encounter state + entity states bundled together)
-   */
-  static async saveEncounterState<T extends SystemType>(
-    system: T,
-    id: number,
-    encounterState: EncounterStateBySystem<T>
-  ): Promise<void> {
-    const response = await fetch(`/api/${system}/encounters/${id}/state`, {
-      method: "PUT",
-      headers: authenticatedJsonHeaders(),
-      credentials: "include",
-      body: JSON.stringify({ encounterState }),
-    });
-
-    if (!response.ok) {
-      const error = await response
-        .json()
-        .catch(() => ({ message: "Failed to save encounter state" }));
-      throw new Error(error.message || "Failed to save encounter state");
-    }
-  }
 
   /**
    * Create a new encounter

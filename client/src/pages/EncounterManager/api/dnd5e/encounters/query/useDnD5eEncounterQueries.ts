@@ -1,8 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
 import DnD5eEncounterApi from '../dnd5eEncounterApi.js';
 import { ENCOUNTER_KEYS } from './keys.js';
 import { ENTITY_KEYS } from '../../entities/query/keys.js';
 import type { DnD5eEntityDetails } from 'shared/domain/encounters/dnd5e/entity.js';
+import type { DnD5eEncounterState } from 'shared/domain/encounters/dnd5e/encounter.js';
 
 export type EncounterEntityTemplatesById = Record<number, DnD5eEntityDetails>;
 
@@ -14,6 +15,8 @@ export function useDnD5eEncounterSummaries(options?: { enabled?: boolean }) {
     queryKey: ENCOUNTER_KEYS.summaries(),
     queryFn: () => DnD5eEncounterApi.getEncounterSummaries(),
     enabled: options?.enabled ?? true,
+    // An encounter's status changes while it is run, by this client or another one.
+    refetchOnMount: "always",
   });
 }
 
@@ -84,30 +87,14 @@ export function useEncounterEntityTemplates(
 }
 
 /**
- * Get encounter state (encounter state + entity states bundled together)
+ * Read the cached encounter state.
+ * The cache has no fetcher: the encounter session writes the state it receives when it joins
+ * the encounter's socket room and advances it with the operations the server broadcasts.
  */
-export function useDnD5eEncounterState(
-  id: number,
-  options?: { enabled?: boolean }
-) {
-  const queryClient = useQueryClient();
-  // eslint-disable-next-line @tanstack/query/exhaustive-deps -- queryClient is stable; the encounter ID is the query dependency
-  return useQuery({
+export function useDnD5eEncounterState(id: number) {
+  return useQuery<{ encounterState: DnD5eEncounterState }>({
     queryKey: ENCOUNTER_KEYS.state(id),
-    queryFn: async () => {
-      const incoming = await DnD5eEncounterApi.getEncounterState(id);
-      const current = queryClient.getQueryData<typeof incoming>(ENCOUNTER_KEYS.state(id));
-      return current && current.encounterState.version > incoming.encounterState.version ? current : incoming;
-    },
-    enabled: options?.enabled ?? !!id,
-    
-    // Cache configuration for event-based synchronization
-    // The cache stays fresh indefinitely since it is manually updated via events
+    queryFn: skipToken,
     staleTime: Infinity,
-    // Don't refetch on window focus or reconnect - handle sync via socket events
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    // Keep unused data in cache for 5 minutes
-    gcTime: 5 * 60 * 1000,
   });
 }

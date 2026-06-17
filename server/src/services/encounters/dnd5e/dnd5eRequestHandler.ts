@@ -18,7 +18,7 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
     }
 
     protected async prepareEvents(events: DnD5eEncounterEvent[]): Promise<void> {
-        const needsProfiles = events.some((event) => hpEvents.has(event.type) || event.type === "setDeathSaves");
+        const needsProfiles = events.some((event) => hpEvents.has(event.type) || event.type === "setDeathSaves" || event.type === "addEntity");
         if (!needsProfiles) return;
         const targetIds = new Set(events.filter((event) => hpEvents.has(event.type) || event.type === "setDeathSaves")
             .filter(isEntityEvent).map((event) => event.values.targetId));
@@ -29,7 +29,9 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
         this.profiles = new Map((await this.loadProfiles([...ids])).map((profile) => [profile.id, profile]));
     }
 
-    protected applyValidatedEvent(event: DnD5eEncounterEvent): DnD5eEncounterEvent[] {
+    protected applyValidatedEvent(requested: DnD5eEncounterEvent): DnD5eEncounterEvent[] {
+        this.assertAllowedInPhase(requested);
+        const event = this.resolveFromTemplate(requested);
         const entity = isEntityEvent(event) ? this.findEntity(event.values.targetId) : undefined;
         const previousHp = entity?.currentHp;
         const profile = entity && this.profiles.get(entity.templateId);
@@ -51,6 +53,25 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
             applied.push(burial);
         }
         return applied;
+    }
+
+    /** Turn flow only makes sense in the matching phase; everything else is allowed throughout. */
+    private assertAllowedInPhase(event: DnD5eEncounterEvent): void {
+        const { phase } = this.state;
+        if (event.type === "startCombat") {
+            if (phase !== "setup") throw new Error("Combat has already started");
+            if (this.state.initiativeOrder.length === 0) throw new Error("Add at least one entity before starting combat");
+        }
+        if (event.type === "endCombat" && phase !== "running") throw new Error("Combat is not running");
+        if (event.type === "nextTurn" && phase !== "running") throw new Error("Combat is not running");
+    }
+
+    /** A new entity takes its name and HP from the stored template, not from the client. */
+    private resolveFromTemplate(event: DnD5eEncounterEvent): DnD5eEncounterEvent {
+        if (event.type !== "addEntity") return event;
+        const profile = this.profiles.get(event.values.templateId);
+        if (!profile) throw new Error(`Entity template ${event.values.templateId} not found`);
+        return { type: "addEntity", values: { templateId: profile.id, name: profile.name, hp: profile.hp } };
     }
 
     protected validateEvent(event: DnD5eEncounterEvent): DnD5eEncounterEvent {

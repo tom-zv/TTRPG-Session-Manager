@@ -2,7 +2,6 @@ import { CreatePayload, UpdatePayload } from "src/pages/EncounterManager/types.j
 import EncounterApi from "../../encounterApi.js";
 import type { 
   DnD5eEncounterSummary, 
-  DnD5eEncounterState,
   DnD5eEncounterDetails
 } from "shared/domain/encounters/dnd5e/encounter.js";
 
@@ -18,25 +17,6 @@ export class DnD5eEncounterApi {
     return EncounterApi.getEncounterSummaries("dnd5e");
   }
 
-
-  /**
-   * Get encounter state (encounter state + entity states bundled together)
-   */
-  static async getEncounterState(
-    id: number
-  ): Promise<{ encounterState: DnD5eEncounterState }> {
-    return EncounterApi.getEncounterState("dnd5e", id);
-  }
-
-  /**
-   * Save encounter state (encounter state + entity states bundled together)
-   */
-  static async saveEncounterState(
-    id: number,
-    encounterState: DnD5eEncounterState
-  ): Promise<void> {
-    return EncounterApi.saveEncounterState("dnd5e", id, encounterState);
-  }
 
   /**
    * Create a new encounter

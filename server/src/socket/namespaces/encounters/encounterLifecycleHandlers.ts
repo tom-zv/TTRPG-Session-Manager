@@ -1,28 +1,40 @@
 import { EncounterErrorCode } from "shared/sockets/encounters/errors.js";
+import { EncounterJoinAck } from "shared/sockets/encounters/types.js";
+import { SocketAck } from "shared/sockets/types.js";
 import { Socket } from "socket.io";
 import encounterConnectionManager from "src/services/encounters/encounterConnectionManager.js";
 import encounterEngineManager from "src/services/encounters/encounterEngineManager.js";
 import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
+import { EncounterNotFoundError } from "src/services/encounters/encounterSystems.js";
 import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
 import {
-  AckCallback,
   emitEncounterError,
-  EncounterInitData,
   EncounterRoomData,
   joinEncounterRooms,
   leaveEncounterRooms,
-  toAck,
 } from "./encounterTransport.js";
+
+type FailureAck = (ack: { success: false; error: string }) => void;
+
+/** The acknowledgement argument comes from the client, so it may be missing or not a function. */
+const toCallback = <TAck>(callback: unknown): ((ack: TAck) => void) | undefined =>
+  typeof callback === "function" ? (callback as (ack: TAck) => void) : undefined;
 
 const handleLifecycleError = (
   socket: Socket,
-  callback: AckCallback | undefined,
+  callback: FailureAck | undefined,
   error: unknown,
   fallbackMessage: string
 ): void => {
   if (error instanceof EncounterHandlerError) {
     emitEncounterError(socket, error.code, error.message);
+    callback?.({ success: false, error: error.message });
+    return;
+  }
+
+  if (error instanceof EncounterNotFoundError) {
+    emitEncounterError(socket, EncounterErrorCode.ENCOUNTER_NOT_FOUND, error.message);
     callback?.({ success: false, error: error.message });
     return;
   }
@@ -45,17 +57,16 @@ const requireAuthenticatedUserId = (socket: Socket): number => {
   return userId;
 };
 
-const requireEncounterId = (
-  data: EncounterRoomData | EncounterInitData | undefined
-): number => {
-  if (typeof data?.encounterId !== "number") {
+const requireEncounterId = (data: EncounterRoomData | undefined): number => {
+  const encounterId = data?.encounterId;
+  if (typeof encounterId !== "number" || !Number.isInteger(encounterId) || encounterId <= 0) {
     throw new EncounterHandlerError(
       EncounterErrorCode.INVALID_REQUEST,
       "Missing encounterId"
     );
   }
 
-  return data.encounterId;
+  return encounterId;
 };
 
 const leaveTrackedEncounter = (socket: Socket, encounterId: number, userId: number): void => {
@@ -85,63 +96,38 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
     }
   });
 
-  socket.on("encounter:init", async (data: EncounterInitData | undefined, ackCallback?: unknown) => {
-    console.log("INIT", data);
-    const callback = toAck(ackCallback);
-
-    try {
-      if (!socket.data.user?.is_gm) {
-        throw new EncounterHandlerError(
-          EncounterErrorCode.NOT_AUTHORIZED,
-          "Only GMs can initialize encounters"
-        );
-      }
-
-      if (!data?.system) {
-        throw new EncounterHandlerError(
-          EncounterErrorCode.INVALID_REQUEST,
-          "Missing encounter system"
-        );
-      }
-
-      const encounterId = requireEncounterId(data);
-      const system = data.system;
-
-      await encounterRequestQueue.enqueue(encounterId, () => encounterEngineManager.initializeEngine(system, encounterId));
-      callback?.({ success: true });
-    } catch (error) {
-      handleLifecycleError(socket, callback, error, "Failed to initialize encounter");
-    }
-  });
-
+  // Joining is also how a client (re)synchronizes: the acknowledgement carries the current state.
+  // It runs in the encounter's request queue, so the returned state and the room membership are
+  // consistent: every operation after that state reaches this socket.
   socket.on("encounter:join", async (data: EncounterRoomData | undefined, ackCallback?: unknown) => {
     console.log("JOIN", data);
-    const callback = toAck(ackCallback);
+    const callback = toCallback<EncounterJoinAck>(ackCallback);
 
     try {
       const userId = requireAuthenticatedUserId(socket);
       const encounterId = requireEncounterId(data);
 
-      if (!encounterEngineManager.hasEngine(encounterId)) {
-        throw new EncounterHandlerError(
-          EncounterErrorCode.NO_ACTIVE_ENCOUNTER,
-          "No active encounter"
-        );
-      }
+      const encounterState = await encounterRequestQueue.enqueue(encounterId, async () => {
+        const engine = await encounterEngineManager.getOrLoadEngine(encounterId);
 
-      const currentEncounterId = encounterConnectionManager.getEncounterIdBySocketId(socket.id);
-      if (currentEncounterId !== null && currentEncounterId !== encounterId) {
-        leaveTrackedEncounter(socket, currentEncounterId, userId);
-      }
+        if (socket.disconnected) {
+          throw new EncounterHandlerError(EncounterErrorCode.REQUEST_FAILED, "Socket disconnected");
+        }
 
-      joinEncounterRooms(socket, encounterId, Boolean(socket.data.user?.is_gm), userId);
+        const currentEncounterId = encounterConnectionManager.getEncounterIdBySocketId(socket.id);
+        if (currentEncounterId !== null && currentEncounterId !== encounterId) {
+          leaveTrackedEncounter(socket, currentEncounterId, userId);
+        }
+
+        joinEncounterRooms(socket, encounterId, Boolean(socket.data.user?.is_gm), userId);
+        encounterConnectionManager.addUser(encounterId, socket.id);
+        encounterEngineManager.clearInactivityTimeout(encounterId);
+
+        return engine.snapshot();
+      });
 
       console.log(`User ${socket.data.user?.username} joined encounter ${encounterId}`);
-
-      encounterConnectionManager.addUser(encounterId, socket.id);
-      encounterEngineManager.clearInactivityTimeout(encounterId);
-
-      callback?.({ success: true });
+      callback?.({ success: true, encounterState });
     } catch (error) {
       handleLifecycleError(socket, callback, error, "Failed to join encounter");
     }
@@ -149,7 +135,7 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
 
   socket.on("encounter:leave", (data?: EncounterRoomData, ackCallback?: unknown) => {
     console.log("LEAVE", data);
-    const callback = toAck(ackCallback);
+    const callback = toCallback<SocketAck>(ackCallback);
 
     try {
       const userId = requireAuthenticatedUserId(socket);

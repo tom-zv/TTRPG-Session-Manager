@@ -124,7 +124,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
       }}
     >
       <div className={styles.initiativeTab} aria-label="Initiative value">
-        {(mode === "edit" || (isLive && canMutate)) && actions ? (
+        {canMutate && actions ? (
           <EditableField
             type="number"
             value={entity.initiative}
@@ -147,7 +147,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           {vitalStatus && <EntityVitalBadge status={vitalStatus} />}
         </div>
         <div className={styles.topControls}>
-          {mode === "edit" && showRemoveConfirm ? (
+          {!canMutate ? null : mode === "edit" && showRemoveConfirm ? (
             <InlineConfirm
               label="Remove?"
               confirmLabel="Confirm remove entity"
@@ -165,7 +165,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
             >
               ✕
             </button>
-          ) : canMutate ? (
+          ) : (
             <button
               type="button"
               className={`${styles.secondaryToggleButton}${showSecondaryActions ? ` ${styles.secondaryToggleOpen}` : ""}`}
@@ -177,7 +177,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
             >
               ⋯
             </button>
-          ) : null}
+          )}
         </div>
       </div>
 

@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
 import { DnD5eEncounterEngine } from "../src/services/encounters/dnd5e/dnd5eEncounterEngine.js";
 import type { CombatProfileLoader } from "../src/services/encounters/dnd5e/dnd5eRequestHandler.js";
+import type { EntityCombatProfile } from "../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
+import { registerEncounterLifecycleHandlers } from "../src/socket/namespaces/encounters/encounterLifecycleHandlers.js";
+import { EncounterNotFoundError } from "../src/services/encounters/encounterSystems.js";
+import type { EncounterJoinAck } from "../../shared/sockets/encounters/types.js";
 import { validateDnD5eEvent } from "../src/services/encounters/dnd5e/dnd5eEventValidator.js";
 import type { DnD5eEncounterState } from "../../shared/domain/encounters/dnd5e/encounter.js";
 import type { DnD5eEncounterEvent } from "../../shared/domain/encounters/dnd5e/events/types.js";
@@ -23,9 +27,7 @@ import encounterModel from "../src/api/encounter/encounters/encounterModel.js";
 import encounterService from "../src/api/encounter/encounters/encounterService.js";
 import snapshotModel from "../src/api/encounter/encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
 import { EncounterRequestQueue } from "../src/services/encounters/encounterRequestQueue.js";
-import encounterController from "../src/api/encounter/encounters/encounterController.js";
 import encounterEngineManager from "../src/services/encounters/encounterEngineManager.js";
-import type { Request, Response } from "express";
 import { EventEmitter } from "node:events";
 import type { Namespace, Socket } from "socket.io";
 import { registerEncounterRequestHandlers } from "../src/socket/namespaces/encounters/encounterRequestHandlers.js";
@@ -41,11 +43,13 @@ afterEach(() => mock.restoreAll());
 
 const gm: UserDB = { id: 1, username: "DM", password_hash: "", email: "", is_gm: true, last_login: "", created_at: "" };
 const player: UserDB = { ...gm, id: 2, is_gm: false };
-const defaultProfiles: CombatProfileLoader = async (ids) => ids.map((id) => ({ id, role: "creature", settings: {} }));
+const profile = (id: number, role: EntityCombatProfile["role"] = "creature", settings: EntityCombatProfile["settings"] = {}): EntityCombatProfile =>
+  ({ id, name: `Template ${id}`, hp: 10, role, settings });
+const defaultProfiles: CombatProfileLoader = async (ids) => ids.map((id) => profile(id));
 
 function state(count = 3, auto = false): DnD5eEncounterState {
   return {
-    id: 12, system: "dnd5e", version: 0, currentRound: 1, currentTurn: 0,
+    id: 12, system: "dnd5e", version: 0, phase: "running", currentRound: 1, currentTurn: 0,
     settings: { automation: { zeroHpTransfer: auto ? "auto" : "manual" } },
     initiativeOrder: Array.from({ length: count }, (_, index) => index),
     nextInstanceId: count,
@@ -55,7 +59,9 @@ function state(count = 3, auto = false): DnD5eEncounterState {
 
 class Engine extends DnD5eEncounterEngine {
   saved: DnD5eEncounterState[] = [];
+  statuses: string[] = [];
   failSave = false;
+  protected async persistStatus(status: string): Promise<void> { this.statuses.push(status); }
   protected async persistSnapshot(snapshot: DnD5eEncounterState): Promise<void> {
     if (this.failSave) throw new Error("Storage unavailable");
     this.saved.push(structuredClone(snapshot));
@@ -111,7 +117,7 @@ for (const [role, enabled, shouldBury] of [
   ["creature", false, true], ["npc", false, true], ["npc", true, false], ["pc", false, false],
 ] as const) {
   test(`auto transfer: ${role}, death saves ${enabled}`, async () => {
-    const engine = new Engine(state(1, true), async (ids) => ids.map((id) => ({ id, role, settings: { combat: { deathSaves: enabled } } })));
+    const engine = new Engine(state(1, true), async (ids) => ids.map((id) => profile(id, role, { combat: { deathSaves: enabled } })));
     const operation = await engine.dispatch(request([damage(0)]), gm);
     assert.equal(engine.snapshot().entityStates[0].inGrave, shouldBury);
     assert.deepEqual(operation.appliedEvents.map((event) => event.type), shouldBury ? ["damage", "moveToGrave"] : ["damage"]);
@@ -157,7 +163,7 @@ test("enabling auto and further damage at zero do not bury; healing grave member
 
 test("NPC defaults are consulted anew for all copies and encounters; disabling is not retroactive", async () => {
   let enabled = true;
-  const loader: CombatProfileLoader = async (ids) => ids.map((id) => ({ id, role: "npc", settings: { combat: { deathSaves: enabled } } }));
+  const loader: CombatProfileLoader = async (ids) => ids.map((id) => profile(id, "npc", { combat: { deathSaves: enabled } }));
   const initial = state(2, true);
   initial.entityStates[1].templateId = initial.entityStates[0].templateId;
   const first = new Engine(initial, loader);
@@ -172,7 +178,7 @@ test("NPC defaults are consulted anew for all copies and encounters; disabling i
 });
 
 test("manual death-save counters persist, stop short of burial, and clear on recovery", async () => {
-  const engine = new Engine(state(1, true), async (ids) => ids.map((id) => ({ id, role: "pc", settings: {} })));
+  const engine = new Engine(state(1, true), async (ids) => ids.map((id) => profile(id, "pc")));
   await engine.dispatch(request([damage(0), { type: "setDeathSaves", values: { targetId: 0, successes: 0, failures: 3 } }]), gm);
   assert.equal(engine.snapshot().entityStates[0].inGrave, false);
   assert.equal(engine.snapshot().entityStates[0].deathSaveFailures, 3);
@@ -192,6 +198,7 @@ test("reset revives grave members and clears combat counters, preserving encount
   assert.deepEqual(engine.snapshot().initiativeOrder, [0, 1]);
   assert.equal(engine.snapshot().settings.automation.zeroHpTransfer, "auto");
   assert.equal(engine.snapshot().currentRound, 0);
+  assert.equal(engine.snapshot().phase, "setup");
   assert(engine.snapshot().entityStates.every((entity) => !entity.inGrave && entity.currentHp === 10 && entity.deathSaveFailures === 0));
   await engine.dispatch(request([bury(0), { type: "removeEntity", values: { instanceId: 0 } }]), gm);
   assert.equal(engine.snapshot().entityStates.length, 1);
@@ -444,17 +451,85 @@ test("snapshot persistence round-trips grave state and normalizes older JSON str
   assert.equal(loaded?.settings.automation.zeroHpTransfer, "manual");
 });
 
-test("REST state replacement is rejected while a live engine exists", async () => {
-  mock.method(encounterEngineManager, "hasEngine", () => true);
-  const save = mock.method(snapshotModel, "saveSnapshot", async () => {});
-  let failure: unknown;
-  await encounterController.saveEncounterState(
-    { params: { id: "12", system: "dnd5e" }, body: { encounterState: state() } } as unknown as Request,
-    {} as Response,
-    (error) => { failure = error; },
-  );
-  assert.equal((failure as { statusCode: number }).statusCode, 409);
-  assert.equal(save.mock.callCount(), 0);
+test("combat moves through setup, running and ended, and the stored status follows", async () => {
+  const initial = state(2);
+  initial.phase = "setup";
+  initial.currentRound = 0;
+  const engine = new Engine(initial, defaultProfiles);
+  const send = (type: "startCombat" | "endCombat" | "nextTurn" | "resetEncounter", user = gm) =>
+    engine.dispatch(request([{ type, values: {} }]), user);
+
+  await assert.rejects(send("nextTurn"), /not running/);
+  await assert.rejects(send("endCombat"), /not running/);
+  await assert.rejects(send("startCombat", player), /Not authorized/);
+  // Preparing: initiative can be set freely and nobody holds a turn yet.
+  await engine.dispatch(request([{ type: "setInitiative", values: { targetId: 1, initiative: 99 } }, { type: "removeEntity", values: { instanceId: 0 } },
+    { type: "addEntity", values: { templateId: 100, name: "ignored", hp: 1 } }]), gm);
+  assert.equal(engine.snapshot().currentRound, 0);
+  assert.equal(engine.snapshot().currentTurn, 0);
+
+  await send("startCombat");
+  assert.deepEqual([engine.snapshot().phase, engine.snapshot().currentRound, engine.snapshot().currentTurn], ["running", 1, 0]);
+  assert.equal(engine.snapshot().initiativeOrder[0], 1);
+  await assert.rejects(send("startCombat"), /already started/);
+  await send("nextTurn");
+  await send("nextTurn");
+  assert.deepEqual([engine.snapshot().currentRound, engine.snapshot().currentTurn], [2, 0]);
+
+  await send("endCombat");
+  assert.equal(engine.snapshot().phase, "ended");
+  await assert.rejects(send("nextTurn"), /not running/);
+  await send("resetEncounter");
+  assert.equal(engine.snapshot().phase, "setup");
+  assert.deepEqual(engine.statuses, ["active", "completed", "planned"]);
+
+  const empty = state(0);
+  empty.phase = "setup";
+  await assert.rejects(new Engine(empty).dispatch(request([{ type: "startCombat", values: {} }]), gm), /at least one entity/);
+});
+
+test("a new entity takes its name and HP from the stored template, not from the request", async () => {
+  const engine = new Engine(state(0), async (ids) => ids.filter((id) => id === 7).map((id) => ({ ...profile(id), name: "Goblin", hp: 7 })));
+  const add = (templateId: number) => engine.dispatch(request([{ type: "addEntity", values: { templateId, name: "Tarrasque", hp: 9999 } }]), gm);
+  const operation = await add(7);
+  assert.deepEqual(operation.appliedEvents, [{ type: "addEntity", values: { templateId: 7, name: "Goblin", hp: 7 } }]);
+  await add(7);
+  assert.deepEqual(engine.snapshot().entityStates.map((entity) => [entity.displayName, entity.maxHp]), [["Goblin 1", 7], ["Goblin 2", 7]]);
+  await assert.rejects(add(8), /template 8 not found/);
+  assert.equal(engine.snapshot().entityStates.length, 2);
+});
+
+test("joining loads the engine on demand and returns the current state; a missing encounter is refused", async () => {
+  const engine = new Engine(state(2), defaultProfiles);
+  await engine.dispatch(request([damage(0, 4)]), gm);
+  const load = mock.method(encounterEngineManager, "getOrLoadEngine", async (id: number) => {
+    if (id !== 12) throw new EncounterNotFoundError(id);
+    return engine;
+  });
+  const rooms: string[] = [];
+  const emitted: EncounterError[] = [];
+  const socket = Object.assign(new EventEmitter(), {
+    id: "socket-join", disconnected: false, data: { user: player },
+    join: (room: string) => { rooms.push(room); }, leave: () => {},
+  });
+  registerEncounterLifecycleHandlers(socket as unknown as Socket);
+  socket.emit = ((event: string, payload: EncounterError) => { if (event === "error") emitted.push(payload); return true; }) as typeof socket.emit;
+  const join = socket.listeners("encounter:join")[0] as (data: unknown, ack?: unknown) => Promise<void>;
+  const acks: EncounterJoinAck[] = [];
+
+  await join({ encounterId: 12 }, (ack: EncounterJoinAck) => acks.push(ack));
+  assert.equal(load.mock.callCount(), 1);
+  assert.deepEqual(acks[0], { success: true, encounterState: engine.snapshot() });
+  assert(rooms.includes("encounter:12") && rooms.includes("encounter:12:players"));
+
+  await join({ encounterId: 404 }, (ack: EncounterJoinAck) => acks.push(ack));
+  assert.equal(acks[1].success, false);
+  assert.equal(emitted.at(-1)?.code, EncounterErrorCode.ENCOUNTER_NOT_FOUND);
+  for (const payload of [null, {}, { encounterId: "12" }]) await join(payload, (ack: EncounterJoinAck) => acks.push(ack));
+  await join({ encounterId: 12 }, "not a function");
+  assert.equal(acks.length, 5);
+  assert(acks.slice(2).every((ack) => !ack.success));
+  (socket.listeners("disconnect")[0] as () => void)();
 });
 
 test("NPC form round-trips death-save settings alongside the full entity snapshot", () => {

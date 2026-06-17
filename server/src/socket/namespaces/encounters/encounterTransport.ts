@@ -1,4 +1,3 @@
-import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { EncounterError, EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
@@ -10,11 +9,6 @@ export type AckCallback = (ack: SocketAck) => void;
 /** The acknowledgement argument comes from the client, so it may be missing or not a function. */
 export const toAck = (callback: unknown): AckCallback | undefined =>
   typeof callback === "function" ? (callback as AckCallback) : undefined;
-
-export type EncounterInitData = {
-  system: SystemType;
-  encounterId: number;
-};
 
 export type EncounterRoomData = {
   encounterId: number;

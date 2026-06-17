@@ -22,7 +22,9 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
     <div className={styles.entityStatsCompact}>
       <div className={`${styles.statItem} ${styles.statItemHp}`}>
         <span className={styles.statLabel}>HP</span>
-        {mode === "edit" ? (
+        {mode === "edit" && !canMutate ? (
+          <span className={styles.statValue}>{entity.maxHp}</span>
+        ) : mode === "edit" ? (
           <EditableField
             type="number"
             value={entity.maxHp}

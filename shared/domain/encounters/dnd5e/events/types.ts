@@ -15,6 +15,8 @@ export type DnD5eEncounterEvent =
   | TargetedEventBase<'setDeathSaves', { successes: number; failures: number }>
   | GlobalEventBase<'addEntity', { templateId: number, name: string, hp: number }>
   | GlobalEventBase<'removeEntity', { instanceId: number }>
+  | GlobalEventBase<'startCombat', Record<string, never>>
+  | GlobalEventBase<'endCombat', Record<string, never>>
   | GlobalEventBase<'nextTurn', Record<string, never>>
   | GlobalEventBase<'resetEncounter', Record<string, never>>
   | TargetedEventBase<'damage', { sourceId: number; amount: number }>
