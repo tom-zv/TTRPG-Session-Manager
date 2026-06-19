@@ -27,7 +27,8 @@ export interface LiveEncounterConfig<
   TActions extends EncounterActions<TState, TEvent>
 > {
   system: T;
-  refreshTemplates?: (queryClient: QueryClient, encounterId: number, templateId?: number) => Promise<void>;
+  /** Bring the cached entity templates of this state up to date; all of them, or just one. */
+  refreshTemplates?: (queryClient: QueryClient, encounterState: TState, templateId?: number) => Promise<void>;
   queryKeys: QueryKeyProvider;
   useComposedEncounter: (encounterId: number) => {
     encounter: TEncounter | null;
@@ -144,20 +145,29 @@ export function useGenericLiveEncounter<
     const stateKey = queryKeys.state(encounterId);
     const getState = () => queryClient.getQueryData<{ encounterState: TState }>(stateKey)?.encounterState;
 
-    /**
-     * Join (or re-join) the encounter and replace the cached state with the server's.
-     * The server's state always wins, also when the cache holds a higher version: that can only
-     * mean the server lost changes, and the cache would otherwise never agree with it again.
-     */
-    const syncFromServer = async (): Promise<void> => {
+    /** Join (or re-join) the encounter's room; the acknowledgement carries the current state. */
+    const joinEncounter = async (): Promise<TState | undefined> => {
       const socketService = socketServiceRef.current;
-      if (!socketService || !isCurrentSession()) return;
+      if (!socketService || !isCurrentSession()) return undefined;
 
       const joinAck = await socketService.join<TState>(encounterId);
-      if (!isCurrentSession()) return;
+      if (!isCurrentSession()) return undefined;
       if (!joinAck.success) throw new Error(joinAck.error);
+      return joinAck.encounterState;
+    };
 
-      queryClient.setQueryData<{ encounterState: TState }>(stateKey, { encounterState: joinAck.encounterState });
+    /**
+     * Replace the cached state with the server's. The server's state always wins, also when the
+     * cache holds a higher version: that can only mean the server lost changes, and the cache
+     * would otherwise never agree with it again.
+     */
+    const commitServerState = (encounterState: TState): void => {
+      queryClient.setQueryData<{ encounterState: TState }>(stateKey, { encounterState });
+    };
+
+    const syncFromServer = async (): Promise<void> => {
+      const encounterState = await joinEncounter();
+      if (encounterState) commitServerState(encounterState);
     };
 
     const operationQueue = new LiveOperationQueue<TEvent>({
@@ -217,11 +227,13 @@ export function useGenericLiveEncounter<
         setIsLifecycleReady(false);
         isLifecycleReadyRef.current = false;
 
-        await syncFromServer();
-        if (!isCurrentSession()) return;
+        const encounterState = await joinEncounter();
+        if (!encounterState) return;
 
-        await refreshTemplates?.(queryClient, encounterId);
+        // Templates first: once the state is cached the view composes entities from them.
+        await refreshTemplates?.(queryClient, encounterState);
         if (!isCurrentSession()) return;
+        commitServerState(encounterState);
 
         isLifecycleReadyRef.current = true;
         setIsLifecycleReady(true);
@@ -239,7 +251,9 @@ export function useGenericLiveEncounter<
 
     const dataCallbacks: EncounterDataCallbacks<TEvent> = {
       onTemplateUpdated: ({ templateId }) => {
-        void refreshTemplates?.(queryClient, encounterId, templateId).catch((error) => {
+        const encounterState = getState();
+        if (!encounterState) return;
+        void refreshTemplates?.(queryClient, encounterState, templateId).catch((error) => {
           if (isCurrentSession()) setLifecycleError(error instanceof Error ? error.message : "Failed to refresh NPC settings");
         });
       },

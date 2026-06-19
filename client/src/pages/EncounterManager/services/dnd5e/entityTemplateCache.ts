@@ -20,11 +20,24 @@ function updateTemplateCache(queryClient: QueryClient, template: DnD5eEntityDeta
     current?.[template.templateId] ? { ...current, [template.templateId]: template } : current);
 }
 
-export async function refreshDnD5eEncounterTemplates(queryClient: QueryClient, encounterId: number, templateId?: number): Promise<void> {
-  const state = queryClient.getQueryData<{ encounterState: DnD5eEncounterState }>(ENCOUNTER_KEYS.state(encounterId));
-  const ids = templateId !== undefined ? [templateId] : [...new Set(state?.encounterState.entityStates.map((entity) => entity.templateId) ?? [])];
+/**
+ * Fetch the latest version of an encounter's entity templates (or of one of them) and rebuild the
+ * per-encounter template maps from it.
+ *
+ * Templates are written to their own cache entries first and the encounter maps are then
+ * invalidated, so a map that is being fetched at the same moment is rebuilt as well instead of
+ * being left without data.
+ */
+export async function refreshDnD5eEncounterTemplates(
+  queryClient: QueryClient,
+  encounterState: DnD5eEncounterState,
+  templateId?: number
+): Promise<void> {
+  const ids = templateId !== undefined
+    ? [templateId]
+    : [...new Set(encounterState.entityStates.map((entity) => entity.templateId))];
   if (!ids.length) return;
   const templates = await DnD5eEntityApi.getEntityTemplatesByIds(ids);
-  await queryClient.cancelQueries({ queryKey: templateQueries });
-  templates.forEach((template) => updateTemplateCache(queryClient, template));
+  templates.forEach((template) => queryClient.setQueryData(ENTITY_KEYS.template(template.templateId), template));
+  await queryClient.invalidateQueries({ queryKey: templateQueries });
 }
