@@ -28,6 +28,10 @@ router.post("/", requireGm, entityController.insertEntity);
 router.put("/:id", requireGm, entityController.updateEntity);
 router.patch("/:id/settings", requireGm, patchEntitySettings);
 
+// PUT /entities/:id/controllers - Assign the users who may run this entity
+// Body: { userIds: number[] }
+router.put("/:id/controllers", requireGm, entityController.setEntityControllers);
+
 // DELETE /entities/:id - Delete an entity
 router.delete("/:id", requireGm, entityController.deleteEntity);
 

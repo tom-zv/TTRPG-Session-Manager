@@ -4,6 +4,7 @@ import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import { useEscapeWithin } from "src/pages/EncounterManager/hooks/useEscapeWithin.js";
 import { NpcDeathSavesToggle } from "./NpcDeathSavesToggle.js";
+import { PcControllerSelect } from "./PcControllerSelect.js";
 import styles from "./DnD5eEntityRow.module.css";
 
 type EntityRowSecondaryActionsProps = {
@@ -47,6 +48,7 @@ export const EntityRowSecondaryActions: React.FC<EntityRowSecondaryActionsProps>
         </button>
       </div>
       {entity.role === "npc" && <NpcDeathSavesToggle entity={entity} />}
+      {entity.role === "pc" && <PcControllerSelect entity={entity} />}
     </div>
   );
 };

@@ -125,6 +125,7 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
           entity={entity}
           mode="live"
           canMutate={false}
+          canControl={false}
           onMaxHpChange={noop}
           onCurrentHpChange={noop}
         />

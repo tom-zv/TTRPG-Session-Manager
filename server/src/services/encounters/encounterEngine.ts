@@ -6,7 +6,7 @@ import {
 } from "shared/domain/encounters/coreEncounter.js";
 import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
-import { IEventAuthorizer, IRequestHandler } from "./requestHandler.js";
+import { IRequestHandler } from "./requestHandler.js";
 import encounterModel from "src/api/encounter/encounters/encounterModel.js";
 import { UserDB } from "src/api/users/types.js";
 
@@ -25,8 +25,7 @@ export abstract class BaseEncounterEngine<
     
     constructor(
         initialState: TState,
-        private readonly createRequestHandler: (state: TState, eventAuthorizer: IEventAuthorizer) => IRequestHandler,
-        private readonly createEventAuthorizer: (state: TState) => IEventAuthorizer
+        private readonly createRequestHandler: (state: TState) => IRequestHandler
     ) {
         this.state = structuredClone(initialState);
     }
@@ -38,7 +37,7 @@ export abstract class BaseEncounterEngine<
         }
 
         const draft = structuredClone(this.state);
-        const requestHandler = this.createRequestHandler(draft, this.createEventAuthorizer(draft));
+        const requestHandler = this.createRequestHandler(draft);
         const appliedEvents = await requestHandler.parseRequest(request, user);
         draft.version = this.state.version + 1;
         const operation: EncounterOperation = {

@@ -2,7 +2,7 @@ import { corePool } from "src/db.js";
 import { DnD5eEntitySummaryDB } from "./dnd5e/types.js";
 import { DnD5eEntityDB } from "./dnd5e/types.js";
 import { CoreEntityDB } from "./types.js";
-import { ExecuteValues, ResultSetHeader } from "mysql2";
+import { ExecuteValues, ResultSetHeader, RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import dnd5eModel from "./dnd5e/dnd5eEntityModel.js";
 import { ValidationError } from "src/api/HttpErrors.js";
@@ -215,6 +215,34 @@ async function updateEntity<T extends SystemType>(
   }
 }
 
+/** Replace the users who control an entity. Returns false when the entity does not exist. */
+export async function setEntityControllers(entityId: number, userIds: number[]): Promise<boolean> {
+  const connection = await corePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const [entities] = await connection.execute<RowDataPacket[]>(
+      "SELECT id FROM core.entities WHERE id = ? FOR UPDATE", [entityId]
+    );
+    if (!entities[0]) {
+      await connection.rollback();
+      return false;
+    }
+    await connection.execute("DELETE FROM core.user_entities WHERE entity_id = ?", [entityId]);
+    for (const userId of userIds) {
+      await connection.execute(
+        "INSERT INTO core.user_entities (user_id, entity_id) VALUES (?, ?)", [userId, entityId]
+      );
+    }
+    await connection.commit();
+    return true;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function deleteEntity(id: number): Promise<boolean> {
   const [result] = await corePool.execute<ResultSetHeader>(
     "DELETE FROM entities WHERE id = ?",
@@ -233,5 +261,6 @@ export default {
   updateCoreEntity,
   insertEntity,
   updateEntity,
+  setEntityControllers,
   deleteEntity
 };

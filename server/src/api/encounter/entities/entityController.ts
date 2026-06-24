@@ -226,6 +226,34 @@ async function updateEntity(
   }
 }
 
+async function setEntityControllers(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  const { id, system } = req.params as { id: string; system?: string };
+  const { userIds } = req.body as { userIds?: unknown };
+
+  try {
+    const entityId = Number(id);
+    if (!Number.isInteger(entityId) || entityId <= 0) {
+      throw new ValidationError("Entity ID is required");
+    }
+    if (!isSupportedSystem(system)) {
+      throw new ValidationError("Unsupported system.");
+    }
+    if (!Array.isArray(userIds) || !userIds.every((userId) => Number.isInteger(userId) && userId > 0)) {
+      throw new ValidationError("userIds must be an array of user IDs");
+    }
+
+    const controllerUserIds = await entityService.setEntityControllers(entityId, userIds as number[]);
+    notifyEntityTemplateUpdated(entityId);
+    res.status(200).json({ controllerUserIds });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function deleteEntity(
   req: Request,
   res: Response,
@@ -255,5 +283,6 @@ export default {
   getEntitySummaries,
   insertEntity,
   updateEntity,
+  setEntityControllers,
   deleteEntity
 };

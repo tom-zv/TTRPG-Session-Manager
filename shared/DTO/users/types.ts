@@ -5,6 +5,13 @@ export type UserRegistrationDTO = {
     isGM: boolean,
 }
 
+/** What a GM sees when picking a user, for example to assign a character to a player. */
+export interface UserSummaryDTO {
+  id: number;
+  username: string;
+  isGm: boolean;
+}
+
 export interface UserDTO {
   id: number;
   username: string;

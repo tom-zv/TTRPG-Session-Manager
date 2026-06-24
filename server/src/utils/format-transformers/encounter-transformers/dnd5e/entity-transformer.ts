@@ -1,6 +1,6 @@
 import { DnD5eEntityUpdateDB, DnD5eEntitySummaryDB, DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
 import { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
-import { readJsonObjectColumn } from "src/utils/jsonColumn.js";
+import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonColumn.js";
 
 export function dnd5eEntityToUpdateDb(entity: DnD5eEntityDetails): DnD5eEntityUpdateDB {
   return {
@@ -55,6 +55,7 @@ export function dnd5eEntityDbToDomain(db: DnD5eEntityDB): DnD5eEntityDetails {
     name: db.name,
     imageUrl: db.image_url,
     createdAt: db.created_at,
+    controllerUserIds: readJsonNumberArrayColumn(db.controller_user_ids),
 
     role: db.role,
     settings: readJsonObjectColumn(db.settings),

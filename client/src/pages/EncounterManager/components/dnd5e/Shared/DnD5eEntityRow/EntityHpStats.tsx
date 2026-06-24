@@ -6,7 +6,10 @@ import styles from "./DnD5eEntityRow.module.css";
 type EntityHpStatsProps = {
   entity: DnD5eEntity;
   mode: "edit" | "live";
+  /** May change maximum HP while preparing (GM). */
   canMutate: boolean;
+  /** May change current HP during play (GM, or the player the entity is assigned to). */
+  canControl: boolean;
   onMaxHpChange: (value: number) => void;
   onCurrentHpChange: (value: number) => void;
 };
@@ -15,6 +18,7 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
   entity,
   mode,
   canMutate,
+  canControl,
   onMaxHpChange,
   onCurrentHpChange,
 }) => {
@@ -36,7 +40,7 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
             inputClassName={styles.inlineNumberInput}
             compact
           />
-        ) : canMutate ? (
+        ) : canControl ? (
           <div className={styles.hpLiveDisplay}>
             <EditableField
               type="number"

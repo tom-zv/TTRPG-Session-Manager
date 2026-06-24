@@ -9,3 +9,9 @@ export function readJsonObjectColumn(value: unknown): Record<string, unknown> {
   const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
   return isPlainObject(parsed) ? parsed : {};
 }
+
+/** Reads a JSON array column of numbers, such as a `JSON_ARRAYAGG` of IDs. NULL reads as `[]`. */
+export function readJsonNumberArrayColumn(value: unknown): number[] {
+  const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+  return Array.isArray(parsed) ? parsed.filter((item): item is number => typeof item === "number") : [];
+}

@@ -8,6 +8,8 @@ import styles from "./DnD5eEntityRow.module.css";
 type EntityRowLiveActionsProps = {
   entity: DnD5eEntity;
   canMutate: boolean;
+  /** May change this entity's HP (GM, or the player it is assigned to). */
+  canControl: boolean;
   sourceId?: number;
   actions: DnD5eEncounterActions;
   /** Show the Bury button in the primary actions (the entity is waiting for the DM's decision). */
@@ -17,6 +19,7 @@ type EntityRowLiveActionsProps = {
 export const EntityRowLiveActions: React.FC<EntityRowLiveActionsProps> = ({
   entity,
   canMutate,
+  canControl,
   sourceId,
   actions,
   offerBurial,
@@ -25,25 +28,25 @@ export const EntityRowLiveActions: React.FC<EntityRowLiveActionsProps> = ({
 
   const handleQuickDamage = useCallback(
     (amount: number) => {
-      if (!canMutate || sourceId === undefined) return;
+      if (!canControl || sourceId === undefined) return;
       actions.hp.damage(sourceId, entity.instanceId, amount);
     },
-    [actions.hp, canMutate, entity.instanceId, sourceId]
+    [actions.hp, canControl, entity.instanceId, sourceId]
   );
 
   const handleQuickHeal = useCallback(
     (amount: number) => {
-      if (!canMutate || sourceId === undefined) return;
+      if (!canControl || sourceId === undefined) return;
       actions.hp.heal(sourceId, entity.instanceId, amount);
     },
-    [actions.hp, canMutate, entity.instanceId, sourceId]
+    [actions.hp, canControl, entity.instanceId, sourceId]
   );
 
   return (
     <div className={styles.entityActionsPrimary}>
       <LiveHpActionControl
         entityName={entityName}
-        disabled={!canMutate || sourceId === undefined}
+        disabled={!canControl || sourceId === undefined}
         onDamage={handleQuickDamage}
         onHeal={handleQuickHeal}
       />

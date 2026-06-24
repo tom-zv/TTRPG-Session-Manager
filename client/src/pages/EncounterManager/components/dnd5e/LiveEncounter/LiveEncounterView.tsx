@@ -2,6 +2,8 @@ import React, { useCallback, useMemo, useState } from "react";
 import { GiWarlockEye } from "react-icons/gi";
 import { BsPinAngle, BsPinAngleFill } from "react-icons/bs";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
+import type { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
+import { controlsEntity } from "shared/domain/encounters/dnd5e/view.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
@@ -53,8 +55,15 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   const connectionFailed = !isLifecycleReady && lifecycleError !== null;
   const hasDataError = (isLifecycleReady && !isLoading && !encounter) || connectionFailed;
   const isBootstrapping = isLoading || !isLifecycleReady || !actions;
-  const canMutate = isGm && isLifecycleReady && !encounterEnded;
+  const isWritable = isLifecycleReady && !encounterEnded;
+  // GM powers: membership, phases, settings, the grave.
+  const canMutate = isGm && isWritable;
   const sourceId = currentUser?.id;
+  // Running a single entity: the GM, or the player it is assigned to.
+  const canControlEntity = useCallback(
+    (entity: DnD5eEntity) => isWritable && controlsEntity({ userId: sourceId, isGm }, entity),
+    [isWritable, sourceId, isGm]
+  );
   const [isEntityPickerOpen, setIsEntityPickerOpen] = useState(false);
 
   const [userSelectedEntityId, setUserSelectedEntityId] = useState<number | undefined>();
@@ -140,7 +149,8 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
       setIsPinned(false);
     }
   }, [effectiveIsPinned, selectedEntityId]);
-  const nextTurnDisabled = !canMutate || !encounter || encounter.initiativeOrder.length === 0;
+  const canEndTurn = canMutate || (activeEntity !== undefined && canControlEntity(activeEntity));
+  const nextTurnDisabled = !canEndTurn || !encounter || encounter.initiativeOrder.length === 0;
   const deathAnnouncement = lastOperation?.appliedEvents.flatMap((event) => {
     if (event.type !== "moveToGrave" && event.type !== "restoreFromGrave") return [];
     const entity = encounter?.entities.find((candidate) => candidate.instanceId === event.values.targetId);
@@ -149,7 +159,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   }).join(" ");
 
   const handleNextTurn = () => {
-    if (!canMutate || !encounter || !actions) return;
+    if (!canEndTurn || !encounter || !actions) return;
     actions.global.nextTurn();
   };
 
@@ -209,7 +219,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 End combat
               </button>
             )}
-            {phase === "setup" ? null : confirmingReset && canMutate ? (
+            {!phase || phase === "setup" ? null : confirmingReset && canMutate ? (
               <InlineConfirm
                 label="Reset encounter?"
                 confirmLabel="Confirm reset: return to setup, return everyone from the grave, and restore all HP"
@@ -292,6 +302,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 mode={phase === "setup" ? "edit" : "live"}
                 actions={actions}
                 canMutate={canMutate}
+                canControlEntity={canControlEntity}
                 sourceId={sourceId}
                 selectedEntityId={selectedEntityId}
                 onSelectEntity={handleSelectEntity}
@@ -303,7 +314,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                     activeEntityName={activeEntityName}
                     onNextTurn={handleNextTurn}
                     disabled={nextTurnDisabled}
-                    canMutate={canMutate}
+                    canMutate={canEndTurn}
                   />
                 }
                 bottomAdornment={

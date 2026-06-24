@@ -8,6 +8,19 @@ import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
  * Provides type-safe access to entity details and summaries
  */
 export class DnD5eEntityApi {
+  /** Assign the users who may run this entity. An empty list leaves it to the GM. */
+  static async setControllers(id: number, userIds: number[]): Promise<number[]> {
+    const response = await fetch(`/api/dnd5e/entities/${id}/controllers`, {
+      method: "PUT",
+      headers: authenticatedJsonHeaders(),
+      credentials: "include",
+      body: JSON.stringify({ userIds }),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || "Failed to assign the player");
+    return data.controllerUserIds;
+  }
+
   static async patchSettings(id: number, patch: EntitySettings): Promise<EntitySettings> {
     const response = await fetch(`/api/dnd5e/entities/${id}/settings`, {
       method: "PATCH",

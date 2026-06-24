@@ -20,7 +20,10 @@ type DnD5eEntityRowProps = {
   mode: "edit" | "live";
   actions: DnD5eEncounterActions;
   onRemove: (entityId: number) => void;
+  /** GM powers: change membership, maximum HP, the grave and template options. */
   canMutate?: boolean;
+  /** Run this entity: its current HP, initiative and death saves. A GM, or the player it is assigned to. */
+  canControl?: boolean;
   sourceId?: number;
   onSelect?: (entityId: number) => void;
   isPinned?: boolean;
@@ -35,6 +38,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   actions,
   onRemove,
   canMutate = true,
+  canControl = canMutate,
   sourceId,
   onSelect,
   isPinned,
@@ -124,7 +128,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
       }}
     >
       <div className={styles.initiativeTab} aria-label="Initiative value">
-        {canMutate && actions ? (
+        {canControl && actions ? (
           <EditableField
             type="number"
             value={entity.initiative}
@@ -147,7 +151,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           {vitalStatus && <EntityVitalBadge status={vitalStatus} />}
         </div>
         <div className={styles.topControls}>
-          {!canMutate ? null : mode === "edit" && showRemoveConfirm ? (
+          {canMutate && mode === "edit" && (showRemoveConfirm ? (
             <InlineConfirm
               label="Remove?"
               confirmLabel="Confirm remove entity"
@@ -155,7 +159,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
               onConfirm={handleConfirmRemove}
               onCancel={handleCancelRemove}
             />
-          ) : mode === "edit" ? (
+          ) : (
             <button
               type="button"
               className={styles.entityRemoveButton}
@@ -165,7 +169,8 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
             >
               ✕
             </button>
-          ) : (
+          ))}
+          {canMutate && (
             <button
               type="button"
               className={`${styles.secondaryToggleButton}${showSecondaryActions ? ` ${styles.secondaryToggleOpen}` : ""}`}
@@ -186,6 +191,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           entity={entity}
           mode={mode}
           canMutate={canMutate}
+          canControl={canControl}
           onMaxHpChange={handleMaxHpChange}
           onCurrentHpChange={handleCurrentHpChange}
         />
@@ -200,6 +206,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           <EntityRowLiveActions
             entity={entity}
             canMutate={canMutate}
+            canControl={canControl}
             sourceId={sourceId}
             actions={actions}
             offerBurial={offerBurial}
@@ -212,16 +219,16 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           entityName={entityName}
           successes={entity.deathSaveSuccesses}
           failures={entity.deathSaveFailures}
-          onChange={canMutate ? handleDeathSavesChange : undefined}
+          onChange={canControl ? handleDeathSavesChange : undefined}
         />
       )}
 
-      {isLive && canMutate && showSecondaryActions && (
+      {canMutate && showSecondaryActions && (
         <EntityRowSecondaryActions
           id={secondaryActionsId}
           entity={entity}
           actions={actions}
-          showMoveToGrave={!offerBurial}
+          showMoveToGrave={isLive && !offerBurial}
           onClose={handleCloseSecondaryActions}
         />
       )}

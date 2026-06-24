@@ -14,6 +14,11 @@ export function updateEntitySettingsCache(queryClient: QueryClient, templateId: 
   if (existing) updateTemplateCache(queryClient, { ...existing, settings });
 }
 
+export function updateEntityControllersCache(queryClient: QueryClient, templateId: number, controllerUserIds: number[]): void {
+  const existing = queryClient.getQueryData<DnD5eEntityDetails>(ENTITY_KEYS.template(templateId));
+  if (existing) updateTemplateCache(queryClient, { ...existing, controllerUserIds });
+}
+
 function updateTemplateCache(queryClient: QueryClient, template: DnD5eEntityDetails): void {
   queryClient.setQueryData(ENTITY_KEYS.template(template.templateId), template);
   queryClient.setQueriesData<TemplateMap>({ queryKey: templateQueries }, (current) =>

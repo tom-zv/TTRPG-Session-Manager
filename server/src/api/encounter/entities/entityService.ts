@@ -6,7 +6,8 @@ import {
 } from "./entityModel.js";
 import entityModel from "./entityModel.js";
 import dnd5eEncounterSnapshotsModel from "../encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
-import { HttpError } from "src/api/HttpErrors.js";
+import { HttpError, NotFoundError, ValidationError } from "src/api/HttpErrors.js";
+import userModel from "src/api/users/userModel.js";
 
 async function getEntityById<T extends SystemType>(system: T, id: number): Promise<EntityDB<T>> {
   const entity = await getEntityByIdFromModel(system, id);
@@ -84,6 +85,23 @@ async function updateEntity<T extends SystemType>(
   return updatedEntity;
 }
 
+/** Assign the users who may run this entity in an encounter. An empty list leaves it to the GM. */
+async function setEntityControllers(entityId: number, userIds: number[]): Promise<number[]> {
+  const uniqueIds = [...new Set(userIds)];
+  const users = await Promise.all(uniqueIds.map((userId) => userModel.getUserById(userId)));
+  const missing = uniqueIds.filter((_, index) => !users[index]);
+  if (missing.length > 0) {
+    throw new ValidationError(`Unknown user ID${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}`);
+  }
+
+  const found = await entityModel.setEntityControllers(entityId, uniqueIds);
+  if (!found) {
+    throw new NotFoundError(`Entity with ID ${entityId} not found`);
+  }
+
+  return uniqueIds;
+}
+
 async function deleteEntity(system: SystemType, id: number): Promise<boolean> {
   // Encounter state refers to templates by ID only, so deleting one that is still in use
   // would leave those encounters unable to load.
@@ -113,5 +131,6 @@ export default {
   getEntitySummaries,
   insertEntity,
   updateEntity,
+  setEntityControllers,
   deleteEntity
 }

@@ -1,4 +1,4 @@
-import { userToDto } from "src/utils/format-transformers/users-transformer.js";
+import { userToDto, userToSummaryDto } from "src/utils/format-transformers/users-transformer.js";
 import { UnauthorizedError, ValidationError } from "../HttpErrors.js";
 import userModel from "./userModel.js";
 import { validatePreferencesPatch } from "shared/domain/users/preferences.js";
@@ -21,8 +21,16 @@ async function getMe(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+async function getUsers(_req: Request, res: Response, next: NextFunction) {
+  try {
+    const users = await userModel.getAllUsers();
+    res.json({ users: users.map(userToSummaryDto) });
+  } catch (error) { next(error); }
+}
+
 export default {
   getMe,
+  getUsers,
   getPreferences,
   patchPreferences,
 }

@@ -26,7 +26,7 @@ export const TurnDock: React.FC<TurnDockProps> = ({
         className={styles.nextTurnButton}
         onClick={onNextTurn}
         disabled={disabled}
-        title={canMutate ? "Advance to the next turn" : "Only the GM can advance turns"}
+        title={canMutate ? "Advance to the next turn" : "Only the GM or the player whose turn it is can end the turn"}
       >
         Next Turn
       </button>

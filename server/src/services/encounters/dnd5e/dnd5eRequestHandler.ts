@@ -3,7 +3,9 @@ import { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js
 import { DnD5eEncounterEvent, isEntityEvent } from "shared/domain/encounters/dnd5e/events/types.js";
 import { DnD5eEventProcessor } from "shared/domain/encounters/dnd5e/events/EventProcessor.js";
 import { validateDnD5eEvent } from "./dnd5eEventValidator.js";
-import { IEventAuthorizer } from "../requestHandler.js";
+import { authorizeDnD5eEvents } from "./dnd5eEventAuth.js";
+import { controlsEntity } from "shared/domain/encounters/dnd5e/view.js";
+import { UserDB } from "src/api/users/types.js";
 import { usesDeathSaves } from "shared/domain/encounters/dnd5e/settings.js";
 import { EntityCombatProfile, getCombatProfiles } from "src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
 
@@ -13,20 +15,44 @@ const hpEvents = new Set<DnD5eEncounterEvent["type"]>(["damage", "heal", "setHp"
 export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState> {
     private profiles = new Map<number, EntityCombatProfile>();
 
-    constructor(state: DnD5eEncounterState, eventAuthorizer: IEventAuthorizer, private readonly loadProfiles: CombatProfileLoader = getCombatProfiles) {
-        super(state, eventAuthorizer);
+    constructor(state: DnD5eEncounterState, private readonly loadProfiles: CombatProfileLoader = getCombatProfiles) {
+        super(state);
     }
 
-    protected async prepareEvents(events: DnD5eEncounterEvent[]): Promise<void> {
-        const needsProfiles = events.some((event) => hpEvents.has(event.type) || event.type === "setDeathSaves" || event.type === "addEntity");
-        if (!needsProfiles) return;
-        const targetIds = new Set(events.filter((event) => hpEvents.has(event.type) || event.type === "setDeathSaves")
-            .filter(isEntityEvent).map((event) => event.values.targetId));
-        const ids = new Set(this.state.entityStates.filter((entity) => targetIds.has(entity.instanceId)).map((entity) => entity.templateId));
+    /** Load the template facts this request depends on: rules for HP changes, ownership for players. */
+    protected async prepareEvents(events: DnD5eEncounterEvent[], user: UserDB): Promise<void> {
+        const instanceIds = new Set<number>();
+        const templateIds = new Set<number>();
         for (const event of events) {
-            if (event.type === "addEntity") ids.add(event.values.templateId);
+            if (event.type === "addEntity") templateIds.add(event.values.templateId);
+            // A player's request is checked against who controls the target, or the active entity.
+            const needsProfile = hpEvents.has(event.type) || event.type === "setDeathSaves" || !user.is_gm;
+            if (!needsProfile) continue;
+            if (isEntityEvent(event)) instanceIds.add(event.values.targetId);
+            if (event.type === "nextTurn") {
+                const activeId = this.state.initiativeOrder[this.state.currentTurn];
+                if (activeId !== undefined) instanceIds.add(activeId);
+            }
         }
-        this.profiles = new Map((await this.loadProfiles([...ids])).map((profile) => [profile.id, profile]));
+        for (const entity of this.state.entityStates) {
+            if (instanceIds.has(entity.instanceId)) templateIds.add(entity.templateId);
+        }
+        if (!templateIds.size) return;
+        this.profiles = new Map((await this.loadProfiles([...templateIds])).map((profile) => [profile.id, profile]));
+    }
+
+    protected authorizeEvents(events: DnD5eEncounterEvent[], user: UserDB): void {
+        const viewer = { userId: user.id, isGm: Boolean(user.is_gm) };
+        authorizeDnD5eEvents({
+            state: this.state,
+            isGm: viewer.isGm,
+            controls: (instanceId) => {
+                if (viewer.isGm) return true;
+                const entity = this.state.entityStates.find((candidate) => candidate.instanceId === instanceId);
+                const profile = entity && this.profiles.get(entity.templateId);
+                return Boolean(profile && controlsEntity(viewer, profile));
+            },
+        }, events);
     }
 
     protected applyValidatedEvent(requested: DnD5eEncounterEvent): DnD5eEncounterEvent[] {

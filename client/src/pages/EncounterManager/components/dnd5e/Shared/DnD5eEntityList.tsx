@@ -12,6 +12,8 @@ type EntityListProps = {
   mode: "edit" | "live";
   actions: DnD5eEncounterActions;
   canMutate?: boolean;
+  /** Whether the viewer may run this entity. Defaults to `canMutate` for every entity. */
+  canControlEntity?: (entity: DnD5eEntity) => boolean;
   sourceId?: number;
   selectedEntityId?: number;
   onSelectEntity?: (entityId: number) => void;
@@ -29,6 +31,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   mode,
   actions,
   canMutate = true,
+  canControlEntity,
   sourceId,
   selectedEntityId,
   onSelectEntity,
@@ -68,6 +71,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
               actions={actions}
               onRemove={handleRemove}
               canMutate={canMutate}
+              canControl={canControlEntity ? canControlEntity(entity) : canMutate}
               sourceId={sourceId}
               onSelect={onSelectEntity}
               isPinned={entity.instanceId === selectedEntityId ? isPinned : undefined}

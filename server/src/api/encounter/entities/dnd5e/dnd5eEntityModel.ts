@@ -12,7 +12,7 @@ import { RowDataPacket, PoolConnection, ExecuteValues } from "mysql2/promise";
 import { DnD5eEntityState } from "shared/domain/encounters/dnd5e/entity.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 import { mergeSettings } from "shared/domain/encounters/settings.js";
-import { readJsonObjectColumn } from "src/utils/jsonColumn.js";
+import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonColumn.js";
 import { NotFoundError } from "src/api/HttpErrors.js";
 
 // Extract only the columns that live on the dnd5e.entities main row
@@ -40,6 +40,9 @@ function extractDnD5eTableFields(data: Omit<DnD5eEntityDB, "id" | "created_at">)
 }
 
 // ─── SELECT fragment shared by all read queries ───────────────────────────────
+/** The users assigned to an entity, as a JSON array. Expects the core entity row aliased as `c`. */
+const CONTROLLER_IDS_SELECT = "(SELECT JSON_ARRAYAGG(ue.user_id) FROM core.user_entities ue WHERE ue.entity_id = c.id)";
+
 const ENTITY_SELECT = `
   SELECT
     c.id, c.name, c.image_url, c.created_at,
@@ -47,7 +50,8 @@ const ENTITY_SELECT = `
     e.ac, e.hp, e.hp_formula, e.speeds, e.size, e.alignment,
     e.ability_scores, e.saves, e.skills,
     e.passive_perception, e.languages,
-    e.legendary_action_count, e.legendary_header
+    e.legendary_action_count, e.legendary_header,
+    ${CONTROLLER_IDS_SELECT} AS controller_user_ids
   FROM core.entities c
   JOIN dnd5e.entities e ON c.id = e.id`;
 
@@ -471,17 +475,31 @@ export default {
 };
 
 /** The template facts the encounter engine needs; the full template stays out of encounter state. */
-export type EntityCombatProfile = { id: number; name: string; hp: number; role: DnD5eEntityDB["role"]; settings: EntitySettings };
+export type EntityCombatProfile = {
+  id: number;
+  name: string;
+  hp: number;
+  role: DnD5eEntityDB["role"];
+  settings: EntitySettings;
+  controllerUserIds: number[];
+};
 
 export async function getCombatProfiles(ids: number[]): Promise<EntityCombatProfile[]> {
   if (!ids.length) return [];
   const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
-    `SELECT e.id, c.name, e.hp, e.role, e.settings
+    `SELECT e.id, c.name, e.hp, e.role, e.settings, ${CONTROLLER_IDS_SELECT} AS controller_user_ids
      FROM dnd5e.entities e
      JOIN core.entities c ON c.id = e.id
      WHERE e.id IN (${ids.map(() => "?").join(",")})`, ids,
   );
-  return rows.map((row) => ({ id: row.id, name: row.name, hp: row.hp, role: row.role, settings: readJsonObjectColumn(row.settings) }));
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    hp: row.hp,
+    role: row.role,
+    settings: readJsonObjectColumn(row.settings),
+    controllerUserIds: readJsonNumberArrayColumn(row.controller_user_ids),
+  }));
 }
 
 /** Merge just the settings row, without replacing any entity collections. */

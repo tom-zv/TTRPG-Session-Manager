@@ -1,13 +1,12 @@
 import { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js";
 import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
-import { encounterEvent } from "shared/sockets/encounters/types.js";
-import { UserDB } from "src/api/users/types.js";
-import { IEventAuthorizer } from "../requestHandler.js";
 import { EncounterAuthorizationError } from "../EncounterAuthorizationError.js";
 
-type DnD5eAuthContext = {
+export type DnD5eAuthContext = {
   state: DnD5eEncounterState;
-  user: UserDB;
+  isGm: boolean;
+  /** Whether the user controls this entity instance. Always true for a GM. */
+  controls: (instanceId: number) => boolean;
 };
 
 type DnD5eEventAuthRule<K extends DnD5eEncounterEvent["type"]> = (
@@ -19,88 +18,52 @@ type DnD5eEventAuthRuleMap = {
   [K in DnD5eEncounterEvent["type"]]: DnD5eEventAuthRule<K>;
 };
 
-const isGm = (context: DnD5eAuthContext): boolean => context.user.is_gm;
+/** Shaping the encounter: membership, phases, settings, the grave, maximum HP. */
+const gmOnly = (context: DnD5eAuthContext): boolean => context.isGm;
 
-const authorizeGmOnly = (context: DnD5eAuthContext): boolean => isGm(context);
-
-// Placeholder: replace with ownership/controller checks when state includes that metadata.
-const authorizeEntityOwnership = (
+/** Running a character: its HP, initiative and death saves. */
+const controlsTarget = (
   context: DnD5eAuthContext,
-  _event: Extract<DnD5eEncounterEvent, { values: { targetId: number } }>,
-): boolean => {
-  if (isGm(context)) {
-    return true;
-  }
+  event: Extract<DnD5eEncounterEvent, { values: { targetId: number } }>,
+): boolean => context.controls(event.values.targetId);
 
-  return true;
+/** Ending a turn: the GM, or whoever controls the entity whose turn it is. */
+const controlsActiveTurn = (context: DnD5eAuthContext): boolean => {
+  if (context.isGm) return true;
+  const activeId = context.state.initiativeOrder[context.state.currentTurn];
+  return activeId !== undefined && context.controls(activeId);
 };
-
-// Placeholder: replace with turn-controller checks when state includes ownership/controller data.
-const authorizeTurnControl = (context: DnD5eAuthContext): boolean => {
-  if (isGm(context)) {
-    return true;
-  }
-
-  return true;
-};
-
-// Events that require no auth checks.
-const authorizeUnrestricted = (): boolean => true;
 
 const DND5E_EVENT_AUTH_RULES = {
-  moveToGrave: (context) => authorizeGmOnly(context),
-  restoreFromGrave: (context) => authorizeGmOnly(context),
-  setDeathSaves: (context) => authorizeGmOnly(context),
-  updateEncounterSettings: (context) => authorizeGmOnly(context),
-  addEntity: (context) => authorizeGmOnly(context),
-  removeEntity: (context) => authorizeGmOnly(context),
-  resetEncounter: (context) => authorizeGmOnly(context),
-  startCombat: (context) => authorizeGmOnly(context),
-  endCombat: (context) => authorizeGmOnly(context),
+  addEntity: gmOnly,
+  removeEntity: gmOnly,
+  startCombat: gmOnly,
+  endCombat: gmOnly,
+  resetEncounter: gmOnly,
+  updateEncounterSettings: gmOnly,
+  moveToGrave: gmOnly,
+  restoreFromGrave: gmOnly,
+  setHp: gmOnly,
 
-  nextTurn: (context) => authorizeTurnControl(context),
-  
-  damage: () => authorizeUnrestricted(),
-  heal: () => authorizeUnrestricted(),
-  setHp: () => authorizeUnrestricted(),
-  setCurrentHp: () => authorizeUnrestricted(),
-  setTempHp: () => authorizeUnrestricted(),
+  damage: controlsTarget,
+  heal: controlsTarget,
+  setCurrentHp: controlsTarget,
+  setTempHp: controlsTarget,
+  setInitiative: controlsTarget,
+  setDeathSaves: controlsTarget,
 
-  setInitiative: (context, event) => authorizeEntityOwnership(context, event),
+  nextTurn: controlsActiveTurn,
 } satisfies DnD5eEventAuthRuleMap;
 
-function authorizeEvent(
-  context: DnD5eAuthContext,
-  event: DnD5eEncounterEvent,
-): boolean {
-  const rule = DND5E_EVENT_AUTH_RULES[event.type] as (
-    ctx: DnD5eAuthContext,
-    ev: DnD5eEncounterEvent,
-  ) => boolean;
+export function authorizeDnD5eEvents(context: DnD5eAuthContext, events: DnD5eEncounterEvent[]): void {
+  for (const event of events) {
+    const rule = DND5E_EVENT_AUTH_RULES[event.type] as (
+      ctx: DnD5eAuthContext,
+      ev: DnD5eEncounterEvent,
+    ) => boolean;
 
-  return rule(context, event);
-}
-
-export class DnD5eEventAuthorizer implements IEventAuthorizer {
-  protected state: DnD5eEncounterState;
-
-  constructor(state: DnD5eEncounterState) {
-    this.state = state;
-  }
-
-  authorizeEvents(events: encounterEvent[], user: UserDB): void {
-    const context: DnD5eAuthContext = {
-      state: this.state,
-      user,
-    };
-
-    for (const event of events as DnD5eEncounterEvent[]) {
-      const authorized = authorizeEvent(context, event);
-      if (!authorized) {
-        throw new EncounterAuthorizationError(
-          `Not authorized to perform event: ${event.type}`,
-        );
-      }
+    if (!rule(context, event)) {
+      throw new EncounterAuthorizationError(`Not authorized to perform event: ${event.type}`);
     }
   }
 }

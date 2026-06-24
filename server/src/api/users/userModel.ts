@@ -17,6 +17,11 @@ export async function getUserById(id: number): Promise<UserDB | null> {
   return rows[0] ?? null;
 }
 
+export async function getAllUsers(): Promise<UserDB[]> {
+  const [rows] = await corePool.execute<UserRow[]>("SELECT * FROM users ORDER BY username");
+  return rows;
+}
+
 export async function getUserByUsername(
   username: string
 ): Promise<UserDB | null> {
@@ -55,6 +60,7 @@ export default {
   getPreferences,
   patchPreferences,
   getUserById,
+  getAllUsers,
   getUserByUsername,
   insertUserRecord,
   updateLastLogin,

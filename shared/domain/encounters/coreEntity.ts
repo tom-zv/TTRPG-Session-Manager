@@ -11,6 +11,8 @@ export interface CoreEntity {
   name: string;
   imageUrl?: string;
   createdAt: string;
+  /** Users who may run this entity in an encounter, besides the GM. Set through its own endpoint. */
+  controllerUserIds?: number[];
 }
 
 // Union types for all entity types

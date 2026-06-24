@@ -466,6 +466,11 @@
   border-top: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
 }
 
+.secondaryOptionLabel {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
 .inlineError {
   margin: 0.35rem 0 0;
   font-size: 0.74rem;

@@ -44,7 +44,7 @@ afterEach(() => mock.restoreAll());
 const gm: UserDB = { id: 1, username: "DM", password_hash: "", email: "", is_gm: true, last_login: "", created_at: "" };
 const player: UserDB = { ...gm, id: 2, is_gm: false };
 const profile = (id: number, role: EntityCombatProfile["role"] = "creature", settings: EntityCombatProfile["settings"] = {}): EntityCombatProfile =>
-  ({ id, name: `Template ${id}`, hp: 10, role, settings });
+  ({ id, name: `Template ${id}`, hp: 10, role, settings, controllerUserIds: [] });
 const defaultProfiles: CombatProfileLoader = async (ids) => ids.map((id) => profile(id));
 
 function state(count = 3, auto = false): DnD5eEncounterState {
@@ -486,6 +486,50 @@ test("combat moves through setup, running and ended, and the stored status follo
   const empty = state(0);
   empty.phase = "setup";
   await assert.rejects(new Engine(empty).dispatch(request([{ type: "startCombat", values: {} }]), gm), /at least one entity/);
+});
+
+test("a player may only run the entities assigned to them; shaping the encounter stays with the GM", async () => {
+  // Instance 0 (template 100) belongs to the player; instance 1 (template 101) is a monster.
+  const loader: CombatProfileLoader = async (ids) => ids.map((id) => ({ ...profile(id, id === 100 ? "pc" : "creature"), controllerUserIds: id === 100 ? [player.id] : [] }));
+  const engine = new Engine(state(2), loader);
+  const asPlayer = (event: DnD5eEncounterEvent) => engine.dispatch(request([event]), player);
+
+  await asPlayer(damage(0, 10));
+  await asPlayer({ type: "setDeathSaves", values: { targetId: 0, successes: 1, failures: 0 } });
+  await asPlayer({ type: "heal", values: { targetId: 0, sourceId: 2, amount: 4 } });
+  await asPlayer({ type: "setCurrentHp", values: { targetId: 0, hp: 6 } });
+  await asPlayer({ type: "setTempHp", values: { targetId: 0, sourceId: 2, tempHp: 3 } });
+  await asPlayer({ type: "setInitiative", values: { targetId: 0, initiative: 25 } });
+  assert.deepEqual([engine.snapshot().entityStates[0].currentHp, engine.snapshot().entityStates[0].tempHp], [6, 3]);
+
+  const before = engine.snapshot();
+  for (const event of [damage(1), { type: "heal", values: { targetId: 1, sourceId: 2, amount: 1 } },
+    { type: "setCurrentHp", values: { targetId: 1, hp: 1 } }, { type: "setInitiative", values: { targetId: 1, initiative: 30 } },
+    { type: "setHp", values: { targetId: 0, hp: 99 } }, bury(0), { type: "removeEntity", values: { instanceId: 1 } },
+    { type: "addEntity", values: { templateId: 100, name: "x", hp: 1 } }, { type: "endCombat", values: {} },
+    { type: "resetEncounter", values: {} }] as DnD5eEncounterEvent[]) {
+    await assert.rejects(asPlayer(event), /Not authorized/, event.type);
+  }
+  // One forbidden event rejects the whole request.
+  await assert.rejects(engine.dispatch(request([damage(0, 1), damage(1, 1)]), player), /Not authorized/);
+  assert.deepEqual(engine.snapshot(), before);
+
+  // The player ends their own turn, but not the monster's.
+  assert.equal(engine.snapshot().initiativeOrder[engine.snapshot().currentTurn], 0);
+  await asPlayer({ type: "nextTurn", values: {} });
+  assert.equal(engine.snapshot().initiativeOrder[engine.snapshot().currentTurn], 1);
+  await assert.rejects(asPlayer({ type: "nextTurn", values: {} }), /Not authorized/);
+  await engine.dispatch(request([{ type: "nextTurn", values: {} }]), gm);
+});
+
+test("assigning a character checks that the users and the entity exist", async () => {
+  mock.method(userModel, "getUserById", async (id: number) => (id === 2 ? player : null));
+  const store = mock.method(entityModel, "setEntityControllers", async (entityId: number) => entityId === 100);
+  assert.deepEqual(await entityService.setEntityControllers(100, [2, 2]), [2]);
+  assert.deepEqual(store.mock.calls[0].arguments, [100, [2]]);
+  await assert.rejects(entityService.setEntityControllers(100, [2, 9]), (error: { statusCode?: number }) => error.statusCode === 400);
+  await assert.rejects(entityService.setEntityControllers(404, [2]), (error: { statusCode?: number }) => error.statusCode === 404);
+  assert.deepEqual(await entityService.setEntityControllers(100, []), []);
 });
 
 test("a new entity takes its name and HP from the stored template, not from the request", async () => {

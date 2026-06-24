@@ -1,5 +1,5 @@
 import { sessionDTO, UserSessionDTO } from "shared/DTO/auth/types.js";
-import { UserDTO } from "shared/DTO/users/types.js";
+import { UserDTO, UserSummaryDTO } from "shared/DTO/users/types.js";
 import { SessionDB, UserSessionDB } from "src/api/auth/types.js";
 import { UserDB } from "src/api/users/types.js";
 
@@ -25,5 +25,13 @@ export function userSessionToDTO(userSession: UserSessionDB): UserSessionDTO{
   return {
     session: sessionToDto(userSession.sessionDb),
     user: userToDto(userSession.userDb)
+  };
+}
+
+export function userToSummaryDto(user: UserDB): UserSummaryDTO {
+  return {
+    id: user.id,
+    username: user.username,
+    isGm: Boolean(user.is_gm),
   };
 }
