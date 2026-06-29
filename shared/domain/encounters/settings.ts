@@ -4,7 +4,7 @@
  */
 
 export type SettingDefinition = { label: string; help: string } & (
-  | { type: "enum"; values: readonly string[]; defaultValue: string }
+  | { type: "enum"; values: readonly string[]; defaultValue: string; valueLabels?: Readonly<Record<string, string>> }
   | { type: "boolean"; defaultValue: boolean }
 );
 

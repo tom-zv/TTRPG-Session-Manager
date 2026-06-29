@@ -58,6 +58,8 @@ export function EncounterSettingsPanel({ settings, actions, canMutate }: {
   };
 
   const zeroHpTransfer = ENCOUNTER_SETTINGS.automation.zeroHpTransfer;
+  const monsterHp = ENCOUNTER_SETTINGS.visibility.monsterHp;
+  const monsterHpId = `${popoverId}-monster-hp`;
 
   return (
     <div ref={anchorRef} className={styles.anchor}>
@@ -90,6 +92,24 @@ export function EncounterSettingsPanel({ settings, actions, canMutate }: {
             label={zeroHpTransfer.label}
             help={zeroHpTransfer.help}
           />
+          <div className={styles.selectSetting}>
+            <label htmlFor={monsterHpId} className={styles.selectLabel}>{monsterHp.label}</label>
+            <select
+              id={monsterHpId}
+              value={settings.visibility.monsterHp}
+              disabled={!canMutate}
+              onChange={(event) => {
+                setMessage("");
+                const value = monsterHp.values.find((candidate) => candidate === event.target.value);
+                if (value) actions.global.updateEncounterSettings({ visibility: { monsterHp: value } });
+              }}
+            >
+              {monsterHp.values.map((value) => (
+                <option key={value} value={value}>{monsterHp.valueLabels[value]}</option>
+              ))}
+            </select>
+            <small className={styles.selectHelp}>{monsterHp.help}</small>
+          </div>
           <div className={styles.footer}>
             <button
               type="button"

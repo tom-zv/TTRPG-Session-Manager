@@ -1,6 +1,8 @@
 import React, { useCallback, useState } from "react";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
+import { FiEyeOff } from "react-icons/fi";
+import type { HpDisplay } from "shared/domain/encounters/dnd5e/view.js";
 import { EditableField } from "src/components/FormControls/index.js";
 import { EntityHpStats } from "./EntityHpStats.js";
 import { EntityRowLiveActions } from "./EntityRowLiveActions.js";
@@ -24,6 +26,8 @@ type DnD5eEntityRowProps = {
   canMutate?: boolean;
   /** Run this entity: its current HP, initiative and death saves. A GM, or the player it is assigned to. */
   canControl?: boolean;
+  /** How much of the HP this viewer is shown. */
+  hpDisplay?: HpDisplay;
   sourceId?: number;
   onSelect?: (entityId: number) => void;
   isPinned?: boolean;
@@ -39,6 +43,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   onRemove,
   canMutate = true,
   canControl = canMutate,
+  hpDisplay = "exact",
   sourceId,
   onSelect,
   isPinned,
@@ -92,7 +97,8 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
 
   const isLive = mode === "live";
   const entityName = entity.displayName ?? entity.name;
-  const vitalStatus = isLive ? getVitalStatus(entity) : null;
+  // A 0 HP badge would give away what the HP display is meant to keep back.
+  const vitalStatus = isLive && hpDisplay !== "hidden" ? getVitalStatus(entity) : null;
   const offerBurial = isAwaitingBurial(vitalStatus);
   const showDeathSaves = vitalStatus === "dying" || vitalStatus === "stable" || vitalStatus === "dead";
   const secondaryActionsId = `entity-secondary-actions-${entity.instanceId}`;
@@ -149,6 +155,12 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
         <div className={styles.entityIdentity}>
           <h3 className={styles.entityName}>{entityName}</h3>
           {vitalStatus && <EntityVitalBadge status={vitalStatus} />}
+          {entity.hidden && (
+            <span className={styles.hiddenBadge} title="Players do not see this entity">
+              <FiEyeOff aria-hidden="true" />
+              Hidden
+            </span>
+          )}
         </div>
         <div className={styles.topControls}>
           {canMutate && mode === "edit" && (showRemoveConfirm ? (
@@ -192,6 +204,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           mode={mode}
           canMutate={canMutate}
           canControl={canControl}
+          hpDisplay={hpDisplay}
           onMaxHpChange={handleMaxHpChange}
           onCurrentHpChange={handleCurrentHpChange}
         />

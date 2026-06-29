@@ -676,6 +676,28 @@
   border: 1px solid color-mix(in srgb, var(--vital-color) 40%, transparent);
 }
 
+.hiddenBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.12rem 0.5rem 0.12rem 0.38rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  border: 1px dashed color-mix(in srgb, var(--text-secondary) 55%, transparent);
+}
+
+.hpStatus[data-status="bloodied"] {
+  color: color-mix(in srgb, var(--danger) 80%, var(--text-primary) 20%);
+}
+
+.hpStatus[data-status="down"] {
+  color: var(--text-secondary);
+}
+
 .vitalBadge svg {
   font-size: 0.9rem;
 }

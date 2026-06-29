@@ -13,7 +13,8 @@ export type DnD5eEncounterEvent =
   | TargetedEventBase<'restoreFromGrave', { hp: number }>
   | GlobalEventBase<'updateEncounterSettings', { patch: EncounterSettingsPatch }>
   | TargetedEventBase<'setDeathSaves', { successes: number; failures: number }>
-  | GlobalEventBase<'addEntity', { templateId: number, name: string, hp: number }>
+  | GlobalEventBase<'addEntity', { templateId: number, name: string, hp: number, hidden?: boolean }>
+  | TargetedEventBase<'setHidden', { hidden: boolean }>
   | GlobalEventBase<'removeEntity', { instanceId: number }>
   | GlobalEventBase<'startCombat', Record<string, never>>
   | GlobalEventBase<'endCombat', Record<string, never>>

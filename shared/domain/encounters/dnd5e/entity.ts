@@ -92,6 +92,8 @@ export interface DnD5eEntitySummary {
 
 export interface DnD5eEntityState {
   inGrave: boolean;
+  /** Not shown to players. The GM sees and runs it as usual. */
+  hidden: boolean;
   // runtime combat state
   instanceId: number; // Unique ID for this entity instance in the encounter
   templateId: number; // Reference to the base entity details

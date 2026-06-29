@@ -12,13 +12,25 @@ import styles from "./DnD5eEntityCard.module.css";
 type DnD5eEntityCardProps = {
   entity?: DnD5eEntityDetails;
   className?: string;
+  /** Show only who this is, for viewers who are not given the stat block. */
+  redactedName?: string;
 };
 
 const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({
   entity,
   className,
+  redactedName,
 }) => {
   const cardClassName = `${styles.entityCard}${className ? " " + className : ""}`;
+
+  if (redactedName !== undefined) {
+    return (
+      <div className={cardClassName}>
+        <p><strong>{redactedName}</strong></p>
+        <p>Only the GM sees the details of this entity.</p>
+      </div>
+    );
+  }
 
   if (!entity) {
     return <div className={cardClassName}>No entity selected.</div>;

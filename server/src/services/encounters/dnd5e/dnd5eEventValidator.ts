@@ -14,7 +14,8 @@ export function isDnD5eEvent(event: unknown): event is DnD5eEncounterEvent {
   switch (e.type) {
     case "addEntity":
       return id(values.templateId) && typeof values.name === "string" && values.name.trim().length > 0 &&
-        nonNegative(values.hp) && values.hp > 0;
+        nonNegative(values.hp) && values.hp > 0 && (values.hidden === undefined || typeof values.hidden === "boolean");
+    case "setHidden": return id(values.targetId) && typeof values.hidden === "boolean";
     case "removeEntity": return id(values.instanceId);
     case "startCombat":
     case "endCombat":

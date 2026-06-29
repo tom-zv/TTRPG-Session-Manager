@@ -449,6 +449,7 @@ async function createDefaultEntityState(
   return {
     instanceId,
     inGrave: false,
+    hidden: false,
     templateId,
     initiative: 0,
     maxHp: entity.hp,

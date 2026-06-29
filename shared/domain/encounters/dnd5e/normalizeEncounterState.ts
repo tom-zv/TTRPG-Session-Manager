@@ -9,7 +9,7 @@ export function normalizeDnD5eEncounterState(state: DnD5eEncounterState): DnD5eE
   // Snapshots from before phases existed: a round counter above 0 means combat was under way.
   normalized.phase = isEncounterPhase(state.phase) ? state.phase : (state.currentRound > 0 ? "running" : "setup");
   normalized.settings = resolveEncounterSettings(state.settings);
-  normalized.entityStates = state.entityStates.map((entity) => ({ ...entity, inGrave: entity.inGrave ?? false }));
+  normalized.entityStates = state.entityStates.map((entity) => ({ ...entity, inGrave: entity.inGrave ?? false, hidden: entity.hidden ?? false }));
   const highestInstanceId = normalized.entityStates.reduce((max, entity) => Math.max(max, entity.instanceId), -1);
   normalized.nextInstanceId = Math.max(Number.isInteger(state.nextInstanceId) ? state.nextInstanceId : 0, highestInstanceId + 1);
   const activeIds = new Set(normalized.entityStates.filter((entity) => !entity.inGrave).map((entity) => entity.instanceId));

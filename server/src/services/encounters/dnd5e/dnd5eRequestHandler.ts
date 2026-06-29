@@ -97,7 +97,10 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
         if (event.type !== "addEntity") return event;
         const profile = this.profiles.get(event.values.templateId);
         if (!profile) throw new Error(`Entity template ${event.values.templateId} not found`);
-        return { type: "addEntity", values: { templateId: profile.id, name: profile.name, hp: profile.hp } };
+        return {
+            type: "addEntity",
+            values: { templateId: profile.id, name: profile.name, hp: profile.hp, ...(event.values.hidden ? { hidden: true } : {}) },
+        };
     }
 
     protected validateEvent(event: DnD5eEncounterEvent): DnD5eEncounterEvent {

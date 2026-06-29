@@ -3,9 +3,10 @@ import { DnD5eEntityState, } from "../../entity.js";
 import { rebuildInitiativeOrder, setInitiativeOrder } from "../../initiative.js";
 import { mergeSettings } from "../../../settings.js";
 
-export const makeEntityStateful = (templateId: number, instanceId: number, hp: number, displayName?: string): DnD5eEntityState => ({
+export const makeEntityStateful = (templateId: number, instanceId: number, hp: number, displayName?: string, hidden = false): DnD5eEntityState => ({
     templateId,
     inGrave: false,
+    hidden,
     instanceId, 
     displayName,
     maxHp: hp,
@@ -28,7 +29,7 @@ function labelNumber(displayName: string | undefined, name: string): number {
 
 export const globalHandler = {
     addEntity(state, event){
-      const { templateId, name, hp } = event.values;
+      const { templateId, name, hp, hidden } = event.values;
       const instanceId = state.nextInstanceId;
       state.nextInstanceId = instanceId + 1;
 
@@ -42,7 +43,7 @@ export const globalHandler = {
       }
       const displayName = sameTemplate.length > 0 ? `${name} ${++highest}` : undefined;
 
-      state.entityStates.push(makeEntityStateful(templateId, instanceId, hp, displayName));
+      state.entityStates.push(makeEntityStateful(templateId, instanceId, hp, displayName, hidden === true));
       state.initiativeOrder.push(instanceId);
     },
 

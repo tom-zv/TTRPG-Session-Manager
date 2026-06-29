@@ -5,6 +5,7 @@ import type { CombatProfileLoader } from "../src/services/encounters/dnd5e/dnd5e
 import type { EntityCombatProfile } from "../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
 import { registerEncounterLifecycleHandlers } from "../src/socket/namespaces/encounters/encounterLifecycleHandlers.js";
 import { EncounterNotFoundError } from "../src/services/encounters/encounterSystems.js";
+import { getHpStatus, hpDisplayFor, isVisibleTo } from "../../shared/domain/encounters/dnd5e/view.js";
 import type { EncounterJoinAck } from "../../shared/sockets/encounters/types.js";
 import { validateDnD5eEvent } from "../src/services/encounters/dnd5e/dnd5eEventValidator.js";
 import type { DnD5eEncounterState } from "../../shared/domain/encounters/dnd5e/encounter.js";
@@ -50,7 +51,7 @@ const defaultProfiles: CombatProfileLoader = async (ids) => ids.map((id) => prof
 function state(count = 3, auto = false): DnD5eEncounterState {
   return {
     id: 12, system: "dnd5e", version: 0, phase: "running", currentRound: 1, currentTurn: 0,
-    settings: { automation: { zeroHpTransfer: auto ? "auto" : "manual" } },
+    settings: { ...resolveEncounterSettings(), automation: { zeroHpTransfer: auto ? "auto" : "manual" } },
     initiativeOrder: Array.from({ length: count }, (_, index) => index),
     nextInstanceId: count,
     entityStates: Array.from({ length: count }, (_, index) => ({ ...makeEntityStateful(index + 100, index, 10), initiative: 20 - index })),
@@ -530,6 +531,33 @@ test("assigning a character checks that the users and the entity exist", async (
   await assert.rejects(entityService.setEntityControllers(100, [2, 9]), (error: { statusCode?: number }) => error.statusCode === 400);
   await assert.rejects(entityService.setEntityControllers(404, [2]), (error: { statusCode?: number }) => error.statusCode === 404);
   assert.deepEqual(await entityService.setEntityControllers(100, []), []);
+});
+
+test("hiding is a GM action and what players are shown follows the visibility rules", async () => {
+  const engine = new Engine(state(2), async (ids) => ids.filter((id) => id === 100).map((id) => profile(id)));
+  await assert.rejects(engine.dispatch(request([{ type: "setHidden", values: { targetId: 1, hidden: true } }]), player), /Not authorized/);
+  await engine.dispatch(request([{ type: "setHidden", values: { targetId: 1, hidden: true } },
+    { type: "addEntity", values: { templateId: 100, name: "x", hp: 1, hidden: true } }]), gm);
+  assert.deepEqual(engine.snapshot().entityStates.map((entity) => entity.hidden), [false, true, true]);
+  assert.throws(() => validateDnD5eEvent({ type: "setHidden", values: { targetId: 1, hidden: "yes" } } as unknown as DnD5eEncounterEvent));
+
+  const gmViewer = { userId: 1, isGm: true };
+  const owner = { userId: 2, isGm: false };
+  const other = { userId: 3, isGm: false };
+  const [shown, hiddenEntity] = engine.snapshot().entityStates;
+  assert.deepEqual([gmViewer, owner].map((viewer) => [isVisibleTo(viewer, shown), isVisibleTo(viewer, hiddenEntity)]), [[true, true], [true, false]]);
+
+  const settings = resolveEncounterSettings();
+  assert.equal(settings.visibility.monsterHp, "status");
+  const monster = { role: "creature", controllerUserIds: [] };
+  const ally = { role: "npc", controllerUserIds: [2] };
+  assert.equal(hpDisplayFor(gmViewer, monster, settings), "exact");
+  assert.equal(hpDisplayFor(other, monster, settings), "status");
+  assert.equal(hpDisplayFor(other, { role: "pc" }, settings), "exact");
+  assert.deepEqual([hpDisplayFor(owner, ally, settings), hpDisplayFor(other, ally, settings)], ["exact", "status"]);
+  assert.equal(hpDisplayFor(other, monster, resolveEncounterSettings({ visibility: { monsterHp: "hidden" } })), "hidden");
+  assert.deepEqual([[10, 10], [6, 10], [5, 10], [1, 10], [0, 10]].map(([currentHp, maxHp]) => getHpStatus({ currentHp, maxHp })),
+    ["healthy", "healthy", "bloodied", "bloodied", "down"]);
 });
 
 test("a new entity takes its name and HP from the stored template, not from the request", async () => {

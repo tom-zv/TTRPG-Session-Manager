@@ -1,6 +1,7 @@
 import { useOrderedEntities } from "../../../hooks/dnd5e/useOrderedEntities.js";
 import React, { useCallback } from "react";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
+import type { HpDisplay } from "shared/domain/encounters/dnd5e/view.js";
 import { DnD5eEntityRow } from "./DnD5eEntityRow/DnD5eEntityRow.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import styles from "./DnD5eEntityList.module.css";
@@ -14,6 +15,8 @@ type EntityListProps = {
   canMutate?: boolean;
   /** Whether the viewer may run this entity. Defaults to `canMutate` for every entity. */
   canControlEntity?: (entity: DnD5eEntity) => boolean;
+  /** How much of an entity's HP the viewer is shown. Defaults to exact numbers. */
+  hpDisplayFor?: (entity: DnD5eEntity) => HpDisplay;
   sourceId?: number;
   selectedEntityId?: number;
   onSelectEntity?: (entityId: number) => void;
@@ -32,6 +35,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   actions,
   canMutate = true,
   canControlEntity,
+  hpDisplayFor,
   sourceId,
   selectedEntityId,
   onSelectEntity,
@@ -72,6 +76,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
               onRemove={handleRemove}
               canMutate={canMutate}
               canControl={canControlEntity ? canControlEntity(entity) : canMutate}
+              hpDisplay={hpDisplayFor?.(entity)}
               sourceId={sourceId}
               onSelect={onSelectEntity}
               isPinned={entity.instanceId === selectedEntityId ? isPinned : undefined}

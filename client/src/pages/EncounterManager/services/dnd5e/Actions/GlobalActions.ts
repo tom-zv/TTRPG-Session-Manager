@@ -11,10 +11,11 @@ export class DnD5eGlobalActions {
     private emitEvent: EmitEvent,
   ) {}
 
-  addEntity = (templateId: number, name: string, hp: number): void => {
+  /** `hidden` adds the entity without showing it to players, for example waiting reinforcements. */
+  addEntity = (templateId: number, name: string, hp: number, hidden = false): void => {
     this.emitEvent({
       type: "addEntity",
-      values: { templateId, name, hp },
+      values: { templateId, name, hp, ...(hidden ? { hidden: true } : {}) },
     });
   };
 

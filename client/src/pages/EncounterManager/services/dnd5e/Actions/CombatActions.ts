@@ -11,6 +11,10 @@ export class DnD5eCombatActions {
     this.emitEvent({ type: "restoreFromGrave", values: { targetId, hp } });
   };
 
+  setHidden = (targetId: number, hidden: boolean): void => {
+    this.emitEvent({ type: "setHidden", values: { targetId, hidden } });
+  };
+
   setDeathSaves = (targetId: number, successes: number, failures: number): void => {
     this.emitEvent({ type: "setDeathSaves", values: { targetId, successes, failures } });
   };

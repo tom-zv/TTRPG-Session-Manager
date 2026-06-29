@@ -16,7 +16,18 @@ export const ENCOUNTER_SETTINGS = {
       help: "Applies to future drops to 0 HP. PCs and NPCs using death saves stay in initiative.",
     },
   },
-  // Future visibility settings belong here, backed by server-side player views.
+  // What players are shown. Every client holds the full state; these are display rules
+  // (see view.ts), not a way to keep the data from a player's browser.
+  visibility: {
+    monsterHp: {
+      type: "enum",
+      values: ["exact", "status", "hidden"],
+      valueLabels: { exact: "Exact numbers", status: "Healthy / Bloodied / Down", hidden: "Nothing" },
+      defaultValue: "status",
+      label: "What players see of NPC and creature HP",
+      help: "Players always see exact HP for player characters. AC and stat blocks follow the same rule: shown only with exact numbers.",
+    },
+  },
 } as const;
 
 /** Per-entity-template settings, shared by every copy of the entity. */

@@ -3,7 +3,8 @@ import { GiWarlockEye } from "react-icons/gi";
 import { BsPinAngle, BsPinAngleFill } from "react-icons/bs";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import type { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
-import { controlsEntity } from "shared/domain/encounters/dnd5e/view.js";
+import { controlsEntity, hpDisplayFor, isVisibleTo } from "shared/domain/encounters/dnd5e/view.js";
+import { ToggleSwitch } from "../Shared/ToggleSwitch/ToggleSwitch.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
@@ -59,12 +60,24 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   // GM powers: membership, phases, settings, the grave.
   const canMutate = isGm && isWritable;
   const sourceId = currentUser?.id;
+  const viewer = useMemo(() => ({ userId: currentUser?.id, isGm }), [currentUser?.id, isGm]);
   // Running a single entity: the GM, or the player it is assigned to.
   const canControlEntity = useCallback(
-    (entity: DnD5eEntity) => isWritable && controlsEntity({ userId: sourceId, isGm }, entity),
-    [isWritable, sourceId, isGm]
+    (entity: DnD5eEntity) => isWritable && controlsEntity(viewer, entity),
+    [isWritable, viewer]
   );
   const [isEntityPickerOpen, setIsEntityPickerOpen] = useState(false);
+  const [addHidden, setAddHidden] = useState(false);
+  // Everything below draws from this list, so a hidden entity never reaches a player's screen.
+  const visibleEntities = useMemo(
+    () => encounter?.entities.filter((entity) => isVisibleTo(viewer, entity)) ?? [],
+    [encounter?.entities, viewer]
+  );
+  const settings = encounter?.settings;
+  const hpDisplayForEntity = useCallback(
+    (entity: DnD5eEntity) => (settings ? hpDisplayFor(viewer, entity, settings) : "exact"),
+    [viewer, settings]
+  );
 
   const [userSelectedEntityId, setUserSelectedEntityId] = useState<number | undefined>();
   const [isPinned, setIsPinned] = useState(false);
@@ -75,12 +88,12 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   const [confirmingReset, setConfirmingReset] = useState(false);
 
   const orderedEntities = useOrderedEntities(
-    encounter?.entities ?? [],
+    visibleEntities,
     encounter?.initiativeOrder ?? []
   );
   const graveEntities = useMemo(
-    () => encounter?.entities.filter((entity) => entity.inGrave) ?? [],
-    [encounter?.entities]
+    () => visibleEntities.filter((entity) => entity.inGrave),
+    [visibleEntities]
   );
   // Grave members stay selectable (and pinnable) so the side card can show them.
   const selectableEntities = useMemo(
@@ -122,7 +135,12 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   );
 
   const selectedEntity = selectableEntities.find((entity) => entity.instanceId === selectedEntityId);
-  const activeEntityName = activeEntity?.name ?? "No active entity";
+  const activeEntityName = !activeEntity
+    ? "No active entity"
+    : isVisibleTo(viewer, activeEntity)
+      ? activeEntity.displayName ?? activeEntity.name
+      : "Hidden combatant";
+  const selectedEntityIsRedacted = selectedEntity !== undefined && hpDisplayForEntity(selectedEntity) !== "exact";
 
   const handleSelectEntity = useCallback((entityId: number) => {
     setUserSelectedEntityId(entityId);
@@ -153,8 +171,9 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   const nextTurnDisabled = !canEndTurn || !encounter || encounter.initiativeOrder.length === 0;
   const deathAnnouncement = lastOperation?.appliedEvents.flatMap((event) => {
     if (event.type !== "moveToGrave" && event.type !== "restoreFromGrave") return [];
-    const entity = encounter?.entities.find((candidate) => candidate.instanceId === event.values.targetId);
-    const name = entity?.displayName ?? entity?.name ?? "Entity";
+    const entity = visibleEntities.find((candidate) => candidate.instanceId === event.values.targetId);
+    if (!entity) return [];
+    const name = entity.displayName ?? entity.name;
     return [`${name} ${event.type === "moveToGrave" ? "moved to the grave" : "returned to initiative"}.`];
   }).join(" ");
 
@@ -166,7 +185,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   const handleAddEntity = (templateId: number, name: string, hp: number) => {
     setIsEntityPickerOpen(false);
     if (!canMutate || !actions) return;
-    actions.global.addEntity(templateId, name, hp);
+    actions.global.addEntity(templateId, name, hp, addHidden);
   };
 
   const handleResetEncounter = () => {
@@ -296,13 +315,14 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             >
               {/* <EncounterDetails encounter={encounter!} /> */}
               <DnD5eEntityList
-                entities={encounter!.entities}
+                entities={visibleEntities}
                 initiativeOrder={encounter!.initiativeOrder}
                 currentTurn={isRunning ? encounter!.currentTurn : undefined}
                 mode={phase === "setup" ? "edit" : "live"}
                 actions={actions}
                 canMutate={canMutate}
                 canControlEntity={canControlEntity}
+                hpDisplayFor={hpDisplayForEntity}
                 sourceId={sourceId}
                 selectedEntityId={selectedEntityId}
                 onSelectEntity={handleSelectEntity}
@@ -374,6 +394,11 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                     )}
                     <DnD5eEntityCard
                       entity={selectedEntity}
+                      redactedName={
+                        selectedEntity && selectedEntityIsRedacted
+                          ? selectedEntity.displayName ?? selectedEntity.name
+                          : undefined
+                      }
                       className={
                         selectedEntity ? linkStyles.linkedEntityCard : undefined
                       }
@@ -390,6 +415,12 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
           onClose={() => setIsEntityPickerOpen(false)}
           title="Add Entity to Encounter"
         >
+          <ToggleSwitch
+            checked={addHidden}
+            onChange={setAddHidden}
+            label="Add hidden from players"
+            help="Players will not see the entity until you reveal it from its options."
+          />
           <EntityPicker
             onSelect={handleAddEntity}
             onCancel={() => setIsEntityPickerOpen(false)}

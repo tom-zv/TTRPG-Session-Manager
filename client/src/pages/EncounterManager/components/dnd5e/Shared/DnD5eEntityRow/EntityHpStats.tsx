@@ -1,5 +1,6 @@
 import React from "react";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
+import { getHpStatus, HP_STATUS_LABEL, type HpDisplay } from "shared/domain/encounters/dnd5e/view.js";
 import { EditableField } from "src/components/FormControls/index.js";
 import styles from "./DnD5eEntityRow.module.css";
 
@@ -10,6 +11,8 @@ type EntityHpStatsProps = {
   canMutate: boolean;
   /** May change current HP during play (GM, or the player the entity is assigned to). */
   canControl: boolean;
+  /** How much of the HP this viewer is shown. AC follows it: shown only with exact numbers. */
+  hpDisplay?: HpDisplay;
   onMaxHpChange: (value: number) => void;
   onCurrentHpChange: (value: number) => void;
 };
@@ -19,9 +22,24 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
   mode,
   canMutate,
   canControl,
+  hpDisplay = "exact",
   onMaxHpChange,
   onCurrentHpChange,
 }) => {
+  if (hpDisplay === "hidden") return null;
+
+  if (hpDisplay === "status") {
+    const status = getHpStatus(entity);
+    return (
+      <div className={styles.entityStatsCompact}>
+        <div className={`${styles.statItem} ${styles.statItemHp}`}>
+          <span className={styles.statLabel}>HP</span>
+          <span className={`${styles.statValue} ${styles.hpStatus}`} data-status={status}>{HP_STATUS_LABEL[status]}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.entityStatsCompact}>
       <div className={`${styles.statItem} ${styles.statItemHp}`}>

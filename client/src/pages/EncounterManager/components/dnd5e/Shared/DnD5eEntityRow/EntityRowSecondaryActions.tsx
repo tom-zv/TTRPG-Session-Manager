@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { FiEye, FiEyeOff } from "react-icons/fi";
 import { GiTombstone } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
@@ -43,6 +44,18 @@ export const EntityRowSecondaryActions: React.FC<EntityRowSecondaryActionsProps>
             Move to grave
           </button>
         )}
+        <button
+          type="button"
+          className={styles.actionButton}
+          onClick={() => {
+            actions.combat.setHidden(entity.instanceId, !entity.hidden);
+            onClose();
+          }}
+          title={entity.hidden ? "Show this entity to players" : "Stop showing this entity to players"}
+        >
+          {entity.hidden ? <FiEye aria-hidden="true" /> : <FiEyeOff aria-hidden="true" />}
+          {entity.hidden ? "Reveal to players" : "Hide from players"}
+        </button>
         <button type="button" className={styles.actionButton} disabled title="Coming soon">
           Condition
         </button>

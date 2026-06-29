@@ -44,6 +44,7 @@ const DND5E_EVENT_AUTH_RULES = {
   moveToGrave: gmOnly,
   restoreFromGrave: gmOnly,
   setHp: gmOnly,
+  setHidden: gmOnly,
 
   damage: controlsTarget,
   heal: controlsTarget,
