@@ -45,19 +45,39 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
       <div className={`${styles.statItem} ${styles.statItemHp}`}>
         <span className={styles.statLabel}>HP</span>
         {mode === "edit" && !canMutate ? (
-          <span className={styles.statValue}>{entity.maxHp}</span>
+          <div className={styles.hpLiveDisplay}>
+            <span className={`${styles.statValue} ${styles.hpCurrent}`}>{entity.currentHp}</span>
+            <span className={styles.hpSeparator}>/ </span>
+            <span className={`${styles.statValue} ${styles.hpMax}`}>{entity.maxHp}</span>
+          </div>
         ) : mode === "edit" ? (
-          <EditableField
-            type="number"
-            value={entity.maxHp}
-            onChange={onMaxHpChange}
-            min={1}
-            max={9999}
-            className={styles.statValue}
-            displayClassName={styles.inlineNumberDisplay}
-            inputClassName={styles.inlineNumberInput}
-            compact
-          />
+          // Preparing: a player character may arrive below full HP, so both numbers can be set.
+          // Changing the maximum also restores current HP to it.
+          <div className={styles.hpLiveDisplay}>
+            <EditableField
+              type="number"
+              value={entity.currentHp}
+              onChange={onCurrentHpChange}
+              min={0}
+              max={entity.maxHp}
+              className={`${styles.statValue} ${styles.hpCurrent}`}
+              displayClassName={styles.inlineNumberDisplay}
+              inputClassName={styles.inlineNumberInput}
+              compact
+            />
+            <span className={styles.hpSeparator}>/ </span>
+            <EditableField
+              type="number"
+              value={entity.maxHp}
+              onChange={onMaxHpChange}
+              min={1}
+              max={9999}
+              className={`${styles.statValue} ${styles.hpMax}`}
+              displayClassName={styles.inlineNumberDisplay}
+              inputClassName={styles.inlineNumberInput}
+              compact
+            />
+          </div>
         ) : canControl ? (
           <div className={styles.hpLiveDisplay}>
             <EditableField

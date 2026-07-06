@@ -92,14 +92,23 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
         if (event.type === "nextTurn" && phase !== "running") throw new Error("Combat is not running");
     }
 
-    /** A new entity takes its name and HP from the stored template, not from the client. */
+    /**
+     * A new entity takes its name and HP from the stored template, not from the client. A player
+     * character also brings the HP it left its last combat with.
+     */
     private resolveFromTemplate(event: DnD5eEncounterEvent): DnD5eEncounterEvent {
         if (event.type !== "addEntity") return event;
         const profile = this.profiles.get(event.values.templateId);
         if (!profile) throw new Error(`Entity template ${event.values.templateId} not found`);
         return {
             type: "addEntity",
-            values: { templateId: profile.id, name: profile.name, hp: profile.hp, ...(event.values.hidden ? { hidden: true } : {}) },
+            values: {
+                templateId: profile.id,
+                name: profile.name,
+                hp: profile.hp,
+                ...(profile.role === "pc" && profile.currentHp !== null ? { currentHp: Math.min(profile.currentHp, profile.hp) } : {}),
+                ...(event.values.hidden ? { hidden: true } : {}),
+            },
         };
     }
 

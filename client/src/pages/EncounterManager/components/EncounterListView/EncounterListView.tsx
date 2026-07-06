@@ -130,6 +130,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
                 <th>Status</th>
                 <th>Difficulty</th>
                 <th>Location</th>
+                <th className={styles.textRight}>Entities</th>
                 <th>Created</th>
                 <th className={styles.textRight}>Actions</th>
               </tr>
@@ -149,6 +150,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
                     <td>{enc.status}</td>
                     <td>{enc.difficulty}</td>
                     <td>{enc.location}</td>
+                    <td className={styles.textRight}>{enc.entityCount ?? 0}</td>
     
                     <td>{formatDate(enc.createdAt)}</td>
                     <td className={styles.encounterActions}>
@@ -162,7 +164,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
               })}
               {encounters.length === 0 && (
                 <tr>
-                  <td colSpan={6} className={styles.encounterEmpty}>
+                  <td colSpan={7} className={styles.encounterEmpty}>
                     No encounters match your filters.
                   </td>
                 </tr>

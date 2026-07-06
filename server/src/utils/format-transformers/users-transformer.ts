@@ -8,7 +8,8 @@ export function userToDto(user: UserDB): UserDTO {
     id: user.id,
     username: user.username,
     email: user.email || undefined,
-    isGm: user.is_gm,
+    // The column is a TINYINT; the DTO promises a boolean.
+    isGm: Boolean(user.is_gm),
     createdAt: user.created_at,
     lastLogin: user.last_login
   };

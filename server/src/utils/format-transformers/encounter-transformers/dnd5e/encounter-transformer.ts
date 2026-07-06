@@ -41,6 +41,8 @@ export function dnd5eEncounterDbToDomainDetails(
     difficulty: encounterDb.difficulty ?? "",
     gmNotes: normalizeGmNote(encounterDb.gm_notes),
     createdAt: encounterDb.created_at,
+    // SUM() arrives as a decimal string.
+    entityCount: encounterDb.entity_count === undefined ? undefined : Number(encounterDb.entity_count),
   };
 }
 

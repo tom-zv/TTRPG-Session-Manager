@@ -5,7 +5,7 @@ import {
   EntitySummaryDB,
 } from "./entityModel.js";
 import entityModel from "./entityModel.js";
-import dnd5eEncounterSnapshotsModel from "../encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
+import encounterModel from "../encounters/encounterModel.js";
 import { HttpError, NotFoundError, ValidationError } from "src/api/HttpErrors.js";
 import userModel from "src/api/users/userModel.js";
 
@@ -102,17 +102,15 @@ async function setEntityControllers(entityId: number, userIds: number[]): Promis
   return uniqueIds;
 }
 
-async function deleteEntity(system: SystemType, id: number): Promise<boolean> {
-  // Encounter state refers to templates by ID only, so deleting one that is still in use
-  // would leave those encounters unable to load.
-  if (system === "dnd5e") {
-    const encounterIds = await dnd5eEncounterSnapshotsModel.getEncounterIdsUsingTemplate(id);
-    if (encounterIds.length > 0) {
-      throw new HttpError(
-        409,
-        `This entity is used in ${encounterIds.length} encounter${encounterIds.length === 1 ? "" : "s"}. Remove it from them first.`
-      );
-    }
+async function deleteEntity(id: number): Promise<boolean> {
+  // Encounters refer to entities by ID, so one that is still in use must stay. The foreign key on
+  // core.encounter_entities enforces this; checking first gives the user a usable message.
+  const encounterIds = await encounterModel.getEncounterIdsUsingEntity(id);
+  if (encounterIds.length > 0) {
+    throw new HttpError(
+      409,
+      `This entity is used in ${encounterIds.length} encounter${encounterIds.length === 1 ? "" : "s"}. Remove it from them first.`
+    );
   }
 
   const result = await entityModel.deleteEntity(id);

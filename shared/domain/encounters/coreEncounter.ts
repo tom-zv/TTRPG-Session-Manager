@@ -38,6 +38,8 @@ export type CoreEncounter = {
   difficulty: string;
   gmNotes?: { text: string; timestamp: string };
   createdAt: string;
+  /** How many entities the encounter contains, counting every copy. Present in lists. */
+  entityCount?: number;
 };
 
 /**

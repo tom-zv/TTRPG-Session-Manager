@@ -88,4 +88,5 @@ export interface DnD5eEntitySummaryDB extends CoreEntitySummaryDB {
   role: 'pc' | 'npc' | 'creature';
   cr?: string;
   hp: number;
+  in_party?: number | boolean;
 }

@@ -6,6 +6,7 @@ import type { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { controlsEntity, hpDisplayFor, isVisibleTo } from "shared/domain/encounters/dnd5e/view.js";
 import { ToggleSwitch } from "../Shared/ToggleSwitch/ToggleSwitch.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
+import { useDnD5eEntitySummaries } from "src/pages/EncounterManager/api/dnd5e/entities/query/useDnD5eEntityQueries.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import { useOrderedEntities } from "src/pages/EncounterManager/hooks/dnd5e/useOrderedEntities.js";
 import { useEntitySelection } from "src/pages/EncounterManager/hooks/dnd5e/useEntitySelection.js";
@@ -188,6 +189,18 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     actions.global.addEntity(templateId, name, hp, addHidden);
   };
 
+  // Party members that are not in the encounter yet.
+  const { data: entitySummaries } = useDnD5eEntitySummaries({ enabled: isGm });
+  const missingPartyMembers = useMemo(() => {
+    const present = new Set(encounter?.entities.map((entity) => entity.templateId));
+    return entitySummaries?.filter((summary) => summary.inParty && !present.has(summary.templateId)) ?? [];
+  }, [entitySummaries, encounter?.entities]);
+
+  const handleAddParty = () => {
+    if (!canMutate || !actions) return;
+    missingPartyMembers.forEach((member) => actions.global.addEntity(member.templateId, member.name, member.hp));
+  };
+
   const handleResetEncounter = () => {
     setConfirmingReset(false);
     if (!canMutate || !encounter || !actions) return;
@@ -213,6 +226,20 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
             {canMutate && encounter && actions && (
               <button type="button" onClick={() => setIsEntityPickerOpen(true)}>
                 + Add Entity
+              </button>
+            )}
+            {canMutate && encounter && actions && phase === "setup" && (
+              <button
+                type="button"
+                onClick={handleAddParty}
+                disabled={missingPartyMembers.length === 0}
+                title={
+                  missingPartyMembers.length === 0
+                    ? "Every party member is already here. Mark a player character as a party member from its options."
+                    : `Add ${missingPartyMembers.map((member) => member.name).join(", ")}`
+                }
+              >
+                + Add party
               </button>
             )}
             {canMutate && encounter && actions && phase === "setup" && (

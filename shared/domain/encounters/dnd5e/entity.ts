@@ -88,6 +88,8 @@ export interface DnD5eEntitySummary {
   role: 'pc' | 'npc' | 'creature';
   hp: number;
   cr?: string;
+  /** A player character marked as a party member (entity setting `party.member`). */
+  inParty?: boolean;
 }
 
 export interface DnD5eEntityState {

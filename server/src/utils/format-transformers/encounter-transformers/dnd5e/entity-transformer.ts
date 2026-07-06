@@ -150,5 +150,6 @@ export function dnd5eEntitySummaryDbToDomain(db: DnD5eEntitySummaryDB): DnD5eEnt
     hp: db.hp,
     role: db.role,
     cr: db.cr,
+    inParty: Boolean(db.in_party),
   };
 }

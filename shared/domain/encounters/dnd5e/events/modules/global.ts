@@ -29,7 +29,7 @@ function labelNumber(displayName: string | undefined, name: string): number {
 
 export const globalHandler = {
     addEntity(state, event){
-      const { templateId, name, hp, hidden } = event.values;
+      const { templateId, name, hp, currentHp, hidden } = event.values;
       const instanceId = state.nextInstanceId;
       state.nextInstanceId = instanceId + 1;
 
@@ -43,7 +43,10 @@ export const globalHandler = {
       }
       const displayName = sameTemplate.length > 0 ? `${name} ${++highest}` : undefined;
 
-      state.entityStates.push(makeEntityStateful(templateId, instanceId, hp, displayName, hidden === true));
+      const entity = makeEntityStateful(templateId, instanceId, hp, displayName, hidden === true);
+      // A player character arrives with the HP it left its last combat with.
+      if (currentHp !== undefined) entity.currentHp = Math.min(Math.max(0, currentHp), hp);
+      state.entityStates.push(entity);
       state.initiativeOrder.push(instanceId);
     },
 

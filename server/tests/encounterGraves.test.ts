@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, mock, test } from "node:test";
-import { DnD5eEncounterEngine } from "../src/services/encounters/dnd5e/dnd5eEncounterEngine.js";
+import { DnD5eEncounterEngine, type CarriedHp } from "../src/services/encounters/dnd5e/dnd5eEncounterEngine.js";
 import type { CombatProfileLoader } from "../src/services/encounters/dnd5e/dnd5eRequestHandler.js";
 import type { EntityCombatProfile } from "../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
 import { registerEncounterLifecycleHandlers } from "../src/socket/namespaces/encounters/encounterLifecycleHandlers.js";
@@ -45,7 +45,7 @@ afterEach(() => mock.restoreAll());
 const gm: UserDB = { id: 1, username: "DM", password_hash: "", email: "", is_gm: true, last_login: "", created_at: "" };
 const player: UserDB = { ...gm, id: 2, is_gm: false };
 const profile = (id: number, role: EntityCombatProfile["role"] = "creature", settings: EntityCombatProfile["settings"] = {}): EntityCombatProfile =>
-  ({ id, name: `Template ${id}`, hp: 10, role, settings, controllerUserIds: [] });
+  ({ id, name: `Template ${id}`, hp: 10, currentHp: null, role, settings, controllerUserIds: [] });
 const defaultProfiles: CombatProfileLoader = async (ids) => ids.map((id) => profile(id));
 
 function state(count = 3, auto = false): DnD5eEncounterState {
@@ -62,7 +62,11 @@ class Engine extends DnD5eEncounterEngine {
   saved: DnD5eEncounterState[] = [];
   statuses: string[] = [];
   failSave = false;
+  memberships: [number, number][][] = [];
+  carried: CarriedHp[][] = [];
   protected async persistStatus(status: string): Promise<void> { this.statuses.push(status); }
+  protected async persistMembership(snapshot: DnD5eEncounterState): Promise<void> { this.memberships.push([...this.entityCopies(snapshot)]); }
+  protected async persistCarriedHp(carried: CarriedHp[]): Promise<void> { this.carried.push(carried); }
   protected async persistSnapshot(snapshot: DnD5eEncounterState): Promise<void> {
     if (this.failSave) throw new Error("Storage unavailable");
     this.saved.push(structuredClone(snapshot));
@@ -292,12 +296,12 @@ test("malformed socket payloads are rejected through the acknowledgement, not by
 
 test("an entity template in use by an encounter cannot be deleted", async () => {
   const remove = mock.method(entityModel, "deleteEntity", async () => true);
-  const usage = mock.method(snapshotModel, "getEncounterIdsUsingTemplate", async () => [12, 15]);
-  await assert.rejects(entityService.deleteEntity("dnd5e", 100), (error: { statusCode?: number; message: string }) =>
+  const usage = mock.method(encounterModel, "getEncounterIdsUsingEntity", async () => [12, 15]);
+  await assert.rejects(entityService.deleteEntity(100), (error: { statusCode?: number; message: string }) =>
     error.statusCode === 409 && /2 encounters/.test(error.message));
   assert.equal(remove.mock.callCount(), 0);
   usage.mock.mockImplementation(async () => []);
-  assert.equal(await entityService.deleteEntity("dnd5e", 100), true);
+  assert.equal(await entityService.deleteEntity(100), true);
   assert.equal(remove.mock.callCount(), 1);
 });
 
@@ -558,6 +562,45 @@ test("hiding is a GM action and what players are shown follows the visibility ru
   assert.equal(hpDisplayFor(other, monster, resolveEncounterSettings({ visibility: { monsterHp: "hidden" } })), "hidden");
   assert.deepEqual([[10, 10], [6, 10], [5, 10], [1, 10], [0, 10]].map(([currentHp, maxHp]) => getHpStatus({ currentHp, maxHp })),
     ["healthy", "healthy", "bloodied", "bloodied", "down"]);
+});
+
+test("the recorded membership follows the state and is only rewritten when it changes", async () => {
+  const engine = new Engine(state(2), async (ids) => ids.map((id) => profile(id)));
+  await engine.dispatch(request([damage(0, 1)]), gm);
+  await engine.dispatch(request([{ type: "nextTurn", values: {} }]), gm);
+  assert.deepEqual(engine.memberships, []);
+  await engine.dispatch(request([{ type: "addEntity", values: { templateId: 100, name: "x", hp: 1 } }]), gm);
+  assert.deepEqual(engine.memberships, [[[100, 2], [101, 1]]]);
+  await engine.dispatch(request([{ type: "removeEntity", values: { instanceId: 1 } }]), gm);
+  assert.deepEqual(engine.memberships.at(-1), [[100, 2]]);
+  // Leaving initiative for the grave is not leaving the encounter.
+  await engine.dispatch(request([bury(0)]), gm);
+  assert.equal(engine.memberships.length, 2);
+  engine.failSave = true;
+  await assert.rejects(engine.dispatch(request([{ type: "removeEntity", values: { instanceId: 0 } }]), gm), /Storage/);
+  assert.equal(engine.memberships.length, 2);
+});
+
+test("player characters carry current and maximum HP out of a finished combat and into the next", async () => {
+  // Template 100 is a player character, 101 a monster.
+  const loader: CombatProfileLoader = async (ids) => ids.map((id) => profile(id, id === 100 ? "pc" : "creature"));
+  const first = new Engine(state(2), loader);
+  await first.dispatch(request([damage(0, 4), damage(1, 3), { type: "setTempHp", values: { targetId: 0, sourceId: 1, tempHp: 5 } }]), gm);
+  assert.deepEqual(first.carried, []);
+  await first.dispatch(request([{ type: "endCombat", values: {} }]), gm);
+  assert.deepEqual(first.carried, [[{ templateId: 100, maxHp: 10, currentHp: 6 }]]);
+  // Resetting replays the encounter; it does not rewrite the character.
+  await first.dispatch(request([{ type: "resetEncounter", values: {} }]), gm);
+  assert.equal(first.carried.length, 1);
+
+  const next = new Engine(state(0), async (ids) => ids.map((id) => ({ ...profile(id, id === 100 ? "pc" : "creature"), currentHp: id === 100 ? 6 : 2 })));
+  const operation = await next.dispatch(request([{ type: "addEntity", values: { templateId: 100, name: "x", hp: 1, currentHp: 999 } },
+    { type: "addEntity", values: { templateId: 101, name: "x", hp: 1 } }]), gm);
+  assert.deepEqual(next.snapshot().entityStates.map((entity) => [entity.currentHp, entity.maxHp, entity.tempHp]), [[6, 10, 0], [10, 10, 0]]);
+  // The applied event carries the value, so clients replay it without knowing the character.
+  const replay = state(0);
+  operation.appliedEvents.forEach((event) => DnD5eEventProcessor.applyEvent(replay, event));
+  assert.deepEqual(replay.entityStates, next.snapshot().entityStates);
 });
 
 test("a new entity takes its name and HP from the stored template, not from the request", async () => {

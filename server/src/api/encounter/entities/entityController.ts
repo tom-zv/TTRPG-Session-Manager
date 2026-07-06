@@ -268,7 +268,7 @@ async function deleteEntity(
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
-    const result = await entityService.deleteEntity(system, Number(id));
+    const result = await entityService.deleteEntity(Number(id));
     res.status(200).json({ success: result });
     
   } catch (error) {

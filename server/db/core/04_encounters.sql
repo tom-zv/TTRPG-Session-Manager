@@ -25,3 +25,17 @@ CREATE TABLE
     CONSTRAINT fk_encounter_tags_encounter FOREIGN KEY (encounter_id) REFERENCES encounters (id) ON DELETE CASCADE,
     CONSTRAINT fk_encounter_tags_tag FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
   );
+
+-- Which entities an encounter uses and how many copies of each. Encounter state is a JSON document
+-- that refers to entities by ID only; this table gives those references integrity (an entity in
+-- use cannot be deleted) and lets lists show entity counts without reading the state.
+-- The encounter engine rewrites an encounter's rows whenever its membership changes.
+CREATE TABLE
+  IF NOT EXISTS core.encounter_entities (
+    encounter_id INT NOT NULL,
+    entity_id INT NOT NULL,
+    copies INT NOT NULL DEFAULT 1,
+    PRIMARY KEY (encounter_id, entity_id),
+    CONSTRAINT fk_encounter_entities_encounter FOREIGN KEY (encounter_id) REFERENCES encounters (id) ON DELETE CASCADE,
+    CONSTRAINT fk_encounter_entities_entity FOREIGN KEY (entity_id) REFERENCES entities (id) ON DELETE RESTRICT
+  );

@@ -15,7 +15,7 @@ export const EncounterManager: React.FC = () => {
   );
   const { encounterSummaries } = useDataSummaries(system);
   const { currentUser } = useAuth();
-  const isGm = currentUser?.isGm ?? false;
+  const isGm = Boolean(currentUser?.isGm);
 
   return selectedEncounterId === null ? (
     <EncounterListView

@@ -9,6 +9,7 @@ CREATE TABLE
         cr VARCHAR(8),
         ac INT NOT NULL DEFAULT 10,
         hp INT NOT NULL DEFAULT 1,
+        current_hp INT NULL,                         -- player characters: HP carried over from the last finished combat; NULL means full
         hp_formula VARCHAR(64) NULL,                 -- e.g. '6d10 + 12' or 'special: equal to warlock HP'
         speeds JSON,                                 -- {type: INT} e.g. {walk: 30, fly: 60}
         size ENUM ('tiny', 'small', 'medium', 'large', 'huge', 'gargantuan') NOT NULL DEFAULT 'medium',

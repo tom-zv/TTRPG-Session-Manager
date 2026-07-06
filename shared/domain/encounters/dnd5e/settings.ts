@@ -40,6 +40,14 @@ export const ENTITY_SETTINGS = {
       help: "Changes this NPC everywhere, including existing encounters.",
     },
   },
+  party: {
+    member: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Party member",
+      help: "Added to an encounter with “Add party”.",
+    },
+  },
 } as const;
 
 export type EncounterSettings = ResolvedSettings<typeof ENCOUNTER_SETTINGS>;

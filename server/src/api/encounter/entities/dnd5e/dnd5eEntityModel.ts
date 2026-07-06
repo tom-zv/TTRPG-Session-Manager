@@ -415,7 +415,8 @@ export async function getAllEntities(connection: PoolConnection): Promise<DnD5eE
 
 export async function getEntitySummaries(): Promise<DnD5eEntitySummaryDB[]> {
   const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
-    `SELECT c.id, c.name, e.role, e.cr, e.hp
+    `SELECT c.id, c.name, e.role, e.cr, e.hp,
+            COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party
      FROM core.entities c
      JOIN dnd5e.entities e ON c.id = e.id
      ORDER BY c.name`
@@ -464,6 +465,7 @@ async function createDefaultEntityState(
 }
 
 export default {
+  saveCarriedHp,
   getCombatProfiles,
   patchSettings,
   getAllEntities,
@@ -480,6 +482,8 @@ export type EntityCombatProfile = {
   id: number;
   name: string;
   hp: number;
+  /** HP carried over from the last finished combat; null means full. Only kept for player characters. */
+  currentHp: number | null;
   role: DnD5eEntityDB["role"];
   settings: EntitySettings;
   controllerUserIds: number[];
@@ -488,7 +492,7 @@ export type EntityCombatProfile = {
 export async function getCombatProfiles(ids: number[]): Promise<EntityCombatProfile[]> {
   if (!ids.length) return [];
   const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
-    `SELECT e.id, c.name, e.hp, e.role, e.settings, ${CONTROLLER_IDS_SELECT} AS controller_user_ids
+    `SELECT e.id, c.name, e.hp, e.current_hp, e.role, e.settings, ${CONTROLLER_IDS_SELECT} AS controller_user_ids
      FROM dnd5e.entities e
      JOIN core.entities c ON c.id = e.id
      WHERE e.id IN (${ids.map(() => "?").join(",")})`, ids,
@@ -497,10 +501,19 @@ export async function getCombatProfiles(ids: number[]): Promise<EntityCombatProf
     id: row.id,
     name: row.name,
     hp: row.hp,
+    currentHp: row.current_hp ?? null,
     role: row.role,
     settings: readJsonObjectColumn(row.settings),
     controllerUserIds: readJsonNumberArrayColumn(row.controller_user_ids),
   }));
+}
+
+/** Store the HP a player character leaves an encounter with. */
+export async function saveCarriedHp(entityId: number, maxHp: number, currentHp: number): Promise<void> {
+  await dnd5ePool.execute(
+    "UPDATE dnd5e.entities SET hp = ?, current_hp = ? WHERE id = ?",
+    [maxHp, currentHp, entityId]
+  );
 }
 
 /** Merge just the settings row, without replacing any entity collections. */

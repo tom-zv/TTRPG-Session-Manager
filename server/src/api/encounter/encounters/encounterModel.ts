@@ -36,7 +36,8 @@ export async function insertEncounter(
 export async function getAllEncountersBySystem(systemName: SystemType): Promise<EncounterDB[]> {
   const query = `
     SELECT e.id, s.name as \`system\`, e.name, e.description, e.status, e.location, 
-        e.difficulty, e.gm_notes, e.created_at
+        e.difficulty, e.gm_notes, e.created_at,
+        (SELECT COALESCE(SUM(ee.copies), 0) FROM core.encounter_entities ee WHERE ee.encounter_id = e.id) AS entity_count
     FROM core.encounters e
     JOIN core.systems s ON s.id = e.system_id
     WHERE s.name = ?
@@ -100,8 +101,46 @@ export async function deleteEncounter(id: number): Promise<boolean> {
   return result.affectedRows > 0;
 }
 
+/**
+ * Record which entities an encounter uses, replacing what was recorded before.
+ * @param copiesByEntityId - number of copies in the encounter, per entity ID
+ */
+export async function replaceEncounterEntities(
+  encounterId: number,
+  copiesByEntityId: Map<number, number>
+): Promise<void> {
+  const connection = await corePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    await connection.execute("DELETE FROM core.encounter_entities WHERE encounter_id = ?", [encounterId]);
+    for (const [entityId, copies] of copiesByEntityId) {
+      await connection.execute(
+        "INSERT INTO core.encounter_entities (encounter_id, entity_id, copies) VALUES (?, ?, ?)",
+        [encounterId, entityId, copies]
+      );
+    }
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+/** Encounters that contain at least one copy of this entity. */
+export async function getEncounterIdsUsingEntity(entityId: number): Promise<number[]> {
+  const [rows] = await corePool.execute<RowDataPacket[]>(
+    "SELECT encounter_id FROM core.encounter_entities WHERE entity_id = ?",
+    [entityId]
+  );
+  return rows.map((row) => row.encounter_id as number);
+}
+
 export default {
   getSystemId,
+  replaceEncounterEntities,
+  getEncounterIdsUsingEntity,
   insertEncounter,
   getAllEncountersBySystem,
   getEncounterDetailsById,

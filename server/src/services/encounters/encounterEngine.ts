@@ -52,16 +52,22 @@ export abstract class BaseEncounterEngine<
         // Every operation is stored before it takes effect: a failed write leaves the engine
         // unchanged, and a restart never loses an acknowledged change.
         await this.persistSnapshot(draft);
-        const phaseChanged = draft.phase !== this.state.phase;
+        if (!sameCopies(this.entityCopies(this.state), this.entityCopies(draft))) {
+            await this.persistMembership(draft);
+        }
+        const previous = this.state;
         this.state = draft;
         this.rememberOperation(request.requestId, operation);
 
-        if (phaseChanged) {
-            // The status column only mirrors the phase for encounter lists, so a failed write
-            // must not undo an operation that is already stored.
-            await this.persistStatus(STATUS_BY_PHASE[draft.phase]).catch((error) => {
-                console.error(`Failed to update status of encounter ${draft.id}`, error);
-            });
+        // What follows is derived from the stored state (list status, carried-over values), so a
+        // failure here must not undo an operation that is already stored and acknowledged.
+        try {
+            if (draft.phase !== previous.phase) {
+                await this.persistStatus(STATUS_BY_PHASE[draft.phase]);
+            }
+            await this.afterCommit(previous, draft);
+        } catch (error) {
+            console.error(`Follow-up work failed for encounter ${draft.id}`, error);
         }
 
         return operation;
@@ -77,6 +83,7 @@ export abstract class BaseEncounterEngine<
      */
     async cleanup(): Promise<void> {
         await this.persistSnapshot(this.state);
+        await this.persistMembership(this.state);
     }
 
     private rememberOperation(requestId: string, operation: EncounterOperation): void {
@@ -92,7 +99,26 @@ export abstract class BaseEncounterEngine<
 
     protected abstract persistSnapshot(state: TState): Promise<void>;
 
+    /** How many copies of each entity (by entity ID) the state contains. */
+    protected abstract entityCopies(state: TState): Map<number, number>;
+
+    /** Keep core.encounter_entities in step with the state's membership. */
+    protected async persistMembership(state: TState): Promise<void> {
+        await encounterModel.replaceEncounterEntities(state.id, this.entityCopies(state));
+    }
+
+    /** System-specific follow-up after an operation is stored, for example carrying values over. */
+    protected async afterCommit(_previous: TState, _next: TState): Promise<void> {}
+
     protected async persistStatus(status: CoreEncounter["status"]): Promise<void> {
         await encounterModel.updateEncounter(this.state.id, { status });
     }
+}
+
+function sameCopies(a: Map<number, number>, b: Map<number, number>): boolean {
+    if (a.size !== b.size) return false;
+    for (const [entityId, copies] of a) {
+        if (b.get(entityId) !== copies) return false;
+    }
+    return true;
 }

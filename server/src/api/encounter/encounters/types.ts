@@ -15,6 +15,8 @@ export type EncounterDB = {
     difficulty: string,
     gm_notes: gm_note[],
     created_at: string,
+    /** Total entity copies in the encounter. Only selected by list queries. */
+    entity_count?: number | string,
 }
 
 export type EncounterInsertData = {
