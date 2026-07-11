@@ -28,8 +28,6 @@ const AppRouter: React.FC = () => {
               <Route index element={<Home />} />
               <Route path="sound-manager" element={<SoundManager />} />
               <Route path="encounter-manager" element={<EncounterManager />} />
-              {/* One encounter. The page itself is rendered by AppLayout; this makes the address valid. */}
-              <Route path="encounter-manager/:encounterId" element={null} />
               <Route path="notes" element={<Notes />} />
             </Route>
           </Route>

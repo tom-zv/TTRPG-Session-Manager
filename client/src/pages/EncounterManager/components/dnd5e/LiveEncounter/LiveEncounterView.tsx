@@ -30,10 +30,6 @@ type LiveEncounterProps = {
   onExit: () => void;
 };
 
-/**
- * The one view of an encounter. What it offers follows the encounter's phase: preparing it
- * (setup), running combat (running) or looking at the outcome (ended).
- */
 export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   system,
   encounterId,

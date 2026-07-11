@@ -16,8 +16,8 @@ export function usePageTransition() {
     if (location.pathname === '/') {
       pageId = 'home-page';
     } else {
-      // The first path segment names the page; deeper segments belong to that page.
-      pageId = `${location.pathname.split('/')[1]}-page`;
+      // Extract the route name without the leading slash
+      pageId = `${location.pathname.substring(1)}-page`;
     }
     
     const activePage = document.getElementById(pageId);
