@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import { FiEyeOff } from "react-icons/fi";
@@ -66,6 +66,9 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     setShowRemoveConfirm(false);
   }, []);
 
+  const rowRef = useRef<HTMLDivElement>(null);
+  const secondaryTriggerRef = useRef<HTMLButtonElement>(null);
+
   const handleToggleSecondaryActions = useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
     setShowSecondaryActions((previous) => !previous);
@@ -111,10 +114,12 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     isActive && styles.active,
     isSelected && styles.selected,
     vitalStatus && styles.down,
+    showSecondaryActions && canMutate && styles.trayOpen,
   ].filter(Boolean).join(" ");
 
   return (
     <div
+      ref={rowRef}
       className={rowClassName}
       onClick={(e) => {
         if (!isFromNestedControl(e)) handleSelectRow();
@@ -184,9 +189,11 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           ))}
           {canMutate && (
             <button
+              ref={secondaryTriggerRef}
               type="button"
               className={`${styles.secondaryToggleButton}${showSecondaryActions ? ` ${styles.secondaryToggleOpen}` : ""}`}
               onClick={handleToggleSecondaryActions}
+              aria-haspopup="dialog"
               aria-expanded={showSecondaryActions}
               aria-controls={secondaryActionsId}
               aria-label={`More actions for ${entityName}`}
@@ -242,6 +249,8 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           entity={entity}
           actions={actions}
           showMoveToGrave={isLive && !offerBurial}
+          anchorRef={rowRef}
+          triggerRef={secondaryTriggerRef}
           onClose={handleCloseSecondaryActions}
         />
       )}

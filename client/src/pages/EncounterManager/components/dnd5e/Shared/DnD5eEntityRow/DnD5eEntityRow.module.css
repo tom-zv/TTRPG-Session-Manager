@@ -443,32 +443,38 @@
   margin-left: auto;
 }
 
-.entityActionsSecondary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: var(--radius-sm);
-  border: 1px dashed color-mix(in srgb, var(--accent-secondary) 35%, var(--border-color) 65%);
-  background: color-mix(in srgb, var(--bg-secondary) 82%, var(--accent-secondary) 18%);
-  cursor: default;
+/* The row whose tray is open: echoes the tray's edge so the two read as one piece. */
+.entityRow.trayOpen {
+  border-color: color-mix(in srgb, var(--accent-secondary) 45%, var(--border-color) 55%);
 }
 
-.secondaryButtons {
+/* An option row in a tray (switches, a select). */
+.secondaryOption {
+  padding: 0.3rem 0.35rem;
+}
+
+/* A label and a compact select on one line. */
+.secondaryOptionInline {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  justify-content: space-between;
+  gap: 0.6rem;
   flex-wrap: wrap;
 }
 
-.secondaryOption {
-  padding-top: 0.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--border-color) 60%, transparent);
+.secondaryOptionLabel {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.secondaryOptionLabel {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+.secondaryOptionSelect {
+  flex: 0 1 9.5rem;
+  min-width: 0;
+  min-height: 2rem;
+  height: 2rem;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.82rem;
 }
 
 .inlineError {
@@ -596,11 +602,6 @@
     min-height: 2.2rem;
   }
 
-  .secondaryButtons {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-  }
 }
 
 @media (max-width: 520px) {
@@ -786,8 +787,7 @@
   justify-content: space-between;
   gap: 0.6rem;
   margin: 0;
-  padding-top: 0.55rem;
-  border-top: 1px dashed color-mix(in srgb, var(--success, #22c55e) 30%, var(--border-color) 70%);
+  padding: 0.35rem 0.4rem;
   cursor: default;
 }
 

@@ -23,7 +23,7 @@ export const NpcDeathSavesToggle: React.FC<{ entity: DnD5eEntity }> = ({ entity 
         checked={entity.settings?.combat?.deathSaves ?? false}
         disabled={mutation.isPending}
         onChange={(enabled) => mutation.mutate(enabled)}
-        label={`${setting.label} (all copies)`}
+        label={setting.label}
         help={setting.help}
       />
       {mutation.error && <p role="alert" className={styles.inlineError}>{mutation.error.message}</p>}

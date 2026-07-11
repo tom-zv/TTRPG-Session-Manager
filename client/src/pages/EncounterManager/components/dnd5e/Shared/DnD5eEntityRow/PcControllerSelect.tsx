@@ -27,18 +27,21 @@ export const PcControllerSelect: React.FC<{ entity: DnD5eEntity }> = ({ entity }
 
   return (
     <div className={styles.secondaryOption}>
-      <label htmlFor={selectId} className={styles.secondaryOptionLabel}>Played by</label>{" "}
-      <select
-        id={selectId}
-        value={current ?? ""}
-        disabled={!users || mutation.isPending}
-        onChange={(event) => mutation.mutate(event.target.value === "" ? null : Number(event.target.value))}
-      >
-        <option value="">GM only</option>
-        {players.map((user) => (
-          <option key={user.id} value={user.id}>{user.username}</option>
-        ))}
-      </select>
+      <div className={styles.secondaryOptionInline}>
+        <label htmlFor={selectId} className={styles.secondaryOptionLabel}>Played by</label>
+        <select
+          id={selectId}
+          className={styles.secondaryOptionSelect}
+          value={current ?? ""}
+          disabled={!users || mutation.isPending}
+          onChange={(event) => mutation.mutate(event.target.value === "" ? null : Number(event.target.value))}
+        >
+          <option value="">GM only</option>
+          {players.map((user) => (
+            <option key={user.id} value={user.id}>{user.username}</option>
+          ))}
+        </select>
+      </div>
       {error && <p role="alert" className={styles.inlineError}>{error.message}</p>}
     </div>
   );

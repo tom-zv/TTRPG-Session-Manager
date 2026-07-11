@@ -1,69 +1,79 @@
-import React, { useRef } from "react";
-import { FiEye, FiEyeOff } from "react-icons/fi";
+import React from "react";
+import { FiEye, FiEyeOff, FiTag } from "react-icons/fi";
 import { GiTombstone } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
-import { useEscapeWithin } from "src/pages/EncounterManager/hooks/useEscapeWithin.js";
+import { RowTray, RowTrayItem, RowTraySection } from "../RowTray/RowTray.js";
 import { NpcDeathSavesToggle } from "./NpcDeathSavesToggle.js";
 import { PcControllerSelect } from "./PcControllerSelect.js";
 import { PartyMemberToggle } from "./PartyMemberToggle.js";
-import styles from "./DnD5eEntityRow.module.css";
 
 type EntityRowSecondaryActionsProps = {
   id: string;
   entity: DnD5eEntity;
   actions: DnD5eEncounterActions;
-  /** Hide "Move to grave" when the primary actions already offer it. */
+  /** Hide "Move to grave" when the row already offers it, or outside combat. */
   showMoveToGrave: boolean;
-  onClose: () => void;
+  anchorRef: React.RefObject<HTMLElement | null>;
+  triggerRef: React.RefObject<HTMLElement | null>;
+  onClose: (returnFocus: boolean) => void;
 };
 
-/** Less frequent GM actions, opened from the row's ⋯ button. Escape closes it. */
+/**
+ * Less frequent GM actions, opened from the row's ⋯ button in a tray beside the row.
+ * Actions on this copy come first; options that change the entity everywhere are grouped
+ * under its template name.
+ */
 export const EntityRowSecondaryActions: React.FC<EntityRowSecondaryActionsProps> = ({
   id,
   entity,
   actions,
   showMoveToGrave,
+  anchorRef,
+  triggerRef,
   onClose,
 }) => {
-  const panelRef = useRef<HTMLDivElement>(null);
-  useEscapeWithin(panelRef, onClose);
+  const entityName = entity.displayName ?? entity.name;
+  const hasTemplateOptions = entity.role === "npc" || entity.role === "pc";
+
+  // Actions on this copy close the tray; template options stay open for further changes.
+  const runAndClose = (action: () => void) => {
+    action();
+    onClose(true);
+    triggerRef.current?.focus();
+  };
 
   return (
-    <div ref={panelRef} id={id} className={styles.entityActionsSecondary}>
-      <div className={styles.secondaryButtons}>
+    <RowTray id={id} label={`Actions for ${entityName}`} anchorRef={anchorRef} triggerRef={triggerRef} onClose={onClose}>
+      <RowTraySection title={entityName}>
         {showMoveToGrave && (
-          <button
-            type="button"
-            className={`${styles.actionButton} ${styles.buryButton}`}
-            onClick={() => {
-              actions.combat.moveToGrave(entity.instanceId);
-              onClose();
-            }}
+          <RowTrayItem
+            icon={<GiTombstone />}
+            tone="danger"
+            onClick={() => runAndClose(() => actions.combat.moveToGrave(entity.instanceId))}
           >
-            <GiTombstone aria-hidden="true" />
             Move to grave
-          </button>
+          </RowTrayItem>
         )}
-        <button
-          type="button"
-          className={styles.actionButton}
-          onClick={() => {
-            actions.combat.setHidden(entity.instanceId, !entity.hidden);
-            onClose();
-          }}
+        <RowTrayItem
+          icon={entity.hidden ? <FiEye /> : <FiEyeOff />}
+          onClick={() => runAndClose(() => actions.combat.setHidden(entity.instanceId, !entity.hidden))}
           title={entity.hidden ? "Show this entity to players" : "Stop showing this entity to players"}
         >
-          {entity.hidden ? <FiEye aria-hidden="true" /> : <FiEyeOff aria-hidden="true" />}
           {entity.hidden ? "Reveal to players" : "Hide from players"}
-        </button>
-        <button type="button" className={styles.actionButton} disabled title="Coming soon">
-          Condition
-        </button>
-      </div>
-      {entity.role === "npc" && <NpcDeathSavesToggle entity={entity} />}
-      {entity.role === "pc" && <PcControllerSelect entity={entity} />}
-      {entity.role === "pc" && <PartyMemberToggle entity={entity} />}
-    </div>
+        </RowTrayItem>
+        <RowTrayItem icon={<FiTag />} disabled badge="Soon">
+          Conditions
+        </RowTrayItem>
+      </RowTraySection>
+
+      {hasTemplateOptions && (
+        <RowTraySection title={`All copies of ${entity.name}`}>
+          {entity.role === "npc" && <NpcDeathSavesToggle entity={entity} />}
+          {entity.role === "pc" && <PcControllerSelect entity={entity} />}
+          {entity.role === "pc" && <PartyMemberToggle entity={entity} />}
+        </RowTraySection>
+      )}
+    </RowTray>
   );
 };

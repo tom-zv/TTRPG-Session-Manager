@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useId, useRef, useState } from "react";
 import { GiHeartBeats, GiTombstone } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { usesDeathSaves } from "shared/domain/encounters/dnd5e/settings.js";
@@ -7,6 +7,7 @@ import { DeathSaveTracker } from "./DeathSaveTracker.js";
 import { InlineConfirm } from "./InlineConfirm.js";
 import { RestoreFromGraveControl } from "./RestoreFromGraveControl.js";
 import { RowSelectionMarker } from "./RowSelectionMarker.js";
+import { RowTray } from "../RowTray/RowTray.js";
 import { isFromNestedControl } from "./rowEvents.js";
 import styles from "./DnD5eEntityRow.module.css";
 
@@ -36,6 +37,8 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
 }) => {
   const [panel, setPanel] = useState<"none" | "restore" | "remove">("none");
   const rowRef = useRef<HTMLDivElement>(null);
+  const restoreButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreTrayId = useId();
   const entityName = entity.displayName ?? entity.name;
   const showDeathSaves = usesDeathSaves(entity) && (entity.deathSaveSuccesses > 0 || entity.deathSaveFailures > 0);
 
@@ -43,16 +46,22 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
     onSelect?.(entity.instanceId);
   }, [onSelect, entity.instanceId]);
 
-  // The panel's controls unmount on close; keep keyboard focus on the row.
+  // The confirmation's controls unmount on close; keep keyboard focus on the row.
   const closePanel = useCallback(() => {
     setPanel("none");
     rowRef.current?.focus();
   }, []);
 
+  // The restore picker opens in a tray beside the row; its button stays, so focus goes back there.
+  const closeRestore = useCallback((returnFocus: boolean) => {
+    setPanel("none");
+    if (returnFocus) restoreButtonRef.current?.focus();
+  }, []);
+
   return (
     <div
       ref={rowRef}
-      className={`${styles.entityRow} ${styles.graveRow}${isSelected ? ` ${styles.selected}` : ""}`}
+      className={`${styles.entityRow} ${styles.graveRow}${isSelected ? ` ${styles.selected}` : ""}${panel === "restore" ? ` ${styles.trayOpen}` : ""}`}
       onClick={(event) => {
         if (!isFromNestedControl(event)) handleSelectRow();
       }}
@@ -88,15 +97,19 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
               }}
               onCancel={closePanel}
             />
-          ) : canMutate && panel === "none" ? (
+          ) : canMutate ? (
             <>
               <button
+                ref={restoreButtonRef}
                 type="button"
                 className={`${styles.actionButton} ${styles.restoreButton}`}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setPanel("restore");
+                  setPanel((current) => (current === "restore" ? "none" : "restore"));
                 }}
+                aria-haspopup="dialog"
+                aria-expanded={panel === "restore"}
+                aria-controls={panel === "restore" ? restoreTrayId : undefined}
                 title={`Return ${entityName} to initiative`}
                 aria-label={`Restore ${entityName} to initiative`}
               >
@@ -139,15 +152,25 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
       </div>
 
       {canMutate && panel === "restore" && (
-        <RestoreFromGraveControl
-          entityName={entityName}
-          maxHp={entity.maxHp}
-          onRestore={(hp) => {
-            setPanel("none");
-            onRestore(entity.instanceId, hp);
-          }}
-          onCancel={closePanel}
-        />
+        <RowTray
+          id={restoreTrayId}
+          label={`Restore ${entityName} to initiative`}
+          anchorRef={rowRef}
+          triggerRef={restoreButtonRef}
+          onClose={closeRestore}
+          focusFirstControl={false}
+          size="wide"
+        >
+          <RestoreFromGraveControl
+            entityName={entityName}
+            maxHp={entity.maxHp}
+            onRestore={(hp) => {
+              setPanel("none");
+              onRestore(entity.instanceId, hp);
+            }}
+            onCancel={() => closeRestore(true)}
+          />
+        </RowTray>
       )}
 
       {isSelected && <RowSelectionMarker isActive={false} isPinned={isPinned} onTogglePin={onTogglePin} />}
