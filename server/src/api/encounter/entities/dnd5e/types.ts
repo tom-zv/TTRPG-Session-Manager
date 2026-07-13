@@ -1,6 +1,11 @@
 
 import { CoreEntityDB, CoreEntitySummaryDB } from "../types.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
+import type {
+  SpellcastingDisplay,
+  SpellEntry,
+  SpellFrequencyGroup,
+} from "shared/domain/encounters/dnd5e/entity.js";
 
 export interface DamageModifierDB {
   damage_type: string;
@@ -29,21 +34,23 @@ export interface EntityActionDB {
 export interface SpellcastingLevelDB {
   level: number;
   slots?: number;
-  spells?: string[];
+  lower_level?: number;
+  spells: SpellEntry[];
 }
 
 // Represents a complete spellcasting ability after DB query
 export interface EntitySpellcastingDB {
   name: string;
-  display_as?: string;
+  display_as?: SpellcastingDisplay;
   ability?: string;           // spellcasting ability: 'int', 'wis', 'cha'
   save_dc?: number;
   spell_attack_bonus?: number;
   descriptions: string[];
+  hide_spell_list?: boolean;
   // slot-based spellcasting
   levels?: SpellcastingLevelDB[];
-  // Use-per-frequency based spellcasting
-  freq_spells?: { [freq: string]: string[]; };
+  // usage-based spellcasting, in display order
+  frequency_groups?: SpellFrequencyGroup[];
 }
 
 export interface DnD5eEntityDB extends CoreEntityDB {

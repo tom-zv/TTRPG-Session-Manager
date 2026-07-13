@@ -5,6 +5,9 @@ import type {
   EntityAction,
   EntitySpellcasting,
   EntityTrait,
+  SpellcastingLevel,
+  SpellFrequency,
+  SpellFrequencyGroup,
 } from "shared/domain/encounters/dnd5e/entity.js";
 import {
   ABILITY_KEYS,
@@ -146,41 +149,45 @@ export const formatSpellLevel = (level: number): string => {
   return `${level}${getOrdinalSuffix(level)} level`;
 };
 
-export const formatSpellFrequency = (frequency: string): string => {
-  const normalized = frequency.trim().toLowerCase();
-  if (!normalized) return frequency;
-  if (normalized === "will" || normalized === "at will") return "At will";
-  if (normalized === "constant") return "Constant";
-
-  const legacyDailyMatch = normalized.match(/^(\d+)(e?)$/);
-  if (legacyDailyMatch) {
-    return `${legacyDailyMatch[1]}/day${legacyDailyMatch[2] ? " each" : ""}`;
-  }
-
-  const underscoreIndex = normalized.indexOf("_");
-  const kind = underscoreIndex >= 0 ? normalized.slice(0, underscoreIndex) : normalized;
-  const detail = underscoreIndex >= 0 ? normalized.slice(underscoreIndex + 1) : undefined;
-
-  if (!detail) return titleCase(kind);
-  if (kind === "ritual") return `Ritual (${detail})`;
-
-  const period = getFrequencyPeriod(kind);
-  const detailMatch = detail.match(/^(\d+)(e?)$/);
-  if (period && detailMatch) {
-    return `${detailMatch[1]}/${period}${detailMatch[2] ? " each" : ""}`;
-  }
-
-  return `${titleCase(kind)} ${detail}`;
+export const formatSpellLevelLabel = (level: SpellcastingLevel): string => {
+  const levels = level.lowerLevel != null && level.lowerLevel < level.level
+    ? `${level.lowerLevel}${getOrdinalSuffix(level.lowerLevel)}–${level.level}${getOrdinalSuffix(level.level)} level`
+    : formatSpellLevel(level.level);
+  if (level.slots == null) return levels;
+  return `${levels} (${level.slots} slot${level.slots === 1 ? "" : "s"})`;
 };
 
-export const sortSpellFrequencyEntries = (
-  left: [string, string[]],
-  right: [string, string[]]
-): number => {
-  const leftOrder = getFrequencySortOrder(left[0]);
-  const rightOrder = getFrequencySortOrder(right[0]);
-  if (leftOrder !== rightOrder) return leftOrder - rightOrder;
-  return left[0].localeCompare(right[0]);
+const FREQUENCY_PERIODS: Partial<Record<SpellFrequency, string>> = {
+  rest: "rest",
+  restLong: "long rest",
+  daily: "day",
+  weekly: "week",
+  monthly: "month",
+  yearly: "year",
+};
+
+// "At will", "2/day each", "1/long rest", "Recharge 5–6", "3 charges each", "Ritual"
+export const formatSpellFrequencyGroup = ({ frequency, count, each }: SpellFrequencyGroup): string => {
+  const eachSuffix = each ? " each" : "";
+  const period = FREQUENCY_PERIODS[frequency];
+  if (period) return count != null ? `${count}/${period}${eachSuffix}` : `Per ${period}`;
+
+  switch (frequency) {
+    case "will":
+      return "At will";
+    case "constant":
+      return "Constant";
+    case "ritual":
+      return "Ritual";
+    case "recharge":
+      return count == null || count >= 6 ? "Recharge 6" : `Recharge ${count}–6`;
+    case "charges":
+      return count != null ? `${count} charge${count === 1 ? "" : "s"}${eachSuffix}` : "Charges";
+    case "legendary":
+      return "Legendary action";
+    default:
+      return titleCase(frequency);
+  }
 };
 
 export const buildEntitySections = (entity: DnD5eEntityDetails): EntityCardSection[] => {
@@ -315,28 +322,4 @@ const getOrdinalSuffix = (num: number): string => {
   if (ones === 2 && tens !== 12) return "nd";
   if (ones === 3 && tens !== 13) return "rd";
   return "th";
-};
-
-const getFrequencyPeriod = (kind: string): string | undefined => {
-  switch (kind) {
-    case "daily":
-      return "day";
-    case "weekly":
-      return "week";
-    case "rest":
-      return "rest";
-    default:
-      return undefined;
-  }
-};
-
-const getFrequencySortOrder = (frequency: string): number => {
-  const normalized = frequency.trim().toLowerCase();
-  if (normalized === "constant") return 0;
-  if (normalized === "will" || normalized === "at will") return 1;
-  if (normalized.startsWith("rest")) return 2;
-  if (normalized.startsWith("daily") || /^\d+e?$/.test(normalized)) return 3;
-  if (normalized.startsWith("weekly")) return 4;
-  if (normalized.startsWith("ritual")) return 5;
-  return Number.MAX_SAFE_INTEGER;
 };

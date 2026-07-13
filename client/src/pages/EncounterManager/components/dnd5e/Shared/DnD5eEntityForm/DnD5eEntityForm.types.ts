@@ -1,4 +1,4 @@
-import type { DnD5eEntityDetails, EntitySpellcasting, SpellcastingLevel } from "shared/domain/encounters/dnd5e/entity.js";
+import type { DnD5eEntityDetails, SpellFrequency } from "shared/domain/encounters/dnd5e/entity.js";
 import type { AbilityKey } from "../dnd5eUtils.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 
@@ -62,8 +62,23 @@ export type SpellcastingDraft = {
   saveDc: string;
   spellAttackBonus: string;
   descriptionsText: string;
-  levels?: SpellcastingLevel[];
-  freqSpells?: EntitySpellcasting["freqSpells"];
+  showSpellList: boolean;
+  spellGroups: SpellGroupDraft[];
+};
+
+export type SpellGroupKind = "level" | SpellFrequency;
+
+// One editable spell list: a slot level or a usage frequency.
+export type SpellGroupDraft = {
+  id: string;
+  kind: SpellGroupKind;
+  level: string;          // kind "level": 0-9
+  slots: string;          // kind "level"
+  lowerLevel?: number;    // pact magic, kept from the stored entity (not edited)
+  count: string;          // counted frequencies: uses, or lowest recharge roll
+  each: boolean;
+  spellsText: string;     // one spell per line: "Fireball (level 5 version)"
+  sources: Record<string, string>;  // lower-cased spell name -> source book, kept from the stored entity
 };
 
 export type PassivePerceptionMode = "auto" | "manual";

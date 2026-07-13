@@ -338,3 +338,61 @@
     justify-content: flex-start;
   }
 }
+
+.spellGroups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.spellGroupsHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--text-secondary, #b9c0cf);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.spellGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem;
+  border: 1px solid color-mix(in srgb, var(--border-color, #3c4354) 62%, transparent);
+  border-radius: 6px;
+}
+
+.spellGroupControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.spellGroupControls > :first-child {
+  flex: 1 1 11rem;
+}
+
+.spellGroupControls > :not(:first-child):not(.spellGroupCheckbox):not(.spellGroupRemove) {
+  flex: 0 1 7.5rem;
+}
+
+.spellGroupCheckbox {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  min-height: var(--form-control-height, 2.2rem);
+  color: var(--text-secondary, #b9c0cf);
+  font-size: 0.84rem;
+}
+
+.spellGroupCheckbox small {
+  color: var(--text-tertiary, #8b93a5);
+}
+
+.spellGroupRemove {
+  margin-left: auto;
+}

@@ -655,7 +655,14 @@ test("NPC form round-trips death-save settings alongside the full entity snapsho
     settings: { combat: { deathSaves: true } },
     traits: [{ name: "Brave", description: "Advantage against fear." }],
     actions: [{ name: "Sword", actionType: "action", description: "A sword attack." }],
-    spellcasting: [{ name: "Magic", descriptions: ["Innate magic"], freqSpells: { will: ["Light"] } }],
+    spellcasting: [{
+      name: "Magic", descriptions: ["Innate magic"], displayAs: "bonus action", hideSpellList: true,
+      levels: [{ level: 3, slots: 2, lowerLevel: 1, spells: [{ name: "Fly", source: "XPHB" }] }],
+      frequencyGroups: [
+        { frequency: "will", spells: [{ name: "Light", source: "XPHB" }, { name: "Mage Armor", note: "included in AC" }] },
+        { frequency: "daily", count: 2, each: true, spells: [{ name: "Fireball", source: "XPHB", note: "level 5 version" }] },
+      ],
+    }],
   };
   const draft = createEntityDraft(npc);
   draft.settings.combat!.deathSaves = false;
@@ -666,5 +673,6 @@ test("NPC form round-trips death-save settings alongside the full entity snapsho
   assert.equal(parsed.entity.settings?.combat?.deathSaves, false);
   assert.equal(parsed.entity.traits?.[0].name, "Brave");
   assert.equal(parsed.entity.actions?.[0].name, "Sword");
-  assert.deepEqual(parsed.entity.spellcasting?.[0].freqSpells, { will: ["Light"] });
+  // Spell lists, notes, sources and pact magic levels survive the form unchanged.
+  assert.deepEqual(JSON.parse(JSON.stringify(parsed.entity.spellcasting)), npc.spellcasting);
 });

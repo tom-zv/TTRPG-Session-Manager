@@ -101,10 +101,12 @@ CREATE TABLE
         id INT AUTO_INCREMENT PRIMARY KEY,
         entity_id INT NOT NULL,
         name VARCHAR(64) NOT NULL DEFAULT 'Spellcasting',
-        display_as VARCHAR(32) DEFAULT NULL,         -- 'action', NULL, etc.
+        display_as VARCHAR(32) DEFAULT NULL,         -- 'trait','action','bonus action','reaction','legendary'; NULL = own Spellcasting section
         ability CHAR(3) NULL,                        -- spellcasting ability: 'int', 'wis', 'cha'
         save_dc TINYINT NULL,
         spell_attack_bonus TINYINT NULL,
+        hide_spell_list TINYINT(1) NOT NULL DEFAULT 0, -- descriptions already name the spells (5etools 'hidden')
+        sort_order SMALLINT NOT NULL DEFAULT 0,
         CONSTRAINT fk_entity_spellcasting_entity FOREIGN KEY (entity_id) REFERENCES dnd5e.entities (id) ON DELETE CASCADE
     );
 CREATE TABLE IF NOT EXISTS dnd5e.entity_spellcasting_descriptions (
@@ -120,20 +122,23 @@ CREATE TABLE IF NOT EXISTS dnd5e.entity_spell_slots (
     spellcasting_id INT NOT NULL,
     spell_level INT NOT NULL,  -- 0 for cantrips
     slots INT,  -- NULL for cantrips
+    lower_level TINYINT NULL,  -- pact magic: slots cover lower_level..spell_level
     PRIMARY KEY (spellcasting_id, spell_level),
     CONSTRAINT fk_spell_slots_spellcasting FOREIGN KEY (spellcasting_id) REFERENCES dnd5e.entity_spellcasting (id) ON DELETE CASCADE
 );
 
--- Modified table for all spell entries, supporting both formats
+-- Spell entries for both slot-based (spell_level) and usage-based (usage_freq) casting
 CREATE TABLE IF NOT EXISTS dnd5e.entity_spells (
     id INT AUTO_INCREMENT PRIMARY KEY,
     spellcasting_id INT NOT NULL,
     spell_name VARCHAR(64) NOT NULL,  -- TODO reference spells table when implemented
+    spell_source VARCHAR(16) NULL,    -- source book, e.g. 'XPHB'
+    note VARCHAR(512) NULL,           -- e.g. 'level 5 version', 'self only'
     spell_level INT,
     -- For usage-based casting
-    usage_freq VARCHAR(32),  -- 'will', 'daily', etc. NULL for slot-based
-    usage_detail VARCHAR(32),  -- '1e' (1-each), '2', NULL for slot-based or 'will'
-    
-    UNIQUE(spellcasting_id, spell_name, spell_level, usage_freq, usage_detail),
+    usage_freq VARCHAR(32),  -- 'will', 'daily', 'restLong', 'recharge', 'legendary', etc. NULL for slot-based
+    usage_detail VARCHAR(32),  -- count plus optional 'e' (each): '1e', '2'; recharge minimum or legendary cost; NULL for 'will'
+    sort_order SMALLINT NOT NULL DEFAULT 0,
+    INDEX idx_entity_spells_spellcasting (spellcasting_id),
     CONSTRAINT fk_entity_spells_spellcasting FOREIGN KEY (spellcasting_id) REFERENCES dnd5e.entity_spellcasting (id) ON DELETE CASCADE
 );

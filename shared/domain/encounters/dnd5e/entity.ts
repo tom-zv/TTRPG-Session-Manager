@@ -24,26 +24,73 @@ export interface EntityAction {
   sortOrder?: number;
 }
 
-// Represents spell slots for a particular level
+// Usage-based spellcasting frequencies, in stat block display order (5etools keys).
+export const SPELL_FREQUENCIES = [
+  "constant",
+  "will",
+  "rest",
+  "restLong",
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+  "recharge",
+  "charges",
+  "legendary",
+  "ritual",
+] as const;
+export type SpellFrequency = typeof SPELL_FREQUENCIES[number];
+
+// Frequencies whose groups carry no count (the spell list is not limited per period).
+export const UNCOUNTED_SPELL_FREQUENCIES: readonly SpellFrequency[] = ["constant", "will", "ritual"];
+
+// Where a spellcasting block is listed on the stat block; undefined means its own "Spellcasting" section.
+export const SPELLCASTING_DISPLAYS = ["trait", "action", "bonus action", "reaction", "legendary"] as const;
+export type SpellcastingDisplay = typeof SPELLCASTING_DISPLAYS[number];
+
+export interface SpellEntry {
+  name: string;
+  source?: string;          // source book, e.g. 'XPHB'
+  note?: string;            // e.g. 'level 5 version', 'self only'
+}
+
+// Spell slots and spells for one spell level (0 = cantrips)
 export interface SpellcastingLevel {
   level: number;
   slots?: number;
-  spells?: string[];
+  lowerLevel?: number;      // pact magic: slots cover lowerLevel..level
+  spells: SpellEntry[];
+}
+
+export interface SpellFrequencyGroup {
+  frequency: SpellFrequency;
+  // Meaning depends on frequency: uses per period (daily, rest, charges...),
+  // or lowest recharge roll (recharge 5 = 5-6). For legendary it is uses, always 1.
+  count?: number;
+  each?: boolean;           // count applies to each spell ('1/day each')
+  spells: SpellEntry[];
 }
 
 // Represents a complete spellcasting ability
 export interface EntitySpellcasting {
   name: string;
-  displayAs?: string;
+  displayAs?: SpellcastingDisplay;
   ability?: string;        // spellcasting ability: 'int', 'wis', 'cha'
   saveDc?: number;
   spellAttackBonus?: number;
   descriptions: string[];
+  hideSpellList?: boolean; // the descriptions already name the spells
   // slot-based spellcasting
   levels?: SpellcastingLevel[];
-  // Usage-based spellcasting
-  freqSpells?: { [freq: string]: string[] };  // e.g., 'at will', '1e' (1-each), '2'
+  // usage-based spellcasting, in display order
+  frequencyGroups?: SpellFrequencyGroup[];
 }
+
+export const isSpellFrequency = (value: unknown): value is SpellFrequency =>
+  typeof value === "string" && (SPELL_FREQUENCIES as readonly string[]).includes(value);
+
+export const isSpellcastingDisplay = (value: unknown): value is SpellcastingDisplay =>
+  typeof value === "string" && (SPELLCASTING_DISPLAYS as readonly string[]).includes(value);
 
 export interface DnD5eEntityDetails extends CoreEntity {
   settings?: EntitySettings;

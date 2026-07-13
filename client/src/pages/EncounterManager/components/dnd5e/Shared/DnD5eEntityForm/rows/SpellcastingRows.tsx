@@ -16,6 +16,7 @@ import type {
   AbilityScoresDraft,
   SpellcastingDraft,
 } from "../DnD5eEntityForm.types.js";
+import { SpellGroupRows } from "./SpellGroupRows.js";
 import styles from "./DnD5eEntityFormRows.module.css";
 
 type SpellcastingRowsProps = {
@@ -151,6 +152,20 @@ const SpellcastingCard: React.FC<{
           aria-describedby={error ? errorId : undefined}
         />
       </FormField>
+      <SpellGroupRows
+        blockId={row.id}
+        groups={row.spellGroups}
+        onChange={(spellGroups) => onUpdate(row.id, { spellGroups })}
+      />
+      <label className={styles.spellGroupCheckbox}>
+        <input
+          type="checkbox"
+          checked={row.showSpellList}
+          onChange={(event) => onUpdate(row.id, { showSpellList: event.target.checked })}
+        />
+        Show spell lists on the stat block
+        <small> Turn off when the description already names the spells.</small>
+      </label>
       {error && (
         <div id={errorId} className={styles.rowError}>
           {error}

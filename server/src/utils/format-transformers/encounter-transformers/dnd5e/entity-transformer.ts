@@ -1,5 +1,5 @@
-import { DnD5eEntityUpdateDB, DnD5eEntitySummaryDB, DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
-import { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
+import { DnD5eEntityUpdateDB, DnD5eEntitySummaryDB, DnD5eEntityDB, EntitySpellcastingDB } from "src/api/encounter/entities/dnd5e/types.js";
+import { DnD5eEntityDetails, DnD5eEntitySummary, EntitySpellcasting } from "shared/domain/encounters/dnd5e/entity.js";
 import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonColumn.js";
 
 export function dnd5eEntityToUpdateDb(entity: DnD5eEntityDetails): DnD5eEntityUpdateDB {
@@ -36,16 +36,7 @@ export function dnd5eEntityToUpdateDb(entity: DnD5eEntityDetails): DnD5eEntityUp
 
     traits: entity.traits?.map((t, i) => ({ name: t.name, description: t.description, sort_order: t.sortOrder ?? i })),
     actions: entity.actions?.map((a, i) => ({ name: a.name, description: a.description, action_type: a.actionType, sort_order: a.sortOrder ?? i })),
-    spellcasting: entity.spellcasting?.map(sc => ({
-      name: sc.name,
-      display_as: sc.displayAs,
-      ability: sc.ability,
-      save_dc: sc.saveDc,
-      spell_attack_bonus: sc.spellAttackBonus,
-      descriptions: sc.descriptions,
-      levels: sc.levels?.map(l => ({ level: l.level, slots: l.slots, spells: l.spells })),
-      freq_spells: sc.freqSpells,
-    })),
+    spellcasting: entity.spellcasting?.map(spellcastingToDb),
   };
 }
 
@@ -84,16 +75,7 @@ export function dnd5eEntityDbToDomain(db: DnD5eEntityDB): DnD5eEntityDetails {
 
     traits: db.traits?.map(t => ({ name: t.name, description: t.description, sortOrder: t.sort_order })),
     actions: db.actions?.map(a => ({ name: a.name, description: a.description, actionType: a.action_type, sortOrder: a.sort_order })),
-    spellcasting: db.spellcasting?.map(sc => ({
-      name: sc.name,
-      displayAs: sc.display_as,
-      ability: sc.ability,
-      saveDc: sc.save_dc,
-      spellAttackBonus: sc.spell_attack_bonus,
-      descriptions: sc.descriptions,
-      levels: sc.levels?.map(l => ({ level: l.level, slots: l.slots, spells: l.spells })),
-      freqSpells: sc.freq_spells,
-    })),
+    spellcasting: db.spellcasting?.map(spellcastingDbToDomain),
   };
 }
 
@@ -130,16 +112,7 @@ export function dnd5eEntityToInsertDb(entity: DnD5eEntityDetails): Omit<DnD5eEnt
 
     traits: entity.traits?.map((t, i) => ({ name: t.name, description: t.description, sort_order: t.sortOrder ?? i })) ?? [],
     actions: entity.actions?.map((a, i) => ({ name: a.name, description: a.description, action_type: a.actionType, sort_order: a.sortOrder ?? i })) ?? [],
-    spellcasting: entity.spellcasting?.map(sc => ({
-      name: sc.name,
-      display_as: sc.displayAs,
-      ability: sc.ability,
-      save_dc: sc.saveDc,
-      spell_attack_bonus: sc.spellAttackBonus,
-      descriptions: sc.descriptions,
-      levels: sc.levels?.map(l => ({ level: l.level, slots: l.slots, spells: l.spells })),
-      freq_spells: sc.freqSpells,
-    })) ?? [],
+    spellcasting: entity.spellcasting?.map(spellcastingToDb) ?? [],
   };
 }
 
@@ -151,5 +124,33 @@ export function dnd5eEntitySummaryDbToDomain(db: DnD5eEntitySummaryDB): DnD5eEnt
     role: db.role,
     cr: db.cr,
     inParty: Boolean(db.in_party),
+  };
+}
+
+function spellcastingToDb(sc: EntitySpellcasting): EntitySpellcastingDB {
+  return {
+    name: sc.name,
+    display_as: sc.displayAs,
+    ability: sc.ability,
+    save_dc: sc.saveDc,
+    spell_attack_bonus: sc.spellAttackBonus,
+    descriptions: sc.descriptions,
+    hide_spell_list: sc.hideSpellList,
+    levels: sc.levels?.map(l => ({ level: l.level, slots: l.slots, lower_level: l.lowerLevel, spells: l.spells })),
+    frequency_groups: sc.frequencyGroups,
+  };
+}
+
+function spellcastingDbToDomain(sc: EntitySpellcastingDB): EntitySpellcasting {
+  return {
+    name: sc.name,
+    displayAs: sc.display_as,
+    ability: sc.ability,
+    saveDc: sc.save_dc,
+    spellAttackBonus: sc.spell_attack_bonus,
+    descriptions: sc.descriptions,
+    hideSpellList: sc.hide_spell_list,
+    levels: sc.levels?.map(l => ({ level: l.level, slots: l.slots, lowerLevel: l.lower_level, spells: l.spells })),
+    frequencyGroups: sc.frequency_groups,
   };
 }

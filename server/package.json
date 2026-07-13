@@ -12,6 +12,7 @@
     "build": "tsc && tsc-alias",
     "test:downloads": "npm run build && node --import tsx tests/fileDownload.test.ts && node --import tsx tests/downloadWorker.test.ts",
     "test:encounters": "node --import tsx tests/encounterGraves.test.ts",
+    "test:dnd5etools": "node --import tsx tests/dnd5etoolsSpellcasting.test.ts",
     "watch": "tsc -w",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"

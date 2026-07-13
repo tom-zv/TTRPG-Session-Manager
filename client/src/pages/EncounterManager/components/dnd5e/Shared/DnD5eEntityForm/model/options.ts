@@ -3,14 +3,14 @@ import type {
   DamageModifier,
   DnD5eEntityDetails,
   EntityAction,
-  EntitySpellcasting,
+  SpellcastingDisplay,
 } from "shared/domain/encounters/dnd5e/entity.js";
 import {
   ABILITY_FULL_NAMES,
   ABILITY_KEYS,
   type AbilityKey,
 } from "../../dnd5eUtils.js";
-import type { RecordOption } from "../DnD5eEntityForm.types.js";
+import type { RecordOption, SpellGroupKind } from "../DnD5eEntityForm.types.js";
 
 type LabeledOption<Value extends string = string> = {
   value: Value;
@@ -176,17 +176,33 @@ export const ACTION_TYPE_OPTIONS = [
   { value: "villain", label: "Villain" },
 ] satisfies Array<LabeledOption<EntityAction["actionType"]>>;
 
+// "" keeps the block in its own Spellcasting section (stored as no displayAs).
 export const SPELLCASTING_DISPLAY_OPTIONS = [
-  { value: "spellcasting", label: "Spellcasting" },
+  { value: "", label: "Spellcasting" },
   { value: "trait", label: "Trait" },
   { value: "action", label: "Action" },
   { value: "bonus action", label: "Bonus Action" },
   { value: "reaction", label: "Reaction" },
-] satisfies Array<LabeledOption<NonNullable<EntitySpellcasting["displayAs"]>>>;
+  { value: "legendary", label: "Legendary" },
+] satisfies Array<LabeledOption<"" | SpellcastingDisplay>>;
 
 export const SPELLCASTING_ABILITY_OPTIONS = [
   { value: "", label: "None" },
-  { value: "int", label: "Intelligence" },
-  { value: "wis", label: "Wisdom" },
-  { value: "cha", label: "Charisma" },
+  ...ABILITY_KEYS.map((ability) => ({ value: ability, label: ABILITY_FULL_NAMES[ability] })),
 ] satisfies Array<LabeledOption<"" | AbilityKey>>;
+
+export const SPELL_GROUP_KIND_OPTIONS = [
+  { value: "level", label: "Spell level (slots)" },
+  { value: "will", label: "At will" },
+  { value: "constant", label: "Constant" },
+  { value: "daily", label: "Per day" },
+  { value: "rest", label: "Per rest" },
+  { value: "restLong", label: "Per long rest" },
+  { value: "weekly", label: "Per week" },
+  { value: "monthly", label: "Per month" },
+  { value: "yearly", label: "Per year" },
+  { value: "recharge", label: "Recharge" },
+  { value: "charges", label: "Charges" },
+  { value: "legendary", label: "Legendary action" },
+  { value: "ritual", label: "Ritual" },
+] satisfies Array<LabeledOption<SpellGroupKind>>;

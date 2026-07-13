@@ -7,9 +7,16 @@ import {
   EntityTraitDB,
   EntityActionDB,
   EntitySpellcastingDB,
+  SpellcastingLevelDB,
 } from "./types.js";
 import { RowDataPacket, PoolConnection, ExecuteValues } from "mysql2/promise";
-import { DnD5eEntityState } from "shared/domain/encounters/dnd5e/entity.js";
+import {
+  DnD5eEntityState,
+  isSpellcastingDisplay,
+  isSpellFrequency,
+  type SpellEntry,
+  type SpellFrequencyGroup,
+} from "shared/domain/encounters/dnd5e/entity.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 import { mergeSettings } from "shared/domain/encounters/settings.js";
 import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonColumn.js";
@@ -101,67 +108,113 @@ async function fetchActions(pool: PoolConnection | typeof dnd5ePool, entityId: n
   return rows as EntityActionDB[];
 }
 
-async function fetchSpellcasting(pool: PoolConnection | typeof dnd5ePool, entityId: number): Promise<EntitySpellcastingDB[]> {
+// Spellcasting for several entities in four queries, keyed by entity id; blocks and spells keep their stored order.
+async function fetchSpellcastingForEntities(
+  pool: PoolConnection | typeof dnd5ePool,
+  entityIds: number[]
+): Promise<Map<number, EntitySpellcastingDB[]>> {
+  const result = new Map<number, EntitySpellcastingDB[]>();
+  if (entityIds.length === 0) return result;
+
+  const entityPlaceholders = entityIds.map(() => '?').join(',');
   const [scRows] = await pool.execute<RowDataPacket[]>(
-    `SELECT id, name, display_as, ability, save_dc, spell_attack_bonus
-     FROM dnd5e.entity_spellcasting WHERE entity_id = ?`,
-    [entityId]
+    `SELECT id, entity_id, name, display_as, ability, save_dc, spell_attack_bonus, hide_spell_list
+     FROM dnd5e.entity_spellcasting WHERE entity_id IN (${entityPlaceholders})
+     ORDER BY entity_id, sort_order, id`,
+    entityIds
   );
-  if (scRows.length === 0) return [];
+  if (scRows.length === 0) return result;
 
-  const result: EntitySpellcastingDB[] = [];
-  for (const sc of scRows) {
-    const scId = sc.id as number;
+  const scIds = scRows.map(row => row.id as number);
+  const scPlaceholders = scIds.map(() => '?').join(',');
+  const [descRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT spellcasting_id, description FROM dnd5e.entity_spellcasting_descriptions
+     WHERE spellcasting_id IN (${scPlaceholders}) ORDER BY spellcasting_id, description_order`,
+    scIds
+  );
+  const [slotRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT spellcasting_id, spell_level, slots, lower_level FROM dnd5e.entity_spell_slots
+     WHERE spellcasting_id IN (${scPlaceholders}) ORDER BY spellcasting_id, spell_level`,
+    scIds
+  );
+  const [spellRows] = await pool.execute<RowDataPacket[]>(
+    `SELECT spellcasting_id, spell_name, spell_source, note, spell_level, usage_freq, usage_detail
+     FROM dnd5e.entity_spells WHERE spellcasting_id IN (${scPlaceholders})
+     ORDER BY spellcasting_id, sort_order, id`,
+    scIds
+  );
 
-    const [descRows] = await pool.execute<RowDataPacket[]>(
-      `SELECT description FROM dnd5e.entity_spellcasting_descriptions
-       WHERE spellcasting_id = ? ORDER BY description_order`,
-      [scId]
-    );
+  const blocks = new Map<number, {
+    descriptions: string[];
+    levels: Map<number, SpellcastingLevelDB>;
+    groups: Map<string, SpellFrequencyGroup>;
+  }>();
+  for (const sc of scRows) blocks.set(sc.id as number, { descriptions: [], levels: new Map(), groups: new Map() });
 
-    const [slotRows] = await pool.execute<RowDataPacket[]>(
-      `SELECT spell_level, slots FROM dnd5e.entity_spell_slots WHERE spellcasting_id = ? ORDER BY spell_level`,
-      [scId]
-    );
+  for (const row of descRows) blocks.get(row.spellcasting_id as number)?.descriptions.push(row.description as string);
 
-    const [spellRows] = await pool.execute<RowDataPacket[]>(
-      `SELECT spell_name, spell_level, usage_freq, usage_detail
-       FROM dnd5e.entity_spells WHERE spellcasting_id = ?`,
-      [scId]
-    );
-
-    // Build slot-based levels
-    const levelMap = new Map<number, { slots?: number; spells: string[] }>();
-    for (const slot of slotRows) {
-      levelMap.set(slot.spell_level as number, { slots: slot.slots as number | undefined, spells: [] });
-    }
-    // Attach slot-based spells
-    const freqSpells: { [freq: string]: string[] } = {};
-    for (const spell of spellRows) {
-      if (spell.usage_freq) {
-        const key = spell.usage_detail ? `${spell.usage_freq}_${spell.usage_detail}` : spell.usage_freq as string;
-        if (!freqSpells[key]) freqSpells[key] = [];
-        freqSpells[key].push(spell.spell_name as string);
-      } else if (spell.spell_level != null) {
-        const entry = levelMap.get(spell.spell_level as number);
-        if (entry) entry.spells.push(spell.spell_name as string);
-      }
-    }
-
-    result.push({
-      name: sc.name as string,
-      display_as: sc.display_as as string | undefined,
-      ability: sc.ability as string | undefined,
-      save_dc: sc.save_dc as number | undefined,
-      spell_attack_bonus: sc.spell_attack_bonus as number | undefined,
-      descriptions: descRows.map(d => d.description as string),
-      levels: levelMap.size > 0
-        ? Array.from(levelMap.entries()).map(([level, data]) => ({ level, slots: data.slots, spells: data.spells }))
-        : undefined,
-      freq_spells: Object.keys(freqSpells).length > 0 ? freqSpells : undefined,
+  for (const row of slotRows) {
+    blocks.get(row.spellcasting_id as number)?.levels.set(row.spell_level as number, {
+      level: row.spell_level as number,
+      slots: (row.slots as number | null) ?? undefined,
+      lower_level: (row.lower_level as number | null) ?? undefined,
+      spells: [],
     });
   }
+
+  for (const row of spellRows) {
+    const block = blocks.get(row.spellcasting_id as number);
+    if (!block) continue;
+    const spell: SpellEntry = {
+      name: row.spell_name as string,
+      ...(row.spell_source ? { source: row.spell_source as string } : {}),
+      ...(row.note ? { note: row.note as string } : {}),
+    };
+
+    if (row.usage_freq && isSpellFrequency(row.usage_freq)) {
+      const detail = (row.usage_detail as string | null) ?? '';
+      const key = `${row.usage_freq}_${detail}`;
+      if (!block.groups.has(key)) {
+        block.groups.set(key, { frequency: row.usage_freq, ...parseUsageDetail(detail), spells: [] });
+      }
+      block.groups.get(key)!.spells.push(spell);
+    } else if (row.spell_level != null) {
+      block.levels.get(row.spell_level as number)?.spells.push(spell);
+    }
+  }
+
+  for (const sc of scRows) {
+    const entityId = sc.entity_id as number;
+    const block = blocks.get(sc.id as number)!;
+    const levels = Array.from(block.levels.values());
+    const groups = Array.from(block.groups.values());
+    if (!result.has(entityId)) result.set(entityId, []);
+    result.get(entityId)!.push({
+      name: sc.name as string,
+      display_as: isSpellcastingDisplay(sc.display_as) ? sc.display_as : undefined,
+      ability: (sc.ability as string | null) ?? undefined,
+      save_dc: (sc.save_dc as number | null) ?? undefined,
+      spell_attack_bonus: (sc.spell_attack_bonus as number | null) ?? undefined,
+      descriptions: block.descriptions,
+      hide_spell_list: Boolean(sc.hide_spell_list) || undefined,
+      levels: levels.length > 0 ? levels : undefined,
+      frequency_groups: groups.length > 0 ? groups : undefined,
+    });
+  }
+
   return result;
+}
+
+// usage_detail '2e' <-> { count: 2, each: true }
+function parseUsageDetail(detail: string): Pick<SpellFrequencyGroup, 'count' | 'each'> {
+  const match = detail.match(/^(\d+)(e?)$/);
+  if (!match) return {};
+  return { count: Number(match[1]), ...(match[2] ? { each: true } : {}) };
+}
+
+function formatUsageDetail(group: SpellFrequencyGroup): string | null {
+  if (group.count == null) return null;
+  return `${group.count}${group.each ? 'e' : ''}`;
 }
 
 // Attach all join-table data onto an entity object in place
@@ -177,7 +230,7 @@ async function hydrateEntity(
   entity.vulnerabilities     = await fetchDamageModifiers(pool, 'entity_vulnerabilities', id);
   entity.traits              = await fetchTraits(pool, id);
   entity.actions             = await fetchActions(pool, id);
-  entity.spellcasting        = await fetchSpellcasting(pool, id);
+  entity.spellcasting        = (await fetchSpellcastingForEntities(pool, [id])).get(id) ?? [];
 }
 
 // ─── Write helpers ────────────────────────────────────────────────────────────
@@ -240,11 +293,16 @@ async function upsertSpellcasting(conn: PoolConnection, entityId: number, spellc
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.entity_spellcasting WHERE entity_id = ?`, [entityId]);
   if (!spellcasting || spellcasting.length === 0) return;
 
-  for (const sc of spellcasting) {
+  for (let scIndex = 0; scIndex < spellcasting.length; scIndex++) {
+    const sc = spellcasting[scIndex];
     const [result] = await conn.execute<import("mysql2").ResultSetHeader>(
-      `INSERT INTO dnd5e.entity_spellcasting (entity_id, name, display_as, ability, save_dc, spell_attack_bonus)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [entityId, sc.name, sc.display_as ?? null, sc.ability ?? null, sc.save_dc ?? null, sc.spell_attack_bonus ?? null]
+      `INSERT INTO dnd5e.entity_spellcasting
+         (entity_id, name, display_as, ability, save_dc, spell_attack_bonus, hide_spell_list, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        entityId, sc.name, sc.display_as ?? null, sc.ability ?? null, sc.save_dc ?? null,
+        sc.spell_attack_bonus ?? null, sc.hide_spell_list ? 1 : 0, scIndex,
+      ]
     );
     const scId = result.insertId;
 
@@ -255,34 +313,27 @@ async function upsertSpellcasting(conn: PoolConnection, entityId: number, spellc
       );
     }
 
-    if (sc.levels) {
-      for (const lvl of sc.levels) {
-        await conn.execute(
-          `INSERT INTO dnd5e.entity_spell_slots (spellcasting_id, spell_level, slots) VALUES (?, ?, ?)`,
-          [scId, lvl.level, lvl.slots ?? null]
-        );
-        for (const spellName of lvl.spells ?? []) {
-          await conn.execute(
-            `INSERT INTO dnd5e.entity_spells (spellcasting_id, spell_name, spell_level) VALUES (?, ?, ?)`,
-            [scId, spellName, lvl.level]
-          );
-        }
-      }
+    // One running sort_order per block keeps level spells and frequency groups in stored order.
+    let spellOrder = 0;
+    const insertSpell = (spell: SpellEntry, level: number | null, freq: string | null, detail: string | null) =>
+      conn.execute(
+        `INSERT INTO dnd5e.entity_spells
+           (spellcasting_id, spell_name, spell_source, note, spell_level, usage_freq, usage_detail, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [scId, spell.name, spell.source ?? null, spell.note ?? null, level, freq, detail, spellOrder++]
+      );
+
+    for (const lvl of sc.levels ?? []) {
+      await conn.execute(
+        `INSERT INTO dnd5e.entity_spell_slots (spellcasting_id, spell_level, slots, lower_level) VALUES (?, ?, ?, ?)`,
+        [scId, lvl.level, lvl.slots ?? null, lvl.lower_level ?? null]
+      );
+      for (const spell of lvl.spells ?? []) await insertSpell(spell, lvl.level, null, null);
     }
 
-    if (sc.freq_spells) {
-      for (const [freqKey, spells] of Object.entries(sc.freq_spells)) {
-        // freqKey format: 'will' | 'daily_1e' | 'daily_2' etc.
-        const underscoreIdx = freqKey.indexOf('_');
-        const freq   = underscoreIdx >= 0 ? freqKey.slice(0, underscoreIdx) : freqKey;
-        const detail = underscoreIdx >= 0 ? freqKey.slice(underscoreIdx + 1) : null;
-        for (const spellName of spells) {
-          await conn.execute(
-            `INSERT INTO dnd5e.entity_spells (spellcasting_id, spell_name, usage_freq, usage_detail) VALUES (?, ?, ?, ?)`,
-            [scId, spellName, freq, detail]
-          );
-        }
-      }
+    for (const group of sc.frequency_groups ?? []) {
+      const detail = formatUsageDetail(group);
+      for (const spell of group.spells) await insertSpell(spell, null, group.frequency, detail);
     }
   }
 }
@@ -385,6 +436,7 @@ export async function getEntitiesByIds(entityIds: number[]): Promise<DnD5eEntity
   const immuneMap   = byId(immuneRows,  r => ({ damage_type: r.damage_type, condition_note: r.condition_note } as DamageModifierDB));
   const vulnMap     = byId(vulnRows,    r => ({ damage_type: r.damage_type, condition_note: r.condition_note } as DamageModifierDB));
   const traitMap    = byId(traitRows,   r => ({ name: r.name, description: r.description, sort_order: r.sort_order } as EntityTraitDB));
+  const spellcastingMap = await fetchSpellcastingForEntities(dnd5ePool, entityIds);
   const actionMap   = byId(actionRows,  r => ({ name: r.name, description: r.description, action_type: r.action_type, sort_order: r.sort_order } as EntityActionDB));
 
   for (const entity of entities) {
@@ -395,8 +447,7 @@ export async function getEntitiesByIds(entityIds: number[]): Promise<DnD5eEntity
     entity.vulnerabilities     = vulnMap.get(entity.id)     ?? [];
     entity.traits              = traitMap.get(entity.id)    ?? [];
     entity.actions             = actionMap.get(entity.id)   ?? [];
-    // Spellcasting fetched individually (complex multi-table shape)
-    entity.spellcasting        = await fetchSpellcasting(dnd5ePool, entity.id);
+    entity.spellcasting        = spellcastingMap.get(entity.id) ?? [];
   }
 
   return entities;

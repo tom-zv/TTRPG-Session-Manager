@@ -5,6 +5,7 @@ import type {
   EntityAction,
   EntitySpellcasting,
   EntityTrait,
+  SpellEntry,
 } from "shared/domain/encounters/dnd5e/entity.js";
 import { ABILITY_KEYS } from "../../dnd5eUtils.js";
 import type {
@@ -16,6 +17,8 @@ import type {
   RecordEntryDraft,
   SpeedDraft,
   SpellcastingDraft,
+  SpellGroupDraft,
+  SpellGroupKind,
   TextEntryDraft,
 } from "../DnD5eEntityForm.types.js";
 import { DEFAULT_ABILITY_SCORES } from "./calculations.js";
@@ -64,11 +67,24 @@ export const createBlankAction = (actionType = "action"): ActionEntryDraft => ({
 export const createBlankSpellcasting = (): SpellcastingDraft => ({
   id: createRowId("spellcasting"),
   name: "Spellcasting",
-  displayAs: "spellcasting",
+  displayAs: "",
   ability: "",
   saveDc: "",
   spellAttackBonus: "",
   descriptionsText: "",
+  showSpellList: true,
+  spellGroups: [createBlankSpellGroup()],
+});
+
+export const createBlankSpellGroup = (kind: SpellGroupKind = "will"): SpellGroupDraft => ({
+  id: createRowId("spell-group"),
+  kind,
+  level: kind === "level" ? "1" : "",
+  slots: "",
+  count: "",
+  each: false,
+  spellsText: "",
+  sources: {},
 });
 
 export const createEntityDraft = (
@@ -178,6 +194,34 @@ const spellcastingToRows = (
     spellAttackBonus:
       entry.spellAttackBonus != null ? String(entry.spellAttackBonus) : "",
     descriptionsText: entry.descriptions?.join("\n") ?? "",
-    levels: entry.levels,
-    freqSpells: entry.freqSpells,
+    showSpellList: !entry.hideSpellList,
+    spellGroups: [
+      ...(entry.levels ?? []).map((level, groupIndex) => ({
+        ...spellsToGroupText(level.spells),
+        id: `spell-group-${index}-level-${groupIndex}`,
+        kind: "level" as const,
+        level: String(level.level),
+        slots: level.slots != null ? String(level.slots) : "",
+        lowerLevel: level.lowerLevel,
+        count: "",
+        each: false,
+      })),
+      ...(entry.frequencyGroups ?? []).map((group, groupIndex) => ({
+        ...spellsToGroupText(group.spells),
+        id: `spell-group-${index}-${group.frequency}-${groupIndex}`,
+        kind: group.frequency,
+        level: "",
+        slots: "",
+        count: group.count != null ? String(group.count) : "",
+        each: group.each ?? false,
+      })),
+    ],
   }));
+
+// One spell per line as "Name (note)"; sources are kept aside so editing the text does not lose them.
+const spellsToGroupText = (spells: SpellEntry[]): Pick<SpellGroupDraft, "spellsText" | "sources"> => ({
+  spellsText: spells.map((spell) => (spell.note ? `${spell.name} (${spell.note})` : spell.name)).join("\n"),
+  sources: Object.fromEntries(
+    spells.filter((spell) => spell.source).map((spell) => [spell.name.toLowerCase(), spell.source!])
+  ),
+});

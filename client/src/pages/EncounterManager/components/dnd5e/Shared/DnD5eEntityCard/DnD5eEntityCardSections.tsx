@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import type {
   DnD5eEntityDetails,
   EntitySpellcasting,
+  SpellEntry,
 } from "shared/domain/encounters/dnd5e/entity.js";
 import {
   ABILITY_FULL_NAMES,
@@ -20,9 +21,8 @@ import {
   formatSignedNumber,
   formatSignedValue,
   formatSpeeds,
-  formatSpellFrequency,
-  formatSpellLevel,
-  sortSpellFrequencyEntries,
+  formatSpellFrequencyGroup,
+  formatSpellLevelLabel,
   titleCase,
 } from "./DnD5eEntityCard.utils.js";
 import styles from "./DnD5eEntityCard.module.css";
@@ -250,10 +250,11 @@ type SpellcastingEntryProps = {
 const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) => {
   const meta = formatSpellcastingMeta(spellcasting);
   const descriptions = spellcasting.descriptions ?? [];
-  const levels = [...(spellcasting.levels ?? [])].sort((left, right) => left.level - right.level);
-  const frequencySpells = spellcasting.freqSpells
-    ? Object.entries(spellcasting.freqSpells).sort(sortSpellFrequencyEntries)
-    : [];
+  // A hidden list is already named in the descriptions ("The mage casts Misty Step...").
+  const levels = spellcasting.hideSpellList
+    ? []
+    : [...(spellcasting.levels ?? [])].sort((left, right) => left.level - right.level);
+  const frequencyGroups = spellcasting.hideSpellList ? [] : spellcasting.frequencyGroups ?? [];
 
   return (
     <div className={styles.entryBlock}>
@@ -272,20 +273,20 @@ const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) =
         </p>
       ))}
       {meta && <p className={styles.spellcastingMeta}>{meta}</p>}
-      {(levels.length > 0 || frequencySpells.length > 0) && (
+      {(levels.length > 0 || frequencyGroups.length > 0) && (
         <div className={styles.spellList}>
           {levels.map((level) => (
             <SpellListLine
               key={level.level}
-              label={`${formatSpellLevel(level.level)}${formatSpellSlots(level.slots)}`}
-              spells={level.spells ?? []}
+              label={formatSpellLevelLabel(level)}
+              spells={level.spells}
             />
           ))}
-          {frequencySpells.map(([frequency, spells]) => (
+          {frequencyGroups.map((group, index) => (
             <SpellListLine
-              key={frequency}
-              label={formatSpellFrequency(frequency)}
-              spells={spells}
+              key={`${index}-${group.frequency}-${group.count ?? ""}`}
+              label={formatSpellFrequencyGroup(group)}
+              spells={group.spells}
             />
           ))}
         </div>
@@ -296,7 +297,7 @@ const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) =
 
 type SpellListLineProps = {
   label: string;
-  spells: string[];
+  spells: SpellEntry[];
 };
 
 const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
@@ -305,18 +306,19 @@ const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
   return (
     <div className={styles.spellListLine}>
       <span className={styles.spellListLabel}>{label}:</span>{" "}
-      <span className={styles.spellListSpells}>{spells.join(", ")}</span>
+      {spells.map((spell, index) => (
+        <React.Fragment key={`${index}-${spell.name}`}>
+          {index > 0 && ", "}
+          <span className={styles.spellListSpells}>{spell.name}</span>
+          {spell.note && <span className={styles.spellNote}> ({spell.note})</span>}
+        </React.Fragment>
+      ))}
     </div>
   );
 };
 
 const formatEntryName = (name: string): string =>
   /[.!?]$/.test(name.trim()) ? name.trim() : `${name.trim()}.`;
-
-const formatSpellSlots = (slots: number | undefined): string => {
-  if (slots === undefined) return "";
-  return ` (${slots} slot${slots === 1 ? "" : "s"})`;
-};
 
 const formatSpellcastingMeta = (spellcasting: EntitySpellcasting): string => {
   const meta = [

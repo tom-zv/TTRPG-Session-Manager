@@ -53,7 +53,8 @@ export function combineNotes(...notes: Array<string | undefined>): string | unde
 function renderTag(tag: string, body: string): string {
   switch (tag.toLowerCase()) {
     case "hit":
-      return `${body.startsWith("+") || body.startsWith("-") ? body : `+${body}`} to hit`;
+      // The source text supplies any "to hit" wording ("{@hit 9}, reach 5 ft." / "{@hit 9} to hit with spell attacks").
+      return body.startsWith("+") || body.startsWith("-") ? body : `+${body}`;
     case "dc":
       return `DC ${body}`;
     case "damage":
