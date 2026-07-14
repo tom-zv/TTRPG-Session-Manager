@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS dnd5e.entity_spell_slots (
 CREATE TABLE IF NOT EXISTS dnd5e.entity_spells (
     id INT AUTO_INCREMENT PRIMARY KEY,
     spellcasting_id INT NOT NULL,
-    spell_name VARCHAR(64) NOT NULL,  -- TODO reference spells table when implemented
+    spell_name VARCHAR(64) NOT NULL,  -- matches dnd5e.spells by name + source (no FK: either side may be imported first)
     spell_source VARCHAR(16) NULL,    -- source book, e.g. 'XPHB'
     note VARCHAR(512) NULL,           -- e.g. 'level 5 version', 'self only'
     spell_level INT,

@@ -5,12 +5,14 @@ import {
   transformDnd5eToolsMonster,
 } from "src/utils/dnd5etools/monster-transformer.js";
 import type { Dnd5eToolsImportMode } from "src/services/dnd5etools/dnd5eToolsImportService.js";
+import type { Dnd5eToolsEntityImportPayload } from "src/utils/dnd5etools/types.js";
 
 interface CliOptions {
   file?: string;
   dryRun: boolean;
   mode: Dnd5eToolsImportMode;
   continueOnError: boolean;
+  checkSpells: boolean;
   help: boolean;
 }
 
@@ -47,6 +49,7 @@ async function main(): Promise<void> {
     }
 
     if (transformed.length > 10) console.log(`... ${transformed.length - 10} more monster(s) omitted from preview.`);
+    if (options.checkSpells) await checkSpellReferences(transformed, true);
     return;
   }
 
@@ -76,6 +79,7 @@ async function main(): Promise<void> {
     }
 
     if (result.failed > 0) process.exitCode = 1;
+    if (options.checkSpells) await checkSpellReferences(monsters.map(transformDnd5eToolsMonster), false);
   } finally {
     await closeDnd5eToolsImportPools();
   }
@@ -86,6 +90,7 @@ function parseArgs(args: string[]): CliOptions {
     dryRun: false,
     mode: "upsert",
     continueOnError: false,
+    checkSpells: false,
     help: false,
   };
 
@@ -105,6 +110,9 @@ function parseArgs(args: string[]): CliOptions {
         break;
       case "--continue-on-error":
         options.continueOnError = true;
+        break;
+      case "--check-spells":
+        options.checkSpells = true;
         break;
       case "--help":
       case "-h":
@@ -142,8 +150,32 @@ Options:
   --dry-run              Parse and preview without touching MySQL.
   --mode <mode>          insert, upsert, or skip. Defaults to upsert.
   --continue-on-error    Keep importing after a per-monster failure.
+  --check-spells         List spell references that match no spell in dnd5e.spells
+                         (reads the database, also with --dry-run).
   --help                 Show this help.
 `);
+}
+
+// Spell list entries and inline {@spell} tags that resolve to no imported spell.
+async function checkSpellReferences(transformed: Dnd5eToolsEntityImportPayload[], closePools: boolean): Promise<void> {
+  const { dnd5ePool } = await import("src/db.js");
+  const { fetchSpellRefIndex } = await import("src/api/encounter/spells/spellModel.js");
+  const { findUnresolvedSpellRefs } = await import("src/utils/dnd5etools/spell-references.js");
+
+  try {
+    const spells = await fetchSpellRefIndex(dnd5ePool);
+    const unresolved = findUnresolvedSpellRefs(transformed.map(item => item.entity), spells);
+    console.log(`Spell check: ${spells.length} spell(s) in the database; ${unresolved.length} unresolved reference(s).`);
+    for (const ref of unresolved) {
+      const where = ref.entities.slice(0, 3).join(", ") + (ref.entities.length > 3 ? `, +${ref.entities.length - 3} more` : "");
+      console.log(`unresolved: ${ref.name}${ref.source ? ` [${ref.source}]` : ""} (${where})`);
+    }
+  } finally {
+    if (closePools) {
+      const { closeDnd5eToolsImportPools } = await import("src/services/dnd5etools/dnd5eToolsImportService.js");
+      await closeDnd5eToolsImportPools();
+    }
+  }
 }
 
 main().catch(error => {

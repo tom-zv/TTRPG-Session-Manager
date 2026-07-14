@@ -1,7 +1,12 @@
 import { ABILITY_NAMES } from "./constants.js";
 import { asArray, asString, isRecord } from "./primitives.js";
 
-export function renderDnd5eToolsText(value: string): string {
+export interface RenderOptions {
+  // Tags written back in canonical form instead of rendered, e.g. ["spell"] -> "{@spell Fireball|XPHB}".
+  keepTags?: readonly string[];
+}
+
+export function renderDnd5eToolsText(value: string, options: RenderOptions = {}): string {
   return value
     .replace(/\{@h\}/gi, "Hit: ")
     .replace(/\{@recharge(?: ([^}]+))?\}/gi, (_match, recharge: string | undefined) => {
@@ -9,7 +14,7 @@ export function renderDnd5eToolsText(value: string): string {
       return `(Recharge ${min ? `${min}-6` : "6"})`;
     })
     .replace(/\{@([a-zA-Z0-9]+)(?: ([^{}]*?))?\}/g, (_match, tag: string, body = "") => {
-      return renderTag(tag, body);
+      return options.keepTags?.includes(tag.toLowerCase()) ? keepTag(tag, body) : renderTag(tag, body);
     })
     .replace(/\s+/g, " ")
     .replace(/\s+([,.;:)])/g, "$1")
@@ -17,26 +22,26 @@ export function renderDnd5eToolsText(value: string): string {
     .trim();
 }
 
-export function renderEntryList(value: unknown): string[] {
+export function renderEntryList(value: unknown, options: RenderOptions = {}): string[] {
   return asArray(value)
-    .map(renderEntry)
+    .map(entry => renderEntry(entry, options))
     .filter(entry => entry.length > 0);
 }
 
-export function renderEntry(value: unknown): string {
-  if (typeof value === "string") return renderDnd5eToolsText(value);
+export function renderEntry(value: unknown, options: RenderOptions = {}): string {
+  if (typeof value === "string") return renderDnd5eToolsText(value, options);
   if (typeof value === "number") return String(value);
-  if (Array.isArray(value)) return value.map(renderEntry).filter(Boolean).join("\n");
+  if (Array.isArray(value)) return value.map(entry => renderEntry(entry, options)).filter(Boolean).join("\n");
   if (!isRecord(value)) return "";
 
   const name = asString(value.name);
   const prefix = name ? `${renderDnd5eToolsText(name)}. ` : "";
 
-  if (value.entries !== undefined) return `${prefix}${renderEntryList(value.entries).join("\n")}`.trim();
-  if (value.entry !== undefined) return `${prefix}${renderEntry(value.entry)}`.trim();
-  if (value.items !== undefined) return `${prefix}${renderEntryList(value.items).join("\n")}`.trim();
-  if (value.rows !== undefined) return `${prefix}${renderRows(value.rows)}`.trim();
-  if (value.caption !== undefined) return renderDnd5eToolsText(String(value.caption));
+  if (value.entries !== undefined) return `${prefix}${renderEntryList(value.entries, options).join("\n")}`.trim();
+  if (value.entry !== undefined) return `${prefix}${renderEntry(value.entry, options)}`.trim();
+  if (value.items !== undefined) return `${prefix}${renderEntryList(value.items, options).join("\n")}`.trim();
+  if (value.rows !== undefined) return `${prefix}${renderRows(value.rows, options)}`.trim();
+  if (value.caption !== undefined) return renderDnd5eToolsText(String(value.caption), options);
 
   return "";
 }
@@ -44,10 +49,21 @@ export function renderEntry(value: unknown): string {
 export function combineNotes(...notes: Array<string | undefined>): string | undefined {
   const combined = notes
     .filter((note): note is string => Boolean(note))
-    .map(renderDnd5eToolsText)
+    .map(note => renderDnd5eToolsText(note))
     .join(" ");
 
   return combined || undefined;
+}
+
+// "{@spell fireball|xphb|Fireball}" -> "{@spell fireball|xphb|Fireball}"; "{@spell Fireball||Fireball}" -> "{@spell Fireball}"
+function keepTag(tag: string, body: string): string {
+  const [name = "", source = "", display = ""] = body.split("|").map(part => part.trim());
+  if (!name) return "";
+  const parts = [name];
+  const hasDisplay = display !== "" && display !== name;
+  if (source || hasDisplay) parts.push(source);
+  if (hasDisplay) parts.push(display);
+  return `{@${tag.toLowerCase()} ${parts.join("|")}}`;
 }
 
 function renderTag(tag: string, body: string): string {
@@ -59,9 +75,18 @@ function renderTag(tag: string, body: string): string {
       return `DC ${body}`;
     case "damage":
     case "dice":
+      return pipePart(body, 0);
     case "scaledice":
     case "scaledamage":
-      return firstPipePart(body);
+      // {@scaledamage 8d6|3-9|1d6}: base dice | slot levels | amount added per level
+      return pipePart(body, 2) || pipePart(body, 0);
+    case "chance":
+      // {@chance 25|||Random reading!|Regular reading}
+      return `${pipePart(body, 0)} percent`;
+    case "book":
+    case "filter":
+      // {@book display|source|chapter|section}, {@filter display|page|filters...}
+      return pipePart(body, 0);
     case "atkr":
       return renderAttackTag(body);
     case "actsave":
@@ -73,7 +98,8 @@ function renderTag(tag: string, body: string): string {
     case "actsavesuccessorfail":
       return "Success or Failure:";
     default:
-      return renderGenericTagBody(body);
+      // {@tag name|source|display}
+      return pipePart(body, 2) || pipePart(body, 0);
   }
 }
 
@@ -88,19 +114,13 @@ function renderAttackTag(body: string): string {
   return "Attack:";
 }
 
-function renderGenericTagBody(body: string): string {
-  const parts = body.split("|").map(part => part.trim()).filter(Boolean);
-  if (parts.length >= 3) return parts[2];
-  return parts[0] ?? "";
+function pipePart(value: string, index: number): string {
+  return value.split("|")[index]?.trim() ?? "";
 }
 
-function firstPipePart(value: string): string {
-  return value.split("|")[0]?.trim() ?? "";
-}
-
-function renderRows(value: unknown): string {
+function renderRows(value: unknown, options: RenderOptions): string {
   return asArray(value)
-    .map(row => Array.isArray(row) ? row.map(renderEntry).join(" | ") : renderEntry(row))
+    .map(row => Array.isArray(row) ? row.map(cell => renderEntry(cell, options)).join(" | ") : renderEntry(row, options))
     .filter(Boolean)
     .join("\n");
 }

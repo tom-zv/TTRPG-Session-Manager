@@ -26,6 +26,8 @@ import {
   titleCase,
 } from "./DnD5eEntityCard.utils.js";
 import styles from "./DnD5eEntityCard.module.css";
+// Monster text keeps {@spell} tags; shown as plain names until spell links render them.
+import { stripInlineTags } from "shared/domain/dnd5e/richText.js";
 
 type EntitySectionProps = {
   entity: DnD5eEntityDetails;
@@ -203,7 +205,7 @@ const LegendaryIntro: React.FC<EntitySectionProps> = ({ entity }) => {
       <>
         {entity.legendaryHeader.map((description, index) => (
           <p key={`${index}-${description}`} className={styles.sectionIntro}>
-            {description}
+            {stripInlineTags(description)}
           </p>
         ))}
       </>
@@ -239,7 +241,7 @@ type TextEntryProps = {
 const TextEntry: React.FC<TextEntryProps> = ({ name, description }) => (
   <p className={styles.entry}>
     <strong className={styles.entryName}>{formatEntryName(name)}</strong>{" "}
-    <span className={styles.entryText}>{description}</span>
+    <span className={styles.entryText}>{stripInlineTags(description)}</span>
   </p>
 );
 
@@ -263,13 +265,13 @@ const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) =
         {descriptions.length > 0 && (
           <>
             {" "}
-            <span className={styles.entryText}>{descriptions[0]}</span>
+            <span className={styles.entryText}>{stripInlineTags(descriptions[0])}</span>
           </>
         )}
       </p>
       {descriptions.slice(1).map((description, index) => (
         <p key={`${index}-${description}`} className={styles.entryText}>
-          {description}
+          {stripInlineTags(description)}
         </p>
       ))}
       {meta && <p className={styles.spellcastingMeta}>{meta}</p>}

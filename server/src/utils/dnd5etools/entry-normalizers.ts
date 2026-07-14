@@ -2,6 +2,7 @@ import type { EntityActionDB, EntityTraitDB } from "src/api/encounter/entities/d
 import type { Dnd5eToolsMonster } from "./types.js";
 import { asArray, asString, fitField, isRecord, titleCase } from "./primitives.js";
 import { renderDnd5eToolsText, renderEntry, renderEntryList } from "./text-renderer.js";
+import { MONSTER_TEXT_OPTIONS } from "./constants.js";
 
 export function normalizeActions(monster: Dnd5eToolsMonster, warnings: string[]): EntityActionDB[] {
   const actionSections: Array<{ field: string; actionType: string }> = [
@@ -34,14 +35,14 @@ export function normalizeNamedEntries(value: unknown, fieldName: string, warning
     if (isRecord(entry)) {
       return {
         name: fitField(renderDnd5eToolsText(asString(entry.name) ?? titleCase(fieldName)), 64, `${fieldName} name`, warnings),
-        description: renderEntryList(entry.entries ?? entry.entry).join("\n"),
+        description: renderEntryList(entry.entries ?? entry.entry, MONSTER_TEXT_OPTIONS).join("\n"),
         sort_order: index,
       };
     }
 
     return {
       name: fitField(titleCase(fieldName), 64, `${fieldName} name`, warnings),
-      description: renderEntry(entry),
+      description: renderEntry(entry, MONSTER_TEXT_OPTIONS),
       sort_order: index,
     };
   }).filter(entry => entry.description.length > 0 || entry.name.length > 0);

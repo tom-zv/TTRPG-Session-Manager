@@ -25,6 +25,7 @@ import {
   normalizeConditionImmunities,
   normalizeDamageModifiers,
 } from "./modifier-normalizers.js";
+import { MONSTER_TEXT_OPTIONS } from "./constants.js";
 import { normalizeSpellcasting } from "./spellcasting-normalizer.js";
 import { buildTags } from "./tag-normalizer.js";
 import { asArray, asNumber, asString, fitField } from "./primitives.js";
@@ -79,7 +80,7 @@ export function transformDnd5eToolsMonster(monster: Dnd5eToolsMonster): Dnd5eToo
     actions: normalizeActions(monster, warnings),
     spellcasting: normalizeSpellcasting(monster.spellcasting, warnings),
     legendary_action_count: normalizeLegendaryActionCount(monster, legendaryActions),
-    legendary_header: normalizeStringArray(monster.legendaryHeader),
+    legendary_header: normalizeStringArray(monster.legendaryHeader, MONSTER_TEXT_OPTIONS),
   };
 
   return {

@@ -9,10 +9,11 @@
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
     "import:dnd5etools": "tsx src/scripts/import-dnd5etools-entities.ts",
+    "import:dnd5etools:spells": "tsx src/scripts/import-dnd5etools-spells.ts",
     "build": "tsc && tsc-alias",
     "test:downloads": "npm run build && node --import tsx tests/fileDownload.test.ts && node --import tsx tests/downloadWorker.test.ts",
     "test:encounters": "node --import tsx tests/encounterGraves.test.ts",
-    "test:dnd5etools": "node --import tsx tests/dnd5etoolsSpellcasting.test.ts",
+    "test:dnd5etools": "node --import tsx tests/dnd5etoolsSpellcasting.test.ts && node --import tsx tests/dnd5etoolsSpells.test.ts",
     "watch": "tsc -w",
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix"

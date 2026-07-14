@@ -2,7 +2,7 @@ import type { DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
 import type { Dnd5eToolsMonster } from "./types.js";
 import { ALIGNMENT_NAMES, SIZE_NAMES } from "./constants.js";
 import { asArray, asNumber, asString, fitField, isRecord, parseFirstNumber, unique } from "./primitives.js";
-import { renderDnd5eToolsText, renderEntry } from "./text-renderer.js";
+import { renderDnd5eToolsText, renderEntry, type RenderOptions } from "./text-renderer.js";
 
 export function normalizeImageUrl(monster: Dnd5eToolsMonster, warnings: string[]): string | undefined {
   const url = asString(monster.tokenUrl) ?? asString(monster.imageUrl) ?? asString(monster.image_url);
@@ -123,12 +123,12 @@ export function normalizeStringRecord(value: unknown): Record<string, string> | 
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
 
-export function normalizeStringArray(value: unknown): string[] | undefined {
+export function normalizeStringArray(value: unknown, options: RenderOptions = {}): string[] | undefined {
   const values = asArray(value)
     .map(item => {
-      if (typeof item === "string") return renderDnd5eToolsText(item);
+      if (typeof item === "string") return renderDnd5eToolsText(item, options);
       if (typeof item === "number") return String(item);
-      if (isRecord(item)) return renderEntry(item);
+      if (isRecord(item)) return renderEntry(item, options);
       return undefined;
     })
     .filter((item): item is string => Boolean(item));

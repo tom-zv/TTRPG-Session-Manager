@@ -9,7 +9,7 @@ import {
   type SpellFrequency,
   type SpellFrequencyGroup,
 } from "shared/domain/encounters/dnd5e/entity.js";
-import { ABILITY_NAMES } from "./constants.js";
+import { ABILITY_NAMES, MONSTER_TEXT_OPTIONS } from "./constants.js";
 import { asArray, asNumber, asString, fitField, isRecord, uniqueBy } from "./primitives.js";
 import { renderDnd5eToolsText, renderEntryList } from "./text-renderer.js";
 
@@ -56,9 +56,9 @@ const SPELL_NOTE_MAX = 512;
 export function normalizeSpellcasting(value: unknown, warnings: string[]): EntitySpellcastingDB[] {
   return asArray(value).filter(isRecord).map((spellcasting, index) => {
     const rawDescriptions = [
-      ...renderEntryList(spellcasting.headerEntries),
-      ...renderEntryList(spellcasting.entries),
-      ...renderEntryList(spellcasting.footerEntries),
+      ...renderEntryList(spellcasting.headerEntries, MONSTER_TEXT_OPTIONS),
+      ...renderEntryList(spellcasting.entries, MONSTER_TEXT_OPTIONS),
+      ...renderEntryList(spellcasting.footerEntries, MONSTER_TEXT_OPTIONS),
     ];
     const descriptionText = rawDescriptions.join(" ");
     const name = renderDnd5eToolsText(asString(spellcasting.name) ?? "Spellcasting");
