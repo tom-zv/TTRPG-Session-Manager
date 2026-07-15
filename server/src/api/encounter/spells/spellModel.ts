@@ -1,5 +1,5 @@
 import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import type { SpellTagDB, SpellWriteDB } from "./types.js";
+import type { SpellDB, SpellTagDB, SpellWriteDB } from "./types.js";
 
 type Queryable = Pool | PoolConnection;
 
@@ -92,4 +92,88 @@ export async function fetchSpellRefIndex(
     source: row.source as string,
     aliases: aliasesById.get(row.id as number) ?? [],
   }));
+}
+
+const mapSpellRow = (row: RowDataPacket): SpellDB => ({
+  id: row.id as number,
+  name: row.name as string,
+  source: row.source as string,
+  page: row.page as number | null,
+  level: row.level as number,
+  school: row.school as SpellDB["school"],
+  ritual: Boolean(row.ritual),
+  concentration: Boolean(row.concentration),
+  casting_time: row.casting_time as string,
+  casting_unit: row.casting_unit as SpellDB["casting_unit"],
+  casting_trigger: row.casting_trigger as string | null,
+  range_text: row.range_text as string,
+  range_feet: row.range_feet as number | null,
+  comp_v: Boolean(row.comp_v),
+  comp_s: Boolean(row.comp_s),
+  comp_m: Boolean(row.comp_m),
+  material: row.material as string | null,
+  material_cost_cp: row.material_cost_cp as number | null,
+  material_consumed: Boolean(row.material_consumed),
+  duration: row.duration as string,
+  description: row.description as string,
+  higher_levels: row.higher_levels as string | null,
+  locally_edited: Boolean(row.locally_edited),
+  created_at: row.created_at as Date,
+  updated_at: row.updated_at as Date,
+});
+
+export interface SpellWithTags {
+  spell: SpellDB;
+  tags: SpellTagDB[];
+}
+
+// Every spell with its tags (two queries), ordered by level then name.
+export async function fetchAllSpells(db: Queryable): Promise<SpellWithTags[]> {
+  const [rows] = await db.query<RowDataPacket[]>("SELECT * FROM dnd5e.spells ORDER BY level, name");
+  const [tagRows] = await db.query<RowDataPacket[]>("SELECT spell_id, tag_type, tag FROM dnd5e.spell_tags ORDER BY tag");
+
+  const tagsById = new Map<number, SpellTagDB[]>();
+  for (const row of tagRows) {
+    const list = tagsById.get(row.spell_id as number) ?? [];
+    list.push({ tag_type: row.tag_type as SpellTagDB["tag_type"], tag: row.tag as string });
+    tagsById.set(row.spell_id as number, list);
+  }
+  return rows.map(row => ({ spell: mapSpellRow(row), tags: tagsById.get(row.id as number) ?? [] }));
+}
+
+export async function fetchSpellById(db: Queryable, id: number): Promise<SpellWithTags | null> {
+  const [rows] = await db.execute<RowDataPacket[]>("SELECT * FROM dnd5e.spells WHERE id = ?", [id]);
+  if (rows.length === 0) return null;
+
+  const [tagRows] = await db.execute<RowDataPacket[]>(
+    "SELECT tag_type, tag FROM dnd5e.spell_tags WHERE spell_id = ? ORDER BY tag",
+    [id]
+  );
+  return {
+    spell: mapSpellRow(rows[0]),
+    tags: tagRows.map(row => ({ tag_type: row.tag_type as SpellTagDB["tag_type"], tag: row.tag as string })),
+  };
+}
+
+export interface SpellCasterDB {
+  id: number;
+  name: string;
+}
+
+// Entities whose spell lists name this spell (by name or alias). A list entry without a source matches any source.
+export async function fetchSpellCasters(
+  db: Queryable,
+  names: string[],
+  source: string
+): Promise<SpellCasterDB[]> {
+  const [rows] = await db.query<RowDataPacket[]>(
+    `SELECT DISTINCT c.id, c.name
+     FROM dnd5e.entity_spells es
+     JOIN dnd5e.entity_spellcasting sc ON sc.id = es.spellcasting_id
+     JOIN core.entities c ON c.id = sc.entity_id
+     WHERE es.spell_name IN (?) AND (es.spell_source IS NULL OR es.spell_source = ?)
+     ORDER BY c.name`,
+    [names, source]
+  );
+  return rows.map(row => ({ id: row.id as number, name: row.name as string }));
 }

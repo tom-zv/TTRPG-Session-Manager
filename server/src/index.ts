@@ -6,6 +6,7 @@ import authRoutes from './api/auth/authRoutes.js'
 import userRoutes from './api/users/userRoutes.js'
 import audioRoutes from './api/audio/audioRoutes.js';
 import entityRoutes from './api/encounter/entities/entityRoutes.js'
+import spellRoutes from './api/encounter/spells/spellRoutes.js'
 import encounterRoutes from './api/encounter/encounters/encounterRoutes.js'
 import path from 'path';
 import { initSocketServer } from './socket/index.js';
@@ -63,6 +64,7 @@ app.use('/images', express.static(path.join(serverConfig.rootDir, 'public/images
 app.use('/api/auth', authRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/audio', audioRoutes);
+app.use('/api/dnd5e/spells', spellRoutes)
 app.use('/api/:system/entities', entityRoutes)
 app.use('/api/:system/encounters', encounterRoutes)
 
