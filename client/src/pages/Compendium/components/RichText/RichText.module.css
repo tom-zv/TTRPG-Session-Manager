@@ -1,0 +1,59 @@
+.richText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  line-height: 1.55;
+}
+
+.richText p,
+.richText ul {
+  margin: 0;
+}
+
+.richText ul {
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.lead {
+  font-weight: 600;
+  font-style: italic;
+  color: var(--text-primary);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.richText table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9em;
+}
+
+.richText caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 0.35rem;
+  color: var(--text-primary);
+}
+
+.richText th,
+.richText td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.35rem 0.6rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.richText th {
+  color: var(--text-secondary);
+  font-weight: 600;
+  background: var(--bg-tertiary);
+}
+
+.richText tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, 0.02);
+}

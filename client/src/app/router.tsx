@@ -8,6 +8,7 @@ import { AuthProvider } from './contexts/AuthContext.js';
 import AuthPage from 'src/pages/auth/AuthPage.js';
 import ProtectedRoute from './ProtectedRoute.js';
 import { EncounterManager } from 'src/pages/EncounterManager/components/EncounterManager.js';
+import { Compendium } from 'src/pages/Compendium/components/Compendium.js';
 
 const Notes: React.FC = () => <div className="page-container">Notes Coming Soon</div>;
 const Home: React.FC = () => <div className="page-container">Welcome to TTRPG Session Manager</div>;
@@ -28,6 +29,7 @@ const AppRouter: React.FC = () => {
               <Route index element={<Home />} />
               <Route path="sound-manager" element={<SoundManager />} />
               <Route path="encounter-manager" element={<EncounterManager />} />
+              <Route path="compendium" element={<Compendium />} />
               <Route path="notes" element={<Notes />} />
             </Route>
           </Route>
@@ -55,6 +57,9 @@ const AppLayout: React.FC = () => {
           </div>
           <div id="encounter-manager-page" className="app-page">
             <EncounterManager />
+          </div>
+          <div id="compendium-page" className="app-page">
+            <Compendium />
           </div>
           <div id="notes-page" className="app-page">
             <Notes />

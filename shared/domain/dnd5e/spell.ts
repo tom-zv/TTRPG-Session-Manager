@@ -30,6 +30,7 @@ export interface SpellSummary {
   school: SpellSchool;
   ritual: boolean;
   concentration: boolean;
+  castingTime: string;        // '1 action', '1 bonus action', '10 minutes'
   castingUnit: SpellCastingUnit;
   components: { v: boolean; s: boolean; m: boolean };
   classes: string[];
@@ -40,7 +41,6 @@ export interface SpellSummary {
 
 export interface Spell extends SpellSummary {
   page?: number;
-  castingTime: string;        // '1 action', '1 bonus action', '10 minutes'
   castingTrigger?: string;    // reactions: 'which you take when you are hit by an attack roll...'
   range: string;              // 'Self', 'Touch', '150 feet', 'Self (15-foot cone)'
   rangeFeet?: number;

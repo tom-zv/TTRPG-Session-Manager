@@ -13,6 +13,7 @@ export function spellDbToSummary(spell: SpellDB, tags: SpellTagDB[]): SpellSumma
     school: spell.school,
     ritual: spell.ritual,
     concentration: spell.concentration,
+    castingTime: spell.casting_time,
     castingUnit: spell.casting_unit,
     components: { v: spell.comp_v, s: spell.comp_s, m: spell.comp_m },
     classes: tagValues(tags, "class"),
@@ -27,7 +28,6 @@ export function spellDbToDomain(spell: SpellDB, tags: SpellTagDB[]): Spell {
   return {
     ...spellDbToSummary(spell, tags),
     ...(spell.page !== null ? { page: spell.page } : {}),
-    castingTime: spell.casting_time,
     ...(spell.casting_trigger ? { castingTrigger: spell.casting_trigger } : {}),
     range: spell.range_text,
     ...(spell.range_feet !== null ? { rangeFeet: spell.range_feet } : {}),
