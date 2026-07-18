@@ -1,0 +1,78 @@
+.trigger {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-secondary);
+  font: inherit;
+  line-height: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: color-mix(in srgb, var(--accent-secondary) 60%, transparent);
+  text-underline-offset: 2px;
+  cursor: help;
+}
+
+.trigger:hover,
+.trigger[aria-expanded="true"] {
+  text-decoration-style: solid;
+  text-decoration-color: currentColor;
+}
+
+.trigger:focus-visible,
+.closeButton:focus-visible,
+.compendiumLink:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+.preview {
+  position: relative;
+}
+
+.closeButton {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.45rem;
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.closeButton:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.85rem;
+}
+
+.note {
+  margin: 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.compendiumLink {
+  align-self: flex-start;
+  color: var(--accent-secondary);
+}
+
+/* Keep the spell's name clear of the close button. */
+.pinned header {
+  padding-right: 1.5rem;
+}

@@ -26,8 +26,9 @@ import {
   titleCase,
 } from "./DnD5eEntityCard.utils.js";
 import styles from "./DnD5eEntityCard.module.css";
-// Monster text keeps {@spell} tags; shown as plain names until spell links render them.
-import { stripInlineTags } from "shared/domain/dnd5e/richText.js";
+// Monster text keeps {@spell} tags; they render as spell links with a preview.
+import { RichText } from "src/pages/Compendium/components/RichText/RichText.js";
+import { SpellLink, renderSpellLink } from "src/pages/Compendium/components/spells/SpellLink.js";
 
 type EntitySectionProps = {
   entity: DnD5eEntityDetails;
@@ -205,7 +206,7 @@ const LegendaryIntro: React.FC<EntitySectionProps> = ({ entity }) => {
       <>
         {entity.legendaryHeader.map((description, index) => (
           <p key={`${index}-${description}`} className={styles.sectionIntro}>
-            {stripInlineTags(description)}
+            <MonsterText text={description} />
           </p>
         ))}
       </>
@@ -241,7 +242,7 @@ type TextEntryProps = {
 const TextEntry: React.FC<TextEntryProps> = ({ name, description }) => (
   <p className={styles.entry}>
     <strong className={styles.entryName}>{formatEntryName(name)}</strong>{" "}
-    <span className={styles.entryText}>{stripInlineTags(description)}</span>
+    <MonsterText text={description} className={styles.entryText} />
   </p>
 );
 
@@ -265,13 +266,13 @@ const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) =
         {descriptions.length > 0 && (
           <>
             {" "}
-            <span className={styles.entryText}>{stripInlineTags(descriptions[0])}</span>
+            <MonsterText text={descriptions[0]} className={styles.entryText} />
           </>
         )}
       </p>
       {descriptions.slice(1).map((description, index) => (
         <p key={`${index}-${description}`} className={styles.entryText}>
-          {stripInlineTags(description)}
+          <MonsterText text={description} />
         </p>
       ))}
       {meta && <p className={styles.spellcastingMeta}>{meta}</p>}
@@ -311,13 +312,19 @@ const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
       {spells.map((spell, index) => (
         <React.Fragment key={`${index}-${spell.name}`}>
           {index > 0 && ", "}
-          <span className={styles.spellListSpells}>{spell.name}</span>
+          <span className={styles.spellListSpells}>
+            <SpellLink name={spell.name} source={spell.source} note={spell.note} />
+          </span>
           {spell.note && <span className={styles.spellNote}> ({spell.note})</span>}
         </React.Fragment>
       ))}
     </div>
   );
 };
+
+const MonsterText: React.FC<{ text: string; className?: string }> = ({ text, className }) => (
+  <RichText inline text={text} renderSpell={renderSpellLink} className={className} />
+);
 
 const formatEntryName = (name: string): string =>
   /[.!?]$/.test(name.trim()) ? name.trim() : `${name.trim()}.`;
