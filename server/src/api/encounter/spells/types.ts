@@ -36,3 +36,7 @@ export interface SpellTagDB {
   tag_type: SpellTagType;
   tag: string;
 }
+
+export type SpellSummaryDB = Pick<SpellDB,
+  "id" | "name" | "source" | "level" | "school" | "ritual" | "concentration" |
+  "casting_time" | "casting_unit" | "comp_v" | "comp_s" | "comp_m">;

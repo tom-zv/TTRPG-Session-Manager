@@ -22,10 +22,10 @@ function lookupFor(spells: SpellSummary[]): SpellLookup<SpellSummary> {
 
 // Resolves spell mentions ({@spell Name|SRC}, monster spell lists) against the spell index.
 export function useSpellResolver(options: { enabled?: boolean } = {}) {
-  const { data: spells, isLoading } = useSpellIndex(options);
+  const { data: spells, isLoading, error, refetch, isFetching } = useSpellIndex(options);
   const resolve = useCallback(
     (ref: SpellRef): SpellSummary | undefined => (spells ? resolveSpell(lookupFor(spells), ref) : undefined),
     [spells]
   );
-  return { resolve, isLoading, hasSpells: (spells?.length ?? 0) > 0 };
+  return { resolve, isLoading, error, retry: refetch, isFetching, hasSpells: (spells?.length ?? 0) > 0 };
 }

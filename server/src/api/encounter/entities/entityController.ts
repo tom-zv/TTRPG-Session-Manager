@@ -50,18 +50,19 @@ async function getEntitiesByIds(
   next: NextFunction
 ) {
   const { system } = req.params as { system?: string };
-  const { entityIds } = req.body as { entityIds?: number[] };
+  const entityIds: unknown = req.body?.entityIds;
 
   try {
-    if (!entityIds || !Array.isArray(entityIds) || entityIds.length === 0) {
-      throw new ValidationError("entityIds array is required and must not be empty");
+    if (!Array.isArray(entityIds) || entityIds.length === 0 || entityIds.length > 100 ||
+        !entityIds.every((id: unknown) => typeof id === "number" && Number.isSafeInteger(id) && id > 0)) {
+      throw new ValidationError("entityIds must contain 1 to 100 positive safe-integer IDs");
     }
     
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
     
-    const entities = await entityService.getEntitiesByIds(system, entityIds);
+    const entities = await entityService.getEntitiesByIds(system, [...new Set<number>(entityIds)]);
     
     // Transform DB format to domain format
     let transformedEntities;

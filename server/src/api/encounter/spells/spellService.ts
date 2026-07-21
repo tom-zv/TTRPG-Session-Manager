@@ -15,9 +15,10 @@ import {
   updateSpell as updateSpellRow,
   type SpellCasterDB,
   type SpellWithTags,
+  type SpellSummaryWithTags,
 } from "./spellModel.js";
 
-async function getAllSpells(): Promise<SpellWithTags[]> {
+async function getAllSpells(): Promise<SpellSummaryWithTags[]> {
   return fetchAllSpells(dnd5ePool);
 }
 

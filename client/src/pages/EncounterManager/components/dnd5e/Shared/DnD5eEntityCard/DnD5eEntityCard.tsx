@@ -1,4 +1,5 @@
 import React from "react";
+import { SpellLookupStatus } from "src/pages/Compendium/components/spells/SpellLookupStatus.js";
 import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
 import {
   AbilityGrid,
@@ -42,6 +43,7 @@ const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({
       <StatSummary entity={entity} />
       <AbilityGrid entity={entity} />
       <EntityInfoBlock entity={entity} />
+      <SpellLookupStatus />
       <EntityEntrySections entity={entity} />
     </div>
   );

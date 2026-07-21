@@ -25,13 +25,13 @@ const getJson = requestJson;
 
 export const SpellApi = {
   /** Every spell as a summary; the browser filters on the client. */
-  async getIndex(): Promise<SpellSummary[]> {
-    const data = await getJson<{ spells: SpellSummary[] }>("/api/dnd5e/spells", "Failed to load spells");
+  async getIndex(signal?: AbortSignal): Promise<SpellSummary[]> {
+    const data = await getJson<{ spells: SpellSummary[] }>("/api/dnd5e/spells", "Failed to load spells", { signal });
     return data.spells;
   },
 
-  async getSpell(id: number): Promise<Spell> {
-    const data = await getJson<{ spell: Spell }>(`/api/dnd5e/spells/${id}`, "Failed to load the spell");
+  async getSpell(id: number, signal?: AbortSignal): Promise<Spell> {
+    const data = await getJson<{ spell: Spell }>(`/api/dnd5e/spells/${id}`, "Failed to load the spell", { signal });
     return data.spell;
   },
 

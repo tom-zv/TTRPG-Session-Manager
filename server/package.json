@@ -5,6 +5,7 @@
   "type": "module",
   "main": "dist/src/index.js",
   "scripts": {
+    "test:catalogs": "node --import tsx tests/catalogSummaries.test.ts",
     "start": "node dist/server/src/index.js",
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",

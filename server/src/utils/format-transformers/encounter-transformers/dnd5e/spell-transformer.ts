@@ -1,10 +1,10 @@
-import type { SpellDB, SpellTagDB, SpellWriteDB } from "src/api/encounter/spells/types.js";
+import type { SpellDB, SpellSummaryDB, SpellTagDB, SpellWriteDB } from "src/api/encounter/spells/types.js";
 import type { Spell, SpellAttackKind, SpellInput, SpellSummary } from "shared/domain/dnd5e/spell.js";
 
 const tagValues = (tags: SpellTagDB[], type: SpellTagDB["tag_type"]): string[] =>
   tags.filter(tag => tag.tag_type === type).map(tag => tag.tag);
 
-export function spellDbToSummary(spell: SpellDB, tags: SpellTagDB[]): SpellSummary {
+export function spellDbToSummary(spell: SpellSummaryDB, tags: SpellTagDB[]): SpellSummary {
   return {
     id: spell.id,
     name: spell.name,

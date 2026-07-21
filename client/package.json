@@ -5,6 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "scripts": {
+    "test:catalogs": "TSX_TSCONFIG_PATH=tsconfig.json node --import ../server/node_modules/tsx/dist/loader.mjs tests/catalogCache.test.ts",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint src --ext .ts,.tsx",

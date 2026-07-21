@@ -30,7 +30,7 @@ export const EntityPicker: React.FC<EntityPickerProps> = ({
       
       // Filter by search query
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+        const query = searchQuery.trim().toLowerCase();
         return entity.name.toLowerCase().includes(query);
       }
       
@@ -110,7 +110,7 @@ export const EntityPicker: React.FC<EntityPickerProps> = ({
                 <span className={`${styles.entityTypeBadge} ${styles[entity.role as 'pc' | 'npc' | 'creature']}`}>
                   {entity.role.toUpperCase()}
                 </span>
-                {entity.cr && (
+                {entity.cr !== undefined && entity.cr !== "" && (
                   <span className={styles.entityCr}>CR {entity.cr}</span>
                 )}
               </div>

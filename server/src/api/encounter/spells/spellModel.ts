@@ -1,5 +1,5 @@
 import type { Pool, PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
-import type { SpellDB, SpellTagDB, SpellWriteDB } from "./types.js";
+import type { SpellDB, SpellSummaryDB, SpellTagDB, SpellWriteDB } from "./types.js";
 
 type Queryable = Pool | PoolConnection;
 
@@ -136,10 +136,16 @@ export interface SpellWithTags {
   tags: SpellTagDB[];
 }
 
-// Every spell with its tags (two queries), ordered by level then name.
-export async function fetchAllSpells(db: Queryable): Promise<SpellWithTags[]> {
-  const [rows] = await db.query<RowDataPacket[]>("SELECT * FROM dnd5e.spells ORDER BY level, name");
-  const [tagRows] = await db.query<RowDataPacket[]>("SELECT spell_id, tag_type, tag FROM dnd5e.spell_tags ORDER BY tag");
+export interface SpellSummaryWithTags {
+  spell: SpellSummaryDB;
+  tags: SpellTagDB[];
+}
+
+// The catalog never reads full text or detail-only tags.
+export async function fetchAllSpells(db: Queryable): Promise<SpellSummaryWithTags[]> {
+  const [rows] = await db.query<RowDataPacket[]>(`SELECT id, name, source, level, school, ritual, concentration, casting_time, casting_unit,
+            comp_v, comp_s, comp_m FROM dnd5e.spells ORDER BY level, name`);
+  const [tagRows] = await db.query<RowDataPacket[]>("SELECT spell_id, tag_type, tag FROM dnd5e.spell_tags WHERE tag_type IN ('class', 'damage', 'save', 'alias') ORDER BY tag");
 
   const tagsById = new Map<number, SpellTagDB[]>();
   for (const row of tagRows) {
@@ -147,7 +153,13 @@ export async function fetchAllSpells(db: Queryable): Promise<SpellWithTags[]> {
     list.push({ tag_type: row.tag_type as SpellTagDB["tag_type"], tag: row.tag as string });
     tagsById.set(row.spell_id as number, list);
   }
-  return rows.map(row => ({ spell: mapSpellRow(row), tags: tagsById.get(row.id as number) ?? [] }));
+  return rows.map(row => ({ spell: {
+    id: row.id as number, name: row.name as string, source: row.source as string,
+    level: row.level as number, school: row.school as SpellSummaryDB["school"],
+    ritual: Boolean(row.ritual), concentration: Boolean(row.concentration),
+    casting_time: row.casting_time as string, casting_unit: row.casting_unit as SpellSummaryDB["casting_unit"],
+    comp_v: Boolean(row.comp_v), comp_s: Boolean(row.comp_s), comp_m: Boolean(row.comp_m),
+  }, tags: tagsById.get(row.id as number) ?? [] }));
 }
 
 export async function fetchSpellById(db: Queryable, id: number): Promise<SpellWithTags | null> {

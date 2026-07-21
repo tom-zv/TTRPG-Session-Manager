@@ -55,12 +55,13 @@ export class EntityApi {
    * Get entity summaries for a specific system (lightweight data for lists)
    */
   static async getEntitySummaries<T extends SystemType>(
-    system: T
+    system: T, signal?: AbortSignal
   ): Promise<EntitySummaryBySystem<T>[]> {
     const response = await fetch(`/api/${system}/entities/summary`, {
       method: 'GET',
       headers: authenticatedJsonHeaders(),
       credentials: 'include',
+      signal,
     });
 
     if (!response.ok) {
@@ -77,12 +78,13 @@ export class EntityApi {
    */
   static async getEntityById<T extends SystemType>(
     system: T,
-    id: number
+    id: number, signal?: AbortSignal
   ): Promise<EntityDetailsBySystem<T>> {
     const response = await fetch(`/api/${system}/entities/${id}`, {
       method: 'GET',
       headers: authenticatedJsonHeaders(),
       credentials: 'include',
+      signal,
     });
 
     if (!response.ok) {
@@ -99,7 +101,7 @@ export class EntityApi {
    */
   static async getEntityTemplatesByIds<T extends SystemType>(
     system: T,
-    entityIds: number[]
+    entityIds: number[], signal?: AbortSignal
   ): Promise<EntityDetailsBySystem<T>[]> {
     if (!entityIds || entityIds.length === 0) {
       return [];
@@ -109,6 +111,7 @@ export class EntityApi {
       method: 'POST',
       headers: authenticatedJsonHeaders(),
       credentials: 'include',
+      signal,
       body: JSON.stringify({ entityIds }),
     });
 

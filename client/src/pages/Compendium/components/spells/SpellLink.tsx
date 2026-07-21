@@ -114,9 +114,11 @@ const SpellLinkTrigger: React.FC<{ summary: SpellSummary; note?: string; childre
         aria-haspopup="dialog"
         onPointerEnter={event => {
           if (event.pointerType !== "mouse") return;
-          prefetch();
           cancelClose();
-          if (mode === "closed") openTimer.current = window.setTimeout(() => setMode("peek"), OPEN_DELAY);
+          if (mode === "closed") openTimer.current = window.setTimeout(() => {
+            prefetch();
+            setMode("peek");
+          }, OPEN_DELAY);
         }}
         onPointerLeave={event => {
           if (event.pointerType === "mouse") scheduleClose();
@@ -182,7 +184,7 @@ type SpellPreviewProps = {
 };
 
 const SpellPreview: React.FC<SpellPreviewProps> = ({ summary, note, pinned, closeButtonRef, onClose, onNavigate }) => {
-  const { data: spell, error } = useSpell(summary.id);
+  const { data: spell, error, refetch, isFetching } = useSpell(summary.id);
 
   return (
     <div className={`${styles.preview} ${pinned ? styles.pinned : ""}`}>
@@ -205,6 +207,7 @@ const SpellPreview: React.FC<SpellPreviewProps> = ({ summary, note, pinned, clos
         renderSpell={plainSpellText}
         footer={
           <div className={styles.footer}>
+            {error && <button type="button" disabled={isFetching} onClick={() => void refetch()}>Retry spell</button>}
             {note && <p className={styles.note}>Cast as: {note}</p>}
             <Link to={`/compendium?spell=${summary.id}`} className={styles.compendiumLink} onClick={onNavigate}>
               Open in Compendium

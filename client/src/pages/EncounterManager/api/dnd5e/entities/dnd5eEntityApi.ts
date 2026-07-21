@@ -35,23 +35,23 @@ export class DnD5eEntityApi {
   /**
    * Get entity summaries for DnD5e (lightweight for lists)
    */
-  static async getEntitySummaries(): Promise<DnD5eEntitySummary[]> {
-    return EntityApi.getEntitySummaries('dnd5e');
+  static async getEntitySummaries(signal?: AbortSignal): Promise<DnD5eEntitySummary[]> {
+    return EntityApi.getEntitySummaries('dnd5e', signal);
   }
 
   /**
    * Get a specific entity's details by ID
    */
-  static async getEntityById(id: number): Promise<DnD5eEntityDetails> {
-    return EntityApi.getEntityById('dnd5e', id);
+  static async getEntityById(id: number, signal?: AbortSignal): Promise<DnD5eEntityDetails> {
+    return EntityApi.getEntityById('dnd5e', id, signal);
   }
 
   /**
    * Batch fetch multiple entities by IDs in a single request
    * More efficient than calling getEntityById multiple times
    */
-  static async getEntityTemplatesByIds(ids: number[]): Promise<DnD5eEntityDetails[]> {
-    return EntityApi.getEntityTemplatesByIds('dnd5e', ids);
+  static async getEntityTemplatesByIds(ids: number[], signal?: AbortSignal): Promise<DnD5eEntityDetails[]> {
+    return EntityApi.getEntityTemplatesByIds('dnd5e', ids, signal);
   }
 
   /**

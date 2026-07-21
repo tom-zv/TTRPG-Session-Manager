@@ -1,4 +1,5 @@
 import React, { useRef } from "react";
+import { SpellLookupStatus } from "src/pages/Compendium/components/spells/SpellLookupStatus.js";
 import { FiSave } from "react-icons/fi";
 import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
 import { FormActions, FormErrorAlert } from "src/components/FormControls/index.js";
@@ -77,6 +78,7 @@ const DnD5eEntityFormContent: React.FC<DnD5eEntityFormProps> = ({
 
   return (
     <form ref={formRef} className={styles.entityForm} onSubmit={handleSubmit} noValidate>
+      <SpellLookupStatus />
       <FormErrorAlert error={draftState.localError ?? error} />
 
       <div className={styles.formLayout}>
