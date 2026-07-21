@@ -2,6 +2,7 @@ import React from "react";
 import { FiPlus, FiTrash2 } from "react-icons/fi";
 import { UNCOUNTED_SPELL_FREQUENCIES } from "shared/domain/encounters/dnd5e/entity.js";
 import { FormField, NumberStepper } from "src/components/FormControls/index.js";
+import { useSpellResolver } from "src/pages/Compendium/hooks/useSpellResolver.js";
 import { createBlankSpellGroup } from "../model/draftTransforms.js";
 import { SPELL_GROUP_KIND_OPTIONS } from "../model/options.js";
 import type { SpellGroupDraft, SpellGroupKind } from "../DnD5eEntityForm.types.js";
@@ -134,7 +135,27 @@ const SpellGroupRow: React.FC<{
           onChange={(event) => onUpdate({ spellsText: event.target.value })}
         />
       </FormField>
+      <UnknownSpellsHint group={group} />
     </div>
+  );
+};
+
+// Soft warning only: a creature may name a homebrew spell that is not in the compendium.
+const UnknownSpellsHint: React.FC<{ group: SpellGroupDraft }> = ({ group }) => {
+  const { resolve, hasSpells } = useSpellResolver();
+  if (!hasSpells) return null;
+
+  const unknown = group.spellsText
+    .split(/\r?\n/)
+    .map((line) => line.trim().match(/^([^(]+?)\s*(?:\(.*\))?$/)?.[1]?.trim())
+    .filter((name): name is string => Boolean(name))
+    .filter((name) => !resolve({ name, source: group.sources[name.toLowerCase()] }));
+  if (unknown.length === 0) return null;
+
+  return (
+    <p className={styles.spellHint} role="status">
+      Not in the compendium, shown without a preview: {unknown.join(", ")}
+    </p>
   );
 };
 

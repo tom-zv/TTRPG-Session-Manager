@@ -396,3 +396,9 @@
 .spellGroupRemove {
   margin-left: auto;
 }
+
+.spellHint {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}

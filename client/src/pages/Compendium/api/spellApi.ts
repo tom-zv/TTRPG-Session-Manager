@@ -1,4 +1,4 @@
-import type { Spell, SpellSummary } from "shared/domain/dnd5e/spell.js";
+import type { Spell, SpellInput, SpellSummary } from "shared/domain/dnd5e/spell.js";
 import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
 
 export interface SpellCaster {
@@ -6,9 +6,10 @@ export interface SpellCaster {
   name: string;
 }
 
-async function getJson<T>(url: string, failure: string): Promise<T> {
+async function requestJson<T>(url: string, failure: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(url, {
     method: "GET",
+    ...init,
     headers: authenticatedJsonHeaders(),
     credentials: "include",
   });
@@ -16,8 +17,11 @@ async function getJson<T>(url: string, failure: string): Promise<T> {
     const error = await response.json().catch(() => ({ message: failure }));
     throw new Error(error.message || failure);
   }
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
+
+const getJson = requestJson;
 
 export const SpellApi = {
   /** Every spell as a summary; the browser filters on the client. */
@@ -38,5 +42,25 @@ export const SpellApi = {
       "Failed to load the spell's casters"
     );
     return data.entities;
+  },
+
+  async createSpell(input: SpellInput): Promise<Spell> {
+    const data = await requestJson<{ spell: Spell }>("/api/dnd5e/spells", "Failed to create the spell", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+    return data.spell;
+  },
+
+  async updateSpell(id: number, input: SpellInput): Promise<Spell> {
+    const data = await requestJson<{ spell: Spell }>(`/api/dnd5e/spells/${id}`, "Failed to save the spell", {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+    return data.spell;
+  },
+
+  async deleteSpell(id: number): Promise<void> {
+    await requestJson<void>(`/api/dnd5e/spells/${id}`, "Failed to delete the spell", { method: "DELETE" });
   },
 };

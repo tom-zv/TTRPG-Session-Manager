@@ -42,13 +42,22 @@ export async function findSpellIdByNameSource(
   return rows[0] ? { id: rows[0].id as number, locallyEdited: Boolean(rows[0].locally_edited) } : undefined;
 }
 
-export async function insertSpell(db: Queryable, spell: SpellWriteDB): Promise<number> {
+// locallyEdited: true for spells made in the app, so an import never overwrites them.
+export async function insertSpell(db: Queryable, spell: SpellWriteDB, locallyEdited = false): Promise<number> {
   const [result] = await db.execute<ResultSetHeader>(
-    `INSERT INTO dnd5e.spells (${WRITE_COLUMNS.join(", ")}) VALUES (${WRITE_COLUMNS.map(() => "?").join(", ")})`,
-    writeValues(spell)
+    `INSERT INTO dnd5e.spells (${WRITE_COLUMNS.join(", ")}, locally_edited) VALUES (${WRITE_COLUMNS.map(() => "?").join(", ")}, ?)`,
+    [...writeValues(spell), locallyEdited]
   );
   return result.insertId;
 }
+
+export async function deleteSpell(db: Queryable, id: number): Promise<boolean> {
+  const [result] = await db.execute<ResultSetHeader>("DELETE FROM dnd5e.spells WHERE id = ?", [id]);
+  return result.affectedRows > 0;
+}
+
+export const isDuplicateEntryError = (error: unknown): boolean =>
+  typeof error === "object" && error !== null && "code" in error && error.code === "ER_DUP_ENTRY";
 
 // locallyEdited: true for edits made in the app, false when an import overwrites the row.
 export async function updateSpell(

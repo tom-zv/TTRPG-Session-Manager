@@ -20,6 +20,8 @@ type SpellFiltersProps = {
   options: { classes: string[]; damageTypes: string[]; saves: string[] };
   resultCount: number;
   total: number;
+  /** Extra controls at the end of the result bar, e.g. "New spell". */
+  actions?: React.ReactNode;
 };
 
 export const SpellFilters: React.FC<SpellFiltersProps> = ({
@@ -30,6 +32,7 @@ export const SpellFilters: React.FC<SpellFiltersProps> = ({
   options,
   resultCount,
   total,
+  actions,
 }) => {
   const update = (patch: Partial<SpellFilterState>) => onChange({ ...filters, ...patch });
   const toggleLevel = (level: number) =>
@@ -151,6 +154,7 @@ export const SpellFilters: React.FC<SpellFiltersProps> = ({
             Clear filters
           </button>
         )}
+        {actions && <span className={styles.resultActions}>{actions}</span>}
       </div>
     </div>
   );

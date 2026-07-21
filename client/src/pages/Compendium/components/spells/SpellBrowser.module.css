@@ -278,3 +278,147 @@
   font-size: 0.85rem;
   color: var(--text-tertiary);
 }
+
+/* GM actions */
+
+.resultActions {
+  margin-left: auto;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.primaryButton,
+.secondaryButton,
+.dangerButton {
+  padding: 0.35rem 0.8rem;
+  border-radius: var(--radius-sm, 4px);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: 1px solid var(--accent-primary);
+  background: var(--accent-primary);
+  color: var(--text-on-accent, #fff);
+}
+
+.secondaryButton {
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.secondaryButton:hover {
+  background: var(--bg-hover);
+}
+
+.dangerButton {
+  border: 1px solid var(--danger);
+  background: var(--danger);
+  color: #fff;
+}
+
+.dangerButton:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.optionsToggle:focus-visible,
+.optionsList button:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 1px;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(var(--danger-rgb, 214, 69, 80), 0.5);
+  border-radius: var(--radius-md, 6px);
+  background: rgba(var(--danger-rgb, 214, 69, 80), 0.08);
+}
+
+.confirm p {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+/* GM options menu ("⋯" in the spell card header) */
+
+.optionsMenu {
+  position: relative;
+}
+
+.optionsToggle {
+  display: grid;
+  place-items: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-tertiary);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+
+.optionsToggle:hover,
+.optionsToggle[aria-expanded="true"] {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.optionsPanel {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 20;
+  width: max-content;
+  max-width: 18rem;
+  padding: 0.3rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.optionsList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.optionsList button {
+  width: 100%;
+  padding: 0.4rem 0.7rem;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.optionsList button:hover {
+  background: var(--bg-hover);
+}
+
+.optionsList .dangerItem {
+  color: var(--danger);
+}

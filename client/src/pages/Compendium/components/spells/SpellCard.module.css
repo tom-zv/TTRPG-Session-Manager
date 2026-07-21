@@ -135,3 +135,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.header {
+  position: relative;
+}
+
+.headerAction {
+  position: absolute;
+  top: 0;
+  right: 0;
+}

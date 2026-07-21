@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import spellService from "./spellService.js";
 import { ValidationError } from "../../HttpErrors.js";
+import { validateSpellInput, type SpellInput } from "shared/domain/dnd5e/spell.js";
 import {
   spellDbToDomain,
   spellDbToSummary,
@@ -39,4 +40,38 @@ async function getSpellCasters(req: Request, res: Response, next: NextFunction) 
   }
 }
 
-export default { getAllSpells, getSpellById, getSpellCasters };
+function readSpellInput(req: Request): SpellInput {
+  const errors = validateSpellInput(req.body);
+  if (errors.length > 0) throw new ValidationError(errors.join("\n"));
+  return req.body as SpellInput;
+}
+
+async function createSpell(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { spell, tags } = await spellService.createSpell(readSpellInput(req));
+    res.status(201).json({ spell: spellDbToDomain(spell, tags) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateSpell(req: Request, res: Response, next: NextFunction) {
+  try {
+    const id = readSpellId(req);
+    const { spell, tags } = await spellService.updateSpell(id, readSpellInput(req));
+    res.status(200).json({ spell: spellDbToDomain(spell, tags) });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteSpell(req: Request, res: Response, next: NextFunction) {
+  try {
+    await spellService.deleteSpell(readSpellId(req));
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}
+
+export default { getAllSpells, getSpellById, getSpellCasters, createSpell, updateSpell, deleteSpell };

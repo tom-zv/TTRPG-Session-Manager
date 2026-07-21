@@ -2,6 +2,7 @@ import React from "react";
 import {
   formatSpellComponents,
   formatSpellLevelSchool,
+  HOMEBREW_SPELL_SOURCE,
   type Spell,
   type SpellSummary,
 } from "shared/domain/dnd5e/spell.js";
@@ -19,6 +20,8 @@ type SpellCardProps = {
   renderSpell?: SpellTokenRenderer;
   /** Extra content below the card, such as the GM's "Cast by" list. */
   footer?: React.ReactNode;
+  /** Small control in the header's corner, e.g. the GM's options menu. */
+  headerAction?: React.ReactNode;
   headingId?: string;
 };
 
@@ -29,6 +32,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({
   variant = "full",
   renderSpell,
   footer,
+  headerAction,
   headingId,
 }) => {
   const compact = variant === "compact";
@@ -37,6 +41,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({
   return (
     <article className={`${styles.spellCard} ${compact ? styles.compact : ""}`} aria-labelledby={headingId}>
       <header className={styles.header}>
+        {headerAction && <div className={styles.headerAction}>{headerAction}</div>}
         <HeadingTag id={headingId} className={styles.name}>{summary.name}</HeadingTag>
         <p className={styles.subtitle}>
           {formatSpellLevelSchool(summary.level, summary.school)}
@@ -46,7 +51,8 @@ export const SpellCard: React.FC<SpellCardProps> = ({
           <p className={styles.source}>
             {summary.source}
             {spell?.page !== undefined && `, page ${spell.page}`}
-            {spell?.locallyEdited && " · edited"}
+            {/* Spells made in the app are always "edited"; flag only imported spells that were changed. */}
+            {spell?.locallyEdited && summary.source !== HOMEBREW_SPELL_SOURCE && " · edited"}
           </p>
         )}
       </header>

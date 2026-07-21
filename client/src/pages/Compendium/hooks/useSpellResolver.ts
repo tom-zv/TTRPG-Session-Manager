@@ -27,5 +27,5 @@ export function useSpellResolver(options: { enabled?: boolean } = {}) {
     (ref: SpellRef): SpellSummary | undefined => (spells ? resolveSpell(lookupFor(spells), ref) : undefined),
     [spells]
   );
-  return { resolve, isLoading };
+  return { resolve, isLoading, hasSpells: (spells?.length ?? 0) > 0 };
 }

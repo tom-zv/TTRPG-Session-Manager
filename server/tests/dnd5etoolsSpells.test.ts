@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { parseInlineTags, parseRichTextBlocks, stripInlineTags } from "../../shared/domain/dnd5e/richText.js";
-import { buildSpellLookup, resolveSpell } from "../../shared/domain/dnd5e/spell.js";
+import { buildSpellLookup, resolveSpell, validateSpellInput } from "../../shared/domain/dnd5e/spell.js";
 import { normalizeSpellcasting } from "../src/utils/dnd5etools/spellcasting-normalizer.js";
 import { transformDnd5eToolsMonster } from "../src/utils/dnd5etools/monster-transformer.js";
 import { findUnresolvedSpellRefs } from "../src/utils/dnd5etools/spell-references.js";
@@ -294,4 +294,37 @@ test("spellcasting save DC and attack bonus are still read with kept tags", () =
   assert.equal(block.save_dc, 17);
   assert.equal(block.spell_attack_bonus, 9);
   assert.deepEqual(block.descriptions, ["It casts {@spell Fireball|XPHB}:"]);
+});
+
+const validInput = {
+  name: "Ember Lance", source: "homebrew", level: 2, school: "evocation", ritual: false, concentration: false,
+  castingTime: "1 action", castingUnit: "action", range: "60 feet", rangeFeet: 60,
+  components: { v: true, s: true, m: false }, materialConsumed: false, duration: "Instantaneous",
+  description: "A lance of fire.", classes: ["Wizard"], damageTypes: ["fire"], saves: [], conditions: [], aliases: [],
+};
+
+test("validateSpellInput accepts a complete spell and lists every problem", () => {
+  assert.deepEqual(validateSpellInput(validInput), []);
+  assert.deepEqual(
+    validateSpellInput({
+      ...validInput,
+      name: " ",
+      level: 10,
+      school: "chronomancy",
+      castingUnit: "turn",
+      material: "a ruby",
+      classes: ["Wizard", ""],
+      attack: "thrown",
+    }),
+    [
+      "Name is required.",
+      "Level must be a whole number from 0 (cantrip) to 9.",
+      "Choose a school of magic.",
+      "Choose a casting time unit.",
+      "A material or its cost needs the M component.",
+      "Classes must be a list of names.",
+      "Spell attack must be melee or ranged.",
+    ]
+  );
+  assert.deepEqual(validateSpellInput(null), ["The spell must be an object."]);
 });
