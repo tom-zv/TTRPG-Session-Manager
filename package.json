@@ -8,28 +8,31 @@
     "start": "cross-env NODE_ENV=production concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:server": "cd server && cross-env NODE_ENV=production npm start",
     "start:client": "cd client && cross-env NODE_ENV=production npm run preview",
-
     "dev:all": "cross-env NODE_ENV=development concurrently \"npm run dev:server:watch\" \"npm run dev:client\"",
     "dev:server": "cd server && cross-env NODE_ENV=development npm run dev",
     "dev:server:watch": "cd server && cross-env NODE_ENV=development npm run dev:watch",
     "dev:client": "cd client && cross-env NODE_ENV=development npm run dev",
-
     "build:shared": "cd shared && tsc && tsc-alias",
     "build:all": "cross-env NODE_ENV=production npm run build:shared && npm run build:client && npm run build:server",
     "build:client": "cd client && cross-env NODE_ENV=production npm run build",
     "build:server": "cd server && cross-env NODE_ENV=production npm run build",
-
     "import:dnd5etools": "cd server && npm run import:dnd5etools",
-
     "install:all": "npm install && npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
     "install:client": "cd client && npm install",
+    "test": "vitest run --project shared --project server --project client",
+    "test:watch": "vitest --watch --project shared --project server --project client",
+    "test:int": "npm run build:server && vitest run --project server-int",
+    "test:coverage": "npm test -- --coverage",
+    "typecheck:tests": "tsc --noEmit -p server/tsconfig.test.json",
+    "lint:tooling": "eslint --config ./eslint.config.js vitest.config.ts",
+    "lint:shared": "eslint --config ./eslint.config.js ./shared/",
 
     "lint": "eslint --config ./eslint.config.js .",
     "lint:client": "eslint --config ./client/eslint.config.js ./client/",
     "lint:server": "eslint --config ./server/eslint.config.js ./server/",
-    "lint:all": "npm run lint:client && npm run lint:server",
-    "lint:fix": "npm run lint:client -- --fix && npm run lint:server -- --fix"
+    "lint:all": "npm run lint:client && npm run lint:server && npm run lint:shared && npm run lint:tooling",
+    "lint:fix": "npm run lint:client -- --fix && npm run lint:server -- --fix && npm run lint:shared -- --fix && npm run lint:tooling -- --fix"
   },
   "repository": {
     "type": "git",
@@ -39,6 +42,8 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
     "@eslint/js": "^9.27.0",
+    "@vitest/coverage-v8": "^4.1.12",
+    "@vitest/eslint-plugin": "^1.6.28",
     "concurrently": "^9.2.1",
     "cross-env": "^10.1.0",
     "eslint": "^9.27.0",
@@ -49,7 +54,8 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "tsc-alias": "^1.8.16",
     "typescript": "^6.0.0",
-    "typescript-eslint": "^8.58.0"
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.12"
   },
   "bugs": {
     "url": "https://github.com/tom-zv/TTRPG-Session-Manager/issues"

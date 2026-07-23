@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { parseInlineTags, parseRichTextBlocks, stripInlineTags } from "../../shared/domain/dnd5e/richText.js";
-import { buildSpellLookup, resolveSpell, validateSpellInput } from "../../shared/domain/dnd5e/spell.js";
-import { normalizeSpellcasting } from "../src/utils/dnd5etools/spellcasting-normalizer.js";
-import { transformDnd5eToolsMonster } from "../src/utils/dnd5etools/monster-transformer.js";
-import { findUnresolvedSpellRefs } from "../src/utils/dnd5etools/spell-references.js";
+import { test } from "vitest";
+import { parseInlineTags, parseRichTextBlocks, stripInlineTags } from "../../../../shared/domain/dnd5e/richText.js";
+import { buildSpellLookup, resolveSpell, validateSpellInput } from "../../../../shared/domain/dnd5e/spell.js";
+import { normalizeSpellcasting } from "../../../src/utils/dnd5etools/spellcasting-normalizer.js";
+import { transformDnd5eToolsMonster } from "../../../src/utils/dnd5etools/monster-transformer.js";
+import { findUnresolvedSpellRefs } from "../../../src/utils/dnd5etools/spell-references.js";
 import {
   buildSpellClassLookup,
   parseDnd5eToolsSpells,
   transformDnd5eToolsSpell,
-} from "../src/utils/dnd5etools/spell-transformer.js";
+} from "../../../src/utils/dnd5etools/spell-transformer.js";
 
 // Fixtures are trimmed copies of spells from 5etools spells-xphb.json.
 const fireball = {

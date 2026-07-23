@@ -1,46 +1,46 @@
 import assert from "node:assert/strict";
-import { afterEach, mock, test } from "node:test";
-import { DnD5eEncounterEngine, type CarriedHp } from "../src/services/encounters/dnd5e/dnd5eEncounterEngine.js";
-import type { CombatProfileLoader } from "../src/services/encounters/dnd5e/dnd5eRequestHandler.js";
-import type { EntityCombatProfile } from "../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
-import { registerEncounterLifecycleHandlers } from "../src/socket/namespaces/encounters/encounterLifecycleHandlers.js";
-import { EncounterNotFoundError } from "../src/services/encounters/encounterSystems.js";
-import { getHpStatus, hpDisplayFor, isVisibleTo } from "../../shared/domain/encounters/dnd5e/view.js";
-import type { EncounterJoinAck } from "../../shared/sockets/encounters/types.js";
-import { validateDnD5eEvent } from "../src/services/encounters/dnd5e/dnd5eEventValidator.js";
-import type { DnD5eEncounterState } from "../../shared/domain/encounters/dnd5e/encounter.js";
-import type { DnD5eEncounterEvent } from "../../shared/domain/encounters/dnd5e/events/types.js";
-import { DnD5eEventProcessor } from "../../shared/domain/encounters/dnd5e/events/EventProcessor.js";
-import { makeEntityStateful } from "../../shared/domain/encounters/dnd5e/events/modules/global.js";
-import { normalizeDnD5eEncounterState } from "../../shared/domain/encounters/dnd5e/normalizeEncounterState.js";
+import { afterEach, vi, test } from "vitest";
+import { DnD5eEncounterEngine, type CarriedHp } from "../../../src/services/encounters/dnd5e/dnd5eEncounterEngine.js";
+import type { CombatProfileLoader } from "../../../src/services/encounters/dnd5e/dnd5eRequestHandler.js";
+import type { EntityCombatProfile } from "../../../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
+import { registerEncounterLifecycleHandlers } from "../../../src/socket/namespaces/encounters/encounterLifecycleHandlers.js";
+import { EncounterNotFoundError } from "../../../src/services/encounters/encounterSystems.js";
+import { getHpStatus, hpDisplayFor, isVisibleTo } from "../../../../shared/domain/encounters/dnd5e/view.js";
+import type { EncounterJoinAck } from "../../../../shared/sockets/encounters/types.js";
+import { validateDnD5eEvent } from "../../../src/services/encounters/dnd5e/dnd5eEventValidator.js";
+import type { DnD5eEncounterState } from "../../../../shared/domain/encounters/dnd5e/encounter.js";
+import type { DnD5eEncounterEvent } from "../../../../shared/domain/encounters/dnd5e/events/types.js";
+import { DnD5eEventProcessor } from "../../../../shared/domain/encounters/dnd5e/events/EventProcessor.js";
+import { makeEntityStateful } from "../../../../shared/domain/encounters/dnd5e/events/modules/global.js";
+import { normalizeDnD5eEncounterState } from "../../../../shared/domain/encounters/dnd5e/normalizeEncounterState.js";
 import {
   resolveEncounterSettings, validateEntitySettingsPatch, validateEncounterSettingsPatch,
-} from "../../shared/domain/encounters/dnd5e/settings.js";
-import { mergeSettings } from "../../shared/domain/encounters/settings.js";
-import { mergeUserPreferences, validatePreferencesPatch } from "../../shared/domain/users/preferences.js";
-import type { UserDB } from "../src/api/users/types.js";
-import type { EncounterOperation } from "../../shared/sockets/encounters/types.js";
-import { LiveOperationQueue } from "../../client/src/pages/EncounterManager/services/LiveOperationQueue.js";
-import { dnd5ePool, corePool } from "../src/db.js";
-import dnd5eEntityModel from "../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
-import userModel from "../src/api/users/userModel.js";
-import encounterModel from "../src/api/encounter/encounters/encounterModel.js";
-import encounterService from "../src/api/encounter/encounters/encounterService.js";
-import snapshotModel from "../src/api/encounter/encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
-import { EncounterRequestQueue } from "../src/services/encounters/encounterRequestQueue.js";
-import encounterEngineManager from "../src/services/encounters/encounterEngineManager.js";
+} from "../../../../shared/domain/encounters/dnd5e/settings.js";
+import { mergeSettings } from "../../../../shared/domain/encounters/settings.js";
+import { mergeUserPreferences, validatePreferencesPatch } from "../../../../shared/domain/users/preferences.js";
+import type { UserDB } from "../../../src/api/users/types.js";
+import type { EncounterOperation } from "../../../../shared/sockets/encounters/types.js";
+import { LiveOperationQueue } from "../../../../client/src/pages/EncounterManager/services/LiveOperationQueue.js";
+import { dnd5ePool, corePool } from "../../../src/db.js";
+import dnd5eEntityModel from "../../../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
+import userModel from "../../../src/api/users/userModel.js";
+import encounterModel from "../../../src/api/encounter/encounters/encounterModel.js";
+import encounterService from "../../../src/api/encounter/encounters/encounterService.js";
+import snapshotModel from "../../../src/api/encounter/encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
+import { EncounterRequestQueue } from "../../../src/services/encounters/encounterRequestQueue.js";
+import encounterEngineManager from "../../../src/services/encounters/encounterEngineManager.js";
 import { EventEmitter } from "node:events";
 import type { Namespace, Socket } from "socket.io";
-import { registerEncounterRequestHandlers } from "../src/socket/namespaces/encounters/encounterRequestHandlers.js";
-import { EncounterErrorCode, type EncounterError } from "../../shared/sockets/encounters/errors.js";
-import type { SocketAck } from "../../shared/sockets/types.js";
-import entityModel from "../src/api/encounter/entities/entityModel.js";
-import entityService from "../src/api/encounter/entities/entityService.js";
-import type { DnD5eEntityDetails } from "../../shared/domain/encounters/dnd5e/entity.js";
-import { createEntityDraft } from "../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/draftTransforms.js";
-import { parseEntityDraft } from "../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/validation.js";
+import { registerEncounterRequestHandlers } from "../../../src/socket/namespaces/encounters/encounterRequestHandlers.js";
+import { EncounterErrorCode, type EncounterError } from "../../../../shared/sockets/encounters/errors.js";
+import type { SocketAck } from "../../../../shared/sockets/types.js";
+import entityModel from "../../../src/api/encounter/entities/entityModel.js";
+import entityService from "../../../src/api/encounter/entities/entityService.js";
+import type { DnD5eEntityDetails } from "../../../../shared/domain/encounters/dnd5e/entity.js";
+import { createEntityDraft } from "../../../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/draftTransforms.js";
+import { parseEntityDraft } from "../../../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/validation.js";
 
-afterEach(() => mock.restoreAll());
+afterEach(() => vi.restoreAllMocks());
 
 const gm: UserDB = { id: 1, username: "DM", password_hash: "", email: "", is_gm: true, last_login: "", created_at: "" };
 const player: UserDB = { ...gm, id: 2, is_gm: false };
@@ -295,14 +295,14 @@ test("malformed socket payloads are rejected through the acknowledgement, not by
 });
 
 test("an entity template in use by an encounter cannot be deleted", async () => {
-  const remove = mock.method(entityModel, "deleteEntity", async () => true);
-  const usage = mock.method(encounterModel, "getEncounterIdsUsingEntity", async () => [12, 15]);
+  const remove = vi.spyOn(entityModel, "deleteEntity").mockImplementation(async () => true);
+  const usage = vi.spyOn(encounterModel, "getEncounterIdsUsingEntity").mockImplementation(async () => [12, 15]);
   await assert.rejects(entityService.deleteEntity(100), (error: { statusCode?: number; message: string }) =>
     error.statusCode === 409 && /2 encounters/.test(error.message));
-  assert.equal(remove.mock.callCount(), 0);
-  usage.mock.mockImplementation(async () => []);
+  assert.equal(remove.mock.calls.length, 0);
+  usage.mockImplementation(async () => []);
   assert.equal(await entityService.deleteEntity(100), true);
-  assert.equal(remove.mock.callCount(), 1);
+  assert.equal(remove.mock.calls.length, 1);
 });
 
 test("numeric and settings validation reject malformed or unsupported writes", () => {
@@ -330,14 +330,14 @@ test("legacy snapshots retain manual behavior and 0-HP membership; settings merg
 });
 
 test("new encounters copy DM defaults into independent snapshots", async () => {
-  mock.method(userModel, "getPreferences", async () => ({ encounterDefaults: { dnd5e: { automation: { zeroHpTransfer: "auto" } } } }));
-  mock.method(encounterModel, "insertEncounter", async () => 12);
+  vi.spyOn(userModel, "getPreferences").mockImplementation(async () => ({ encounterDefaults: { dnd5e: { automation: { zeroHpTransfer: "auto" } } } }));
+  vi.spyOn(encounterModel, "insertEncounter").mockImplementation(async () => 12);
   let created: DnD5eEncounterState | undefined;
-  mock.method(snapshotModel, "createEncounterSnapshot", async (_id: number, snapshot: DnD5eEncounterState) => { created = structuredClone(snapshot); });
-  await encounterService.insertEncounter("dnd5e", { system_id: 1, name: "Test" }, gm.id);
+  vi.spyOn(snapshotModel, "createEncounterSnapshot").mockImplementation(async (_id: number, snapshot: DnD5eEncounterState) => { created = structuredClone(snapshot); });
+  await encounterService.insertEncounter("dnd5e", { system_id: 1, name: "Test" } as Parameters<typeof encounterService.insertEncounter>[1], gm.id);
   assert.equal(created?.settings.automation.zeroHpTransfer, "auto");
   const defaults = resolveEncounterSettings();
-  defaults.automation.zeroHpTransfer = "auto";
+  (defaults.automation as { zeroHpTransfer: "auto" | "manual" }).zeroHpTransfer = "auto";
   assert.equal(resolveEncounterSettings().automation.zeroHpTransfer, "manual");
 });
 
@@ -353,7 +353,7 @@ test("entity settings PATCH only locks and updates the entity row, preserving un
       return [{}];
     },
   };
-  mock.method(dnd5ePool, "getConnection", async () => connection);
+  vi.spyOn(dnd5ePool, "getConnection").mockImplementation((async () => connection) as unknown as typeof dnd5ePool.getConnection);
   await dnd5eEntityModel.patchSettings(100, { combat: { deathSaves: false } });
   assert.deepEqual(JSON.parse(written), { future: { color: "blue" }, combat: { deathSaves: false } });
   assert.equal(statements.length, 2);
@@ -371,7 +371,7 @@ test("personal preference PATCH preserves other preference namespaces in a trans
       return [{}];
     },
   };
-  mock.method(corePool, "getConnection", async () => connection);
+  vi.spyOn(corePool, "getConnection").mockImplementation((async () => connection) as unknown as typeof corePool.getConnection);
   await userModel.patchPreferences(1, { encounterDefaults: { dnd5e: { automation: { zeroHpTransfer: "auto" } } } });
   assert.equal(JSON.parse(written).audio.volume, 0.2);
   assert.equal(JSON.parse(written).theme, "dark");
@@ -440,11 +440,11 @@ test("snapshot persistence round-trips grave state and normalizes older JSON str
   const combat = state(2, true);
   DnD5eEventProcessor.applyEvent(combat, bury(0));
   let stored = JSON.stringify(combat);
-  mock.method(dnd5ePool, "execute", async (sql: string, parameters: unknown[]) => {
+  vi.spyOn(dnd5ePool, "execute").mockImplementation((async (sql: string, parameters: unknown[]) => {
     if (sql.startsWith("SELECT")) return [[{ snapshot: stored }]];
     stored = String(parameters[0]);
     return [{ affectedRows: 1 }];
-  });
+  }) as unknown as typeof dnd5ePool.execute);
   await snapshotModel.saveSnapshot(12, combat);
   assert.deepEqual(await snapshotModel.getSnapshot(12), JSON.parse(JSON.stringify(combat)));
   const old = state(1) as Partial<DnD5eEncounterState>;
@@ -528,10 +528,10 @@ test("a player may only run the entities assigned to them; shaping the encounter
 });
 
 test("assigning a character checks that the users and the entity exist", async () => {
-  mock.method(userModel, "getUserById", async (id: number) => (id === 2 ? player : null));
-  const store = mock.method(entityModel, "setEntityControllers", async (entityId: number) => entityId === 100);
+  vi.spyOn(userModel, "getUserById").mockImplementation(async (id: number) => (id === 2 ? player : null));
+  const store = vi.spyOn(entityModel, "setEntityControllers").mockImplementation(async (entityId: number) => entityId === 100);
   assert.deepEqual(await entityService.setEntityControllers(100, [2, 2]), [2]);
-  assert.deepEqual(store.mock.calls[0].arguments, [100, [2]]);
+  assert.deepEqual(store.mock.calls[0], [100, [2]]);
   await assert.rejects(entityService.setEntityControllers(100, [2, 9]), (error: { statusCode?: number }) => error.statusCode === 400);
   await assert.rejects(entityService.setEntityControllers(404, [2]), (error: { statusCode?: number }) => error.statusCode === 404);
   assert.deepEqual(await entityService.setEntityControllers(100, []), []);
@@ -617,7 +617,7 @@ test("a new entity takes its name and HP from the stored template, not from the 
 test("joining loads the engine on demand and returns the current state; a missing encounter is refused", async () => {
   const engine = new Engine(state(2), defaultProfiles);
   await engine.dispatch(request([damage(0, 4)]), gm);
-  const load = mock.method(encounterEngineManager, "getOrLoadEngine", async (id: number) => {
+  const load = vi.spyOn(encounterEngineManager, "getOrLoadEngine").mockImplementation(async (id: number) => {
     if (id !== 12) throw new EncounterNotFoundError(id);
     return engine;
   });
@@ -633,7 +633,7 @@ test("joining loads the engine on demand and returns the current state; a missin
   const acks: EncounterJoinAck[] = [];
 
   await join({ encounterId: 12 }, (ack: EncounterJoinAck) => acks.push(ack));
-  assert.equal(load.mock.callCount(), 1);
+  assert.equal(load.mock.calls.length, 1);
   assert.deepEqual(acks[0], { success: true, encounterState: engine.snapshot() });
   assert(rooms.includes("encounter:12") && rooms.includes("encounter:12:players"));
 
@@ -665,7 +665,7 @@ test("NPC form round-trips death-save settings alongside the full entity snapsho
     }],
   };
   const draft = createEntityDraft(npc);
-  draft.settings.combat!.deathSaves = false;
+  (draft.settings.combat! as { deathSaves: boolean }).deathSaves = false;
   assert.equal(npc.settings?.combat?.deathSaves, true);
   const parsed = parseEntityDraft(draft);
   assert.equal(parsed.ok, true);

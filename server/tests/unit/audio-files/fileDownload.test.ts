@@ -1,23 +1,23 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { afterEach, beforeEach, mock, test } from "node:test";
+import { afterEach, beforeEach, vi, test } from "vitest";
 import ytDlp from "yt-dlp-exec";
-import fileService from "../src/api/audio/files/fileService.js";
-import fileModel from "../src/api/audio/files/fileModel.js";
-import { audioPool } from "../src/db.js";
-import { getFolderPath } from "../src/api/audio/folders/folderModel.js";
-import { downloadAudioUrls } from "../src/api/audio/files/fileController.js";
-import { serverConfig } from "../src/config/server-config.js";
-import { sanitizeFilename, sanitizeName } from "../src/utils/file-utils.js";
+import fileService from "../../../src/api/audio/files/fileService.js";
+import fileModel from "../../../src/api/audio/files/fileModel.js";
+import { audioPool } from "../../../src/db.js";
+import { getFolderPath } from "../../../src/api/audio/folders/folderModel.js";
+import { downloadAudioUrls } from "../../../src/api/audio/files/fileController.js";
+import { serverConfig } from "../../../src/config/server-config.js";
+import { sanitizeFilename, sanitizeName } from "../../../src/utils/file-utils.js";
 import {
   downloadDirectUrl,
   downloadYouTubeSingle,
   downloadYouTubePlaylist,
   isExplicitYoutubePlaylist,
   isYoutubeUrl,
-} from "../src/services/fileDownload/downloadFunctions.js";
-import type { AudioFileDB } from "../src/api/audio/types.js";
+} from "../../../src/services/fileDownload/downloadFunctions.js";
+import type { AudioFileDB } from "../../../src/api/audio/types.js";
 
 let directory: string;
 let records: AudioFileDB[];
@@ -25,7 +25,7 @@ let stagedDirectories: Set<string>;
 const request = { name: "", url: "https://example.com/audio.wav?token=123", folder_id: 5 };
 
 // A real one-second PCM WAV exercises music-metadata without network or ffmpeg.
-export function wavData(): Buffer {
+export function wavData(): Buffer<ArrayBuffer> {
   const data = Buffer.alloc(44 + 16000);
   data.write("RIFF", 0);
   data.writeUInt32LE(data.length - 8, 4);
@@ -48,24 +48,24 @@ beforeEach(async () => {
   records = [];
   stagedDirectories = new Set();
   const mkdtemp = fs.mkdtemp;
-  mock.method(fs, "mkdtemp", async (prefix: string) => {
+  vi.spyOn(fs, "mkdtemp").mockImplementation(async (prefix: string) => {
     const created = await mkdtemp(prefix);
     if (prefix.includes("audio-download-")) stagedDirectories.add(created);
     return created;
   });
-  mock.method(fileService, "insertAudioFiles", async (files) => {
+  vi.spyOn(fileService, "insertAudioFiles").mockImplementation(async (files) => {
     const id = records.length + 1;
     records.push({ ...files[0], id, added_at: "", audio_type: "any" } as AudioFileDB);
     return { insertId: id, affectedRows: 1 };
   });
-  mock.method(fileModel, "getAudioFile", async (id) => records.find((file) => file.id === id));
-  mock.method(globalThis, "fetch", async () => new Response(wavData(), {
+  vi.spyOn(fileModel, "getAudioFile").mockImplementation((async (id: number) => records.find((file) => file.id === id)) as unknown as typeof fileModel.getAudioFile);
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(wavData(), {
     headers: { "content-type": "audio/wav" },
   }));
 });
 
 afterEach(async () => {
-  mock.restoreAll();
+  vi.restoreAllMocks();
   await fs.rm(directory, { recursive: true, force: true });
   for (const stagedDirectory of stagedDirectories) {
     await assert.rejects(fs.access(stagedDirectory), { code: "ENOENT" });
@@ -74,8 +74,7 @@ afterEach(async () => {
 
 function mockYoutube(title = "Storm: night #1", extension = "m4a") {
   // yt-dlp-exec's default function delegates to its exec method, then parses stdout.
-  mock.method(ytDlp as typeof ytDlp & { exec: (...args: unknown[]) => Promise<unknown> },
-    "exec", async (_url: string, flags: { output: string }) => {
+  vi.spyOn(ytDlp as typeof ytDlp & { exec: (url: string, flags: { output: string }) => Promise<{ stdout: string }> }, "exec").mockImplementation(async (_url: string, flags: { output: string }) => {
       const stagedDirectory = path.dirname(flags.output);
       stagedDirectories.add(stagedDirectory);
       await fs.writeFile(flags.output.replace("%(ext)s", extension), "downloaded audio");
@@ -100,10 +99,10 @@ test("custom YouTube titles are sanitized after downloading and cannot become ou
 
 test("concurrent downloads with identical names never overwrite each other", async () => {
   let calls = 0;
-  mock.method(globalThis, "fetch", async () => new Response("audio-" + ++calls, {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("audio-" + ++calls, {
     headers: { "content-type": "audio/mpeg" },
   }));
-  mock.method(console, "warn", () => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   const files = await Promise.all(Array.from({ length: 4 }, () =>
     downloadDirectUrl({ ...request, name: "Duplicate.mp3" }, directory)));
   assert.equal(new Set(files.map((file) => file.rel_path)).size, 4);
@@ -114,7 +113,7 @@ test("concurrent downloads with identical names never overwrite each other", asy
 });
 
 test("direct downloads decode RFC 5987 filenames and read real duration", async () => {
-  mock.method(globalThis, "fetch", async () => new Response(wavData(), {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(wavData(), {
     headers: {
       "content-type": "audio/wav; charset=binary",
       "content-disposition": "attachment; filename=\"fallback.wav\"; filename*=UTF-8''Rain%20%26%20wind.wav",
@@ -127,7 +126,7 @@ test("direct downloads decode RFC 5987 filenames and read real duration", async 
 });
 
 test("MIME parameters and dots in custom display names do not become malformed extensions", async () => {
-  mock.method(globalThis, "fetch", async () => new Response(wavData(), {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(wavData(), {
     headers: { "content-type": "audio/x-wav; charset=binary" },
   }));
   const file = await downloadDirectUrl({ ...request, url: "https://example.com/download", name: "Rain.v2" }, directory);
@@ -141,7 +140,7 @@ test("percent-encoded URL filenames are decoded", async () => {
 });
 
 test("an explicit extension is preserved when an endpoint supplies neither a filename nor a MIME type", async () => {
-  mock.method(globalThis, "fetch", async () => new Response(wavData()));
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(wavData()));
   const file = await downloadDirectUrl({
     ...request, name: "Rain.wav", url: "https://example.com/download",
   }, directory);
@@ -150,10 +149,10 @@ test("an explicit extension is preserved when an endpoint supplies neither a fil
 });
 
 test("metadata failure does not discard a completed download", async () => {
-  mock.method(globalThis, "fetch", async () => new Response("unrecognized audio", {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response("unrecognized audio", {
     headers: { "content-type": "audio/mpeg" },
   }));
-  mock.method(console, "warn", () => {});
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   const file = await downloadDirectUrl({ ...request, name: "Track" }, directory);
   assert.equal(file.duration, null);
   await fs.access(path.join(serverConfig.publicDir, file.rel_path!));
@@ -161,21 +160,21 @@ test("metadata failure does not discard a completed download", async () => {
 
 test("a failed DB insert removes only the new file and preserves existing files", async () => {
   await fs.writeFile(path.join(directory, "Track.wav"), "existing audio");
-  mock.method(fileService, "insertAudioFiles", async () => { throw new Error("DB unavailable"); });
+  vi.spyOn(fileService, "insertAudioFiles").mockImplementation(async () => { throw new Error("DB unavailable"); });
   await assert.rejects(downloadDirectUrl({ ...request, name: "Track" }, directory), /DB unavailable/);
   assert.deepEqual(await fs.readdir(directory), ["Track.wav"]);
   assert.equal(await fs.readFile(path.join(directory, "Track.wav"), "utf8"), "existing audio");
 });
 
 test("failed reads after a successful insert retain the committed file", async () => {
-  mock.method(fileModel, "getAudioFile", async () => undefined);
+  vi.spyOn(fileModel, "getAudioFile").mockImplementation((async () => undefined) as unknown as typeof fileModel.getAudioFile);
   await assert.rejects(downloadDirectUrl(request, directory), /Failed to retrieve/);
   assert.equal(records.length, 1);
   await fs.access(path.join(serverConfig.publicDir, records[0].rel_path!));
 });
 
 test("HTTP stream errors reject instead of leaving a partial library file", async () => {
-  mock.method(globalThis, "fetch", async () => new Response(new ReadableStream({
+  vi.spyOn(globalThis, "fetch").mockImplementation(async () => new Response(new ReadableStream({
     start(controller) {
       controller.enqueue(new Uint8Array([1, 2, 3]));
       controller.error(new Error("Connection dropped"));
@@ -191,7 +190,7 @@ test("a library scan cannot see an audio filename while its bytes are still bein
   let finishCopy!: () => void;
   const copying = new Promise<void>((resolve) => { copyStarted = resolve; });
   const release = new Promise<void>((resolve) => { finishCopy = resolve; });
-  mock.method(fs, "copyFile", async (source: string, destination: string) => {
+  vi.spyOn(fs, "copyFile").mockImplementation(async (source, destination) => {
     await fs.writeFile(destination, "partial");
     copyStarted();
     await release;
@@ -213,7 +212,7 @@ test("HTML responses, empty files, and missing response bodies never enter the l
     new Response(""),
     new Response(null),
   ]) {
-    mock.method(globalThis, "fetch", async () => response);
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => response);
     await assert.rejects(downloadDirectUrl(request, directory));
   }
   assert.deepEqual(await fs.readdir(directory), []);
@@ -243,7 +242,7 @@ test("sanitization returns the complete filename and refuses to overwrite an exi
 test("renaming a downloaded file ignores the old path submitted by edit dialogs", async () => {
   const file = await downloadDirectUrl(request, directory);
   const oldPath = file.rel_path!;
-  mock.method(fileModel, "updateAudioFile", async (id, params) => {
+  vi.spyOn(fileModel, "updateAudioFile").mockImplementation(async (id, params) => {
     Object.assign(records.find((record) => record.id === id)!, params);
     return 1;
   });
@@ -257,16 +256,16 @@ test("renaming a downloaded file ignores the old path submitted by edit dialogs"
 test("renaming never overwrites another file or updates the DB when the destination exists", async () => {
   const file = await downloadDirectUrl(request, directory);
   await fs.writeFile(path.join(directory, "Existing.wav"), "existing");
-  const update = mock.method(fileModel, "updateAudioFile", async () => 1);
+  const update = vi.spyOn(fileModel, "updateAudioFile").mockImplementation(async () => 1);
   await assert.rejects(fileService.updateAudioFile(file.id, { name: "Existing" }), /already exists/);
-  assert.equal(update.mock.callCount(), 0);
+  assert.equal(update.mock.calls.length, 0);
   assert.equal(await fs.readFile(path.join(directory, "Existing.wav"), "utf8"), "existing");
   await fs.access(path.join(serverConfig.publicDir, file.rel_path!));
 });
 
 test("failed DB updates leave a renamed download at its original valid path", async () => {
   const file = await downloadDirectUrl(request, directory);
-  mock.method(fileModel, "updateAudioFile", async () => { throw new Error("DB unavailable"); });
+  vi.spyOn(fileModel, "updateAudioFile").mockImplementation(async () => { throw new Error("DB unavailable"); });
   await assert.rejects(fileService.updateAudioFile(file.id, { name: "Renamed" }), /DB unavailable/);
   assert.deepEqual(await fs.readdir(directory), ["audio.wav"]);
   await fs.access(path.join(serverConfig.publicDir, file.rel_path!));
@@ -289,9 +288,9 @@ test("YouTube dispatch checks the host, and watch URLs with list parameters rema
 });
 
 test("missing and circular folder hierarchies fail instead of returning a partial path", async () => {
-  mock.method(audioPool, "execute", async () => [[]]);
+  vi.spyOn(audioPool, "execute").mockImplementation((async () => [[]]) as unknown as typeof audioPool.execute);
   await assert.rejects(getFolderPath(99), /does not exist/);
-  mock.method(audioPool, "execute", async () => [[{ id: 9, parent_id: 9, name: "loop" }]]);
+  vi.spyOn(audioPool, "execute").mockImplementation((async () => [[{ id: 9, parent_id: 9, name: "loop" }]]) as unknown as typeof audioPool.execute);
   await assert.rejects(getFolderPath(9), /Circular folder hierarchy/);
 });
 
@@ -318,8 +317,7 @@ test("the download endpoint accepts signed URLs and extensionless URLs, and reje
 
 test("playlists accept flat video IDs and process duplicate titles independently", async () => {
   const urls: string[] = [];
-  mock.method(ytDlp as typeof ytDlp & { exec: (...args: unknown[]) => Promise<unknown> },
-    "exec", async (url: string, flags: { output?: string }) => {
+  vi.spyOn(ytDlp as typeof ytDlp & { exec: (url: string, flags: { output?: string }) => Promise<{ stdout: string }> }, "exec").mockImplementation(async (url: string, flags: { output?: string }) => {
       if (!flags.output) return { stdout: JSON.stringify({
         entries: [{ url: "first", title: "Same" }, null, { id: "second", title: "Same" }],
       }) };

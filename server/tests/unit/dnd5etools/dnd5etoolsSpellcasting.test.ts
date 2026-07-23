@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { normalizeSpellcasting } from "../src/utils/dnd5etools/spellcasting-normalizer.js";
-import { renderDnd5eToolsText } from "../src/utils/dnd5etools/text-renderer.js";
+import { test } from "vitest";
+import { normalizeSpellcasting } from "../../../src/utils/dnd5etools/spellcasting-normalizer.js";
+import { renderDnd5eToolsText } from "../../../src/utils/dnd5etools/text-renderer.js";
 
 // Fixtures are trimmed copies of blocks from 5etools bestiary-xmm.json.
 const mage = [

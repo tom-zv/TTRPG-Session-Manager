@@ -1,6 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import importPlugin from 'eslint-plugin-import';
+import vitest from '@vitest/eslint-plugin';
 
 export default [
   {
@@ -48,5 +49,13 @@ export default [
         },
       },
     },
+  },
+  {
+    ...vitest.configs.recommended,
+    files: [
+      'server/tests/**/*.test.ts',
+      'shared/tests/**/*.test.ts',
+      'client/src/**/*.test.{ts,tsx}',
+    ],
   }
 ];
