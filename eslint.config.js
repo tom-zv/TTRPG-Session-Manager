@@ -54,7 +54,8 @@ export default [
     ...vitest.configs.recommended,
     files: [
       'server/tests/**/*.test.ts',
-      'shared/tests/**/*.test.ts',
+      'server/src/**/*.test.ts',
+      'shared/**/*.test.ts',
       'client/src/**/*.test.{ts,tsx}',
     ],
   }
