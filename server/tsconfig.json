@@ -1,17 +1,15 @@
-// server/tsconfig.json
-{ 
+{
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "../",
-    "declaration": true,
-    "resolveJsonModule": true,
+    "noEmit": true,
+    "typeRoots": ["./node_modules/@types", "../node_modules/@types"],
+    "types": ["node", "multer"],
     "paths": {
       "shared/*": ["../shared/*"],
       "src/*": ["./src/*"],
-      "client/*": ["../client/*"],
+      "client/*": ["../client/*"]
     }
   },
-  "include": ["src/**/*.ts", "../shared/**/*.ts"],
-  "exclude": ["node_modules", "dist", "src/**/*.test.ts", "../shared/tests", "../shared/**/*.test.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts", "../shared/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

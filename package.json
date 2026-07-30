@@ -27,7 +27,7 @@
     "test:db:down": "docker compose -f docker-compose.test.yml down --volumes",
     "test:db:reset": "server/node_modules/.bin/tsx server/tests/support/dbCli.ts reset",
     "test:coverage": "npm test -- --coverage",
-    "typecheck:tests": "tsc --noEmit -p server/tsconfig.test.json",
+    "typecheck:tests": "tsc -p server/tsconfig.json",
     "lint:tooling": "eslint --config ./eslint.config.js vitest.config.ts",
     "lint:shared": "eslint --config ./eslint.config.js ./shared/",
     "lint": "eslint --config ./eslint.config.js .",
