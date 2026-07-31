@@ -38,11 +38,15 @@ const Dialog: React.FC<DialogProps> = ({
 }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
+  const openedAt = useRef(0);
 
   // close on outside click
   const handleOutside = useCallback(
     (e: MouseEvent) => {
       if (noOverlay) return;
+      // The press that opened the dialog (e.g. a list row's mousedown) is still bubbling to
+      // the document when React flushes the opening effect; it must not count as outside.
+      if (e.timeStamp < openedAt.current) return;
       const tgt = e.target as Node;
       if (dialogRef.current?.contains(tgt)) return;
       onClose();
@@ -52,6 +56,7 @@ const Dialog: React.FC<DialogProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      openedAt.current = performance.now();
       document.addEventListener("mousedown", handleOutside);
       return () => document.removeEventListener("mousedown", handleOutside);
     }
