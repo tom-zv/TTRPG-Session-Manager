@@ -122,8 +122,11 @@ export function dnd5eEntitySummaryDbToDomain(db: DnD5eEntitySummaryDB): DnD5eEnt
     name: db.name,
     hp: db.hp,
     role: db.role,
-    cr: db.cr,
+    cr: db.cr ?? undefined,
+    creatureType: db.creature_type ?? undefined,
+    size: db.size,
     inParty: Boolean(db.in_party),
+    featuredNpc: false,
   };
 }
 

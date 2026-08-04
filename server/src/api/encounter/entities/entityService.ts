@@ -56,6 +56,21 @@ async function getEntitySummaries<T extends SystemType>(system: T): Promise<Enti
   return entities;
 }
 
+/** The player characters assigned to a user, for their Compendium. */
+async function getAssignedPcSummaries<T extends SystemType>(system: T, userId: number): Promise<EntitySummaryDB<T>[]> {
+  return entityModel.getAssignedPcSummaries(system, userId);
+}
+
+/**
+ * One player character assigned to the user. A missing, unassigned or non-PC entity is the same 404,
+ * so a player cannot tell which IDs exist.
+ */
+async function getAssignedPc<T extends SystemType>(system: T, userId: number, entityId: number): Promise<EntityDB<T>> {
+  const entity = await entityModel.getAssignedPcById(system, userId, entityId);
+  if (!entity) throw new NotFoundError("Character not found");
+  return entity;
+}
+
 async function insertEntity<T extends SystemType>(
   system: T, 
   data: Omit<EntityDB<T>, "id" | "createdAt">
@@ -127,6 +142,8 @@ export default {
   getEntitiesByIds,
   getAllEntities,
   getEntitySummaries,
+  getAssignedPcSummaries,
+  getAssignedPc,
   insertEntity,
   updateEntity,
   setEntityControllers,

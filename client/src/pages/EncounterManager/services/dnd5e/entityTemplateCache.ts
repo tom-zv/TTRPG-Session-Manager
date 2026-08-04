@@ -11,7 +11,8 @@ const templateQueries = [...ENCOUNTER_KEYS.all, "entityTemplates"];
 
 export const entityToSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
   templateId: entity.templateId, name: entity.name, role: entity.role,
-  hp: entity.hp, cr: entity.cr, inParty: entity.settings?.party?.member ?? false,
+  hp: entity.hp, cr: entity.cr, creatureType: entity.creatureType, size: entity.size,
+  inParty: entity.settings?.party?.member ?? false, featuredNpc: false,
 });
 
 function updateSummaries(queryClient: QueryClient, templates: DnD5eEntityDetails[]): void {

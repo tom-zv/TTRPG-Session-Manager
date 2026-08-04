@@ -138,6 +138,31 @@ async function getEntitySummaries<T extends SystemType>(
 
 }
 
+async function getAssignedPcSummaries<T extends SystemType>(
+  system: T,
+  userId: number
+): Promise<EntitySummaryDB<T>[]> {
+  switch (system) {
+    case "dnd5e":
+      return (await dnd5eModel.getAssignedPcSummaries(userId)) as EntitySummaryDB<T>[];
+    default:
+      throw new ValidationError(`Unsupported system: ${String(system)}`);
+  }
+}
+
+async function getAssignedPcById<T extends SystemType>(
+  system: T,
+  userId: number,
+  entityId: number
+): Promise<EntityDB<T> | null> {
+  switch (system) {
+    case "dnd5e":
+      return (await dnd5eModel.getAssignedPcById(userId, entityId)) as EntityDB<T> | null;
+    default:
+      throw new ValidationError(`Unsupported system: ${String(system)}`);
+  }
+}
+
 async function insertEntity<T extends SystemType>(
   system: T,
   data: Omit<EntityDB<T>, "id" | "createdAt">
@@ -257,6 +282,8 @@ export default {
   getEntitiesByIds,
   getAllEntities,
   getEntitySummaries,
+  getAssignedPcSummaries,
+  getAssignedPcById,
   insertCoreEntity,
   updateCoreEntity,
   insertEntity,

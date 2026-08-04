@@ -15,6 +15,12 @@ router.post("/batch", entityController.getEntitiesByIds);
 // GET /entities/summary - Get entity summaries for list display
 router.get("/summary", entityController.getEntitySummaries);
 
+// GET /entities/mine - The signed-in user's assigned player characters (Compendium "My characters").
+// GET /entities/mine/:id - One of them; a missing, unassigned or non-PC ID is the same 404.
+// Both sit before /:id so "mine" is not read as an ID.
+router.get("/mine", entityController.getMyEntitySummaries);
+router.get("/mine/:id", entityController.getMyEntityById);
+
 // GET /entities - Get all entities
 router.get("/", entityController.getAllEntities);
 

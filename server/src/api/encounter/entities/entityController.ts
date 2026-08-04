@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import entityService from "./entityService.js";
 import { ValidationError } from "../../HttpErrors.js";
+import type { AuthRequest } from "src/middleware/userAuth.js";
 import { isSupportedSystem } from "shared/domain/encounters/coreEncounter.js";
 import { validateEntitySettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
 import { notifyEntityTemplateUpdated } from "src/socket/namespaces/encounters/entityTemplateUpdates.js";
@@ -123,6 +124,42 @@ async function getEntitySummaries(
     
     res.status(200).json({ entities: transformedSummaries });
     
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /entities/mine: the signed-in user's assigned player characters, as summaries. */
+async function getMyEntitySummaries(req: Request, res: Response, next: NextFunction) {
+  const { system } = req.params as { system?: string };
+
+  try {
+    if (!isSupportedSystem(system)) {
+      throw new ValidationError("Unsupported system.");
+    }
+    const userId = (req as AuthRequest).userSession!.userDb.id;
+    const summaries = await entityService.getAssignedPcSummaries(system, userId);
+    res.status(200).json({ entities: summaries.map(dnd5eEntitySummaryDbToDomain) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** GET /entities/mine/:id: one of the signed-in user's assigned player characters. */
+async function getMyEntityById(req: Request, res: Response, next: NextFunction) {
+  const { id, system } = req.params as { id: string; system?: string };
+
+  try {
+    const entityId = Number(id);
+    if (!Number.isSafeInteger(entityId) || entityId <= 0) {
+      throw new ValidationError("Entity ID must be a positive integer");
+    }
+    if (!isSupportedSystem(system)) {
+      throw new ValidationError("Unsupported system.");
+    }
+    const userId = (req as AuthRequest).userSession!.userDb.id;
+    const entity = await entityService.getAssignedPc(system, userId, entityId);
+    res.status(200).json({ entity: dnd5eEntityDbToDomain(entity) });
   } catch (error) {
     next(error);
   }
@@ -282,6 +319,8 @@ export default {
   getEntitiesByIds,
   getAllEntities,
   getEntitySummaries,
+  getMyEntitySummaries,
+  getMyEntityById,
   insertEntity,
   updateEntity,
   setEntityControllers,

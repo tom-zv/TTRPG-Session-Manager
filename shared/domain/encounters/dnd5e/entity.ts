@@ -92,6 +92,8 @@ export const isSpellFrequency = (value: unknown): value is SpellFrequency =>
 export const isSpellcastingDisplay = (value: unknown): value is SpellcastingDisplay =>
   typeof value === "string" && (SPELLCASTING_DISPLAYS as readonly string[]).includes(value);
 
+export type DnD5eEntitySize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
+
 export interface DnD5eEntityDetails extends CoreEntity {
   settings?: EntitySettings;
   role: 'pc' | 'npc' | 'creature';
@@ -102,7 +104,7 @@ export interface DnD5eEntityDetails extends CoreEntity {
   hp: number;
   hpFormula?: string;      // e.g. '6d10 + 12'
   speeds: { [key: string]: number }; // e.g., { walk: 30, fly: 40, swim: 20 }
-  size: 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'gargantuan';
+  size: DnD5eEntitySize;
   alignment: string;
   abilityScores: {
     str: number;
@@ -135,8 +137,12 @@ export interface DnD5eEntitySummary {
   role: 'pc' | 'npc' | 'creature';
   hp: number;
   cr?: string;
+  creatureType?: string;
+  size: DnD5eEntitySize;
   /** A player character marked as a party member (entity setting `party.member`). */
   inParty?: boolean;
+  /** A recurring NPC the GM marked as featured. Always false until the setting exists. */
+  featuredNpc: boolean;
 }
 
 export interface DnD5eEntityState {

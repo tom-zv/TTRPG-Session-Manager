@@ -464,15 +464,43 @@ export async function getAllEntities(connection: PoolConnection): Promise<DnD5eE
   return entities;
 }
 
+// One summary projection for every list, so the general and the assigned-PC lists agree.
+const SUMMARY_SELECT = `
+  SELECT c.id, c.name, e.role, e.cr, e.hp, e.creature_type, e.size,
+         COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party
+  FROM core.entities c
+  JOIN dnd5e.entities e ON c.id = e.id`;
+
+/** Player characters assigned to the user. Expects the core entity row aliased as `c`. */
+const ASSIGNED_PC_WHERE = `
+  e.role = 'pc'
+  AND EXISTS (SELECT 1 FROM core.user_entities ue WHERE ue.entity_id = c.id AND ue.user_id = ?)`;
+
 export async function getEntitySummaries(): Promise<DnD5eEntitySummaryDB[]> {
+  const [rows] = await dnd5ePool.execute<RowDataPacket[]>(`${SUMMARY_SELECT} ORDER BY c.name`);
+  return rows as DnD5eEntitySummaryDB[];
+}
+
+/** Summaries of the player characters assigned to a user, whether or not they are in the party. */
+export async function getAssignedPcSummaries(userId: number): Promise<DnD5eEntitySummaryDB[]> {
   const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
-    `SELECT c.id, c.name, e.role, e.cr, e.hp,
-            COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party
-     FROM core.entities c
-     JOIN dnd5e.entities e ON c.id = e.id
-     ORDER BY c.name`
+    `${SUMMARY_SELECT} WHERE ${ASSIGNED_PC_WHERE} ORDER BY c.name`,
+    [userId]
   );
   return rows as DnD5eEntitySummaryDB[];
+}
+
+/** One assigned player character, or null when it is missing, not a PC, or not assigned to the user. */
+export async function getAssignedPcById(userId: number, entityId: number): Promise<DnD5eEntityDB | null> {
+  const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
+    `${ENTITY_SELECT} WHERE c.id = ? AND ${ASSIGNED_PC_WHERE}`,
+    [entityId, userId]
+  );
+  if (rows.length === 0) return null;
+
+  const entity = rows[0] as DnD5eEntityDB;
+  await hydrateEntity(dnd5ePool, entity);
+  return entity;
 }
 
 // ─── Private utilities ────────────────────────────────────────────────────────
@@ -523,6 +551,8 @@ export default {
   getEntityById,
   getEntitiesByIds,
   getEntitySummaries,
+  getAssignedPcSummaries,
+  getAssignedPcById,
   updateEntity,
   insertEntity,
   createDefaultEntityState,

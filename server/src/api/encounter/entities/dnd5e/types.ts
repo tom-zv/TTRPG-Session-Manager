@@ -2,6 +2,7 @@
 import { CoreEntityDB, CoreEntitySummaryDB } from "../types.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 import type {
+  DnD5eEntitySize,
   SpellcastingDisplay,
   SpellEntry,
   SpellFrequencyGroup,
@@ -93,7 +94,9 @@ export type DnD5eEntityUpdateDB = Partial<DnD5eEntityDB>;
 
 export interface DnD5eEntitySummaryDB extends CoreEntitySummaryDB {
   role: 'pc' | 'npc' | 'creature';
-  cr?: string;
+  cr?: string | null;
   hp: number;
+  creature_type?: string | null;
+  size: DnD5eEntitySize;
   in_party?: number | boolean;
 }
