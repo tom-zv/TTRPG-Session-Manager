@@ -144,6 +144,27 @@ export const formatRecordEntries = (record: Record<string, string> | undefined):
     });
 };
 
+export type EntityInfoLine = { label: string; items: string[] };
+
+/** The stat block's label/value lines (saves through languages), without the empty ones. */
+export const buildEntityInfoLines = (entity: DnD5eEntityDetails): EntityInfoLine[] => {
+  const senses = [
+    ...(entity.senses ?? []),
+    ...(entity.passivePerception ? [`passive Perception ${entity.passivePerception}`] : []),
+  ];
+
+  return [
+    { label: "Saving Throws", items: formatRecordEntries(entity.saves) },
+    { label: "Skills", items: formatRecordEntries(entity.skills) },
+    { label: "Vulnerabilities", items: entity.vulnerabilities?.map(formatDamageModifier) ?? [] },
+    { label: "Resistances", items: entity.resistances?.map(formatDamageModifier) ?? [] },
+    { label: "Immunities", items: entity.immunities?.map(formatDamageModifier) ?? [] },
+    { label: "Condition Immunities", items: entity.conditionImmunities?.map(formatConditionImmunity) ?? [] },
+    { label: "Senses", items: senses },
+    { label: "Languages", items: entity.languages ?? [] },
+  ].filter(line => line.items.length > 0);
+};
+
 export const formatSpellLevel = (level: number): string => {
   if (level === 0) return "Cantrips";
   return `${level}${getOrdinalSuffix(level)} level`;
@@ -323,3 +344,34 @@ const getOrdinalSuffix = (num: number): string => {
   if (ones === 3 && tens !== 13) return "rd";
   return "th";
 };
+
+/**
+ * Below this much section text (traits, actions, spellcasting…), two columns would leave the card
+ * mostly empty, so it keeps its single-column shape however wide the panel is. A Mage (about 650)
+ * already runs past the side panel's height in one column; a creature with one or two attacks
+ * stays well under.
+ */
+export const WIDE_CARD_MIN_SECTION_CHARS = 500;
+
+/** Characters of text across the stat block's sections: entry names, descriptions and spell names. */
+export const entitySectionTextLength = (entity: DnD5eEntityDetails): number =>
+  buildEntitySections(entity).reduce(
+    (total, section) =>
+      total +
+      section.entries.reduce((sum, entry) => {
+        if (entry.kind !== "spellcasting") return sum + entry.name.length + entry.description.length;
+        const { name, descriptions = [], levels = [], frequencyGroups = [] } = entry.spellcasting;
+        const spells = [...levels, ...frequencyGroups].flatMap(group => group.spells);
+        return (
+          sum +
+          name.length +
+          descriptions.reduce((length, text) => length + text.length, 0) +
+          spells.reduce((length, spell) => length + spell.name.length + 2, 0)
+        );
+      }, 0),
+    0
+  );
+
+/** Whether the sections hold enough text to fill the two-column wide card. */
+export const fillsWideCard = (entity: DnD5eEntityDetails): boolean =>
+  entitySectionTextLength(entity) >= WIDE_CARD_MIN_SECTION_CHARS;

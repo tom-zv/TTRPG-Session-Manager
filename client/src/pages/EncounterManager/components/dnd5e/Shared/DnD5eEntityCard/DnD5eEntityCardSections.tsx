@@ -9,15 +9,13 @@ import {
   ABILITY_KEYS,
   ABILITY_LABELS,
   AbilityKey,
+  buildEntityInfoLines,
   buildEntitySections,
   calcMod,
   EntityCardEntry,
   EntityCardSection,
-  formatConditionImmunity,
   formatCreatureSummary,
-  formatDamageModifier,
   formatHp,
-  formatRecordEntries,
   formatSignedNumber,
   formatSignedValue,
   formatSpeeds,
@@ -90,40 +88,27 @@ export const AbilityGrid: React.FC<EntitySectionProps> = ({ entity }) => (
   </div>
 );
 
-export const EntityInfoBlock: React.FC<EntitySectionProps> = ({ entity }) => {
-  const senses = [
-    ...(entity.senses ?? []),
-    ...(entity.passivePerception ? [`passive Perception ${entity.passivePerception}`] : []),
-  ];
+export const EntityInfoBlock: React.FC<EntitySectionProps> = ({ entity }) => (
+  <div className={styles.infoBlock}>
+    {buildEntityInfoLines(entity).map(line => (
+      <InfoLine key={line.label} label={line.label} items={line.items} />
+    ))}
+  </div>
+);
 
-  return (
-    <div className={styles.infoBlock}>
-      <InfoLine label="Saving Throws" items={formatRecordEntries(entity.saves)} />
-      <InfoLine label="Skills" items={formatRecordEntries(entity.skills)} />
-      <InfoLine
-        label="Vulnerabilities"
-        items={entity.vulnerabilities?.map(formatDamageModifier) ?? []}
-      />
-      <InfoLine
-        label="Resistances"
-        items={entity.resistances?.map(formatDamageModifier) ?? []}
-      />
-      <InfoLine
-        label="Immunities"
-        items={entity.immunities?.map(formatDamageModifier) ?? []}
-      />
-      <InfoLine
-        label="Condition Immunities"
-        items={entity.conditionImmunities?.map(formatConditionImmunity) ?? []}
-      />
-      <InfoLine label="Senses" items={senses} />
-      <InfoLine label="Languages" items={entity.languages ?? []} />
-    </div>
-  );
+type EntityEntrySectionsProps = EntitySectionProps & {
+  /** Show only entries of these kinds, e.g. ["spellcasting"]; sections left empty are dropped. */
+  kinds?: readonly EntityCardEntry["kind"][];
 };
 
-export const EntityEntrySections: React.FC<EntitySectionProps> = ({ entity }) => {
-  const sections = useMemo(() => buildEntitySections(entity), [entity]);
+export const EntityEntrySections: React.FC<EntityEntrySectionsProps> = ({ entity, kinds }) => {
+  const sections = useMemo(() => {
+    const all = buildEntitySections(entity);
+    if (!kinds) return all;
+    return all
+      .map(section => ({ ...section, entries: section.entries.filter(entry => kinds.includes(entry.kind)) }))
+      .filter(section => section.entries.length > 0);
+  }, [entity, kinds]);
 
   return (
     <>
@@ -189,15 +174,15 @@ type EntrySectionProps = {
 };
 
 const EntrySection: React.FC<EntrySectionProps> = ({ entity, section }) => (
-  <>
-    <div className={styles.sectionTitle}>{section.title}</div>
+  <section className={styles.entrySection}>
+    <h4 className={styles.sectionTitle}>{section.title}</h4>
     <div className={styles.section}>
       {section.key === "legendary" && <LegendaryIntro entity={entity} />}
       {section.entries.map((entry) => (
         <EntryRenderer key={entry.key} entry={entry} />
       ))}
     </div>
-  </>
+  </section>
 );
 
 const LegendaryIntro: React.FC<EntitySectionProps> = ({ entity }) => {

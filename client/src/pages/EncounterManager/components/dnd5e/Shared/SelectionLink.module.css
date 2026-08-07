@@ -31,6 +31,14 @@
   flex: 0 0 auto;
 }
 
+/* A wide entity card (see DnD5eEntityCard.module.css) widens the anchor with it, so the selection
+   marker stays centred on the card and the pin stays in its corner. */
+@container entity-card (min-width: 720px) {
+  .sidepanelSelectionAnchor:has([data-layout="wide"]) {
+    width: min(1040px, 100cqi - 1.5rem);
+  }
+}
+
 .sidepanelSelectionMarker {
   --selection-marker-font-size: 2rem;
   position: absolute;

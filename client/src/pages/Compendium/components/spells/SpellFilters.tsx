@@ -10,7 +10,8 @@ import {
   type SpellFilterState,
   type SpellSort,
 } from "./spellFilters.js";
-import styles from "./SpellBrowser.module.css";
+import { BrowserToolbar } from "../browser/BrowserToolbar.js";
+import styles from "../browser/Browser.module.css";
 
 type SpellFiltersProps = {
   filters: SpellFilterState;
@@ -42,17 +43,27 @@ export const SpellFilters: React.FC<SpellFiltersProps> = ({
         : [...filters.levels, level],
     });
 
+  const activeCount = [
+    filters.levels.length > 0,
+    filters.school !== "",
+    filters.className !== "",
+    filters.casting !== "",
+    filters.damageType !== "",
+    filters.save !== "",
+    filters.concentration,
+    filters.ritual,
+  ].filter(Boolean).length;
+
   return (
-    <div className={styles.filters} role="search" aria-label="Filter spells">
-      <div className={styles.filterRow}>
-        <input
-          type="search"
-          className={styles.searchInput}
-          placeholder="Search spells"
-          aria-label="Search spells by name"
-          value={filters.search}
-          onChange={event => update({ search: event.target.value })}
-        />
+    <BrowserToolbar
+      label="Filter spells"
+      search={{
+        value: filters.search,
+        onChange: search => update({ search }),
+        placeholder: "Search spells",
+        label: "Search spells by name",
+      }}
+      sort={
         <select
           className={styles.select}
           aria-label="Sort spells"
@@ -62,9 +73,13 @@ export const SpellFilters: React.FC<SpellFiltersProps> = ({
           <option value="name">Sort by name</option>
           <option value="level">Sort by level</option>
         </select>
-      </div>
-
-      <div className={styles.levelChips} role="group" aria-label="Spell levels">
+      }
+      activeCount={activeCount}
+      resultLabel={resultCount === total ? `${total} spells` : `${resultCount} of ${total} spells`}
+      onClear={hasActiveSpellFilters(filters) ? () => onChange(EMPTY_SPELL_FILTERS) : undefined}
+      actions={actions}
+    >
+      <div className={styles.chips} role="group" aria-label="Spell levels">
         {SPELL_LEVELS.map(level => {
           const active = filters.levels.includes(level);
           return (
@@ -144,18 +159,6 @@ export const SpellFilters: React.FC<SpellFiltersProps> = ({
           Ritual
         </label>
       </div>
-
-      <div className={styles.resultBar}>
-        <span aria-live="polite">
-          {resultCount === total ? `${total} spells` : `${resultCount} of ${total} spells`}
-        </span>
-        {hasActiveSpellFilters(filters) && (
-          <button type="button" className={styles.linkButton} onClick={() => onChange(EMPTY_SPELL_FILTERS)}>
-            Clear filters
-          </button>
-        )}
-        {actions && <span className={styles.resultActions}>{actions}</span>}
-      </div>
-    </div>
+    </BrowserToolbar>
   );
 };

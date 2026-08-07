@@ -1,26 +1,72 @@
+/* The page splits into a finder column (mode switch, filters, list) and a reader that takes the
+   whole right side. On narrow screens only the column shows; details open in a dialog. */
+
 .compendium {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 0.75rem 1.25rem 1rem;
+  box-sizing: border-box;
+}
+
+.panels {
+  flex: 1;
+  min-height: 0;
+}
+
+.finderPanel,
+.readerPanel {
+  height: 100%;
+  min-height: 0;
+}
+
+.finder {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   height: 100%;
-  padding: 1rem;
-  box-sizing: border-box;
+  min-height: 0;
 }
 
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1.5rem;
-}
-
-.header h1 {
-  margin: 0;
-  font-size: 1.35rem;
-  color: var(--text-primary);
-}
-
+/* A section's browser (filters and list); fills the rest of the column. */
 .panel {
   flex: 1;
   min-height: 0;
+}
+
+.resizeHandle {
+  width: 2px;
+  margin-inline: 0.75rem;
+  background: var(--border-color);
+  cursor: col-resize;
+  transition: background var(--transition-duration, 0.2s);
+}
+
+.resizeHandle:hover {
+  background: var(--accent-primary);
+}
+
+/* The reading surface: the selected spell's or entity's details, scrolled on their own. */
+.reader {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg, 10px);
+  background: color-mix(in srgb, var(--bg-secondary) 45%, transparent);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .compendium {
+    padding: 0.75rem 1rem;
+  }
 }

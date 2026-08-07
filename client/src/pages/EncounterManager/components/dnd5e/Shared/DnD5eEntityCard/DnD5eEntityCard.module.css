@@ -311,3 +311,50 @@
 .val.positive::before {
   content: "+";
 }
+
+/* ==========================
+   Wide layout: when the view's "entity-card" container has room (a widened encounter side panel),
+   a card with enough section text (data-layout="wide", see fillsWideCard) grows and its body
+   flows into two balanced columns, like a printed stat block. The
+   header spans both. The card's parents shrink to fit it, so the width comes from the container
+   (cqi), not from a percentage.
+========================== */
+.sectionTitle {
+  break-after: avoid;
+}
+
+@container entity-card (min-width: 720px) {
+  .entityCard[data-layout="wide"] {
+    width: min(1040px, 100cqi - 1.5rem);
+    padding: 22px 22px 16px;
+  }
+
+  [data-layout="wide"] .cardBody {
+    columns: 2;
+    column-gap: 2rem;
+    column-rule: 1px solid var(--border-color-light);
+  }
+
+  /* Stat line and ability scores form a band across both columns; the rest flows beneath. */
+  [data-layout="wide"] .statline,
+  [data-layout="wide"] .abilityGrid {
+    column-span: all;
+  }
+
+  [data-layout="wide"] .statline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0.35rem 2rem;
+  }
+
+  [data-layout="wide"] .abilityGrid {
+    justify-content: start;
+  }
+
+  [data-layout="wide"] .kv,
+  [data-layout="wide"] .entry,
+  [data-layout="wide"] .entryBlock,
+  [data-layout="wide"] .sectionIntro {
+    break-inside: avoid;
+  }
+}

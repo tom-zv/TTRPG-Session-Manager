@@ -8,6 +8,7 @@ import {
   EntityInfoBlock,
   StatSummary,
 } from "./DnD5eEntityCardSections.js";
+import { fillsWideCard } from "./DnD5eEntityCard.utils.js";
 import styles from "./DnD5eEntityCard.module.css";
 
 type DnD5eEntityCardProps = {
@@ -37,14 +38,19 @@ const DnD5eEntityCardComponent: React.FC<DnD5eEntityCardProps> = ({
     return <div className={cardClassName}>No entity selected.</div>;
   }
 
+  // Given room and enough text to fill it, the body flows into two stat-block columns. The room is
+  // measured on the nearest "entity-card" container, which the view declares (the encounter side
+  // panel); data-layout marks a card with enough text.
   return (
-    <div className={cardClassName}>
+    <div className={cardClassName} data-layout={fillsWideCard(entity) ? "wide" : undefined}>
       <EntityHeader entity={entity} />
-      <StatSummary entity={entity} />
-      <AbilityGrid entity={entity} />
-      <EntityInfoBlock entity={entity} />
-      <SpellLookupStatus />
-      <EntityEntrySections entity={entity} />
+      <div className={styles.cardBody}>
+        <StatSummary entity={entity} />
+        <AbilityGrid entity={entity} />
+        <EntityInfoBlock entity={entity} />
+        <SpellLookupStatus />
+        <EntityEntrySections entity={entity} />
+      </div>
     </div>
   );
 };

@@ -1,0 +1,330 @@
+/* Entity-only styles; layout, list, filters and buttons are in ../browser/Browser.module.css. */
+
+.roleBadge,
+.tagBadge {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.roleBadge {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+}
+
+.tagBadge {
+  background: color-mix(in srgb, var(--accent-primary) 22%, transparent);
+  color: var(--text-primary);
+}
+
+.rowHp {
+  margin-left: auto;
+}
+
+.crRange {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+/* Entity sheet: the Compendium's reading layout. Its parts respond to the reader pane's width (the
+   "detail-pane" container, see ../browser/Browser.module.css), not the window's. In the narrow-screen
+   dialog there is no container, so the stacked defaults apply. The header and the summary band are
+   kept compact so the text sections (traits, actions…) get most of the height. */
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  max-width: 76rem;
+  color: var(--text-secondary);
+}
+
+.sheetHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sheetTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.sheetTitle h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.sheetSubtitle {
+  margin: 0;
+  font-style: italic;
+}
+
+.sheetRole {
+  font-style: normal;
+  font-size: 0.85em;
+  color: var(--text-tertiary);
+}
+
+.sheetToken {
+  flex: none;
+  width: 4.5rem;
+  height: 4.5rem;
+  object-fit: cover;
+  border: 2px solid var(--accent-primary);
+  border-radius: 50%;
+  background: var(--bg-tertiary);
+}
+
+/* AC, HP, speed…: one line of label/value pairs under the name, wrapping only when narrow. */
+.vitals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 1.4rem;
+  margin: 0.35rem 0 0;
+}
+
+.vitals > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.vitals dt,
+.sheetInfo dt,
+.abilityTable thead th {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.vitals dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Ability tables and info lines share one band: side by side when the pane is wide, stacked when
+   it is narrow. */
+.sheetSummary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.9rem 2rem;
+  padding-block: 0.8rem;
+  border-block: 1px solid var(--border-color);
+}
+
+@container detail-pane (min-width: 760px) {
+  .sheetSummary {
+    grid-template-columns: max-content minmax(0, 1fr);
+  }
+
+  .sheetSummary > .sheetInfo {
+    padding-left: 2rem;
+    border-left: 1px solid var(--border-color);
+  }
+}
+
+/* Abilities, after the 2024 stat block: physical and mental tables side by side. Each row is the
+   ability and score on a tinted strip, then modifier and save as a joined pair of cells. */
+.abilityTables {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.abilityTable {
+  border-collapse: separate;
+  border-spacing: 0 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.abilityTable thead th {
+  padding: 0 0.2rem;
+  text-align: center;
+}
+
+.abilityTable tbody th,
+.abilityScore {
+  padding: 0.2rem 0.5rem;
+  background: var(--ability-tint);
+}
+
+.abilityTable tbody th {
+  padding-right: 0.15rem;
+  border-radius: 4px 0 0 4px;
+  text-align: left;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.abilityTable abbr {
+  text-decoration: none;
+  cursor: help;
+}
+
+.abilityScore {
+  min-width: 1.6rem;
+  padding-left: 0.15rem;
+  /* A transparent border outside the tint: a small gap before the modifier and save. */
+  border-right: 0.4rem solid transparent;
+  border-radius: 0 8px 8px 0;
+  background-clip: padding-box;
+  color: var(--text-secondary);
+}
+
+.abilityValue {
+  min-width: 2.4rem;
+  padding: 0.2rem 0.35rem;
+  border: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.abilityScore + .abilityValue {
+  border-radius: 4px 0 0 4px;
+}
+
+.abilityValue:last-child {
+  border-left: 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.physical {
+  --ability-tint: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.mental {
+  --ability-tint: color-mix(in srgb, var(--accent-secondary, var(--accent-primary)) 7%, var(--bg-tertiary) 30%);
+}
+
+/* Saves, skills, senses…: labels in one aligned column, values beside them. */
+.sheetInfo {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.sheetInfo > div {
+  display: contents;
+}
+
+.sheetInfo dd {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+@container detail-pane (max-width: 420px) {
+  .sheetInfo {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.05rem;
+  }
+
+  .sheetInfo dd {
+    margin-bottom: 0.35rem;
+  }
+}
+
+/* Traits, actions and spellcasting flow into columns of at least 18rem, up to three. The hierarchy
+   comes from colour and structure rather than weight alone: section titles lead (accent colour, a
+   marker and a rule that fades out), entry names are a step down (medium italic in a softened text
+   colour), descriptions sit below both. These override the stat-block card's styles. */
+.sheetBody {
+  columns: 18rem 3;
+  column-gap: 2rem;
+  column-rule: 1px solid var(--border-color);
+}
+
+.sheetBody h4 {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 1.2rem 0 0.5rem;
+  padding: 0;
+  border: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent-secondary);
+  break-after: avoid;
+}
+
+/* The marker before the title, and the rule after it. */
+.sheetBody h4::before {
+  content: "";
+  flex: none;
+  width: 0.3rem;
+  height: 0.85em;
+  border-radius: 2px;
+  background: var(--accent-primary);
+}
+
+.sheetBody h4::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent-primary) 55%, transparent), transparent);
+}
+
+.sheetBody > section:first-child > h4 {
+  margin-top: 0;
+}
+
+.sheetBody strong {
+  color: color-mix(in srgb, var(--text-primary) 82%, var(--text-secondary));
+  font-weight: 600;
+}
+
+.sheetBody p,
+.sheetBody section > div > div {
+  break-inside: avoid;
+}
+
+.sheetMore {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.5rem;
+}
+
+.sheetMore > summary {
+  padding: 0.35rem 0;
+  font-weight: 600;
+  color: var(--accent-secondary);
+  cursor: pointer;
+}
+
+.sheetMore > summary:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 2px;
+}
+
+.sheetMore > .sheetBody {
+  margin-top: 0.5rem;
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

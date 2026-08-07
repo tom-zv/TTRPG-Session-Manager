@@ -1,13 +1,11 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import { Group, Panel, Separator } from "react-resizable-panels";
 import { FiMoreHorizontal } from "react-icons/fi";
 import type { Spell, SpellSummary } from "shared/domain/dnd5e/spell.js";
 import Dialog from "src/components/Dialog/Dialog.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
-import { useMediaQuery } from "src/hooks/useMediaQuery.js";
 import { useDeleteSpell, useSpell, useSpellCasters, useSpellIndex } from "../../api/query/useSpellQueries.js";
 import { useSpellResolver } from "../../hooks/useSpellResolver.js";
+import { BrowserLayout, useBrowserDetail } from "../browser/BrowserLayout.js";
 import type { SpellTokenRenderer } from "../RichText/RichText.js";
 import { SpellCard } from "./SpellCard.js";
 import { SpellFilters } from "./SpellFilters.js";
@@ -21,30 +19,30 @@ import {
   type SpellFilterState,
   type SpellSort,
 } from "./spellFilters.js";
+import browserStyles from "../browser/Browser.module.css";
 import styles from "./SpellBrowser.module.css";
 
 type SpellBrowserProps = {
-  /** The page stays mounted while hidden; load and read the URL only while it is shown. */
+  /** The page and tab stay mounted while hidden; load the index the first time this is shown. */
   isActive: boolean;
+  /** The Compendium owns the selection and its URL (?spell=<id>). */
+  selectedId: number | null;
+  /** Select a spell, or clear the selection with null. */
+  onSelect: (id: number | null) => void;
 };
 
-const SPELL_PARAM = "spell";
-
-export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive }) => {
+export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId, onSelect }) => {
   // Load the index the first time the page is shown, then keep it.
   const [hasBeenActive, setHasBeenActive] = useState(isActive);
   if (isActive && !hasBeenActive) setHasBeenActive(true);
 
   const { data: spells, isLoading, error } = useSpellIndex({ enabled: hasBeenActive });
-  const { selectedId, select, clear } = useSelectedSpellParam(isActive);
   const { currentUser } = useAuth();
   const isGm = Boolean(currentUser?.isGm);
   const [formMode, setFormMode] = useState<SpellFormMode | null>(null);
   const [filters, setFilters] = useState<SpellFilterState>(EMPTY_SPELL_FILTERS);
   const [sort, setSort] = useState<SpellSort>("name");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const isNarrow = useMediaQuery("(max-width: 800px)");
-  const detailRef = useRef<HTMLDivElement>(null);
+  const detailState = useBrowserDetail();
 
   const deferredFilters = useDeferredValue(filters);
   const visibleSpells = useMemo(
@@ -54,13 +52,8 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive }) => {
   const filterOptions = useMemo(() => collectSpellFilterOptions(spells ?? []), [spells]);
   const selectedSummary = spells?.find(spell => spell.id === selectedId);
 
-  const openDetail = () => {
-    if (isNarrow) setDialogOpen(true);
-    else detailRef.current?.focus();
-  };
-
   const newSpellButton = isGm && (
-    <button type="button" className={styles.primaryButton} onClick={() => setFormMode({ kind: "create" })}>
+    <button type="button" className={browserStyles.primaryButton} onClick={() => setFormMode({ kind: "create" })}>
       New spell
     </button>
   );
@@ -84,7 +77,7 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive }) => {
           onCancel={() => setFormMode(null)}
           onSaved={saved => {
             setFormMode(null);
-            select(saved.id);
+            onSelect(saved.id);
           }}
         />
       )}
@@ -96,19 +89,19 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive }) => {
         onEdit: spell => setFormMode({ kind: "edit", spell }),
         onDuplicate: spell => setFormMode({ kind: "duplicate", spell }),
         onDeleted: () => {
-          setDialogOpen(false);
-          clear();
+          detailState.close();
+          onSelect(null);
         },
       }
     : undefined;
 
-  if (isLoading || !hasBeenActive) return <p className={styles.status}>Loading spells…</p>;
-  if (error) return <p className={`${styles.status} ${styles.statusError}`} role="alert">{error.message}</p>;
+  if (isLoading || !hasBeenActive) return <p className={browserStyles.status}>Loading spells…</p>;
+  if (error) return <p className={`${browserStyles.status} ${browserStyles.statusError}`} role="alert">{error.message}</p>;
   if (!spells || spells.length === 0) {
     return (
-      <div className={styles.status}>
+      <div className={browserStyles.status}>
         <p>No spells have been imported yet.</p>
-        <p className={styles.hint}>
+        <p className={browserStyles.hint}>
           Import them on the server with <code>npm run import:dnd5etools:spells -- --file &lt;spells-xphb.json&gt;</code>.
         </p>
         {newSpellButton}
@@ -117,112 +110,46 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive }) => {
     );
   }
 
-  const list = (
-    <div className={styles.listPane}>
-      {visibleSpells.length === 0 ? (
-        <p className={styles.status}>No spells match.</p>
-      ) : (
-        <SpellList
-          spells={visibleSpells}
-          selectedId={selectedId}
-          onSelect={(id, via) => {
-            select(id);
-            if (isNarrow && via === "pointer") setDialogOpen(true);
-          }}
-          onActivate={openDetail}
-        />
-      )}
-    </div>
-  );
-
-  const detail = (
-    <SpellDetail summary={selectedSummary} selectedId={selectedId} onSelect={select} actions={gmActions} />
-  );
-
   return (
-    <div className={styles.browser}>
-      <SpellFilters
-        filters={filters}
-        onChange={setFilters}
-        sort={sort}
-        onSortChange={setSort}
-        options={filterOptions}
-        resultCount={visibleSpells.length}
-        total={spells.length}
-        actions={newSpellButton}
+    <>
+      <BrowserLayout
+        detailState={detailState}
+        toolbar={
+          <SpellFilters
+            filters={filters}
+            onChange={setFilters}
+            sort={sort}
+            onSortChange={setSort}
+            options={filterOptions}
+            resultCount={visibleSpells.length}
+            total={spells.length}
+            actions={newSpellButton}
+          />
+        }
+        list={
+          visibleSpells.length === 0 ? (
+            <p className={browserStyles.status}>No spells match.</p>
+          ) : (
+            <SpellList
+              spells={visibleSpells}
+              selectedId={selectedId}
+              onSelect={(id, via) => {
+                onSelect(id);
+                detailState.onRowSelected(id, via);
+              }}
+              onActivate={detailState.open}
+            />
+          )
+        }
+        detail={<SpellDetail summary={selectedSummary} selectedId={selectedId} onSelect={onSelect} actions={gmActions} />}
+        detailLabel="Spell details"
+        dialogTitle={selectedSummary?.name ?? "Spell"}
+        hasSelection={selectedSummary !== undefined}
       />
       {formDialog}
-
-      {isNarrow ? (
-        <>
-          {list}
-          <Dialog
-            isOpen={dialogOpen && selectedSummary !== undefined}
-            onClose={() => setDialogOpen(false)}
-            title={selectedSummary?.name ?? "Spell"}
-          >
-            {detail}
-          </Dialog>
-        </>
-      ) : (
-        <Group orientation="horizontal" className={styles.panels}>
-          <Panel defaultSize="40%" minSize="25%" className={styles.panel}>
-            {list}
-          </Panel>
-          <Separator className={styles.resizeHandle} />
-          <Panel defaultSize="60%" minSize="30%" className={styles.panel}>
-            <div ref={detailRef} className={styles.detailPane} tabIndex={-1} aria-label="Spell details">
-              {detail}
-            </div>
-          </Panel>
-        </Group>
-      )}
-    </div>
+    </>
   );
 };
-
-// Selection lives in ?spell=<id>, so a reload or a shared link opens the spell.
-// The last selection is kept while another page is shown and written back on return.
-function useSelectedSpellParam(isActive: boolean) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const paramValue = Number(searchParams.get(SPELL_PARAM));
-  const paramId = Number.isInteger(paramValue) && paramValue > 0 ? paramValue : null;
-  const [lastId, setLastId] = useState<number | null>(paramId);
-  const [seenParamId, setSeenParamId] = useState<number | null>(paramId);
-
-  // Adopt the URL only when it changes (link, back button). Comparing it with lastId instead would
-  // undo select/clear: they set lastId at once, while the router applies the URL a moment later.
-  if (isActive && paramId !== seenParamId) {
-    setSeenParamId(paramId);
-    if (paramId !== null) setLastId(paramId);
-  }
-
-  useEffect(() => {
-    if (!isActive || paramId !== null || lastId === null) return;
-    setSearchParams(params => {
-      params.set(SPELL_PARAM, String(lastId));
-      return params;
-    }, { replace: true });
-  }, [isActive, paramId, lastId, setSearchParams]);
-
-  const select = (id: number) => {
-    setLastId(id);
-    setSearchParams(params => {
-      params.set(SPELL_PARAM, String(id));
-      return params;
-    }, { replace: true });
-  };
-
-  const clear = () => {
-    setLastId(null);
-    setSearchParams(params => {
-      params.delete(SPELL_PARAM);
-      return params;
-    }, { replace: true });
-  };
-
-  return { selectedId: isActive ? paramId ?? lastId : lastId, select, clear };
-}
 
 type SpellDetailActions = {
   onEdit: (spell: Spell) => void;
@@ -254,8 +181,8 @@ const SpellDetail: React.FC<SpellDetailProps> = ({ summary, selectedId, onSelect
     );
   };
 
-  if (selectedId === null) return <p className={styles.status}>Select a spell to read it.</p>;
-  if (!summary) return <p className={styles.status}>That spell is not in the compendium.</p>;
+  if (selectedId === null) return <p className={browserStyles.status}>Select a spell to read it.</p>;
+  if (!summary) return <p className={browserStyles.status}>That spell is not in the compendium.</p>;
 
   return (
     <SpellCard
@@ -334,14 +261,14 @@ const SpellOptionsMenu: React.FC<{ spell: Spell; actions: SpellDetailActions }> 
                 {casterCount > 0 &&
                   ` ${casterCount} creature${casterCount === 1 ? "" : "s"} name it; their spell lists will show it as plain text.`}
               </p>
-              {deleteSpell.error && <p className={styles.statusError}>{deleteSpell.error.message}</p>}
-              <div className={styles.actionRow}>
-                <button ref={cancelRef} type="button" className={styles.secondaryButton} onClick={() => setConfirming(false)}>
+              {deleteSpell.error && <p className={browserStyles.statusError}>{deleteSpell.error.message}</p>}
+              <div className={browserStyles.actionRow}>
+                <button ref={cancelRef} type="button" className={browserStyles.secondaryButton} onClick={() => setConfirming(false)}>
                   Cancel
                 </button>
                 <button
                   type="button"
-                  className={styles.dangerButton}
+                  className={browserStyles.dangerButton}
                   disabled={deleteSpell.isPending}
                   // mutateAsync, not mutate's onSuccess: removing the spell from the index unmounts this
                   // component, and TanStack skips per-call callbacks of an unmounted observer.
@@ -387,11 +314,11 @@ const SpellCasters: React.FC<{ spellId: number }> = ({ spellId }) => {
     <section className={styles.casters} aria-label="Cast by">
       <h4>Cast by</h4>
       {isLoading ? (
-        <p className={styles.hint}>Loading…</p>
+        <p className={browserStyles.hint}>Loading…</p>
       ) : error ? (
-        <p className={styles.statusError}>{error.message}</p>
+        <p className={browserStyles.statusError}>{error.message}</p>
       ) : !casters || casters.length === 0 ? (
-        <p className={styles.hint}>No creature lists this spell.</p>
+        <p className={browserStyles.hint}>No creature lists this spell.</p>
       ) : (
         <p>{casters.map(caster => caster.name).join(", ")}</p>
       )}

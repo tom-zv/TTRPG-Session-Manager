@@ -72,6 +72,8 @@
 }
 
 .sidePanel {
+  /* The room the entity card may use: it switches to two columns when this is wide enough. */
+  container: entity-card / inline-size;
   display: flex;
   min-height: 0;
   gap: 0.45rem;
