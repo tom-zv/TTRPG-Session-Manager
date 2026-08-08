@@ -7,7 +7,7 @@ import type { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encou
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import type { User } from "src/api/types.js";
 import { installLayoutApis, installMatchMedia } from "src/test/fakes/matchMedia.js";
-import { json } from "src/test/msw/handlers.js";
+import { apiError, json } from "src/test/msw/handlers.js";
 import { server } from "src/test/msw/server.js";
 import { renderWithProviders, testUser } from "src/test/render.js";
 import { RouterProbe, currentUrl, go } from "src/test/routerProbe.js";
@@ -37,7 +37,7 @@ const toSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
   creatureType: entity.creatureType,
   size: entity.size,
   inParty: entity.settings?.party?.member ?? false,
-  featuredNpc: false,
+  featuredNpc: entity.role === "npc" && entity.settings?.compendium?.featured === true,
 });
 
 const magicMissile: SpellSummary = {
@@ -246,6 +246,144 @@ describe("GM entity browser", () => {
     screen.getByRole("listbox", { name: "Entities" }).focus();
     await user.keyboard("{ArrowUp}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+type Saves = { created: DnD5eEntityDetails[]; updated: Array<{ id: number; data: DnD5eEntityDetails }>; summaries: number };
+
+// A catalog the forms can write to: POST assigns the next ID, PUT replaces the template.
+function serveEditableCatalog(initial: DnD5eEntityDetails[], options: { failCreate?: string } = {}) {
+  const store = new Map(initial.map(entity => [entity.templateId, entity]));
+  let nextId = 101;
+  const saves: Saves = { created: [], updated: [], summaries: 0 };
+  server.use(
+    http.get("/api/dnd5e/spells", () => json({ spells: [magicMissile] })),
+    http.get("/api/dnd5e/entities/summary", () => {
+      saves.summaries += 1;
+      return json({ entities: [...store.values()].map(toSummary) });
+    }),
+    http.post("/api/dnd5e/entities/batch", async ({ request }) => {
+      const { entityIds } = (await request.json()) as { entityIds: number[] };
+      return json({ entities: entityIds.flatMap(id => store.get(id) ?? []) });
+    }),
+    http.post("/api/dnd5e/entities", async ({ request }) => {
+      if (options.failCreate) return apiError(500, options.failCreate);
+      const { data } = (await request.json()) as { data: Omit<DnD5eEntityDetails, "templateId" | "createdAt"> };
+      const entity: DnD5eEntityDetails = { ...data, templateId: nextId++, createdAt: "2026-02-01T00:00:00.000Z" };
+      store.set(entity.templateId, entity);
+      saves.created.push(entity);
+      return json({ insertId: entity.templateId, entity }, 201);
+    }),
+    http.put("/api/dnd5e/entities/:id", async ({ params, request }) => {
+      const id = Number(params.id);
+      const { data } = (await request.json()) as { data: DnD5eEntityDetails };
+      const entity: DnD5eEntityDetails = { ...data, templateId: id, createdAt: store.get(id)?.createdAt ?? "" };
+      store.set(id, entity);
+      saves.updated.push({ id, data });
+      return json({ entity });
+    })
+  );
+  return saves;
+}
+
+const formDialog = (name: string) => screen.findByRole("dialog", { name });
+const listedNames = () => within(screen.getByRole("listbox", { name: "Entities" })).getAllByRole("option")
+  .map(item => item.textContent?.match(/^(Mara|Goblin|Wolf)/)?.[0]);
+
+describe("GM create and edit", () => {
+  test("creating an NPC from an empty catalog selects its generated ID, and it can be edited right away", async () => {
+    const user = userEvent.setup();
+    const saves = serveEditableCatalog([]);
+    renderAs(gm, "/compendium?section=entities");
+
+    await user.click(await screen.findByRole("button", { name: "New entity" }));
+    const create = within(await formDialog("New entity"));
+    await user.type(create.getByLabelText("Name"), "Mara");
+    await user.selectOptions(create.getByLabelText("Role"), "NPC");
+    await user.click(create.getByRole("button", { name: /Create Entity/ }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    const id = saves.created[0]?.templateId;
+    expect(id).toBe(101);
+    expect(currentUrl()).toBe(`/compendium?entity=${id}`);
+    expect(await within(details()).findByRole("heading", { name: "Mara" })).toBeVisible();
+    expect(option("Mara")).toHaveAttribute("aria-selected", "true");
+
+    await user.click(within(details()).getByRole("button", { name: "Edit Mara" }));
+    const edit = within(await formDialog("Edit Mara"));
+    expect(edit.getByLabelText("Name")).toHaveValue("Mara");
+    await user.clear(edit.getByLabelText("AC"));
+    await user.type(edit.getByLabelText("AC"), "15");
+    await user.click(edit.getByRole("button", { name: /Save Entity/ }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(saves.updated.map(save => [save.id, save.data.ac])).toEqual([[id, 15]]);
+    expect(within(details()).getByText("AC").nextElementSibling).toHaveTextContent("15");
+    expect(saves.summaries).toBe(1);
+  });
+
+  test("a failed save keeps the draft and shows the error; Cancel returns to the previous selection", async () => {
+    const user = userEvent.setup();
+    serveEditableCatalog([mara], { failCreate: "Database unavailable" });
+    renderAs(gm, `/compendium?entity=${mara.templateId}`);
+    await within(await screen.findByLabelText("Entity details")).findByRole("heading", { name: "Mara" });
+
+    await user.click(screen.getByRole("button", { name: "New entity" }));
+    const create = within(await formDialog("New entity"));
+    await user.type(create.getByLabelText("Name"), "Wolf");
+    await user.click(create.getByRole("button", { name: /Create Entity/ }));
+
+    expect(await create.findByText("Database unavailable")).toBeVisible();
+    expect(create.getByLabelText("Name")).toHaveValue("Wolf");
+
+    await user.click(create.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(currentUrl()).toBe(`/compendium?entity=${mara.templateId}`);
+    expect(within(details()).getByRole("heading", { name: "Mara" })).toBeVisible();
+  });
+
+  test("marking an NPC Featured lists it under Featured NPCs without a reload and keeps its other settings", async () => {
+    const user = userEvent.setup();
+    const saves = serveEditableCatalog([{ ...mara, settings: { combat: { deathSaves: true } }, controllerUserIds: [2] }, goblin]);
+    renderAs(gm, `/compendium?entity=${mara.templateId}`);
+    const views = within(await screen.findByRole("group", { name: "Entity views" }));
+    await user.click(views.getByRole("button", { name: "Featured NPCs" }));
+    expect(screen.getByText("No entities match.")).toBeVisible();
+
+    await user.click(await within(details()).findByRole("button", { name: "Edit Mara" }));
+    const edit = within(await formDialog("Edit Mara"));
+    await user.click(edit.getByRole("button", { name: /Identity/ }));
+    await user.click(edit.getByRole("checkbox", { name: /Featured NPC/ }));
+    await user.click(edit.getByRole("button", { name: /Save Entity/ }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(saves.updated[0]?.data.settings).toEqual({ combat: { deathSaves: true }, compendium: { featured: true } });
+    expect(listedNames()).toEqual(["Mara"]);
+    expect(within(details()).getByText(/Featured NPC/)).toBeVisible();
+    expect(saves.summaries).toBe(1);
+  });
+
+  test("a save the active filters hide keeps the filters and the detail, and Show in list resets them", async () => {
+    const user = userEvent.setup();
+    serveEditableCatalog([mara, goblin]);
+    renderAs(gm, "/compendium?section=entities");
+    const views = within(await screen.findByRole("group", { name: "Entity views" }));
+    await user.click(views.getByRole("button", { name: "NPCs" }));
+
+    await user.click(screen.getByRole("button", { name: "New entity" }));
+    const create = within(await formDialog("New entity"));
+    await user.type(create.getByLabelText("Name"), "Wolf");
+    await user.click(create.getByRole("button", { name: /Create Entity/ }));
+
+    expect(await within(details()).findByRole("heading", { name: "Wolf" })).toBeVisible();
+    expect(listedNames()).toEqual(["Mara"]);
+    expect(views.getByRole("button", { name: "NPCs" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(screen.getByRole("button", { name: "Show in list" }));
+    expect(views.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
+    expect(listedNames()).toEqual(["Goblin", "Mara", "Wolf"]);
+    expect(option("Wolf")).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByRole("button", { name: "Show in list" })).not.toBeInTheDocument();
   });
 });
 

@@ -99,4 +99,5 @@ export interface DnD5eEntitySummaryDB extends CoreEntitySummaryDB {
   creature_type?: string | null;
   size: DnD5eEntitySize;
   in_party?: number | boolean;
+  featured_npc?: number | boolean;
 }

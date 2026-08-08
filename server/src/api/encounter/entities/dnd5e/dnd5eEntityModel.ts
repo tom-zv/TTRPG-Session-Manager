@@ -467,7 +467,8 @@ export async function getAllEntities(connection: PoolConnection): Promise<DnD5eE
 // One summary projection for every list, so the general and the assigned-PC lists agree.
 const SUMMARY_SELECT = `
   SELECT c.id, c.name, e.role, e.cr, e.hp, e.creature_type, e.size,
-         COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party
+         COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party,
+         e.role = 'npc' AND COALESCE(JSON_EXTRACT(e.settings, '$.compendium.featured') = TRUE, FALSE) AS featured_npc
   FROM core.entities c
   JOIN dnd5e.entities e ON c.id = e.id`;
 

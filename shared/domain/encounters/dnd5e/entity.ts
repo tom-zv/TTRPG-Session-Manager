@@ -141,7 +141,7 @@ export interface DnD5eEntitySummary {
   size: DnD5eEntitySize;
   /** A player character marked as a party member (entity setting `party.member`). */
   inParty?: boolean;
-  /** A recurring NPC the GM marked as featured. Always false until the setting exists. */
+  /** An NPC with the entity setting `compendium.featured`; false for every other role. */
   featuredNpc: boolean;
 }
 

@@ -1,7 +1,8 @@
 import type { QueryClient, QueryFilters } from "@tanstack/react-query";
 import type { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
 import type { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js";
-import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
+import { isFeaturedNpc, type EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
+import { MY_CHARACTER_KEYS } from "src/pages/Compendium/api/query/myCharacterKeys.js";
 import { ENTITY_KEYS } from "../../api/dnd5e/entities/query/keys.js";
 import { ENCOUNTER_KEYS } from "../../api/dnd5e/encounters/query/keys.js";
 import { loadEntityTemplates } from "./entityTemplateLoader.js";
@@ -12,7 +13,7 @@ const templateQueries = [...ENCOUNTER_KEYS.all, "entityTemplates"];
 export const entityToSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
   templateId: entity.templateId, name: entity.name, role: entity.role,
   hp: entity.hp, cr: entity.cr, creatureType: entity.creatureType, size: entity.size,
-  inParty: entity.settings?.party?.member ?? false, featuredNpc: false,
+  inParty: entity.settings?.party?.member ?? false, featuredNpc: isFeaturedNpc(entity),
 });
 
 function updateSummaries(queryClient: QueryClient, templates: DnD5eEntityDetails[]): void {
@@ -26,6 +27,14 @@ function updateSummaries(queryClient: QueryClient, templates: DnD5eEntityDetails
   }
 }
 
+/**
+ * A player's assigned characters are read through their own keys, so a change to a template, its
+ * settings or its controllers refreshes them too (an assignment can add or remove a character).
+ */
+function invalidateAssignedPcs(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: MY_CHARACTER_KEYS.all });
+}
+
 function cachedTemplate(queryClient: QueryClient, id: number): DnD5eEntityDetails | undefined {
   return queryClient.getQueryData<DnD5eEntityDetails>(ENTITY_KEYS.template(id)) ??
     queryClient.getQueriesData<TemplateMap>({ queryKey: templateQueries })
@@ -35,12 +44,16 @@ function cachedTemplate(queryClient: QueryClient, id: number): DnD5eEntityDetail
 export function updateEntitySettingsCache(queryClient: QueryClient, templateId: number, settings: EntitySettings): void {
   const existing = cachedTemplate(queryClient, templateId);
   if (existing) updateTemplateCache(queryClient, { ...existing, settings });
-  else void queryClient.invalidateQueries({ queryKey: ENTITY_KEYS.summaries() });
+  else {
+    void queryClient.invalidateQueries({ queryKey: ENTITY_KEYS.summaries() });
+    invalidateAssignedPcs(queryClient);
+  }
 }
 
 export function updateEntityControllersCache(queryClient: QueryClient, templateId: number, controllerUserIds: number[]): void {
   const existing = cachedTemplate(queryClient, templateId);
   if (existing) updateTemplateCache(queryClient, { ...existing, controllerUserIds });
+  else invalidateAssignedPcs(queryClient);
 }
 
 export function updateTemplateCache(queryClient: QueryClient, template: DnD5eEntityDetails): void {
@@ -57,6 +70,7 @@ export function updateTemplateCache(queryClient: QueryClient, template: DnD5eEnt
     current?.[template.templateId] ? { ...current, [template.templateId]: template } : current);
   // Restart canceled maps too, including maps whose first load has not completed.
   void queryClient.invalidateQueries(maps);
+  invalidateAssignedPcs(queryClient);
 }
 
 export function removeTemplateCache(queryClient: QueryClient, id: number): void {
@@ -67,6 +81,7 @@ export function removeTemplateCache(queryClient: QueryClient, id: number): void 
   if (!queryClient.getQueryData(ENTITY_KEYS.summaries())) {
     void queryClient.invalidateQueries({ queryKey: ENTITY_KEYS.summaries() });
   }
+  invalidateAssignedPcs(queryClient);
 }
 
 // Serialize explicit refreshes so a notification during a join refresh is never lost.

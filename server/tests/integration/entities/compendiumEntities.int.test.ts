@@ -74,6 +74,60 @@ describe('entity summaries', () => {
   });
 });
 
+describe('featured NPCs', () => {
+  const summaryOf = async (http: ReturnType<typeof createHttpAgent>, token: string, id: number) => {
+    const response = await asToken(http.get('/api/dnd5e/entities/summary'), token).expect(200);
+    return (response.body as { entities: DnD5eEntitySummary[] }).entities.find(item => item.templateId === id);
+  };
+
+  test('only an NPC with the featured setting is a featured NPC in the summary list', async () => {
+    const { http, gm, create } = await setup();
+    const nyx = await create(baseEntity('Nyx', { role: 'npc', settings: { compendium: { featured: true } } }));
+    const wolf = await create(baseEntity('Wolf', { settings: { compendium: { featured: true } } }));
+    const pc = await create(baseEntity('Kael', { role: 'pc', settings: { compendium: { featured: true } } }));
+
+    expect(await summaryOf(http, gm.token, nyx.templateId)).toMatchObject({ role: 'npc', featuredNpc: true });
+    expect(await summaryOf(http, gm.token, wolf.templateId)).toMatchObject({ role: 'creature', featuredNpc: false });
+    expect(await summaryOf(http, gm.token, pc.templateId)).toMatchObject({ role: 'pc', featuredNpc: false });
+  });
+
+  test('featuring an NPC through a full save keeps its other settings and its assigned player', async () => {
+    const { http, gm, player, mara } = await setup();
+    const withDeathSaves = { ...mara, settings: { combat: { deathSaves: true } } };
+    await asToken(http.put(`/api/dnd5e/entities/${mara.templateId}`), gm.token).send({ data: withDeathSaves }).expect(200);
+
+    await asToken(http.put(`/api/dnd5e/entities/${mara.templateId}`), gm.token)
+      .send({ data: { ...withDeathSaves, settings: { combat: { deathSaves: true }, compendium: { featured: true } } } })
+      .expect(200);
+
+    expect(await summaryOf(http, gm.token, mara.templateId)).toMatchObject({ featuredNpc: true });
+    const detail = await asToken(http.get(`/api/dnd5e/entities/${mara.templateId}`), gm.token).expect(200);
+    expect((detail.body as { entity: DnD5eEntityDetails }).entity).toMatchObject({
+      settings: { combat: { deathSaves: true }, compendium: { featured: true } },
+      controllerUserIds: [player.user.id],
+    });
+  });
+
+  test('a featured NPC changed to a creature is no longer featured, and changing it back restores it', async () => {
+    const { http, gm, create } = await setup();
+    const nyx = await create(baseEntity('Nyx', { role: 'npc', settings: { compendium: { featured: true } } }));
+    const save = (role: NewEntity['role']) =>
+      asToken(http.put(`/api/dnd5e/entities/${nyx.templateId}`), gm.token).send({ data: { ...nyx, role } }).expect(200);
+
+    await save('creature');
+    expect(await summaryOf(http, gm.token, nyx.templateId)).toMatchObject({ featuredNpc: false });
+    await save('npc');
+    expect(await summaryOf(http, gm.token, nyx.templateId)).toMatchObject({ featuredNpc: true });
+  });
+
+  test('a setting outside the schema is rejected', async () => {
+    const { http, gm, mara } = await setup();
+    const response = await asToken(http.put(`/api/dnd5e/entities/${mara.templateId}`), gm.token)
+      .send({ data: { ...mara, settings: { compendium: { featured: 'yes' } } } });
+    expect(response.status).toBe(400);
+  });
+});
+
 describe('assigned player characters', () => {
   test('a player lists exactly their assigned PCs, including one outside the party', async () => {
     const { http, player, bram } = await setup();

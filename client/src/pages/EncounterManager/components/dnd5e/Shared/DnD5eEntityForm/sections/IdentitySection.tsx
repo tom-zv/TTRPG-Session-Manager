@@ -25,6 +25,16 @@ export const IdentitySection: React.FC<AdvancedSectionsProps> = ({ draft, update
         <small> {ENTITY_SETTINGS.combat.deathSaves.help}</small>
       </label>
     )}
+    {draft.role === "npc" && (
+      <label>
+        <input
+          type="checkbox"
+          checked={draft.settings.compendium?.featured ?? false}
+          onChange={(event) => updateDraft("settings", mergeSettings(draft.settings, { compendium: { featured: event.target.checked } }))}
+        /> {ENTITY_SETTINGS.compendium.featured.label}
+        <small> {ENTITY_SETTINGS.compendium.featured.help}</small>
+      </label>
+    )}
     <div className={styles.gridTwo}>
       <FormField label="Image URL" name="imageUrl" className={styles.wideField}>
         <input

@@ -7,7 +7,8 @@ import type { EntityFormSubmitValue } from "./DnD5eEntityForm.types.js";
 type EditEntityFormProps = {
   entity: DnD5eEntityDetails;
   onCancel?: () => void;
-  onSaved?: (entity: EntityFormSubmitValue) => void;
+  /** Receives the entity as the server saved it. */
+  onSaved?: (entity: DnD5eEntityDetails) => void;
 };
 
 export const EditEntityForm: React.FC<EditEntityFormProps> = ({
@@ -21,11 +22,11 @@ export const EditEntityForm: React.FC<EditEntityFormProps> = ({
   const handleSubmit = async (nextEntity: EntityFormSubmitValue) => {
     setError(null);
     try {
-      await updateMutation.mutateAsync({
+      const saved = await updateMutation.mutateAsync({
         id: entity.templateId,
         data: nextEntity,
       });
-      onSaved?.(nextEntity);
+      onSaved?.(saved);
       onCancel?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update entity");

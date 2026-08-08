@@ -15,6 +15,7 @@ import {
   type AbilityKey,
   type EntityCardEntry,
 } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.utils.js";
+import { isFeaturedNpc } from "shared/domain/encounters/dnd5e/settings.js";
 import { SpellLookupStatus } from "../spells/SpellLookupStatus.js";
 import styles from "./Entities.module.css";
 
@@ -30,7 +31,11 @@ const WITHOUT_SPELLCASTING: readonly EntityCardEntry["kind"][] = ["trait", "acti
  * A PC's sheet leads with what a player looks up (party, HP, AC, abilities, skills, spells); their
  * traits and actions open on request.
  */
-export const EntitySheet: React.FC<{ entity: DnD5eEntityDetails }> = ({ entity }) => {
+export const EntitySheet: React.FC<{
+  entity: DnD5eEntityDetails;
+  /** Controls in the header's corner, e.g. the GM's Edit button. */
+  headerAction?: React.ReactNode;
+}> = ({ entity, headerAction }) => {
   const headingId = useId();
   const isPc = entity.role === "pc";
   // Rendered only while open: the closed block would otherwise repeat its headings and spell links.
@@ -57,7 +62,7 @@ export const EntitySheet: React.FC<{ entity: DnD5eEntityDetails }> = ({ entity }
           <h2 id={headingId}>{entity.name}</h2>
           <p className={styles.sheetSubtitle}>
             {formatCreatureSummary(entity)}
-            <span className={styles.sheetRole}> · {ROLE_LABELS[entity.role]}</span>
+            <span className={styles.sheetRole}> · {isFeaturedNpc(entity) ? "Featured NPC" : ROLE_LABELS[entity.role]}</span>
           </p>
           <dl className={styles.vitals}>
             {stats.map(stat => (
@@ -71,6 +76,7 @@ export const EntitySheet: React.FC<{ entity: DnD5eEntityDetails }> = ({ entity }
         {entity.imageUrl && (
           <img className={styles.sheetToken} src={entity.imageUrl} alt={`${entity.name} token`} loading="lazy" />
         )}
+        {headerAction && <div className={styles.sheetActions}>{headerAction}</div>}
       </header>
 
       {/* Abilities beside the info lines when the pane is wide, so the text sections start high. */}

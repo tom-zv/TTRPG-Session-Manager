@@ -126,7 +126,7 @@ export function dnd5eEntitySummaryDbToDomain(db: DnD5eEntitySummaryDB): DnD5eEnt
     creatureType: db.creature_type ?? undefined,
     size: db.size,
     inParty: Boolean(db.in_party),
-    featuredNpc: false,
+    featuredNpc: Boolean(db.featured_npc),
   };
 }
 

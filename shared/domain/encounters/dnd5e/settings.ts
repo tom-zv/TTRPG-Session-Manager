@@ -48,6 +48,14 @@ export const ENTITY_SETTINGS = {
       help: "Added to an encounter with “Add party”.",
     },
   },
+  compendium: {
+    featured: {
+      type: "boolean",
+      defaultValue: false,
+      label: "Featured NPC",
+      help: "A recurring NPC, listed under Featured NPCs in the Compendium.",
+    },
+  },
 } as const;
 
 export type EncounterSettings = ResolvedSettings<typeof ENCOUNTER_SETTINGS>;
@@ -63,6 +71,11 @@ export const validateEntitySettingsPatch = (value: unknown): EntitySettings =>
 
 export const resolveEncounterSettings = (value?: unknown): EncounterSettings =>
   resolveSettings(ENCOUNTER_SETTINGS, value);
+
+/** Featured applies to NPCs only; the setting is kept when the role changes, but has no effect. */
+export function isFeaturedNpc(entity: { role: string; settings?: EntitySettings }): boolean {
+  return entity.role === "npc" && entity.settings?.compendium?.featured === true;
+}
 
 /** PCs always use death saves, NPCs when enabled, creatures never. */
 export function usesDeathSaves(entity: { role: string; settings?: EntitySettings }): boolean {
