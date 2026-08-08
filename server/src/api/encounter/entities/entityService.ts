@@ -3,6 +3,7 @@ import {
   getEntityById as getEntityByIdFromModel,
   EntityDB,
   EntitySummaryDB,
+  type EntityInventoryItem,
 } from "./entityModel.js";
 import entityModel from "./entityModel.js";
 import encounterModel from "../encounters/encounterModel.js";
@@ -69,6 +70,31 @@ async function getAssignedPc<T extends SystemType>(system: T, userId: number, en
   const entity = await entityModel.getAssignedPcById(system, userId, entityId);
   if (!entity) throw new NotFoundError("Character not found");
   return entity;
+}
+
+/**
+ * An entity's inventory. GMs read any player character or featured NPC; other users only player
+ * characters assigned to them. Anything else, including an existing but ineligible entity, is the same 404.
+ */
+async function getInventory<T extends SystemType>(
+  system: T,
+  viewer: { id: number; isGm: boolean },
+  entityId: number
+): Promise<EntityInventoryItem<T>[]> {
+  const items = await entityModel.getInventory(system, entityId, viewer.isGm ? null : viewer.id);
+  if (!items) throw new NotFoundError("Inventory not found");
+  return items;
+}
+
+/** Replace a player character's or featured NPC's whole inventory. Ineligible or missing entities are a 404. */
+async function replaceInventory<T extends SystemType>(
+  system: T,
+  entityId: number,
+  items: EntityInventoryItem<T>[]
+): Promise<EntityInventoryItem<T>[]> {
+  const saved = await entityModel.replaceInventory(system, entityId, items);
+  if (!saved) throw new NotFoundError("Inventory not found");
+  return saved;
 }
 
 async function insertEntity<T extends SystemType>(
@@ -144,6 +170,8 @@ export default {
   getEntitySummaries,
   getAssignedPcSummaries,
   getAssignedPc,
+  getInventory,
+  replaceInventory,
   insertEntity,
   updateEntity,
   setEntityControllers,

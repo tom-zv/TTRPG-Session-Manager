@@ -4,6 +4,7 @@ import { ValidationError } from "../../HttpErrors.js";
 import type { AuthRequest } from "src/middleware/userAuth.js";
 import { isSupportedSystem } from "shared/domain/encounters/coreEncounter.js";
 import { validateEntitySettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
+import { validateInventory } from "shared/domain/encounters/dnd5e/inventory.js";
 import { notifyEntityTemplateUpdated } from "src/socket/namespaces/encounters/entityTemplateUpdates.js";
 import {
   dnd5eEntityToUpdateDb,
@@ -165,6 +166,60 @@ async function getMyEntityById(req: Request, res: Response, next: NextFunction) 
   }
 }
 
+function parseEntityId(id: string | undefined): number {
+  const entityId = Number(id);
+  if (!Number.isSafeInteger(entityId) || entityId <= 0) {
+    throw new ValidationError("Entity ID must be a positive integer");
+  }
+  return entityId;
+}
+
+/** GET /entities/:id/inventory: GMs for PCs and featured NPCs, players for their assigned PCs. */
+async function getEntityInventory(req: Request, res: Response, next: NextFunction) {
+  const { id, system } = req.params as { id: string; system?: string };
+
+  try {
+    const entityId = parseEntityId(id);
+    if (!isSupportedSystem(system)) {
+      throw new ValidationError("Unsupported system.");
+    }
+    const user = (req as AuthRequest).userSession!.userDb;
+    const items = await entityService.getInventory(system, { id: user.id, isGm: Boolean(user.is_gm) }, entityId);
+    res.status(200).json({ items });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/** PUT /entities/:id/inventory (GM): replace the whole list. Body and response: { items }. */
+async function replaceEntityInventory(req: Request, res: Response, next: NextFunction) {
+  const { id, system } = req.params as { id: string; system?: string };
+  const body: unknown = req.body;
+
+  try {
+    const entityId = parseEntityId(id);
+    if (!isSupportedSystem(system)) {
+      throw new ValidationError("Unsupported system.");
+    }
+    if (typeof body !== "object" || body === null || !("items" in body)) {
+      throw new ValidationError("items is required");
+    }
+    let items;
+    switch (system) {
+      case "dnd5e":
+        try { items = validateInventory(body.items); }
+        catch (error) { throw new ValidationError((error as Error).message); }
+        break;
+      default:
+        throw new ValidationError("Unsupported system.");
+    }
+    const saved = await entityService.replaceInventory(system, entityId, items);
+    res.status(200).json({ items: saved });
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function insertEntity(req: Request, res: Response, next: NextFunction) {
   const { data } = req.body;
   const { system } = req.params as { system?: string };
@@ -321,6 +376,8 @@ export default {
   getEntitySummaries,
   getMyEntitySummaries,
   getMyEntityById,
+  getEntityInventory,
+  replaceEntityInventory,
   insertEntity,
   updateEntity,
   setEntityControllers,

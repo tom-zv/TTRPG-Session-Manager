@@ -7,6 +7,7 @@ import type { PoolConnection } from "mysql2/promise";
 import dnd5eModel from "./dnd5e/dnd5eEntityModel.js";
 import { ValidationError } from "src/api/HttpErrors.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
+import type { DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
 
 // Map systems to their entity types
 export type EntityDB<T extends SystemType> = 
@@ -16,6 +17,11 @@ export type EntityDB<T extends SystemType> =
 // Map systems to their entity summary types
 export type EntitySummaryDB<T extends SystemType> = 
   T extends "dnd5e" ? DnD5eEntitySummaryDB
+  : never;
+
+// Map systems to their inventory item types
+export type EntityInventoryItem<T extends SystemType> =
+  T extends "dnd5e" ? DnD5eInventoryItem
   : never;
 
 // Type for core.entities table columns only
@@ -163,6 +169,32 @@ async function getAssignedPcById<T extends SystemType>(
   }
 }
 
+async function getInventory<T extends SystemType>(
+  system: T,
+  entityId: number,
+  assignedUserId: number | null
+): Promise<EntityInventoryItem<T>[] | null> {
+  switch (system) {
+    case "dnd5e":
+      return (await dnd5eModel.getInventory(entityId, assignedUserId)) as EntityInventoryItem<T>[] | null;
+    default:
+      throw new ValidationError(`Unsupported system: ${String(system)}`);
+  }
+}
+
+async function replaceInventory<T extends SystemType>(
+  system: T,
+  entityId: number,
+  items: EntityInventoryItem<T>[]
+): Promise<EntityInventoryItem<T>[] | null> {
+  switch (system) {
+    case "dnd5e":
+      return (await dnd5eModel.replaceInventory(entityId, items)) as EntityInventoryItem<T>[] | null;
+    default:
+      throw new ValidationError(`Unsupported system: ${String(system)}`);
+  }
+}
+
 async function insertEntity<T extends SystemType>(
   system: T,
   data: Omit<EntityDB<T>, "id" | "createdAt">
@@ -284,6 +316,8 @@ export default {
   getEntitySummaries,
   getAssignedPcSummaries,
   getAssignedPcById,
+  getInventory,
+  replaceInventory,
   insertCoreEntity,
   updateCoreEntity,
   insertEntity,

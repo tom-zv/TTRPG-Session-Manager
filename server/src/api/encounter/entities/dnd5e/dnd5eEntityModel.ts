@@ -18,6 +18,7 @@ import {
   type SpellFrequencyGroup,
 } from "shared/domain/encounters/dnd5e/entity.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
+import { validateInventory, type DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
 import { mergeSettings } from "shared/domain/encounters/settings.js";
 import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonColumn.js";
 import { NotFoundError } from "src/api/HttpErrors.js";
@@ -464,11 +465,17 @@ export async function getAllEntities(connection: PoolConnection): Promise<DnD5eE
   return entities;
 }
 
+/** shared isFeaturedNpc() in SQL. Expects the dnd5e entity row aliased as `e`. */
+const FEATURED_NPC_SQL = "(e.role = 'npc' AND COALESCE(JSON_EXTRACT(e.settings, '$.compendium.featured') = TRUE, FALSE))";
+
+/** shared hasInventory() in SQL: player characters and featured NPCs. */
+const HAS_INVENTORY_SQL = `(e.role = 'pc' OR ${FEATURED_NPC_SQL})`;
+
 // One summary projection for every list, so the general and the assigned-PC lists agree.
 const SUMMARY_SELECT = `
   SELECT c.id, c.name, e.role, e.cr, e.hp, e.creature_type, e.size,
          COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party,
-         e.role = 'npc' AND COALESCE(JSON_EXTRACT(e.settings, '$.compendium.featured') = TRUE, FALSE) AS featured_npc
+         ${FEATURED_NPC_SQL} AS featured_npc
   FROM core.entities c
   JOIN dnd5e.entities e ON c.id = e.id`;
 
@@ -502,6 +509,57 @@ export async function getAssignedPcById(userId: number, entityId: number): Promi
   const entity = rows[0] as DnD5eEntityDB;
   await hydrateEntity(dnd5ePool, entity);
   return entity;
+}
+
+// ─── Inventory ────────────────────────────────────────────────────────────────
+// Kept out of ENTITY_SELECT and extractDnD5eTableFields: only these functions read or write the
+// column, so template reads carry no gear and a full template save never replaces it.
+
+function readInventoryColumn(value: unknown): DnD5eInventoryItem[] {
+  const parsed: unknown = typeof value === "string" ? JSON.parse(value) : value;
+  // Stored lists were validated on write; re-validating keeps a hand-edited row from reaching clients malformed.
+  return parsed === null || parsed === undefined ? [] : validateInventory(parsed);
+}
+
+/**
+ * The inventory of an entity that has one, or null when it is missing or ineligible.
+ * With `assignedUserId`, only a player character assigned to that user qualifies.
+ */
+export async function getInventory(entityId: number, assignedUserId: number | null): Promise<DnD5eInventoryItem[] | null> {
+  const where = assignedUserId === null
+    ? `c.id = ? AND ${HAS_INVENTORY_SQL}`
+    : `c.id = ? AND ${ASSIGNED_PC_WHERE}`;
+  const params = assignedUserId === null ? [entityId] : [entityId, assignedUserId];
+  const [rows] = await dnd5ePool.execute<RowDataPacket[]>(
+    `SELECT e.inventory FROM core.entities c JOIN dnd5e.entities e ON c.id = e.id WHERE ${where}`,
+    params
+  );
+  return rows[0] ? readInventoryColumn(rows[0].inventory) : null;
+}
+
+/** Replace a whole inventory. Returns null, writing nothing, when the entity is missing or ineligible. */
+export async function replaceInventory(entityId: number, items: DnD5eInventoryItem[]): Promise<DnD5eInventoryItem[] | null> {
+  const connection = await dnd5ePool.getConnection();
+  try {
+    await connection.beginTransaction();
+    // Lock the row so a concurrent role or Featured change cannot slip between the check and the write.
+    const [rows] = await connection.execute<RowDataPacket[]>(
+      `SELECT e.id FROM dnd5e.entities e WHERE e.id = ? AND ${HAS_INVENTORY_SQL} FOR UPDATE`,
+      [entityId]
+    );
+    if (!rows[0]) {
+      await connection.rollback();
+      return null;
+    }
+    await connection.execute("UPDATE dnd5e.entities SET inventory = ? WHERE id = ?", [JSON.stringify(items), entityId]);
+    await connection.commit();
+    return items;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 // ─── Private utilities ────────────────────────────────────────────────────────
@@ -554,6 +612,8 @@ export default {
   getEntitySummaries,
   getAssignedPcSummaries,
   getAssignedPcById,
+  getInventory,
+  replaceInventory,
   updateEntity,
   insertEntity,
   createDefaultEntityState,

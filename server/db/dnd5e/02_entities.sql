@@ -21,6 +21,7 @@ CREATE TABLE
         languages JSON NULL,                         -- ["Common", "Elvish", "telepathy 120 ft."]
         legendary_action_count TINYINT NOT NULL DEFAULT 0,
         legendary_header JSON NULL,                  -- intro text lines for legendary actions section
+        inventory JSON NULL,                         -- ordered [{name, quantity, notes?}] for PCs and featured NPCs; NULL = empty. Only the inventory API reads or writes it
         CONSTRAINT fk_dnd5e_entities_core_entity FOREIGN KEY (id) REFERENCES core.entities (id) ON DELETE CASCADE
     );
 CREATE TABLE

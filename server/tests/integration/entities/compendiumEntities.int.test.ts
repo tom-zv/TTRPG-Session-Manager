@@ -201,3 +201,132 @@ describe('assigned player characters', () => {
     expect((await asToken(http.get('/api/dnd5e/entities/mine/abc'), player.token)).status).toBe(400);
   });
 });
+
+describe('inventory', () => {
+  const potions = [
+    { name: 'Potion of healing', quantity: 2, notes: 'From the temple' },
+    { name: 'Iron key', quantity: 1, notes: 'Opens the crypt' },
+    { name: 'Potion of healing', quantity: 1 },
+  ];
+  type Http = ReturnType<typeof createHttpAgent>;
+  const read = (http: Http, token: string, id: number) => asToken(http.get(`/api/dnd5e/entities/${id}/inventory`), token);
+  const write = (http: Http, token: string, id: number, body: unknown) =>
+    asToken(http.put(`/api/dnd5e/entities/${id}/inventory`), token).send(body as object);
+
+  test('a PC with no stored inventory reads as an empty list', async () => {
+    const { http, gm, bram } = await setup();
+    const response = await read(http, gm.token, bram.templateId).expect(200);
+    expect(response.body).toEqual({ items: [] });
+  });
+
+  test('a GM saves a list and reads it back in order, duplicates kept, text trimmed', async () => {
+    const { http, gm, bram } = await setup();
+    const sent = [{ ...potions[0], name: '  Potion of healing ', notes: ' From the temple ' }, potions[1], { ...potions[2], notes: '   ' }];
+
+    const saved = await write(http, gm.token, bram.templateId, { items: sent }).expect(200);
+    expect(saved.body).toEqual({ items: potions });
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+  });
+
+  test('the assigned player reads their PC inventory; another player and a player PUT cannot reach it', async () => {
+    const { http, gm, player, other, bram } = await setup();
+    await write(http, gm.token, bram.templateId, { items: potions }).expect(200);
+
+    expect((await read(http, player.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+    const unassigned = await read(http, other.token, bram.templateId).expect(404);
+    const missing = await read(http, other.token, 999_999).expect(404);
+    expect(unassigned.body).toEqual(missing.body);
+    await write(http, player.token, bram.templateId, { items: [] }).expect(403);
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+  });
+
+  test('a featured NPC has an inventory for the GM only, even when the NPC is assigned to a player', async () => {
+    const { http, gm, player, mara } = await setup();
+    await write(http, gm.token, mara.templateId, { items: potions }).expect(404);
+
+    await asToken(http.put(`/api/dnd5e/entities/${mara.templateId}`), gm.token)
+      .send({ data: { ...mara, settings: { compendium: { featured: true } } } }).expect(200);
+    await write(http, gm.token, mara.templateId, { items: potions }).expect(200);
+
+    expect((await read(http, gm.token, mara.templateId).expect(200)).body).toEqual({ items: potions });
+    await read(http, player.token, mara.templateId).expect(404);
+  });
+
+  test('ordinary NPCs, creatures and missing entities have no inventory to read or write', async () => {
+    const { http, gm, mara, create } = await setup();
+    const wolf = await create(baseEntity('Wolf'));
+
+    const statuses: number[] = [];
+    for (const id of [mara.templateId, wolf.templateId, 999_999]) {
+      statuses.push((await read(http, gm.token, id)).status, (await write(http, gm.token, id, { items: potions })).status);
+    }
+    expect(statuses).toEqual([404, 404, 404, 404, 404, 404]);
+  });
+
+  test('an invalid list is a 400 and leaves the saved inventory unchanged', async () => {
+    const { http, gm, bram } = await setup();
+    await write(http, gm.token, bram.templateId, { items: potions }).expect(200);
+
+    const invalid: unknown[] = [
+      { items: [...potions, { name: 'Rope', quantity: 0 }] },
+      { items: [{ name: 'Rope', quantity: 1.5 }] },
+      { items: [{ name: 'Rope', quantity: '2' }] },
+      { items: [{ name: 'Rope', quantity: Number.MAX_SAFE_INTEGER + 1 }] },
+      { items: [{ name: '   ', quantity: 1 }] },
+      { items: [{ name: 'Rope', quantity: 1, notes: 5 }] },
+      { items: 'Rope' },
+      {},
+    ];
+    for (const body of invalid) {
+      await write(http, gm.token, bram.templateId, body).expect(400);
+    }
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+  });
+
+  test('removing Featured or the PC role hides the inventory, and restoring eligibility brings the same items back', async () => {
+    const { http, gm, player, bram, create } = await setup();
+    const nyx = await create(baseEntity('Nyx', { role: 'npc', settings: { compendium: { featured: true } } }));
+    await write(http, gm.token, nyx.templateId, { items: potions }).expect(200);
+    await write(http, gm.token, bram.templateId, { items: potions.slice(0, 1) }).expect(200);
+    const save = (entity: DnD5eEntityDetails) =>
+      asToken(http.put(`/api/dnd5e/entities/${entity.templateId}`), gm.token).send({ data: entity }).expect(200);
+
+    await save({ ...nyx, settings: { compendium: { featured: false } } });
+    await read(http, gm.token, nyx.templateId).expect(404);
+    await write(http, gm.token, nyx.templateId, { items: [] }).expect(404);
+    await save(nyx);
+    expect((await read(http, gm.token, nyx.templateId).expect(200)).body).toEqual({ items: potions });
+
+    await save({ ...bram, role: 'creature' });
+    await read(http, player.token, bram.templateId).expect(404);
+    await save(bram);
+    expect((await read(http, player.token, bram.templateId).expect(200)).body).toEqual({ items: potions.slice(0, 1) });
+  });
+
+  test('a full template save keeps the inventory, and template reads carry no inventory', async () => {
+    const { http, gm, player, bram } = await setup();
+    await write(http, gm.token, bram.templateId, { items: potions }).expect(200);
+
+    const updated = await asToken(http.put(`/api/dnd5e/entities/${bram.templateId}`), gm.token)
+      .send({ data: { ...bram, ac: 17 } }).expect(200);
+    expect((updated.body as { entity: DnD5eEntityDetails }).entity.ac).toBe(17);
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+
+    const reads = [
+      updated,
+      await asToken(http.get(`/api/dnd5e/entities/${bram.templateId}`), gm.token).expect(200),
+      await asToken(http.post('/api/dnd5e/entities/batch'), gm.token).send({ entityIds: [bram.templateId] }).expect(200),
+      await asToken(http.get('/api/dnd5e/entities/summary'), gm.token).expect(200),
+      await asToken(http.get(`/api/dnd5e/entities/mine/${bram.templateId}`), player.token).expect(200),
+    ];
+    for (const response of reads) {
+      expect(JSON.stringify(response.body)).not.toContain('Potion of healing');
+    }
+  });
+
+  test('inventory needs a signed-in user, and a malformed ID is a 400', async () => {
+    const { http, gm, bram } = await setup();
+    expect((await http.get(`/api/dnd5e/entities/${bram.templateId}/inventory`)).status).toBe(401);
+    expect((await read(http, gm.token, Number.NaN)).status).toBe(400);
+  });
+});

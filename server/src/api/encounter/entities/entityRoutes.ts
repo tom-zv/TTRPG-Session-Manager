@@ -34,6 +34,12 @@ router.post("/", requireGm, entityController.insertEntity);
 router.put("/:id", requireGm, entityController.updateEntity);
 router.patch("/:id/settings", requireGm, patchEntitySettings);
 
+// GET /entities/:id/inventory - { items }; GMs for PCs and featured NPCs, players for their assigned PCs
+// PUT /entities/:id/inventory - Replace the whole list (GM). Body: { items: [{ name, quantity, notes? }] }
+// Unavailable reads and ineligible writes are 404. Names and notes are trimmed by validateInventory.
+router.get("/:id/inventory", entityController.getEntityInventory);
+router.put("/:id/inventory", requireGm, entityController.replaceEntityInventory);
+
 // PUT /entities/:id/controllers - Assign the users who may run this entity
 // Body: { userIds: number[] }
 router.put("/:id/controllers", requireGm, entityController.setEntityControllers);
