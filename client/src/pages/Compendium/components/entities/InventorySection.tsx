@@ -1,4 +1,5 @@
-import React, { useId, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
+import { MdAdd } from "react-icons/md";
 import type { DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
 import { useInventory, useSaveInventory } from "../../api/query/useInventoryQueries.js";
 import browserStyles from "../browser/Browser.module.css";
@@ -14,13 +15,19 @@ type InventorySectionProps = {
 
 type DraftRow = { key: number; name: string; quantity: string; notes: string };
 
+const BLANK_ROW = { name: "", quantity: "1", notes: "" } as const;
+const isBlank = (row: DraftRow | undefined) => row !== undefined && row.name.trim() === "" && row.notes.trim() === "";
+
 /**
  * A PC's or featured NPC's inventory on their sheet: a manual, ordered list of what they carry.
+ * Collapsed by default and loaded the first time it opens. GMs edit from a quiet "Add item" row at
+ * the end of the list, which opens the editor on every item with a blank row ready.
  * Render it only for an eligible template; the server answers 404 for anything else.
  */
 export const InventorySection: React.FC<InventorySectionProps> = ({ entityId, viewerId, canEdit }) => {
   const headingId = useId();
-  const { data: items, error, isLoading } = useInventory(viewerId, entityId);
+  const [open, setOpen] = useState(false);
+  const { data: items, error, isLoading } = useInventory(viewerId, entityId, { enabled: open });
   const [editing, setEditing] = useState(false);
 
   let body: React.ReactNode;
@@ -39,19 +46,27 @@ export const InventorySection: React.FC<InventorySectionProps> = ({ entityId, vi
         onDone={() => setEditing(false)}
       />
     );
-  } else body = <InventoryList items={items} />;
+  } else {
+    body = (
+      <>
+        <InventoryList items={items} />
+        {canEdit && (
+          <button type="button" className={styles.inventoryAdd} onClick={() => setEditing(true)}>
+            <MdAdd aria-hidden="true" />
+            Add item
+          </button>
+        )}
+      </>
+    );
+  }
 
   return (
     <section className={styles.inventory} aria-labelledby={headingId}>
-      <div className={styles.inventoryHeader}>
-        <h3 id={headingId}>Inventory</h3>
-        {canEdit && items && !editing && (
-          <button type="button" className={browserStyles.secondaryButton} onClick={() => setEditing(true)}>
-            Edit inventory
-          </button>
-        )}
-      </div>
-      {body}
+      <details className={styles.sheetMore} onToggle={event => setOpen(event.currentTarget.open)}>
+        <summary id={headingId}>Inventory</summary>
+        {/* Rendered only while open, like Traits and actions. */}
+        {open && <div className={styles.inventoryBody}>{body}</div>}
+      </details>
     </section>
   );
 };
@@ -89,21 +104,31 @@ type InventoryEditorProps = {
 };
 
 const InventoryEditor: React.FC<InventoryEditorProps> = ({ entityId, viewerId, items, onDone }) => {
-  const nextKey = useRef(items.length);
-  const [rows, setRows] = useState<DraftRow[]>(() => items.map((item, index) => ({
-    key: index, name: item.name, quantity: String(item.quantity), notes: item.notes ?? "",
-  })));
+  // Opened from "Add item": the saved items, then a blank row with the cursor in it.
+  const nextKey = useRef(items.length + 1);
+  const [rows, setRows] = useState<DraftRow[]>(() => [
+    ...items.map((item, index) => ({ key: index, name: item.name, quantity: String(item.quantity), notes: item.notes ?? "" })),
+    { key: items.length, ...BLANK_ROW },
+  ]);
+  const firstBlankName = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    firstBlankName.current?.focus();
+  }, []);
   const save = useSaveInventory(viewerId, entityId);
 
   const update = (key: number, patch: Partial<DraftRow>) =>
     setRows(current => current.map(row => (row.key === key ? { ...row, ...patch } : row)));
-  const addRow = () => setRows(current => [...current, { key: nextKey.current++, name: "", quantity: "1", notes: "" }]);
+  const addRow = () => setRows(current => [...current, { key: nextKey.current++, ...BLANK_ROW }]);
   const removeRow = (key: number) => setRows(current => current.filter(row => row.key !== key));
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
     // The server validates and trims; a rejected list stays in the editor with its message.
-    const draft = rows.map(row => ({
+    // Blank rows at the end (the one "Add item" opened with, or extras) are not items. Blank rows
+    // between items are sent, so the server's "Item n" still matches the editor's numbering.
+    let end = rows.length;
+    while (end > 0 && isBlank(rows[end - 1])) end--;
+    const draft = rows.slice(0, end).map(row => ({
       name: row.name,
       quantity: Number(row.quantity),
       ...(row.notes.trim() ? { notes: row.notes } : {}),
@@ -121,6 +146,7 @@ const InventoryEditor: React.FC<InventoryEditorProps> = ({ entityId, viewerId, i
           <fieldset key={row.key} className={styles.inventoryRow}>
             <legend className={styles.visuallyHidden}>{label}</legend>
             <input
+              ref={row.key === items.length ? firstBlankName : undefined}
               aria-label={`${label} name`}
               placeholder="Item"
               value={row.name}

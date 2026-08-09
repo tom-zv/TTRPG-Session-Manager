@@ -28,12 +28,12 @@ const WITHOUT_SPELLCASTING: readonly EntityCardEntry["kind"][] = ["trait", "acti
  * Vitals fit on one line under the name; ability tables and info lines share one band across the
  * pane; traits and actions get the rest of the height, in as many columns as the pane allows.
  *
- * A PC's sheet leads with what a player looks up (party, HP, AC, abilities, skills, spells); their
- * traits and actions open on request.
+ * A PC's sheet leads with what a player looks up (HP, AC, abilities, skills, spells), with a Party
+ * badge by the role when they are in the party; their traits and actions open on request.
  */
 export const EntitySheet: React.FC<{
   entity: DnD5eEntityDetails;
-  /** Controls in the header's corner, e.g. the GM's Edit button. */
+  /** Controls in the header's corner, e.g. the GM's actions menu. */
   headerAction?: React.ReactNode;
   /** Sections after the stat block that load on their own, e.g. the inventory. */
   children?: React.ReactNode;
@@ -52,10 +52,9 @@ export const EntitySheet: React.FC<{
     { label: isPc ? "Template HP" : "HP", value: formatHp(entity) },
     { label: "Speed", value: formatSpeeds(entity.speeds) },
     { label: "Initiative", value: formatSignedNumber(calcMod(entity.abilityScores.dex)) },
-    isPc
-      ? { label: "Party", value: entity.settings?.party?.member ? "Party member" : "Not in the party" }
-      : { label: "CR", value: entity.cr || "—" },
+    ...(isPc ? [] : [{ label: "CR", value: entity.cr || "—" }]),
   ];
+  const inParty = isPc && entity.settings?.party?.member === true;
 
   return (
     <article className={styles.sheet} aria-labelledby={headingId}>
@@ -65,6 +64,7 @@ export const EntitySheet: React.FC<{
           <p className={styles.sheetSubtitle}>
             {formatCreatureSummary(entity)}
             <span className={styles.sheetRole}> · {isFeaturedNpc(entity) ? "Featured NPC" : ROLE_LABELS[entity.role]}</span>
+            {inParty && <span className={styles.partyBadge}>Party</span>}
           </p>
           <dl className={styles.vitals}>
             {stats.map(stat => (

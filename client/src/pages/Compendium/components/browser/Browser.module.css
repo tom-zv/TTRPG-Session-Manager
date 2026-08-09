@@ -220,6 +220,9 @@
   box-sizing: border-box;
   height: 100%;
   overflow-y: auto;
+  /* Reserved even when nothing scrolls: a scrollbar that appears when a section opens would narrow
+     the container and re-flow the sheet's width-dependent layout. */
+  scrollbar-gutter: stable;
   padding: 1.25rem 1.75rem 2rem;
 }
 

@@ -7,6 +7,8 @@ import {
 } from "src/pages/EncounterManager/api/dnd5e/entities/query/useDnD5eEntityQueries.js";
 import { CreateEntityForm } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/CreateEntityForm.js";
 import { EditEntityForm } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/EditEntityForm.js";
+import { MdEdit } from "react-icons/md";
+import { ActionMenu } from "../ActionMenu/ActionMenu.js";
 import { BrowserLayout, useBrowserDetail } from "../browser/BrowserLayout.js";
 import { EntityFilters } from "./EntityFilters.js";
 import { EntityList } from "./EntityList.js";
@@ -190,14 +192,10 @@ const EntityDetail: React.FC<EntityDetailProps> = ({ summary, selectedId, viewer
     <EntitySheet
       entity={entity}
       headerAction={
-        <button
-          type="button"
-          className={browserStyles.secondaryButton}
-          aria-label={`Edit ${entity.name}`}
-          onClick={() => onEdit(entity)}
-        >
-          Edit
-        </button>
+        <ActionMenu
+          label={`Actions for ${entity.name}`}
+          items={[{ label: "Edit", icon: <MdEdit />, onSelect: () => onEdit(entity) }]}
+        />
       }
     >
       {/* Shown only while the template is eligible; stored items return when it is again. */}

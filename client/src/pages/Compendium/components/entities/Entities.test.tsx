@@ -222,7 +222,7 @@ describe("GM entity browser", () => {
     expect(names()).toHaveLength(4);
   });
 
-  test("a PC's sheet leads with party membership, template HP and spells; traits and actions open on request", async () => {
+  test("a PC's sheet leads with template HP and spells, a Party badge only in the party; traits and actions open on request", async () => {
     const user = userEvent.setup();
     serveCompendiumApi({});
     renderAs(gm, `/compendium?entity=${bram.templateId}`);
@@ -230,7 +230,8 @@ describe("GM entity browser", () => {
     const sheet = await within(await screen.findByLabelText("Entity details")).findByRole("article", { name: "Bram" });
     const facts = within(sheet);
     expect(facts.getByText("Template HP").nextElementSibling).toHaveTextContent("33 (5d10 + 5)");
-    expect(facts.getByText("Party").nextElementSibling).toHaveTextContent("Not in the party");
+    // Bram is outside the party: no badge, and no Party line among the vitals.
+    expect(facts.queryByText("Party")).not.toBeInTheDocument();
     expect(facts.getByText("AC").nextElementSibling).toHaveTextContent("16");
     expect(facts.getByText(/athletics \+5/i)).toBeVisible();
     // Abilities read as tables: the ability and score, then modifier and save.
@@ -244,6 +245,11 @@ describe("GM entity browser", () => {
     expect(facts.queryByText("Longsword.")).not.toBeInTheDocument();
     await user.click(facts.getByText("Traits and actions"));
     expect(await facts.findByText("Longsword.")).toBeVisible();
+
+    // Aria is in the party: a badge by the role.
+    await pressRowInSplitPane(option("Aria"));
+    const aria = within(await within(details()).findByRole("article", { name: "Aria" }));
+    expect(aria.getByText("Party")).toBeVisible();
   });
 
   test("following a spell link from an entity and going Back returns to that entity", async () => {
@@ -327,6 +333,12 @@ function serveEditableCatalog(initial: DnD5eEntityDetails[], options: { failCrea
 }
 
 const formDialog = (name: string) => screen.findByRole("dialog", { name });
+// The GM's Edit lives in the sheet's actions menu.
+const openEdit = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+  await user.click(await within(details()).findByRole("button", { name: `Actions for ${name}` }));
+  await user.click(screen.getByRole("menuitem", { name: "Edit" }));
+  return within(await formDialog(`Edit ${name}`));
+};
 const listedNames = () => within(screen.getByRole("listbox", { name: "Entities" })).getAllByRole("option")
   .map(item => item.textContent?.match(/^(Mara|Goblin|Wolf)/)?.[0]);
 
@@ -349,8 +361,7 @@ describe("GM create and edit", () => {
     expect(await within(details()).findByRole("heading", { name: "Mara" })).toBeVisible();
     expect(option("Mara")).toHaveAttribute("aria-selected", "true");
 
-    await user.click(within(details()).getByRole("button", { name: "Edit Mara" }));
-    const edit = within(await formDialog("Edit Mara"));
+    const edit = await openEdit(user, "Mara");
     expect(edit.getByLabelText("Name")).toHaveValue("Mara");
     await user.clear(edit.getByLabelText("AC"));
     await user.type(edit.getByLabelText("AC"), "15");
@@ -390,8 +401,7 @@ describe("GM create and edit", () => {
     await user.click(views.getByRole("button", { name: "Featured NPCs" }));
     expect(screen.getByText("No entities match.")).toBeVisible();
 
-    await user.click(await within(details()).findByRole("button", { name: "Edit Mara" }));
-    const edit = within(await formDialog("Edit Mara"));
+    const edit = await openEdit(user, "Mara");
     await user.click(edit.getByRole("button", { name: /Identity/ }));
     await user.click(edit.getByRole("checkbox", { name: /Featured NPC/ }));
     await user.click(edit.getByRole("button", { name: /Save Entity/ }));
@@ -501,6 +511,12 @@ describe("player characters", () => {
 });
 
 const inventoryOf = (container: HTMLElement) => within(container).findByRole("region", { name: "Inventory" });
+// Collapsed by default; opening it loads the list.
+const openInventory = async (user: ReturnType<typeof userEvent.setup>, container: HTMLElement) => {
+  const region = await inventoryOf(container);
+  await user.click(within(region).getByText("Inventory"));
+  return region;
+};
 const inventoryRows = (region: HTMLElement) => within(region).getAllByRole("row").slice(1)
   .map(row => [within(row).getByRole("rowheader"), ...within(row).getAllByRole("cell")].map(cell => cell.textContent));
 
@@ -518,12 +534,18 @@ describe("inventory", () => {
     const inventory = serveInventory(() => TEMPLATES);
     const { queryClient } = renderAs(gm, `/compendium?entity=${bram.templateId}`);
 
-    const region = await inventoryOf(await screen.findByLabelText("Entity details"));
+    await inventoryOf(await screen.findByLabelText("Entity details"));
+    expect(inventory.reads).toEqual([]);
+    const region = await openInventory(user, details());
     expect(await within(region).findByText("Nothing in the inventory yet.")).toBeVisible();
-    await user.click(within(region).getByRole("button", { name: "Edit inventory" }));
+    await user.click(within(region).getByRole("button", { name: "Add item" }));
     const editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
-    for (let i = 0; i < 3; i++) await user.click(editor.getByRole("button", { name: "Add item" }));
+    // The editor opens on a blank row, ready to type in.
+    expect(editor.getByLabelText("Item 1 name")).toHaveFocus();
     expect(editor.getByLabelText("Item 1 quantity")).toHaveValue(1);
+    // Item 4 stays blank: a blank row at the end is not saved.
+    for (let i = 0; i < 3; i++) await user.click(editor.getByRole("button", { name: "Add item" }));
+    expect(editor.getByLabelText("Item 4 name")).toHaveValue("");
 
     await typeInSplitPane(user, editor.getByLabelText("Item 1 name"), "  Potion of healing ");
     await user.clear(editor.getByLabelText("Item 1 quantity"));
@@ -551,8 +573,8 @@ describe("inventory", () => {
     inventory.stored.set(bram.templateId, [{ name: "Potion of healing", quantity: 2 }]);
     renderAs(gm, `/compendium?entity=${bram.templateId}`);
 
-    const region = await inventoryOf(await screen.findByLabelText("Entity details"));
-    await user.click(await within(region).findByRole("button", { name: "Edit inventory" }));
+    const region = await openInventory(user, await screen.findByLabelText("Entity details"));
+    await user.click(await within(region).findByRole("button", { name: "Add item" }));
     const editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
     await user.clear(editor.getByLabelText("Item 1 quantity"));
     await typeInSplitPane(user, editor.getByLabelText("Item 1 quantity"), "0");
@@ -576,8 +598,7 @@ describe("inventory", () => {
     expect(inventory.reads).toEqual([]);
 
     const toggleFeatured = async () => {
-      await user.click(within(details()).getByRole("button", { name: "Edit Mara" }));
-      const edit = within(await formDialog("Edit Mara"));
+      const edit = await openEdit(user, "Mara");
       await user.click(edit.getByRole("button", { name: /Identity/ }));
       await user.click(edit.getByRole("checkbox", { name: /Featured NPC/ }));
       await user.click(edit.getByRole("button", { name: /Save Entity/ }));
@@ -590,7 +611,7 @@ describe("inventory", () => {
 
     featured = true;
     await toggleFeatured();
-    const region = await inventoryOf(details());
+    const region = await openInventory(user, details());
     await waitFor(() => expect(inventoryRows(region)).toEqual([["Silver dagger", "1", "Engraved"]]));
 
     featured = false;
@@ -599,7 +620,8 @@ describe("inventory", () => {
 
     featured = true;
     await toggleFeatured();
-    expect(inventoryRows(await inventoryOf(details()))).toEqual([["Silver dagger", "1", "Engraved"]]);
+    const reopened = await openInventory(user, details());
+    await waitFor(() => expect(inventoryRows(reopened)).toEqual([["Silver dagger", "1", "Engraved"]]));
   });
 
   test("a player reads their PC's inventory without edit controls, refreshed when they reopen Entities", async () => {
@@ -610,9 +632,9 @@ describe("inventory", () => {
     inventory.stored.set(bram.templateId, [{ name: "Potion of healing", quantity: 2 }]);
     renderAs(player, `/compendium?entity=${bram.templateId}`);
 
-    const region = await inventoryOf(await screen.findByLabelText("Character details"));
+    const region = await openInventory(user, await screen.findByLabelText("Character details"));
     await waitFor(() => expect(inventoryRows(region)).toEqual([["Potion of healing", "2", ""]]));
-    expect(within(region).queryByRole("button", { name: "Edit inventory" })).not.toBeInTheDocument();
+    expect(within(region).queryByRole("button", { name: "Add item" })).not.toBeInTheDocument();
 
     await user.click(tab("Spells"));
     inventory.stored.set(bram.templateId, [{ name: "Potion of healing", quantity: 1 }, { name: "Iron key", quantity: 1 }]);
