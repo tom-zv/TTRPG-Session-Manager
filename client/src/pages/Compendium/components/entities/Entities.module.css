@@ -348,3 +348,120 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* Inventory: a manual list after the stat block, on PCs and featured NPCs. */
+.inventory {
+  border-top: 1px solid var(--border-color);
+  padding-top: 0.5rem;
+}
+
+.inventoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.inventoryHeader h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--accent-secondary);
+}
+
+.inventoryStatus {
+  margin: 0.25rem 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.inventoryTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.inventoryTable thead th {
+  padding: 0.25rem 0.5rem 0.25rem 0;
+  text-align: left;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.inventoryTable tbody th,
+.inventoryTable td {
+  padding: 0.3rem 0.5rem 0.3rem 0;
+  border-top: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.inventoryTable tbody th {
+  font-weight: 600;
+}
+
+.inventoryTable td:last-child {
+  color: var(--text-secondary);
+}
+
+.inventoryQuantity {
+  width: 3rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.inventoryEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.inventoryRow {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) 4.5rem minmax(0, 3fr) auto;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.inventoryRow input {
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.inventoryRow input:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 1px;
+}
+
+.inventoryActions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.inventoryActionsEnd {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Narrow panes and dialogs: name and quantity on one line, notes and Remove below. */
+@container detail-pane (max-width: 520px) {
+  .inventoryRow {
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+  }
+}

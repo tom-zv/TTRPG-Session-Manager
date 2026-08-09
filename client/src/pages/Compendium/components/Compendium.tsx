@@ -6,6 +6,7 @@ import { GiDragonHead, GiSpellBook } from "react-icons/gi";
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import { useMediaQuery } from "src/hooks/useMediaQuery.js";
 import { MY_CHARACTER_KEYS } from "../api/query/myCharacterKeys.js";
+import { INVENTORY_KEYS } from "../api/query/inventoryKeys.js";
 import { useCompendiumUrl } from "../hooks/useCompendiumUrl.js";
 import { BrowserDetailSlot, NARROW_BROWSER_QUERY } from "./browser/BrowserLayout.js";
 import { CompendiumModeSwitch, type CompendiumMode } from "./CompendiumModeSwitch.js";
@@ -78,6 +79,7 @@ export const Compendium: React.FC = () => {
                 ) : currentUser.isGm ? (
                   <EntityBrowser
                     key={currentUser.id}
+                    viewerId={currentUser.id}
                     isActive={entitiesActive}
                     selectedId={selection.entities}
                     onSelect={id => select("entities", id)}
@@ -124,9 +126,11 @@ function useViewerScope(userId: number | null, clearSelection: () => void) {
 
   useEffect(() => {
     if (userId === null) return;
-    queryClient.removeQueries({
-      queryKey: MY_CHARACTER_KEYS.all,
-      predicate: query => query.queryKey[MY_CHARACTER_KEYS.all.length] !== userId,
-    });
+    for (const all of [MY_CHARACTER_KEYS.all, INVENTORY_KEYS.all]) {
+      queryClient.removeQueries({
+        queryKey: all,
+        predicate: query => query.queryKey[all.length] !== userId,
+      });
+    }
   }, [queryClient, userId]);
 }

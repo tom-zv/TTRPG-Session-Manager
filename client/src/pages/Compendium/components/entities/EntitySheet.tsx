@@ -35,7 +35,9 @@ export const EntitySheet: React.FC<{
   entity: DnD5eEntityDetails;
   /** Controls in the header's corner, e.g. the GM's Edit button. */
   headerAction?: React.ReactNode;
-}> = ({ entity, headerAction }) => {
+  /** Sections after the stat block that load on their own, e.g. the inventory. */
+  children?: React.ReactNode;
+}> = ({ entity, headerAction, children }) => {
   const headingId = useId();
   const isPc = entity.role === "pc";
   // Rendered only while open: the closed block would otherwise repeat its headings and spell links.
@@ -114,6 +116,7 @@ export const EntitySheet: React.FC<{
           )}
         </details>
       )}
+      {children}
     </article>
   );
 };

@@ -11,7 +11,9 @@ import { apiError, json } from "src/test/msw/handlers.js";
 import { server } from "src/test/msw/server.js";
 import { renderWithProviders, testUser } from "src/test/render.js";
 import { RouterProbe, currentUrl, go } from "src/test/routerProbe.js";
+import type { DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
 import { MY_CHARACTER_KEYS } from "../../api/query/myCharacterKeys.js";
+import { INVENTORY_KEYS } from "../../api/query/inventoryKeys.js";
 import { Compendium } from "../Compendium.js";
 
 const template = (templateId: number, name: string, patch: Partial<DnD5eEntityDetails> = {}): DnD5eEntityDetails => ({
@@ -68,6 +70,42 @@ const otherPlayer = testUser({ id: 3, username: "other", isGm: false });
 
 type Requests = { summaries: number; batches: number[][]; mine: number; mineDetails: number[] };
 
+type InventoryServer = { stored: Map<number, DnD5eInventoryItem[]>; reads: number[]; writes: Array<{ id: number; items: DnD5eInventoryItem[] }> };
+
+// The inventory endpoints as the server enforces them: GMs reach PCs and featured NPCs, players
+// only their assigned PCs. `templates` and `assigned` are read on each request, so tests can change them.
+function serveInventory(
+  templates: () => DnD5eEntityDetails[],
+  assigned: Record<number, DnD5eEntityDetails[]> = {},
+  options: { failSave?: string } = {}
+): InventoryServer {
+  const inventory: InventoryServer = { stored: new Map(), reads: [], writes: [] };
+  const signedIn = () => Number(localStorage.getItem("test-user-id"));
+  const reachable = (id: number) => {
+    if (signedIn() !== gm.id) return (assigned[signedIn()] ?? []).some(entity => entity.templateId === id && entity.role === "pc");
+    const entity = templates().find(item => item.templateId === id);
+    return entity !== undefined && (entity.role === "pc" || (entity.role === "npc" && entity.settings?.compendium?.featured === true));
+  };
+  server.use(
+    http.get("/api/dnd5e/entities/:id/inventory", ({ params }) => {
+      const id = Number(params.id);
+      inventory.reads.push(id);
+      return reachable(id) ? json({ items: inventory.stored.get(id) ?? [] }) : json({ message: "Inventory not found" }, 404);
+    }),
+    http.put("/api/dnd5e/entities/:id/inventory", async ({ params, request }) => {
+      const id = Number(params.id);
+      const { items } = (await request.json()) as { items: DnD5eInventoryItem[] };
+      inventory.writes.push({ id, items });
+      if (options.failSave) return apiError(400, options.failSave);
+      // The server trims text, so the response can differ from what was sent.
+      const saved = items.map(item => ({ ...item, name: item.name.trim(), ...(item.notes ? { notes: item.notes.trim() } : {}) }));
+      inventory.stored.set(id, saved);
+      return json({ items: saved });
+    })
+  );
+  return inventory;
+}
+
 function serveCompendiumApi(assigned: Record<number, DnD5eEntityDetails[]>) {
   const requests: Requests = { summaries: 0, batches: [], mine: 0, mineDetails: [] };
   const signedIn = () => Number(localStorage.getItem("test-user-id"));
@@ -94,6 +132,7 @@ function serveCompendiumApi(assigned: Record<number, DnD5eEntityDetails[]>) {
       return entity ? json({ entity }) : json({ message: "Character not found" }, 404);
     })
   );
+  serveInventory(() => TEMPLATES, assigned);
   return requests;
 }
 
@@ -283,6 +322,7 @@ function serveEditableCatalog(initial: DnD5eEntityDetails[], options: { failCrea
       return json({ entity });
     })
   );
+  serveInventory(() => [...store.values()]);
   return saves;
 }
 
@@ -446,6 +486,7 @@ describe("player characters", () => {
     expect(within(details("Character details")).getByText("Select a character to see their sheet.")).toBeVisible();
     await waitFor(() => expect(currentUrl()).toBe("/compendium?section=entities"));
     expect(queryClient.getQueriesData({ queryKey: MY_CHARACTER_KEYS.user(player.id) })).toEqual([]);
+    expect(queryClient.getQueriesData({ queryKey: INVENTORY_KEYS.user(player.id) })).toEqual([]);
   });
 
   test("auth must finish before a browser mounts", async () => {
@@ -456,5 +497,128 @@ describe("player characters", () => {
     expect(await screen.findByRole("listbox", { name: "My characters" })).toBeVisible();
     await act(async () => {});
     expect(screen.queryByRole("listbox", { name: "Entities" })).not.toBeInTheDocument();
+  });
+});
+
+const inventoryOf = (container: HTMLElement) => within(container).findByRole("region", { name: "Inventory" });
+const inventoryRows = (region: HTMLElement) => within(region).getAllByRole("row").slice(1)
+  .map(row => [within(row).getByRole("rowheader"), ...within(row).getAllByRole("cell")].map(cell => cell.textContent));
+
+// Same split-pane limit as row presses: the press user.type uses to focus a field is cancelled,
+// so focus the field directly and type without clicking.
+const typeInSplitPane = async (user: ReturnType<typeof userEvent.setup>, field: HTMLElement, text: string) => {
+  act(() => field.focus());
+  await user.type(field, text, { skipClick: true });
+};
+
+describe("inventory", () => {
+  test("a GM fills a PC's empty inventory; the server's saved list replaces the cache, in order", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES);
+    const { queryClient } = renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const region = await inventoryOf(await screen.findByLabelText("Entity details"));
+    expect(await within(region).findByText("Nothing in the inventory yet.")).toBeVisible();
+    await user.click(within(region).getByRole("button", { name: "Edit inventory" }));
+    const editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
+    for (let i = 0; i < 3; i++) await user.click(editor.getByRole("button", { name: "Add item" }));
+    expect(editor.getByLabelText("Item 1 quantity")).toHaveValue(1);
+
+    await typeInSplitPane(user, editor.getByLabelText("Item 1 name"), "  Potion of healing ");
+    await user.clear(editor.getByLabelText("Item 1 quantity"));
+    await typeInSplitPane(user, editor.getByLabelText("Item 1 quantity"), "2");
+    await typeInSplitPane(user, editor.getByLabelText("Item 2 name"), "Rope");
+    await typeInSplitPane(user, editor.getByLabelText("Item 3 name"), "Iron key");
+    await typeInSplitPane(user, editor.getByLabelText("Item 3 notes"), "Opens the crypt");
+    await user.click(editor.getByRole("button", { name: "Remove item 2" }));
+    await user.click(editor.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(within(region).queryByRole("form")).not.toBeInTheDocument());
+    expect(inventory.writes).toEqual([{ id: bram.templateId, items: [
+      { name: "  Potion of healing ", quantity: 2 },
+      { name: "Iron key", quantity: 1, notes: "Opens the crypt" },
+    ] }]);
+    expect(inventoryRows(region)).toEqual([["Potion of healing", "2", ""], ["Iron key", "1", "Opens the crypt"]]);
+    expect(queryClient.getQueryData(INVENTORY_KEYS.detail(gm.id, bram.templateId))).toEqual(inventory.stored.get(bram.templateId));
+    expect(inventory.reads).toEqual([bram.templateId]);
+  });
+
+  test("a failed save keeps the draft and shows the error; Cancel returns to the saved list", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES, {}, { failSave: "Item 1: quantity must be a whole number of at least 1" });
+    inventory.stored.set(bram.templateId, [{ name: "Potion of healing", quantity: 2 }]);
+    renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const region = await inventoryOf(await screen.findByLabelText("Entity details"));
+    await user.click(await within(region).findByRole("button", { name: "Edit inventory" }));
+    const editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
+    await user.clear(editor.getByLabelText("Item 1 quantity"));
+    await typeInSplitPane(user, editor.getByLabelText("Item 1 quantity"), "0");
+    await user.click(editor.getByRole("button", { name: "Save" }));
+
+    expect(await editor.findByRole("alert")).toHaveTextContent("quantity must be a whole number");
+    expect(editor.getByLabelText("Item 1 quantity")).toHaveValue(0);
+    expect(editor.getByLabelText("Item 1 name")).toHaveValue("Potion of healing");
+
+    await user.click(editor.getByRole("button", { name: "Cancel" }));
+    expect(inventoryRows(region)).toEqual([["Potion of healing", "2", ""]]);
+  });
+
+  test("an ordinary NPC has no inventory; un-featuring hides it and featuring again brings the same items back", async () => {
+    const user = userEvent.setup();
+    serveEditableCatalog([mara, goblin]);
+    const inventory = serveInventory(() => [], {});
+    renderAs(gm, `/compendium?entity=${mara.templateId}`);
+    expect(await within(await screen.findByLabelText("Entity details")).findByRole("heading", { name: "Mara" })).toBeVisible();
+    expect(within(details()).queryByRole("region", { name: "Inventory" })).not.toBeInTheDocument();
+    expect(inventory.reads).toEqual([]);
+
+    const toggleFeatured = async () => {
+      await user.click(within(details()).getByRole("button", { name: "Edit Mara" }));
+      const edit = within(await formDialog("Edit Mara"));
+      await user.click(edit.getByRole("button", { name: /Identity/ }));
+      await user.click(edit.getByRole("checkbox", { name: /Featured NPC/ }));
+      await user.click(edit.getByRole("button", { name: /Save Entity/ }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    };
+    // Serve the inventory as if for the catalog's current Featured setting.
+    let featured = false;
+    const served = serveInventory(() => (featured ? [{ ...mara, settings: { compendium: { featured: true } } }] : []));
+    served.stored.set(mara.templateId, [{ name: "Silver dagger", quantity: 1, notes: "Engraved" }]);
+
+    featured = true;
+    await toggleFeatured();
+    const region = await inventoryOf(details());
+    await waitFor(() => expect(inventoryRows(region)).toEqual([["Silver dagger", "1", "Engraved"]]));
+
+    featured = false;
+    await toggleFeatured();
+    expect(within(details()).queryByRole("region", { name: "Inventory" })).not.toBeInTheDocument();
+
+    featured = true;
+    await toggleFeatured();
+    expect(inventoryRows(await inventoryOf(details()))).toEqual([["Silver dagger", "1", "Engraved"]]);
+  });
+
+  test("a player reads their PC's inventory without edit controls, refreshed when they reopen Entities", async () => {
+    const user = userEvent.setup();
+    const assigned = { [player.id]: [bram] };
+    serveCompendiumApi(assigned);
+    const inventory = serveInventory(() => TEMPLATES, assigned);
+    inventory.stored.set(bram.templateId, [{ name: "Potion of healing", quantity: 2 }]);
+    renderAs(player, `/compendium?entity=${bram.templateId}`);
+
+    const region = await inventoryOf(await screen.findByLabelText("Character details"));
+    await waitFor(() => expect(inventoryRows(region)).toEqual([["Potion of healing", "2", ""]]));
+    expect(within(region).queryByRole("button", { name: "Edit inventory" })).not.toBeInTheDocument();
+
+    await user.click(tab("Spells"));
+    inventory.stored.set(bram.templateId, [{ name: "Potion of healing", quantity: 1 }, { name: "Iron key", quantity: 1 }]);
+    await user.click(tab("Entities"));
+
+    await waitFor(() => expect(inventoryRows(region)).toEqual([["Potion of healing", "1", ""], ["Iron key", "1", ""]]));
+    expect(inventory.reads).toEqual([bram.templateId, bram.templateId]);
   });
 });

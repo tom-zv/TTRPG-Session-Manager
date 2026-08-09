@@ -2,6 +2,8 @@ import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "r
 import { useQueryClient } from "@tanstack/react-query";
 import { useMyCharacter, useMyCharacterSummaries } from "../../api/query/useMyCharacterQueries.js";
 import { MY_CHARACTER_KEYS } from "../../api/query/myCharacterKeys.js";
+import { INVENTORY_KEYS } from "../../api/query/inventoryKeys.js";
+import { InventorySection } from "./InventorySection.js";
 import { BrowserLayout, useBrowserDetail } from "../browser/BrowserLayout.js";
 import { BrowserToolbar } from "../browser/BrowserToolbar.js";
 import { EntityList } from "./EntityList.js";
@@ -30,12 +32,13 @@ export const MyCharactersBrowser: React.FC<MyCharactersBrowserProps> = ({ userId
   const [search, setSearch] = useState("");
   const detailState = useBrowserDetail({ selectedId });
 
-  // Assignments change on the GM's side: refresh the list and the open sheet each time the player
-  // comes back to Entities. The first showing loads them anyway.
+  // Assignments and inventories change on the GM's side: refresh the list, the open sheet and its
+  // inventory each time the player comes back to Entities. The first showing loads them anyway.
   const wasActive = useRef(isActive);
   useEffect(() => {
     if (isActive && !wasActive.current) {
       void queryClient.invalidateQueries({ queryKey: MY_CHARACTER_KEYS.user(userId) });
+      void queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.user(userId) });
     }
     wasActive.current = isActive;
   }, [isActive, queryClient, userId]);
@@ -108,5 +111,9 @@ const MyCharacterDetail: React.FC<{ userId: number; selectedId: number | null }>
   // null: missing, not a PC, or not (or no longer) assigned to this player. The refreshed
   // response replaces any sheet cached before access was revoked.
   if (!character) return <p className={browserStyles.status}>This character is not available to you.</p>;
-  return <EntitySheet entity={character} />;
+  return (
+    <EntitySheet entity={character}>
+      <InventorySection entityId={character.templateId} viewerId={userId} canEdit={false} />
+    </EntitySheet>
+  );
 };
