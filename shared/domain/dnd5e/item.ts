@@ -37,6 +37,8 @@ export const ITEM_RELATIONS = ["group_member", "pack_content"] as const;
 export type ItemRelation = typeof ITEM_RELATIONS[number];
 
 // Source of items made in the app.
+export const OPTIONAL_ITEM_ATTUNEMENT = "Optional";
+
 export const HOMEBREW_ITEM_SOURCE = "homebrew";
 
 // ─── Import identity ──────────────────────────────────────────────────────────
@@ -129,7 +131,7 @@ export interface ItemSummary {
   category?: ItemCategory;
   rarity: ItemRarity;
   requiresAttunement: boolean;
-  attunementNote?: string;    // 'by a wizard'
+  attunementNote?: string;    // 'by a wizard' or 'Optional'
   valueCp?: number;
   weightLb?: number;
   aliases: string[];
@@ -332,8 +334,11 @@ export function validateItemInput(input: unknown): ItemValidation {
   const rarity = (ITEM_RARITIES as readonly unknown[]).includes(input.rarity) ? input.rarity as ItemRarity : undefined;
   if (!rarity) errors.push("Choose a rarity.");
   const requiresAttunement = flag(input, "requiresAttunement", "Requires attunement", true);
-  const attunementNote = text(input, "attunementNote", "Attunement note", ITEM_LIMITS.attunementNote, false);
-  if (attunementNote !== undefined && requiresAttunement === false) errors.push("An attunement note needs Requires attunement.");
+  const note = text(input, "attunementNote", "Attunement note", ITEM_LIMITS.attunementNote, false);
+  const optional = note?.toLowerCase() === OPTIONAL_ITEM_ATTUNEMENT.toLowerCase();
+  const attunementNote = optional ? OPTIONAL_ITEM_ATTUNEMENT : note;
+  if (requiresAttunement === false && note !== undefined && !optional) errors.push("An attunement note needs Requires attunement.");
+  if (requiresAttunement === true && optional) errors.push("Optional attunement cannot be required.");
   const valueCp = decimal("valueCp", "Value", ITEM_LIMITS.valueCp);
   const weightLb = decimal("weightLb", "Weight", ITEM_LIMITS.weightLb);
   const aliases = names(input, "aliases", "Aliases", ITEM_LIMITS.alias, ITEM_LIMITS.aliases, true);

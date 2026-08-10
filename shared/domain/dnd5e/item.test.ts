@@ -37,6 +37,12 @@ describe('GM item input', () => {
     expect(validateItemInput(valid())).toEqual({ ok: true, value: valid() });
   });
 
+  test('optional attunement retains its note and cannot also be required', () => {
+    expect(validateItemInput({ ...valid(), requiresAttunement: false, attunementNote: ' optional ' }))
+      .toMatchObject({ ok: true, value: { requiresAttunement: false, attunementNote: 'Optional' } });
+    expect(validateItemInput({ ...valid(), attunementNote: 'Optional' }).ok).toBe(false);
+  });
+
   test('text is trimmed and blank optional fields are dropped', () => {
     const input = {
       ...valid(), name: '  Ember Blade ', category: '', attunementNote: '   ', aliases: [' Cinder Sword '],

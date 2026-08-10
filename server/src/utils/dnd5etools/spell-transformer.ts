@@ -282,7 +282,7 @@ function entryBlocks(entry: unknown, warnings: string[]): string[] {
       return first !== undefined && !isStructuredBlock(first) ? [`${lead} ${first}`, ...rest] : [lead, ...children];
     }
     case "list":
-      return [asArray(entry.items).map(item => `- ${listItemText(item)}`).join("\n")];
+      return [asArray(entry.items).flatMap(listItemTexts).map(text => `- ${text}`).join("\n")];
     case "item":
       return [listItemText(entry)];
     case "table":
@@ -296,6 +296,12 @@ function entryBlocks(entry: unknown, warnings: string[]): string[] {
 }
 
 const isStructuredBlock = (block: string) => block.startsWith("- ") || block.startsWith("|") || block.startsWith("**");
+
+function listItemTexts(item: unknown): string[] {
+  if (isRecord(item) && item.type === "list") return asArray(item.items).flatMap(listItemTexts);
+  const text = listItemText(item);
+  return text ? [text] : [];
+}
 
 function listItemText(item: unknown): string {
   if (typeof item === "string") return renderText(item);
@@ -324,6 +330,7 @@ function renderTable(table: Record<string, unknown>): string {
 
 // Cells are strings, or {type: "cell", roll: {exact} | {min, max}} for dice tables.
 function renderCell(cell: unknown): string {
+  if (isRecord(cell) && cell.entry !== undefined) return renderEntry(cell.entry, SPELL_TEXT_OPTIONS).replace(/\s*\n\s*/g, " ");
   if (isRecord(cell) && isRecord(cell.roll)) {
     const exact = asNumber(cell.roll.exact);
     if (exact !== undefined) return String(exact);
