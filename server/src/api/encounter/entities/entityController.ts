@@ -4,7 +4,7 @@ import { ValidationError } from "../../HttpErrors.js";
 import type { AuthRequest } from "src/middleware/userAuth.js";
 import { isSupportedSystem } from "shared/domain/encounters/coreEncounter.js";
 import { validateEntitySettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
-import { validateInventory } from "shared/domain/encounters/dnd5e/inventory.js";
+import { validateExpectedRevision, validateInventory, validateInventoryAppend } from "shared/domain/encounters/dnd5e/inventory.js";
 import { notifyEntityTemplateUpdated } from "src/socket/namespaces/encounters/entityTemplateUpdates.js";
 import {
   dnd5eEntityToUpdateDb,
@@ -184,14 +184,24 @@ async function getEntityInventory(req: Request, res: Response, next: NextFunctio
       throw new ValidationError("Unsupported system.");
     }
     const user = (req as AuthRequest).userSession!.userDb;
-    const items = await entityService.getInventory(system, { id: user.id, isGm: Boolean(user.is_gm) }, entityId);
-    res.status(200).json({ items });
+    const inventory = await entityService.getInventory(system, { id: user.id, isGm: Boolean(user.is_gm) }, entityId);
+    res.status(200).json(inventory);
   } catch (error) {
     next(error);
   }
 }
 
-/** PUT /entities/:id/inventory (GM): replace the whole list. Body and response: { items }. */
+// Runs a shared validator, turning its Error into a 400.
+function validated<T>(validate: () => T): T {
+  try { return validate(); }
+  catch (error) { throw new ValidationError((error as Error).message); }
+}
+
+/**
+ * PUT /entities/:id/inventory (GM): replace the whole list.
+ * Body: { items, expectedRevision? }. Response: { items, revision }; a stale expectedRevision is a 409
+ * whose body also carries the stored { items, revision }.
+ */
 async function replaceEntityInventory(req: Request, res: Response, next: NextFunction) {
   const { id, system } = req.params as { id: string; system?: string };
   const body: unknown = req.body;
@@ -204,17 +214,42 @@ async function replaceEntityInventory(req: Request, res: Response, next: NextFun
     if (typeof body !== "object" || body === null || !("items" in body)) {
       throw new ValidationError("items is required");
     }
-    let items;
     switch (system) {
-      case "dnd5e":
-        try { items = validateInventory(body.items); }
-        catch (error) { throw new ValidationError((error as Error).message); }
+      case "dnd5e": {
+        const items = validated(() => validateInventory(body.items));
+        const expectedRevision = validated(() =>
+          validateExpectedRevision("expectedRevision" in body ? body.expectedRevision : undefined));
+        const saved = await entityService.replaceInventory(system, entityId, items, expectedRevision);
+        res.status(200).json(saved);
         break;
+      }
       default:
         throw new ValidationError("Unsupported system.");
     }
-    const saved = await entityService.replaceInventory(system, entityId, items);
-    res.status(200).json({ items: saved });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /entities/:id/inventory/items (GM): append one catalog item to the latest list.
+ * Body: { itemId, quantity, notes? }. Response 201: the whole inventory, { items, revision }.
+ */
+async function appendEntityInventoryItem(req: Request, res: Response, next: NextFunction) {
+  const { id, system } = req.params as { id: string; system?: string };
+
+  try {
+    const entityId = parseEntityId(id);
+    switch (system) {
+      case "dnd5e": {
+        const append = validated(() => validateInventoryAppend(req.body));
+        const saved = await entityService.appendInventoryItem(system, entityId, append);
+        res.status(201).json(saved);
+        break;
+      }
+      default:
+        throw new ValidationError("Unsupported system.");
+    }
   } catch (error) {
     next(error);
   }
@@ -378,6 +413,7 @@ export default {
   getMyEntityById,
   getEntityInventory,
   replaceEntityInventory,
+  appendEntityInventoryItem,
   insertEntity,
   updateEntity,
   setEntityControllers,

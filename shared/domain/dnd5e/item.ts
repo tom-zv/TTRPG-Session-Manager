@@ -155,7 +155,11 @@ export const ITEM_LIST_LIMITS = { defaultLimit: 50, maxLimit: 100, query: 128 } 
 
 /**
  * GET /api/dnd5e/items. Generated specifics are left out unless `specifics` is true or `q` is given,
- * so the default browse lists named items, base gear, groups and families.
+ * so the default browse lists named items, base gear, groups and families; `specifics: false`
+ * leaves them out even from a search. Results sort by name, then source, then id.
+ * Enumerated filters use repeated keys or comma-separated values (`rarities=rare,very rare`).
+ * Each `sources` parameter carries one URL-encoded literal source, including any commas
+ * (`sources=Coast%2C%20Vol%201&sources=PHB`). A flag is `true` or `false`.
  */
 export interface ItemListParams {
   q?: string;                 // name or alias contains, case-insensitive
@@ -187,6 +191,27 @@ export interface ItemListResult {
   facets: ItemFacets;
 }
 
+/**
+ * GET /api/dnd5e/items/:id/members: the related items an item page lists, one page at a time.
+ * A family lists its generated specifics by name; a group its members and a pack its contents, in
+ * upstream order. Only items the viewer can see are listed or counted; unresolved references are
+ * left out.
+ */
+export type ItemMemberRelation = "specific" | ItemRelation;
+
+export interface ItemMember {
+  item: ItemSummary;
+  quantity?: number;          // pack contents
+}
+
+export interface ItemMembersResult {
+  relation: ItemMemberRelation | null;  // null: the item has no members (a plain concrete item)
+  members: ItemMember[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export const ITEM_RESOLVE_LIMIT = 100;
 
 /** POST /api/dnd5e/items/resolve. */
@@ -194,9 +219,36 @@ export interface ItemResolveRequest {
   refs: ItemRef[];
 }
 
-/** One result per requested ref, in request order. Hidden, deleted and missing items are all `null`. */
+/**
+ * One result per requested ref, in request order. A ref matches by name (case-insensitive,
+ * accent-sensitive), then by alias, among the items the viewer can see; a given source must match.
+ * Hidden, deleted, missing and ambiguous refs are all `null`.
+ */
 export interface ItemResolveResult {
   results: { ref: ItemRef; item: ItemSummary | null }[];
+}
+
+export type ItemResolveValidation = { ok: true; value: ItemResolveRequest } | { ok: false; errors: string[] };
+
+export function validateItemResolveRequest(input: unknown): ItemResolveValidation {
+  if (!isRecord(input) || !Array.isArray(input.refs)) return { ok: false, errors: ["refs must be a list of item references."] };
+  if (input.refs.length > ITEM_RESOLVE_LIMIT) return { ok: false, errors: [`Resolve at most ${ITEM_RESOLVE_LIMIT} references at a time.`] };
+  const errors: string[] = [];
+  const refs = input.refs.flatMap((ref: unknown, index): ItemRef[] => {
+    const name = isRecord(ref) && typeof ref.name === "string" ? ref.name.trim() : "";
+    const source = isRecord(ref) ? ref.source : undefined;
+    if (!name || name.length > ITEM_LIMITS.name) {
+      errors.push(`Reference ${index + 1} needs a name of at most ${ITEM_LIMITS.name} characters.`);
+      return [];
+    }
+    if (source === undefined || source === null || source === "") return [{ name }];
+    if (typeof source !== "string" || !source.trim() || source.trim().length > ITEM_LIMITS.source) {
+      errors.push(`Reference ${index + 1} needs a source of at most ${ITEM_LIMITS.source} characters.`);
+      return [];
+    }
+    return [{ name, source: source.trim() }];
+  });
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, value: { refs } };
 }
 
 // ─── GM input ─────────────────────────────────────────────────────────────────

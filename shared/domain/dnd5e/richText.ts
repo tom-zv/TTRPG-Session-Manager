@@ -1,15 +1,26 @@
-// Text format for spell descriptions and monster text.
+// Text format for spell, item and monster descriptions.
 //
-// Inline: plain text plus {@spell Name}, {@spell Name|SRC} or {@spell Name|SRC|display text}.
+// Inline: plain text plus references, {@spell Name}, {@spell Name|SRC} or {@spell Name|SRC|display text},
+// and {@item ...} in the same form. Other {@tag}s read as their display text.
 // Blocks (spell descriptions): blocks are separated by a blank line.
 //   **Lead-in.** Rest of the paragraph.
 //   - list item            (every line of the block starts with "- ")
 //   | header | header |    (every line starts with "|"; the first row is the header,
 //   | cell   | cell   |     an optional caption line may come before it)
 
+/** A reference to a catalog record by name, optionally qualified by its source; display replaces the name. */
+interface Reference {
+  name: string;
+  source?: string;
+  display?: string;
+}
+
 export type InlineToken =
   | { type: "text"; text: string }
-  | { type: "spell"; name: string; source?: string; display?: string };
+  | ({ type: "spell" } & Reference)
+  | ({ type: "item" } & Reference);
+
+export type ReferenceToken = Exclude<InlineToken, { type: "text" }>;
 
 export interface RichTextLine {
   lead?: string;              // bold lead-in without the "**" markers, e.g. "Cantrip Upgrade."
@@ -22,7 +33,8 @@ export type RichTextBlock =
   | { type: "table"; caption?: string; header: string[]; rows: string[][] };
 
 // Tags the renderer turns into components. Others render as their display text.
-const KEPT_TAGS = new Set(["spell"]);
+const KEPT_TAGS = new Set<ReferenceToken["type"]>(["spell", "item"]);
+const isKeptTag = (tag: string): tag is ReferenceToken["type"] => KEPT_TAGS.has(tag as ReferenceToken["type"]);
 const TAG_PATTERN = /\{@(\w+)(?: ([^{}]*))?\}/g;
 
 export function parseInlineTags(text: string): InlineToken[] {
@@ -41,9 +53,9 @@ export function parseInlineTags(text: string): InlineToken[] {
 
     const tag = match[1].toLowerCase();
     const [first = "", second = "", third = ""] = (match[2] ?? "").split("|").map(part => part.trim());
-    if (KEPT_TAGS.has(tag) && first) {
+    if (isKeptTag(tag) && first) {
       tokens.push({
-        type: "spell",
+        type: tag,
         name: first,
         ...(second ? { source: second } : {}),
         ...(third && third !== first ? { display: third } : {}),

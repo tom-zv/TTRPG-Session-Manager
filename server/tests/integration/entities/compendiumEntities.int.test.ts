@@ -216,7 +216,7 @@ describe('inventory', () => {
   test('a PC with no stored inventory reads as an empty list', async () => {
     const { http, gm, bram } = await setup();
     const response = await read(http, gm.token, bram.templateId).expect(200);
-    expect(response.body).toEqual({ items: [] });
+    expect(response.body).toEqual({ items: [], revision: 0 });
   });
 
   test('a GM saves a list and reads it back in order, duplicates kept, text trimmed', async () => {
@@ -224,20 +224,20 @@ describe('inventory', () => {
     const sent = [{ ...potions[0], name: '  Potion of healing ', notes: ' From the temple ' }, potions[1], { ...potions[2], notes: '   ' }];
 
     const saved = await write(http, gm.token, bram.templateId, { items: sent }).expect(200);
-    expect(saved.body).toEqual({ items: potions });
-    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+    expect(saved.body).toEqual({ items: potions, revision: 1 });
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body.items).toEqual(potions);
   });
 
   test('the assigned player reads their PC inventory; another player and a player PUT cannot reach it', async () => {
     const { http, gm, player, other, bram } = await setup();
     await write(http, gm.token, bram.templateId, { items: potions }).expect(200);
 
-    expect((await read(http, player.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+    expect((await read(http, player.token, bram.templateId).expect(200)).body.items).toEqual(potions);
     const unassigned = await read(http, other.token, bram.templateId).expect(404);
     const missing = await read(http, other.token, 999_999).expect(404);
     expect(unassigned.body).toEqual(missing.body);
     await write(http, player.token, bram.templateId, { items: [] }).expect(403);
-    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body.items).toEqual(potions);
   });
 
   test('a featured NPC has an inventory for the GM only, even when the NPC is assigned to a player', async () => {
@@ -248,7 +248,7 @@ describe('inventory', () => {
       .send({ data: { ...mara, settings: { compendium: { featured: true } } } }).expect(200);
     await write(http, gm.token, mara.templateId, { items: potions }).expect(200);
 
-    expect((await read(http, gm.token, mara.templateId).expect(200)).body).toEqual({ items: potions });
+    expect((await read(http, gm.token, mara.templateId).expect(200)).body.items).toEqual(potions);
     await read(http, player.token, mara.templateId).expect(404);
   });
 
@@ -280,7 +280,7 @@ describe('inventory', () => {
     for (const body of invalid) {
       await write(http, gm.token, bram.templateId, body).expect(400);
     }
-    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body.items).toEqual(potions);
   });
 
   test('removing Featured or the PC role hides the inventory, and restoring eligibility brings the same items back', async () => {
@@ -295,12 +295,12 @@ describe('inventory', () => {
     await read(http, gm.token, nyx.templateId).expect(404);
     await write(http, gm.token, nyx.templateId, { items: [] }).expect(404);
     await save(nyx);
-    expect((await read(http, gm.token, nyx.templateId).expect(200)).body).toEqual({ items: potions });
+    expect((await read(http, gm.token, nyx.templateId).expect(200)).body.items).toEqual(potions);
 
     await save({ ...bram, role: 'creature' });
     await read(http, player.token, bram.templateId).expect(404);
     await save(bram);
-    expect((await read(http, player.token, bram.templateId).expect(200)).body).toEqual({ items: potions.slice(0, 1) });
+    expect((await read(http, player.token, bram.templateId).expect(200)).body.items).toEqual(potions.slice(0, 1));
   });
 
   test('a full template save keeps the inventory, and template reads carry no inventory', async () => {
@@ -310,7 +310,7 @@ describe('inventory', () => {
     const updated = await asToken(http.put(`/api/dnd5e/entities/${bram.templateId}`), gm.token)
       .send({ data: { ...bram, ac: 17 } }).expect(200);
     expect((updated.body as { entity: DnD5eEntityDetails }).entity.ac).toBe(17);
-    expect((await read(http, gm.token, bram.templateId).expect(200)).body).toEqual({ items: potions });
+    expect((await read(http, gm.token, bram.templateId).expect(200)).body.items).toEqual(potions);
 
     const reads = [
       updated,

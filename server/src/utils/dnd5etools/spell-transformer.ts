@@ -3,7 +3,7 @@ import type { SpellCastingUnit, SpellSchool } from "shared/domain/dnd5e/spell.js
 import { SPELL_CASTING_UNITS } from "shared/domain/dnd5e/spell.js";
 import { formatTableRow } from "shared/domain/dnd5e/richText.js";
 import { asArray, asNumber, asString, fitField, isRecord, unique } from "./primitives.js";
-import { renderDnd5eToolsText, renderEntry, type RenderOptions } from "./text-renderer.js";
+import { DESCRIPTION_TEXT_OPTIONS, renderDnd5eToolsText, renderEntry, type RenderOptions } from "./text-renderer.js";
 
 export type Dnd5eToolsSpell = Record<string, unknown>;
 
@@ -16,7 +16,10 @@ export interface Dnd5eToolsSpellImportPayload {
   warnings: string[];
 }
 
-const SPELL_TEXT_OPTIONS: RenderOptions = { keepTags: ["spell"] };
+// Description text keeps spell and item references. Lead-in names and the casting trigger keep
+// only spell tags, as before item links: they render as plain text.
+const SPELL_TEXT_OPTIONS = DESCRIPTION_TEXT_OPTIONS;
+const LABEL_TEXT_OPTIONS: RenderOptions = { keepTags: ["spell"] };
 
 const SCHOOLS: Record<string, SpellSchool> = {
   A: "abjuration",
@@ -143,7 +146,7 @@ function normalizeCastingTime(
     // Plant Growth: "1 action (Overgrowth) or 8 hours (Enrichment)"
     text: parts.map(part => part.text).join(" or "),
     unit: parts[0].unit,
-    ...(condition ? { trigger: renderDnd5eToolsText(condition, SPELL_TEXT_OPTIONS) } : {}),
+    ...(condition ? { trigger: renderDnd5eToolsText(condition, LABEL_TEXT_OPTIONS) } : {}),
   };
 }
 
@@ -252,6 +255,7 @@ function pluralize(unit: string, amount: number): string {
 }
 
 const renderText = (value: string) => renderDnd5eToolsText(value, SPELL_TEXT_OPTIONS);
+const renderLabel = (value: string) => renderDnd5eToolsText(value, LABEL_TEXT_OPTIONS);
 
 // 5etools entries -> rich text blocks (shared/domain/dnd5e/richText.ts), separated by a blank line.
 export function renderSpellEntries(value: unknown, warnings: string[]): string {
@@ -277,7 +281,7 @@ function entryBlocks(entry: unknown, warnings: string[]): string[] {
     case "inset": {
       const children = asArray(entry.entries).flatMap(child => entryBlocks(child, warnings));
       if (!name) return children;
-      const lead = `**${renderText(name)}.**`;
+      const lead = `**${renderLabel(name)}.**`;
       const [first, ...rest] = children;
       return first !== undefined && !isStructuredBlock(first) ? [`${lead} ${first}`, ...rest] : [lead, ...children];
     }
@@ -311,7 +315,7 @@ function listItemText(item: unknown): string {
     .map(child => typeof child === "string" ? renderText(child) : renderEntry(child, SPELL_TEXT_OPTIONS))
     .join(" ")
     .replace(/\s*\n\s*/g, " ");
-  return name ? `**${renderText(name).replace(/[.:]$/, "")}.** ${body}`.trim() : body;
+  return name ? `**${renderLabel(name).replace(/[.:]$/, "")}.** ${body}`.trim() : body;
 }
 
 function renderTable(table: Record<string, unknown>): string {

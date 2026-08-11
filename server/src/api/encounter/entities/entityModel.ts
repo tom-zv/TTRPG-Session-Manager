@@ -7,7 +7,8 @@ import type { PoolConnection } from "mysql2/promise";
 import dnd5eModel from "./dnd5e/dnd5eEntityModel.js";
 import { ValidationError } from "src/api/HttpErrors.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
-import type { DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
+import type { DnD5eInventory, DnD5eInventoryAppend, DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
+import dnd5eInventoryModel from "./dnd5e/dnd5eInventoryModel.js";
 
 // Map systems to their entity types
 export type EntityDB<T extends SystemType> = 
@@ -19,10 +20,32 @@ export type EntitySummaryDB<T extends SystemType> =
   T extends "dnd5e" ? DnD5eEntitySummaryDB
   : never;
 
-// Map systems to their inventory item types
+// Map systems to their inventory types: a stored row, a read (rows as the viewer may see them,
+// plus the revision) and the body that appends one catalog item
 export type EntityInventoryItem<T extends SystemType> =
   T extends "dnd5e" ? DnD5eInventoryItem
   : never;
+export type EntityInventory<T extends SystemType> =
+  T extends "dnd5e" ? DnD5eInventory
+  : never;
+export type EntityInventoryAppend<T extends SystemType> =
+  T extends "dnd5e" ? DnD5eInventoryAppend
+  : never;
+
+/** Who reads an inventory: GMs see hidden catalog items; a player reads only assigned characters. */
+export type InventoryViewer = { isGm: boolean; assignedUserId: number | null };
+
+export type InventoryReplaceResult<T extends SystemType> =
+  | { status: "saved"; inventory: EntityInventory<T> }
+  /** The expected revision was stale; nothing was written. */
+  | { status: "conflict"; inventory: EntityInventory<T> }
+  /** A row links an unavailable or non-concrete catalog item. `row` is 1-based. */
+  | { status: "invalidLink"; row: number; reason: "unavailable" | "notConcrete" };
+
+export type InventoryAppendResult<T extends SystemType> =
+  | { status: "saved"; inventory: EntityInventory<T> }
+  | { status: "itemUnavailable" }
+  | { status: "full" };
 
 // Type for core.entities table columns only
 interface CoreEntityTableData {
@@ -172,11 +195,11 @@ async function getAssignedPcById<T extends SystemType>(
 async function getInventory<T extends SystemType>(
   system: T,
   entityId: number,
-  assignedUserId: number | null
-): Promise<EntityInventoryItem<T>[] | null> {
+  viewer: InventoryViewer
+): Promise<EntityInventory<T> | null> {
   switch (system) {
     case "dnd5e":
-      return (await dnd5eModel.getInventory(entityId, assignedUserId)) as EntityInventoryItem<T>[] | null;
+      return (await dnd5eInventoryModel.getInventory(entityId, viewer)) as EntityInventory<T> | null;
     default:
       throw new ValidationError(`Unsupported system: ${String(system)}`);
   }
@@ -185,11 +208,25 @@ async function getInventory<T extends SystemType>(
 async function replaceInventory<T extends SystemType>(
   system: T,
   entityId: number,
-  items: EntityInventoryItem<T>[]
-): Promise<EntityInventoryItem<T>[] | null> {
+  items: EntityInventoryItem<T>[],
+  expectedRevision: number | undefined
+): Promise<InventoryReplaceResult<T> | null> {
   switch (system) {
     case "dnd5e":
-      return (await dnd5eModel.replaceInventory(entityId, items)) as EntityInventoryItem<T>[] | null;
+      return (await dnd5eInventoryModel.replaceInventory(entityId, items, expectedRevision)) as InventoryReplaceResult<T> | null;
+    default:
+      throw new ValidationError(`Unsupported system: ${String(system)}`);
+  }
+}
+
+async function appendInventoryItem<T extends SystemType>(
+  system: T,
+  entityId: number,
+  append: EntityInventoryAppend<T>
+): Promise<InventoryAppendResult<T> | null> {
+  switch (system) {
+    case "dnd5e":
+      return (await dnd5eInventoryModel.appendInventoryItem(entityId, append)) as InventoryAppendResult<T> | null;
     default:
       throw new ValidationError(`Unsupported system: ${String(system)}`);
   }
@@ -318,6 +355,7 @@ export default {
   getAssignedPcById,
   getInventory,
   replaceInventory,
+  appendInventoryItem,
   insertCoreEntity,
   updateCoreEntity,
   insertEntity,

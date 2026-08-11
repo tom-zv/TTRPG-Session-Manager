@@ -34,11 +34,16 @@ router.post("/", requireGm, entityController.insertEntity);
 router.put("/:id", requireGm, entityController.updateEntity);
 router.patch("/:id/settings", requireGm, patchEntitySettings);
 
-// GET /entities/:id/inventory - { items }; GMs for PCs and featured NPCs, players for their assigned PCs
-// PUT /entities/:id/inventory - Replace the whole list (GM). Body: { items: [{ name, quantity, notes? }] }
-// Unavailable reads and ineligible writes are 404. Names and notes are trimmed by validateInventory.
+// GET /entities/:id/inventory - { items, revision }; GMs for PCs and featured NPCs, players for their
+//   assigned PCs. Linked rows carry what the viewer may know of their catalog item.
+// PUT /entities/:id/inventory - Replace the whole list (GM).
+//   Body: { items: [{ name, quantity, notes?, itemId? }], expectedRevision? }; stale revision 409.
+// POST /entities/:id/inventory/items - Append one catalog item to the latest list (GM).
+//   Body: { itemId, quantity, notes? }; 201 with { items, revision }.
+// Unavailable reads and ineligible writes are 404. Names and notes are trimmed by the shared validators.
 router.get("/:id/inventory", entityController.getEntityInventory);
 router.put("/:id/inventory", requireGm, entityController.replaceEntityInventory);
+router.post("/:id/inventory/items", requireGm, entityController.appendEntityInventoryItem);
 
 // PUT /entities/:id/controllers - Assign the users who may run this entity
 // Body: { userIds: number[] }

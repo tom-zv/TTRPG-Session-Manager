@@ -233,6 +233,37 @@ test("parseInlineTags and stripInlineTags", () => {
   assert.equal(stripInlineTags("Casts {@spell Misty Step|XPHB} and {@creature Ghoul|XMM|Ghouls}."), "Casts Misty Step and Ghouls.");
 });
 
+test("parseInlineTags reads {@item} references like spell references; a reference without a name is dropped", () => {
+  assert.deepEqual(parseInlineTags("Wields a {@item Longsword|PHB}, {@item +1 shield|DMG|a shield}, {@item rope}{@item |PHB} and {@spell Fly}."), [
+    { type: "text", text: "Wields a " },
+    { type: "item", name: "Longsword", source: "PHB" },
+    { type: "text", text: ", " },
+    { type: "item", name: "+1 shield", source: "DMG", display: "a shield" },
+    { type: "text", text: ", " },
+    { type: "item", name: "rope" },
+    { type: "text", text: " and " },
+    { type: "spell", name: "Fly" },
+    { type: "text", text: "." },
+  ]);
+  assert.equal(stripInlineTags("A {@item potion of healing|DMG|healing potion} and {@item Rope}."), "A healing potion and Rope.");
+});
+
+test("spell descriptions keep {@item} references; the casting trigger and lead-in names do not", () => {
+  const { spell } = transformDnd5eToolsSpell({
+    ...plantGrowth,
+    name: "Arcane Lock", source: "XPHB",
+    time: [{ number: 1, unit: "reaction", condition: "which you take when a {@item lock|PHB} opens" }],
+    entries: [
+      "You touch a closed door, window or {@item chest|PHB||chest}, using {@item gold|PHB|gold dust} worth 25 GP.",
+      { type: "entries", name: "{@item Key|XPHB} Passage", entries: ["A {@item key} opens it."] },
+    ],
+  });
+
+  assert.match(spell.description, /window or \{@item chest\|PHB\}, using \{@item gold\|PHB\|gold dust\} worth/);
+  assert.match(spell.description, /\*\*Key Passage\.\*\* A \{@item key\|DMG\} opens it\./);
+  assert.equal(spell.casting_trigger, "which you take when a lock opens");
+});
+
 test("parseRichTextBlocks keeps pipes inside tags in table cells", () => {
   assert.deepEqual(parseRichTextBlocks("| Roll | Spell |\n| 1 | {@spell Fly|XPHB} |"), [
     { type: "table", header: ["Roll", "Spell"], rows: [["1", "{@spell Fly|XPHB}"]] },
@@ -281,6 +312,30 @@ test("monster text keeps {@spell} in descriptions but not in names or spell list
 
   const unresolved = findUnresolvedSpellRefs([entity], [{ name: "Misty Step", source: "XPHB", aliases: [] }]);
   assert.deepEqual(unresolved.map(ref => ref.name), ["Fly", "Shield"]);
+});
+
+test("monster text keeps {@item} in descriptions, an unqualified item meaning the DMG printing, but not in names", () => {
+  const { entity } = transformDnd5eToolsMonster({
+    name: "Test Knight",
+    source: "XMM",
+    trait: [{ name: "{@item Shield|XPHB} Master", entries: ["It carries a {@item shield|xphb}."] }],
+    action: [{ name: "Longsword", entries: ["{@atk mw} {@hit 5} to hit. {@h}9 damage with its {@item longsword|phb|blade} or {@item javelin}."] }],
+    spellcasting: [{
+      name: "Spellcasting",
+      type: "spellcasting",
+      headerEntries: ["It casts {@spell Fly|XPHB} while holding a {@item wand|phb}."],
+      will: ["{@spell Fly|XPHB}"],
+    }],
+    legendaryHeader: ["It can drink a {@item potion of healing}."],
+  });
+
+  assert.equal(entity.traits?.[0].name, "Shield Master");
+  assert.equal(entity.traits?.[0].description, "It carries a {@item shield|xphb}.");
+  assert.match(entity.actions?.[0].description ?? "", /with its \{@item longsword\|phb\|blade\} or \{@item javelin\|DMG\}\.$/);
+  assert.deepEqual(entity.spellcasting?.[0].descriptions, ["It casts {@spell Fly|XPHB} while holding a {@item wand|phb}."]);
+  assert.deepEqual(entity.legendary_header, ["It can drink a {@item potion of healing|DMG}."]);
+  // Item references are not spell references.
+  assert.deepEqual(findUnresolvedSpellRefs([entity], [{ name: "Fly", source: "XPHB", aliases: [] }]), []);
 });
 
 test("spellcasting save DC and attack bonus are still read with kept tags", () => {

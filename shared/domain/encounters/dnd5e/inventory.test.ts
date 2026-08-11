@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { validateExpectedRevision, validateInventory, validateInventoryAppend, validateLinkedInventory } from './inventory.js';
+import { validateExpectedRevision, validateInventory, validateInventoryAppend } from './inventory.js';
 
 describe('inventory rows', () => {
   test('a legacy free-text list validates to the same rows, with no link added', () => {
@@ -13,28 +13,21 @@ describe('inventory rows', () => {
     expect(validated.some(row => 'itemId' in row)).toBe(false);
   });
 
-  test('legacy inventory reads and writes project submitted or stored link fields away', () => {
-    expect(validateInventory([
-      { name: 'Sword', quantity: 1, itemId: 42 },
-      { name: 'Rope', quantity: 1, itemId: 'ignored extra field' },
-    ])).toEqual([{ name: 'Sword', quantity: 1 }, { name: 'Rope', quantity: 1 }]);
-  });
-
   test('a row linked to a catalog item keeps its link and saved name; a null link is a free-text row', () => {
     const rows = [
       { name: ' Longsword +1 ', quantity: 1, itemId: 42 },
       { name: 'Rope', quantity: 1, itemId: null, notes: ' 50 feet ' },
     ];
-    expect(validateLinkedInventory(rows)).toEqual([
+    expect(validateInventory(rows)).toEqual([
       { name: 'Longsword +1', quantity: 1, itemId: 42 },
       { name: 'Rope', quantity: 1, notes: '50 feet' },
     ]);
-    expect('itemId' in validateLinkedInventory(rows)[1]).toBe(false);
+    expect('itemId' in validateInventory(rows)[1]).toBe(false);
   });
 
   test('a link that is not a catalog item id rejects the whole list and names the row', () => {
     for (const itemId of [0, -3, 1.5, '42', true, 2 ** 31, {}]) {
-      expect(() => validateLinkedInventory([{ name: 'Rope', quantity: 1 }, { name: 'Sword', quantity: 1, itemId }]))
+      expect(() => validateInventory([{ name: 'Rope', quantity: 1 }, { name: 'Sword', quantity: 1, itemId }]))
         .toThrow(/^Item 2: itemId/);
     }
   });

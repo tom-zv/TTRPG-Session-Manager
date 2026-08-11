@@ -65,5 +65,5 @@ export const TAG_ARRAY_FIELDS: Array<{ field: string; tagType: string }> = [
   { field: "savingThrowForcedSpell", tagType: "save_spell" },
 ];
 
-// Monster description text keeps {@spell} tags so clients can link the spells; names and lists do not.
-export const MONSTER_TEXT_OPTIONS = { keepTags: ["spell"] } as const;
+// Monster description text keeps {@spell} and {@item} tags so clients can link them; names and lists do not.
+export const MONSTER_TEXT_OPTIONS = { keepTags: ["spell", "item"] } as const;

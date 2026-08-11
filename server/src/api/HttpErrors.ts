@@ -34,4 +34,14 @@ export class UnauthorizedError extends HttpError {
     return { 'WWW-Authenticate': 'Bearer' };
   }
 }
- 
+
+/** A 409 whose body carries the current state alongside the message, e.g. a stale write's latest version. */
+export class ConflictError extends HttpError {
+  readonly body: Record<string, unknown>;
+
+  constructor(message: string, body: Record<string, unknown> = {}) {
+    super(409, message);
+    this.name = "ConflictError";
+    this.body = body;
+  }
+}

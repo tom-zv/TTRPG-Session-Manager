@@ -3,11 +3,13 @@ import {
   getEntityById as getEntityByIdFromModel,
   EntityDB,
   EntitySummaryDB,
+  type EntityInventory,
+  type EntityInventoryAppend,
   type EntityInventoryItem,
 } from "./entityModel.js";
 import entityModel from "./entityModel.js";
 import encounterModel from "../encounters/encounterModel.js";
-import { HttpError, NotFoundError, ValidationError } from "src/api/HttpErrors.js";
+import { ConflictError, HttpError, NotFoundError, ValidationError } from "src/api/HttpErrors.js";
 import userModel from "src/api/users/userModel.js";
 
 async function getEntityById<T extends SystemType>(system: T, id: number): Promise<EntityDB<T>> {
@@ -73,28 +75,70 @@ async function getAssignedPc<T extends SystemType>(system: T, userId: number, en
 }
 
 /**
- * An entity's inventory. GMs read any player character or featured NPC; other users only player
- * characters assigned to them. Anything else, including an existing but ineligible entity, is the same 404.
+ * An entity's inventory, with what the viewer may know of linked catalog items. GMs read any player
+ * character or featured NPC; other users only player characters assigned to them. Anything else,
+ * including an existing but ineligible entity, is the same 404.
  */
 async function getInventory<T extends SystemType>(
   system: T,
   viewer: { id: number; isGm: boolean },
   entityId: number
-): Promise<EntityInventoryItem<T>[]> {
-  const items = await entityModel.getInventory(system, entityId, viewer.isGm ? null : viewer.id);
-  if (!items) throw new NotFoundError("Inventory not found");
-  return items;
+): Promise<EntityInventory<T>> {
+  const inventory = await entityModel.getInventory(system, entityId, {
+    isGm: viewer.isGm,
+    assignedUserId: viewer.isGm ? null : viewer.id,
+  });
+  if (!inventory) throw new NotFoundError("Inventory not found");
+  return inventory;
 }
 
-/** Replace a player character's or featured NPC's whole inventory. Ineligible or missing entities are a 404. */
+/**
+ * Replace a player character's or featured NPC's whole inventory (GM). A stale `expectedRevision`
+ * is a 409 carrying the stored list and revision; an unavailable link is a 400 naming the row;
+ * a missing or ineligible entity is a 404.
+ */
 async function replaceInventory<T extends SystemType>(
   system: T,
   entityId: number,
-  items: EntityInventoryItem<T>[]
-): Promise<EntityInventoryItem<T>[]> {
-  const saved = await entityModel.replaceInventory(system, entityId, items);
-  if (!saved) throw new NotFoundError("Inventory not found");
-  return saved;
+  items: EntityInventoryItem<T>[],
+  expectedRevision: number | undefined
+): Promise<EntityInventory<T>> {
+  const result = await entityModel.replaceInventory(system, entityId, items, expectedRevision);
+  if (!result) throw new NotFoundError("Inventory not found");
+  switch (result.status) {
+    case "saved":
+      return result.inventory;
+    case "conflict":
+      throw new ConflictError("The inventory changed since it was loaded.", {
+        revision: result.inventory.revision,
+        items: result.inventory.items,
+      });
+    case "invalidLink":
+      throw new ValidationError(result.reason === "notConcrete"
+        ? `Item ${result.row}: only a single catalog item can be linked, not a group or magic variant`
+        : `Item ${result.row}: the linked catalog item is not available`);
+  }
+}
+
+/**
+ * Append one catalog item to the latest inventory (GM), under the entity's row lock. A missing or
+ * ineligible entity is a 404 ("Inventory not found"), as is an unavailable item ("Item not found").
+ */
+async function appendInventoryItem<T extends SystemType>(
+  system: T,
+  entityId: number,
+  append: EntityInventoryAppend<T>
+): Promise<EntityInventory<T>> {
+  const result = await entityModel.appendInventoryItem(system, entityId, append);
+  if (!result) throw new NotFoundError("Inventory not found");
+  switch (result.status) {
+    case "saved":
+      return result.inventory;
+    case "itemUnavailable":
+      throw new NotFoundError("Item not found");
+    case "full":
+      throw new ValidationError("The inventory is full");
+  }
 }
 
 async function insertEntity<T extends SystemType>(
@@ -172,6 +216,7 @@ export default {
   getAssignedPc,
   getInventory,
   replaceInventory,
+  appendInventoryItem,
   insertEntity,
   updateEntity,
   setEntityControllers,

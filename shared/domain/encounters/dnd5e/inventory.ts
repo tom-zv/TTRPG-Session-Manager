@@ -17,10 +17,21 @@ export type DnD5eInventoryItem = {
 };
 
 /**
- * GET and PUT /api/dnd5e/entities/:id/inventory answer with this body. `revision` counts the
- * writes to the list (an inventory never written is revision 0); older servers omit it.
+ * What a reader may know of a row's linked catalog item, added by the server to each read.
+ * A player gets it, and the row's `itemId`, only while the item is visible to them. A GM always
+ * gets the `itemId`; `item` is absent when the catalog item is deleted (the link is kept as history
+ * and shows as the saved name), and `hidden` marks an item players cannot see.
  */
-export type DnD5eInventory = { items: DnD5eInventoryItem[]; revision?: number };
+export type DnD5eInventoryItemLink = { name: string; source: string; hidden?: true };
+
+/** A row as the inventory API returns it. Writes ignore `item`. */
+export type DnD5eInventoryEntry = DnD5eInventoryItem & { item?: DnD5eInventoryItemLink };
+
+/**
+ * GET, PUT and POST .../items under /api/dnd5e/entities/:id/inventory answer with this body.
+ * `revision` counts the writes to the list (an inventory never written is revision 0).
+ */
+export type DnD5eInventory = { items: DnD5eInventoryEntry[]; revision: number };
 
 /**
  * PUT /api/dnd5e/entities/:id/inventory body. With `expectedRevision`, the list replaces the
@@ -35,9 +46,10 @@ export type DnD5eInventoryReplacement = { items: DnD5eInventoryItem[]; expectedR
 export type DnD5eInventoryAppend = { itemId: number; quantity: number; notes?: string };
 
 /** The 409 body for a replacement whose expectedRevision is stale: the stored list, unchanged. */
-export type DnD5eInventoryConflict = { message: string; revision: number; items: DnD5eInventoryItem[] };
+export type DnD5eInventoryConflict = { message: string; revision: number; items: DnD5eInventoryEntry[] };
 
-export const INVENTORY_LIMITS = { items: 500, name: 128, notes: 2000, revision: 4_294_967_295 } as const;
+// A saved name holds a whole catalog item name (ITEM_LIMITS.name), since an append copies it.
+export const INVENTORY_LIMITS = { items: 500, name: 255, notes: 2000, revision: 4_294_967_295 } as const;
 
 /** Only player characters and featured NPCs keep an inventory. Other templates retain stored items but show none. */
 export function hasInventory(entity: { role: string; settings?: EntitySettings }): boolean {
@@ -72,19 +84,11 @@ function validateRowFields(row: string, fields: Record<string, unknown>): Pick<D
 }
 
 /**
- * Validates and projects the legacy free-text inventory used by the current HTTP reader and writer.
- * Catalog links enter the HTTP contract when the server can validate and filter them.
+ * Validates an inventory list, from a PUT body or the stored column, and returns it normalized.
+ * Old `{ name, quantity, notes? }` rows stay valid; `itemId` is optional. Whether a linked item
+ * exists is the server's check. Throws an Error naming the row on a bad list.
  */
 export function validateInventory(value: unknown): DnD5eInventoryItem[] {
-  return validateInventoryRows(value, false);
-}
-
-/** Validates inventory rows for the linked inventory contract. */
-export function validateLinkedInventory(value: unknown): DnD5eInventoryItem[] {
-  return validateInventoryRows(value, true);
-}
-
-function validateInventoryRows(value: unknown, allowLinks: boolean): DnD5eInventoryItem[] {
   if (!Array.isArray(value)) throw new Error("items must be an array");
   if (value.length > INVENTORY_LIMITS.items) throw new Error(`An inventory holds at most ${INVENTORY_LIMITS.items} items`);
 
@@ -97,7 +101,7 @@ function validateInventoryRows(value: unknown, allowLinks: boolean): DnD5eInvent
     const trimmedName = name.trim();
     if (trimmedName.length > INVENTORY_LIMITS.name) throw new Error(`${row}: name is longer than ${INVENTORY_LIMITS.name} characters`);
 
-    const { quantity, notes, itemId } = validateRowFields(row, allowLinks ? raw : { ...raw, itemId: undefined });
+    const { quantity, notes, itemId } = validateRowFields(row, raw);
     return {
       name: trimmedName,
       quantity,

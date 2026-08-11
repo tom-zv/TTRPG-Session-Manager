@@ -153,8 +153,8 @@ describe("item import plan", () => {
       recharge: "dawn",
       rechargeAmount: "1d6 + 1",
       spells: [{ name: "meld into stone", source: "XPHB" }],
-      // Spell tags stay links; other tags render as their display text.
-      description: "You can cast {@spell Meld into Stone|XPHB} from this sword.",
+      // Spell and item tags stay links.
+      description: "You can cast {@spell Meld into Stone|XPHB} from this {@item longsword|phb|sword}.",
     });
   });
 
@@ -184,6 +184,27 @@ describe("item import plan", () => {
     expect(item.details.description).toContain("- Restore a charge.");
     expect(item.details.description).toContain("| Ace |");
     expect(item.details.description).toContain(qualifier);
+  });
+
+  test("item descriptions keep item and spell references, an unqualified item meaning the DMG printing, but lead-ins and rules fields do not", () => {
+    const plan = buildItemImportPlan(itemSources({ items: [{
+      name: "Quiver of Plenty", source: "HB", charges: "{@item arrow|phb} count",
+      entries: [
+        "Holds 20 {@item arrow|phb|arrows}, a {@item potion of healing} and a {@spell light|xphb} scroll.",
+        { type: "entries", name: "{@item Bolt|PHB} Pocket", entries: ["Fits {@item crossbow bolt|xphb||bolts}."] },
+        { type: "table", colLabels: ["Roll"], rows: [["{@item Longsword|XPHB}"]] },
+      ],
+    }] }));
+    const item = find(plan, "named:quiver of plenty|hb");
+
+    const description = item.details.description ?? "";
+    expect(description).toContain("Holds 20 {@item arrow|phb|arrows}, a {@item potion of healing|DMG} and a {@spell light|xphb} scroll.");
+    expect(description).toContain("Fits {@item crossbow bolt|xphb}.");
+    expect(description).toContain("| {@item Longsword|XPHB} |");
+    // A lead-in name is a label: its reference reads as text.
+    expect(description).toContain("**Bolt Pocket.**");
+    expect(item.details.charges).toBe("arrow count");
+    expect(plan.unsupported.filter(issue => issue.message.includes("inline markup"))).toEqual([]);
   });
 
   test("malformed rows and fractional pack counts fail preflight independently", () => {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { HttpError } from '../api/HttpErrors.js';
+import { ConflictError, HttpError } from '../api/HttpErrors.js';
 
 export function errorHandler(
   err: unknown,
@@ -14,9 +14,11 @@ export function errorHandler(
 
   try {
     if (err instanceof HttpError) {
+      const extra = err instanceof ConflictError ? err.body : {};
       // Use your custom error handling for HttpError instances
       if (typeof res.status === 'function') {
         return res.status(err.statusCode).json({
+          ...extra,
           message: err.message,
           ...(err.details ? { details: err.details } : {}),
         });
@@ -24,6 +26,7 @@ export function errorHandler(
         // Fallback if status method not available
         res.writeHead(err.statusCode, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({
+          ...extra,
           message: err.message,
           ...(err.details ? { details: err.details } : {}),
         }));

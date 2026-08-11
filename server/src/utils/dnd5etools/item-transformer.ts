@@ -15,7 +15,7 @@ import {
 } from "shared/domain/dnd5e/item.js";
 import type { SpellRef } from "shared/domain/dnd5e/spell.js";
 import { asArray, asNumber, asString, isRecord } from "./primitives.js";
-import { renderDnd5eToolsText } from "./text-renderer.js";
+import { DESCRIPTION_TEXT_OPTIONS, renderDnd5eToolsText } from "./text-renderer.js";
 import { renderSpellEntries } from "./spell-transformer.js";
 import { resolveCopies, walkStrings, getPath, type UpstreamRecord } from "./item-copy.js";
 import { createSpecific, damageTypeName, familyRecord, matchesVariant } from "./item-variants.js";
@@ -83,7 +83,8 @@ export interface ItemImportPlan {
   };
 }
 
-// Descriptions keep spell tags, like spell and monster text. Item tags: plan step 06.
+// Descriptions keep spell and item tags, like spell and monster text (DESCRIPTION_TEXT_OPTIONS).
+// Rules fields (dice, charges, recharge) keep only spell tags, as before item links.
 const ITEM_TEXT_OPTIONS = { keepTags: ["spell"] } as const;
 const DEFAULT_REF_SOURCE = "DMG";
 
@@ -551,7 +552,7 @@ function buildDetails(
 ): ItemDetails {
   const entries = [...expandItemEntries(state, record, asArray(record.entries)), ...asArray(record.additionalEntries)];
   const description = renderSpellEntries(entries, warnings);
-  if (/\{@(?!spell(?:\s|\}))/i.test(description)) unsupported("Description has unrendered inline markup.");
+  if (/\{@(?!(?:spell|item)(?:\s|\}))/i.test(description)) unsupported("Description has unrendered inline markup.");
   const qualifiers: string[] = [];
   const properties = asArray(record.property).map(property => propertyName(state, property, unsupported, qualifiers));
   const mastery = asArray(record.mastery).map(value => masteryName(state, value, unsupported, qualifiers));
@@ -627,7 +628,7 @@ function withNote(name: string, value: unknown, qualifiers: string[]): string {
   if (!note) return name;
   const display = `${name} (${renderDnd5eToolsText(note)})`;
   if (display.length <= ITEM_LIMITS.shortText) return display;
-  qualifiers.push(`**${name}.** ${renderDnd5eToolsText(note, ITEM_TEXT_OPTIONS)}`);
+  qualifiers.push(`**${name}.** ${renderDnd5eToolsText(note, DESCRIPTION_TEXT_OPTIONS)}`);
   return name;
 }
 

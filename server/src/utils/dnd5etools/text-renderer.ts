@@ -6,6 +6,13 @@ export interface RenderOptions {
   keepTags?: readonly string[];
 }
 
+// Descriptive text: spell and item references stay tags so the app can link them.
+export const DESCRIPTION_TEXT_OPTIONS: RenderOptions = { keepTags: ["spell", "item"] };
+
+// The source a kept tag means when it names none, as the 5etools renderer reads it: "{@item potion
+// of healing}" is the DMG printing. A spell without a source stays unqualified (resolveSpell decides).
+const DEFAULT_TAG_SOURCES: Readonly<Record<string, string>> = { item: "DMG" };
+
 export function renderDnd5eToolsText(value: string, options: RenderOptions = {}): string {
   return value
     .replace(/\{@h\}/gi, "Hit: ")
@@ -55,15 +62,18 @@ export function combineNotes(...notes: Array<string | undefined>): string | unde
   return combined || undefined;
 }
 
-// "{@spell fireball|xphb|Fireball}" -> "{@spell fireball|xphb|Fireball}"; "{@spell Fireball||Fireball}" -> "{@spell Fireball}"
+// "{@spell fireball|xphb|Fireball}" -> "{@spell fireball|xphb|Fireball}"; "{@spell Fireball||Fireball}" -> "{@spell Fireball}";
+// "{@item longsword||sword}" -> "{@item longsword|DMG|sword}"
 function keepTag(tag: string, body: string): string {
-  const [name = "", source = "", display = ""] = body.split("|").map(part => part.trim());
+  const kind = tag.toLowerCase();
+  const [name = "", authoredSource = "", display = ""] = body.split("|").map(part => part.trim());
   if (!name) return "";
+  const source = authoredSource || (DEFAULT_TAG_SOURCES[kind] ?? "");
   const parts = [name];
   const hasDisplay = display !== "" && display !== name;
   if (source || hasDisplay) parts.push(source);
   if (hasDisplay) parts.push(display);
-  return `{@${tag.toLowerCase()} ${parts.join("|")}}`;
+  return `{@${kind} ${parts.join("|")}}`;
 }
 
 function renderTag(tag: string, body: string): string {
