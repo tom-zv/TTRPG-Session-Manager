@@ -1,8 +1,11 @@
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import React, { useDeferredValue, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMyCharacter, useMyCharacterSummaries } from "../../api/query/useMyCharacterQueries.js";
 import { MY_CHARACTER_KEYS } from "../../api/query/myCharacterKeys.js";
 import { INVENTORY_KEYS } from "../../api/query/inventoryKeys.js";
+import type { ItemMutationScope } from "../../api/query/itemCache.js";
+import type { ItemViewer } from "../../api/query/itemKeys.js";
+import { useMountedViewerScope } from "../../hooks/useMountedViewerScope.js";
 import { InventorySection } from "./InventorySection.js";
 import { BrowserLayout, useBrowserDetail } from "../browser/BrowserLayout.js";
 import { BrowserToolbar } from "../browser/BrowserToolbar.js";
@@ -13,7 +16,7 @@ import browserStyles from "../browser/Browser.module.css";
 
 type MyCharactersBrowserProps = {
   /** The signed-in player; every query is scoped to them. */
-  userId: number;
+  viewer: ItemViewer;
   isActive: boolean;
   selectedId: number | null;
   onSelect: (id: number | null) => void;
@@ -23,8 +26,10 @@ type MyCharactersBrowserProps = {
  * A player's read-only browser of the player characters assigned to them. Lists and sheets come only
  * from the assigned-PC endpoints; a direct link to anything else shows the unavailable state.
  */
-export const MyCharactersBrowser: React.FC<MyCharactersBrowserProps> = ({ userId, isActive, selectedId, onSelect }) => {
+export const MyCharactersBrowser: React.FC<MyCharactersBrowserProps> = ({ viewer, isActive, selectedId, onSelect }) => {
   const queryClient = useQueryClient();
+  const { userId } = viewer;
+  const scope = useMountedViewerScope(viewer);
   const [hasBeenActive, setHasBeenActive] = useState(isActive);
   if (isActive && !hasBeenActive) setHasBeenActive(true);
 
@@ -32,16 +37,20 @@ export const MyCharactersBrowser: React.FC<MyCharactersBrowserProps> = ({ userId
   const [search, setSearch] = useState("");
   const detailState = useBrowserDetail({ selectedId });
 
-  // Assignments and inventories change on the GM's side: refresh the list, the open sheet and its
-  // inventory each time the player comes back to Entities. The first showing loads them anyway.
+  // Assignments and inventories change on the GM's side: each time the player comes back to
+  // Entities, refresh the list and the open sheet, and reset their inventories. Inventory rows show
+  // catalog items as the player may see them, and a GM can hide one without the inventory's revision
+  // moving, so a return shows "Loading the inventory…" until a fresh answer arrives, never a link
+  // the GM has since hidden. A layout effect, so the earlier list is never painted. The first
+  // showing loads them anyway.
   const wasActive = useRef(isActive);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isActive && !wasActive.current) {
       void queryClient.invalidateQueries({ queryKey: MY_CHARACTER_KEYS.user(userId) });
-      void queryClient.invalidateQueries({ queryKey: INVENTORY_KEYS.user(userId) });
+      void queryClient.resetQueries({ queryKey: INVENTORY_KEYS.viewer(viewer) });
     }
     wasActive.current = isActive;
-  }, [isActive, queryClient, userId]);
+  }, [isActive, queryClient, userId, viewer]);
 
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
   const visibleCharacters = useMemo(
@@ -93,17 +102,18 @@ export const MyCharactersBrowser: React.FC<MyCharactersBrowserProps> = ({ userId
           />
         )
       }
-      detail={<MyCharacterDetail userId={userId} selectedId={selectedId} />}
+      detail={<MyCharacterDetail scope={scope} selectedId={selectedId} />}
       detailLabel="Character details"
       dialogTitle={selectedSummary?.name ?? "Character"}
       // A direct link to a character not in the list still opens, to show that it is unavailable.
-      hasSelection={selectedId !== null}
+      // Only while shown: following an inventory link to an item must not leave this dialog over Items.
+      hasSelection={isActive && selectedId !== null}
     />
   );
 };
 
-const MyCharacterDetail: React.FC<{ userId: number; selectedId: number | null }> = ({ userId, selectedId }) => {
-  const { data: character, error, isLoading } = useMyCharacter(userId, selectedId);
+const MyCharacterDetail: React.FC<{ scope: ItemMutationScope; selectedId: number | null }> = ({ scope, selectedId }) => {
+  const { data: character, error, isLoading } = useMyCharacter(scope.viewer.userId, selectedId);
 
   if (selectedId === null) return <p className={browserStyles.status}>Select a character to see their sheet.</p>;
   if (isLoading) return <p className={browserStyles.status}>Loading the character…</p>;
@@ -113,7 +123,7 @@ const MyCharacterDetail: React.FC<{ userId: number; selectedId: number | null }>
   if (!character) return <p className={browserStyles.status}>This character is not available to you.</p>;
   return (
     <EntitySheet entity={character}>
-      <InventorySection entityId={character.templateId} viewerId={userId} canEdit={false} />
+      <InventorySection entityId={character.templateId} scope={scope} canEdit={false} />
     </EntitySheet>
   );
 };

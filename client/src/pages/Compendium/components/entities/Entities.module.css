@@ -511,6 +511,57 @@
   gap: 0.5rem;
 }
 
+/* Catalog links: the note under a label, the GM's visibility badge, the editor's link controls. */
+.inventoryNote {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
+}
+.inventoryBadge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+.inventoryRowLink {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.6rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.inventoryLinkButton {
+  padding: 0.1rem 0.2rem;
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  font: inherit;
+  cursor: pointer;
+}
+.inventoryLinkButton:hover {
+  text-decoration: underline;
+}
+.inventoryLinkButton:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 1px;
+}
+.inventoryConflict {
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--accent-warning, var(--border-color));
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.88rem;
+}
+.inventoryConflict p {
+  margin: 0 0 0.4rem;
+}
+
 /* Narrow panes and dialogs: name and quantity on one line, notes and Remove below. */
 @container detail-pane (max-width: 520px) {
   .inventoryRow {

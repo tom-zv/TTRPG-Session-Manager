@@ -1,0 +1,41 @@
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.name {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.source,
+.hidden,
+.status {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.hidden {
+  color: var(--text-secondary);
+}
+
+.description {
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}

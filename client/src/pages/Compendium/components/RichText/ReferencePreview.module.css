@@ -72,7 +72,7 @@
   color: var(--accent-secondary);
 }
 
-/* Keep the spell's name clear of the close button. */
+/* Keep the name clear of the close button. */
 .pinned header {
   padding-right: 1.5rem;
 }

@@ -1,0 +1,80 @@
+/* The item picker, inline in the inventory editor and the item form. */
+.picker {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-secondary);
+}
+.title {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.search {
+  display: flex;
+  gap: 0.4rem;
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+}
+.results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+.results button {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 0 0.5rem;
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 0;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+.results button:hover,
+.results button:focus-visible {
+  background: var(--bg-tertiary);
+  outline: none;
+}
+.name {
+  font-weight: 600;
+}
+.meta {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+.status {
+  margin: 0.25rem 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}

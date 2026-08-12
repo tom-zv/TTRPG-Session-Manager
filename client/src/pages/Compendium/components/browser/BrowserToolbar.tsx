@@ -10,9 +10,11 @@ type BrowserToolbarProps = {
     value: string;
     onChange: (value: string) => void;
     placeholder: string;
+    maxLength?: number;
     /** The search box's accessible name, e.g. "Search spells by name". */
     label: string;
   };
+  searchInputRef?: React.Ref<HTMLInputElement>;
   /** A sort select beside the search box. */
   sort?: React.ReactNode;
   /** Filters inside the tray, below the search row; also enables the Filters toggle. */
@@ -35,6 +37,7 @@ type BrowserToolbarProps = {
 export const BrowserToolbar: React.FC<BrowserToolbarProps> = ({
   label,
   search,
+  searchInputRef,
   sort,
   children,
   activeCount = 0,
@@ -49,11 +52,13 @@ export const BrowserToolbar: React.FC<BrowserToolbarProps> = ({
     <div className={styles.filters} role="search" aria-label={label}>
       <div className={styles.filterRow}>
         <input
+          ref={searchInputRef}
           type="search"
           className={styles.searchInput}
           placeholder={search.placeholder}
           aria-label={search.label}
           value={search.value}
+          maxLength={search.maxLength}
           onChange={event => search.onChange(event.target.value)}
         />
         {sort}

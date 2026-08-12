@@ -11,7 +11,8 @@ import { apiError, json } from "src/test/msw/handlers.js";
 import { server } from "src/test/msw/server.js";
 import { renderWithProviders, testUser } from "src/test/render.js";
 import { RouterProbe, currentUrl, go } from "src/test/routerProbe.js";
-import type { DnD5eInventoryItem } from "shared/domain/encounters/dnd5e/inventory.js";
+import type { ItemListResult, ItemRef, ItemSummary } from "shared/domain/dnd5e/item.js";
+import type { DnD5eInventoryEntry, DnD5eInventoryItem, DnD5eInventoryItemLink } from "shared/domain/encounters/dnd5e/inventory.js";
 import { MY_CHARACTER_KEYS } from "../../api/query/myCharacterKeys.js";
 import { INVENTORY_KEYS } from "../../api/query/inventoryKeys.js";
 import { Compendium } from "../Compendium.js";
@@ -67,43 +68,102 @@ const TEMPLATES = [bram, aria, mara, goblin];
 const gm = testUser({ id: 1, username: "gm", isGm: true });
 const player = testUser({ id: 2, username: "player", isGm: false });
 const otherPlayer = testUser({ id: 3, username: "other", isGm: false });
+const gmViewer = { userId: gm.id, isGm: true };
 
 type Requests = { summaries: number; batches: number[][]; mine: number; mineDetails: number[] };
 
-type InventoryServer = { stored: Map<number, DnD5eInventoryItem[]>; reads: number[]; writes: Array<{ id: number; items: DnD5eInventoryItem[] }> };
+type InventoryWrite = { id: number; items: DnD5eInventoryItem[]; expectedRevision?: number };
+type InventoryServer = {
+  stored: Map<number, DnD5eInventoryItem[]>;
+  revisions: Map<number, number>;
+  /** Catalog items as the signed-in viewer may see them; a linked row without one reads as its saved name. */
+  catalog: Map<number, DnD5eInventoryItemLink>;
+  reads: number[];
+  writes: InventoryWrite[];
+  /** Store a list as if another session saved it: the revision moves on. */
+  saveElsewhere: (id: number, items: DnD5eInventoryItem[]) => void;
+  /** While set, each GET reads the stored list at once but answers only after it settles. */
+  holdReads: Promise<void> | null;
+};
 
 // The inventory endpoints as the server enforces them: GMs reach PCs and featured NPCs, players
 // only their assigned PCs. `templates` and `assigned` are read on each request, so tests can change them.
+// A PUT with a stale expectedRevision is a 409 carrying the stored list, as on the server.
 function serveInventory(
   templates: () => DnD5eEntityDetails[],
   assigned: Record<number, DnD5eEntityDetails[]> = {},
-  options: { failSave?: string } = {}
+  options: { failSave?: string; holdSave?: Promise<void> } = {}
 ): InventoryServer {
-  const inventory: InventoryServer = { stored: new Map(), reads: [], writes: [] };
+  const inventory: InventoryServer = {
+    stored: new Map(), revisions: new Map(), catalog: new Map(), reads: [], writes: [], holdReads: null,
+    saveElsewhere: (id, items) => {
+      inventory.stored.set(id, items);
+      inventory.revisions.set(id, revision(id) + 1);
+    },
+  };
+  const revision = (id: number) => inventory.revisions.get(id) ?? 0;
   const signedIn = () => Number(localStorage.getItem("test-user-id"));
+  // The role as the server knows it: one account can be a GM, then a player.
+  const signedInAsGm = () => localStorage.getItem("test-user-gm") === "true";
   const reachable = (id: number) => {
-    if (signedIn() !== gm.id) return (assigned[signedIn()] ?? []).some(entity => entity.templateId === id && entity.role === "pc");
+    if (!signedInAsGm()) return (assigned[signedIn()] ?? []).some(entity => entity.templateId === id && entity.role === "pc");
     const entity = templates().find(item => item.templateId === id);
     return entity !== undefined && (entity.role === "pc" || (entity.role === "npc" && entity.settings?.compendium?.featured === true));
   };
+  const entries = (id: number): DnD5eInventoryEntry[] => (inventory.stored.get(id) ?? []).map(({ itemId, ...row }) => {
+    const item = itemId === undefined ? undefined : inventory.catalog.get(itemId);
+    // A player gets neither the ID nor the name of a hidden or deleted item.
+    if (itemId === undefined || (!signedInAsGm() && (!item || item.hidden))) return row;
+    return item ? { ...row, itemId, item } : { ...row, itemId };
+  });
+  const body = (id: number) => ({ items: entries(id), revision: revision(id) });
   server.use(
-    http.get("/api/dnd5e/entities/:id/inventory", ({ params }) => {
+    http.get("/api/dnd5e/entities/:id/inventory", async ({ params }) => {
       const id = Number(params.id);
       inventory.reads.push(id);
-      return reachable(id) ? json({ items: inventory.stored.get(id) ?? [] }) : json({ message: "Inventory not found" }, 404);
+      const response = reachable(id) ? json(body(id)) : json({ message: "Inventory not found" }, 404);
+      await inventory.holdReads;
+      return response;
     }),
     http.put("/api/dnd5e/entities/:id/inventory", async ({ params, request }) => {
       const id = Number(params.id);
-      const { items } = (await request.json()) as { items: DnD5eInventoryItem[] };
-      inventory.writes.push({ id, items });
+      const sent = (await request.json()) as { items: DnD5eInventoryItem[]; expectedRevision?: number };
+      inventory.writes.push({ id, ...sent });
       if (options.failSave) return apiError(400, options.failSave);
+      if (sent.expectedRevision !== undefined && sent.expectedRevision !== revision(id)) {
+        return json({ message: "The inventory changed since it was loaded.", ...body(id) }, 409);
+      }
       // The server trims text, so the response can differ from what was sent.
-      const saved = items.map(item => ({ ...item, name: item.name.trim(), ...(item.notes ? { notes: item.notes.trim() } : {}) }));
-      inventory.stored.set(id, saved);
-      return json({ items: saved });
+      const saved = sent.items.map(item => ({ ...item, name: item.name.trim(), ...(item.notes ? { notes: item.notes.trim() } : {}) }));
+      inventory.saveElsewhere(id, saved);
+      const response = json(body(id));
+      await options.holdSave;
+      return response;
     })
   );
   return inventory;
+}
+
+// Concrete catalog items for the inventory picker, matched by name like the server's search and
+// served one page (offset, limit) at a time.
+function serveItemSearch(items: ItemSummary[]) {
+  const searches: string[] = [];
+  server.use(
+    http.get("/api/dnd5e/items", ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      const q = params.get("q") ?? "";
+      const offset = Number(params.get("offset") ?? 0);
+      const limit = Number(params.get("limit") ?? 50);
+      searches.push(`${q}|${params.getAll("kinds").join(",")}${offset ? `|${offset}` : ""}`);
+      const matches = items.filter(item => item.kind === "concrete" && item.name.toLowerCase().includes(q.toLowerCase()));
+      const result: ItemListResult = {
+        items: matches.slice(offset, offset + limit), total: matches.length, offset, limit,
+        facets: { kinds: [], categories: [], origins: [], rarities: [], sources: [] },
+      };
+      return json(result);
+    })
+  );
+  return searches;
 }
 
 function serveCompendiumApi(assigned: Record<number, DnD5eEntityDetails[]>) {
@@ -150,6 +210,7 @@ const AccountSwitcher = ({ to }: { to: User }) => {
             json({ user: to, session: { token: `token-${to.id}`, createdAt: to.createdAt, expiresAt: "2999-01-01T00:00:00.000Z" } }))
         );
         localStorage.setItem("test-user-id", String(to.id));
+        localStorage.setItem("test-user-gm", String(to.isGm));
         void login({ username: to.username, password: "secret" });
       }}
     >
@@ -160,6 +221,7 @@ const AccountSwitcher = ({ to }: { to: User }) => {
 
 const renderAs = (user: User, route: string, switchTo?: User) => {
   localStorage.setItem("test-user-id", String(user.id));
+  localStorage.setItem("test-user-gm", String(user.isGm));
   return renderWithProviders(
     <>
       <Compendium />
@@ -250,6 +312,60 @@ describe("GM entity browser", () => {
     await pressRowInSplitPane(option("Aria"));
     const aria = within(await within(details()).findByRole("article", { name: "Aria" }));
     expect(aria.getByText("Party")).toBeVisible();
+  });
+
+  test("a sheet links the items its text names; a spell preview keeps its own item mentions plain; an item link opens Items", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const wand: ItemSummary = { id: 51, kind: "concrete", origin: "imported", name: "Wand", source: "DMG", rarity: "none", requiresAttunement: false, aliases: [] };
+    const sword: ItemSummary = { ...wand, id: 52, name: "Longsword", source: "PHB" };
+    const armed: DnD5eEntityDetails = {
+      ...bram,
+      actions: [{ name: "Longsword", description: "Swings a {@item Longsword|PHB|longsword} or a {@item Broom|HB}.", actionType: "action" }],
+      spellcasting: [{ ...bram.spellcasting![0], descriptions: ["Casts through a {@item Wand|DMG}."] }],
+    };
+    const resolveRequests: ItemRef[][] = [];
+    server.use(
+      http.post("/api/dnd5e/entities/batch", () => json({ entities: [armed] })),
+      http.get("/api/dnd5e/spells/:id", () => json({ spell: {
+        ...magicMissile, range: "120 feet", materialConsumed: false, duration: "Instantaneous", conditions: [], locallyEdited: false,
+        description: "Darts fly from a {@item Wand|DMG}.",
+      } })),
+      http.post("/api/dnd5e/items/resolve", async ({ request }) => {
+        const { refs } = (await request.json()) as { refs: ItemRef[] };
+        resolveRequests.push(refs);
+        return json({ results: refs.map(ref => ({ ref, item: [wand, sword].find(item => item.name === ref.name && item.source === ref.source) ?? null })) });
+      }),
+      http.get("/api/dnd5e/items/:id", ({ params }) => {
+        const found = [wand, sword].find(item => item.id === Number(params.id));
+        return found ? json({ item: { ...found, details: {} } }) : apiError(404, "Item not found");
+      })
+    );
+    renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const article = await within(await screen.findByLabelText("Entity details")).findByRole("article", { name: "Bram" });
+    const sheet = within(article);
+    expect(await sheet.findByRole("button", { name: "Wand" })).toBeVisible();
+    await user.click(sheet.getByRole("button", { name: "Magic Missile" }));
+    const spellPreview = await screen.findByRole("dialog", { name: "Magic Missile" });
+    expect(await within(spellPreview).findByText("Darts fly from a Wand.")).toBeVisible();
+    expect(within(spellPreview).queryByRole("button", { name: "Wand" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(sheet.getByText("Traits and actions"));
+    expect(await sheet.findByRole("button", { name: "longsword" })).toBeVisible();
+    expect(sheet.queryByRole("button", { name: "Broom" })).not.toBeInTheDocument();
+    expect(article).toHaveTextContent("Swings a longsword or a Broom.");
+    // The spellcasting and the traits-and-actions sections each resolve their own text once.
+    expect(resolveRequests).toEqual([
+      [{ name: "Wand", source: "DMG" }],
+      [{ name: "Broom", source: "HB" }, { name: "Longsword", source: "PHB" }],
+    ]);
+
+    await user.click(sheet.getByRole("button", { name: "longsword" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "Longsword" })).getByRole("link", { name: "Open in Compendium" }));
+    expect(tab("Items")).toHaveAttribute("aria-selected", "true");
+    expect(currentUrl()).toBe("/compendium?item=52");
   });
 
   test("following a spell link from an entity and going Back returns to that entity", async () => {
@@ -496,7 +612,7 @@ describe("player characters", () => {
     expect(within(details("Character details")).getByText("Select a character to see their sheet.")).toBeVisible();
     await waitFor(() => expect(currentUrl()).toBe("/compendium?section=entities"));
     expect(queryClient.getQueriesData({ queryKey: MY_CHARACTER_KEYS.user(player.id) })).toEqual([]);
-    expect(queryClient.getQueriesData({ queryKey: INVENTORY_KEYS.user(player.id) })).toEqual([]);
+    expect(queryClient.getQueriesData({ queryKey: INVENTORY_KEYS.viewer({ userId: player.id, isGm: false }) })).toEqual([]);
   });
 
   test("auth must finish before a browser mounts", async () => {
@@ -557,12 +673,13 @@ describe("inventory", () => {
     await user.click(editor.getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(within(region).queryByRole("form")).not.toBeInTheDocument());
-    expect(inventory.writes).toEqual([{ id: bram.templateId, items: [
+    expect(inventory.writes).toEqual([{ id: bram.templateId, expectedRevision: 0, items: [
       { name: "  Potion of healing ", quantity: 2 },
       { name: "Iron key", quantity: 1, notes: "Opens the crypt" },
     ] }]);
     expect(inventoryRows(region)).toEqual([["Potion of healing", "2", ""], ["Iron key", "1", "Opens the crypt"]]);
-    expect(queryClient.getQueryData(INVENTORY_KEYS.detail(gm.id, bram.templateId))).toEqual(inventory.stored.get(bram.templateId));
+    expect(queryClient.getQueryData(INVENTORY_KEYS.detail(gmViewer, bram.templateId)))
+      .toEqual({ items: inventory.stored.get(bram.templateId), revision: 1 });
     expect(inventory.reads).toEqual([bram.templateId]);
   });
 
@@ -642,5 +759,347 @@ describe("inventory", () => {
 
     await waitFor(() => expect(inventoryRows(region)).toEqual([["Potion of healing", "1", ""], ["Iron key", "1", ""]]));
     expect(inventory.reads).toEqual([bram.templateId, bram.templateId]);
+  });
+});
+
+describe("linked inventory", () => {
+  const summary = (id: number, name: string, patch: Partial<ItemSummary> = {}): ItemSummary => ({
+    id, kind: "concrete", origin: "imported", name, source: "DMG", rarity: "uncommon", requiresAttunement: false, aliases: [], ...patch,
+  });
+  const family = { id: 1, name: "+1 Weapon", source: "DMG" };
+  const plusOnePhb = summary(4, "+1 Longsword", { family, base: { id: 2, name: "Longsword", source: "PHB" } });
+  const plusOneXphb = summary(5, "+1 Longsword", { family, base: { id: 3, name: "Longsword", source: "XPHB" } });
+  const lantern = summary(6, "Whispering Lantern", { source: "HB", origin: "homebrew", gm: { hidden: true, hiddenByFamily: false } });
+  const CATALOG = [summary(1, "+1 Weapon", { kind: "family" }), plusOnePhb, plusOneXphb, lantern];
+
+  const openEditor = async (user: ReturnType<typeof userEvent.setup>) => {
+    const region = await openInventory(user, await screen.findByLabelText("Entity details"));
+    await user.click(await within(region).findByRole("button", { name: "Add item" }));
+    return { region, editor: within(within(region).getByRole("form", { name: "Edit inventory" })) };
+  };
+
+  test("a GM links a free-text row to an exact printing; the saved label stays and the row then opens the item", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES);
+    inventory.stored.set(bram.templateId, [{ name: "Old sword", quantity: 1 }]);
+    const searches = serveItemSearch(CATALOG);
+    server.use(http.get("/api/dnd5e/items/:id", () => json({ message: "Item not found" }, 404)));
+    renderAs(gm, `/compendium?entity=${bram.templateId}&campaign=7`);
+
+    const { region, editor } = await openEditor(user);
+    await user.click(editor.getByRole("button", { name: "Link item 1 to a catalog item" }));
+    const picker = within(editor.getByRole("group", { name: "Choose a catalog item for item 1" }));
+    await typeInSplitPane(user, picker.getByRole("searchbox", { name: "Search the item catalog" }), "+1 long");
+
+    // Only concrete items are searched, and the two printings differ by their base.
+    const results = within(await picker.findByRole("list", { name: "Matching items" }));
+    expect(results.getAllByRole("button").map(button => button.textContent))
+      .toEqual(["+1 LongswordDMG · Longsword (PHB)", "+1 LongswordDMG · Longsword (XPHB)"]);
+    expect(searches.at(-1)).toBe("+1 long|concrete");
+    await user.click(results.getByRole("button", { name: /Longsword \(XPHB\)/ }));
+    expect(editor.getByText("Linked to +1 Longsword (DMG)")).toBeVisible();
+    expect(editor.getByLabelText("Item 1 name")).toHaveValue("Old sword");
+
+    inventory.catalog.set(plusOneXphb.id, { name: "+1 Longsword", source: "DMG" });
+    await user.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(within(region).queryByRole("form")).not.toBeInTheDocument());
+    expect(inventory.writes).toEqual([
+      { id: bram.templateId, expectedRevision: 0, items: [{ name: "Old sword", quantity: 1, itemId: plusOneXphb.id }] },
+    ]);
+
+    const itemLink = within(region).getByRole("link", { name: "+1 Longsword" });
+    expect(within(region).getByText("Saved as “Old sword”")).toBeVisible();
+    await user.click(itemLink);
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?campaign=7&item=${plusOneXphb.id}`));
+    expect(tab("Items")).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("Detach keeps the label without its link; Add from catalog adds a row named after the item; a deleted link is marked", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES);
+    inventory.stored.set(bram.templateId, [
+      { name: "Old sword", quantity: 1, itemId: plusOnePhb.id },
+      { name: "Lost ring", quantity: 1, itemId: 99 },
+    ]);
+    inventory.catalog.set(plusOnePhb.id, { name: "+1 Longsword", source: "DMG" });
+    serveItemSearch(CATALOG);
+    renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const region = await openInventory(user, await screen.findByLabelText("Entity details"));
+    // Item 99 was deleted from the catalog: the GM sees the saved name and why it has no link.
+    await waitFor(() => expect(within(region).getByText("Catalog item deleted")).toBeVisible());
+    await user.click(within(region).getByRole("button", { name: "Add item" }));
+    const editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
+    expect(editor.getByText("Linked to a deleted catalog item")).toBeVisible();
+
+    await user.click(editor.getByRole("button", { name: "Detach item 1 from its catalog item" }));
+    expect(editor.queryByText("Linked to +1 Longsword (DMG)")).not.toBeInTheDocument();
+    await user.click(editor.getByRole("button", { name: "Add from catalog" }));
+    const picker = within(editor.getByRole("group", { name: "Add an item from the catalog" }));
+    await typeInSplitPane(user, picker.getByRole("searchbox", { name: "Search the item catalog" }), "lantern");
+    await user.click(await picker.findByRole("button", { name: /Whispering Lantern/ }));
+    expect(editor.getByLabelText("Item 3 name")).toHaveValue("Whispering Lantern");
+    expect(editor.getByText(/Linked to Whispering Lantern \(HB\) · Hidden from players/)).toBeVisible();
+
+    await user.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(inventory.writes).toHaveLength(1));
+    expect(inventory.writes[0].items).toEqual([
+      { name: "Old sword", quantity: 1 },
+      { name: "Lost ring", quantity: 1, itemId: 99 },
+      { name: "Whispering Lantern", quantity: 1, itemId: lantern.id },
+    ]);
+  });
+
+  test("a stale save keeps the draft; the GM can load the other save or save over it with the new revision", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES);
+    inventory.saveElsewhere(bram.templateId, [{ name: "Rope", quantity: 1 }]);
+    const { queryClient } = renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const opened = await openEditor(user);
+    const { region } = opened;
+    let { editor } = opened;
+    // Someone gives Bram a torch while this editor is open.
+    inventory.saveElsewhere(bram.templateId, [{ name: "Rope", quantity: 1 }, { name: "Torch", quantity: 2 }]);
+    await typeInSplitPane(user, editor.getByLabelText("Item 2 name"), "Lantern");
+    await user.click(editor.getByRole("button", { name: "Save" }));
+
+    expect(await editor.findByRole("alert")).toHaveTextContent("Someone changed this inventory");
+    expect(editor.getByLabelText("Item 2 name")).toHaveValue("Lantern");
+    expect(queryClient.getQueryData(INVENTORY_KEYS.detail(gmViewer, bram.templateId)))
+      .toEqual({ items: [{ name: "Rope", quantity: 1 }, { name: "Torch", quantity: 2 }], revision: 2 });
+
+    await user.click(editor.getByRole("button", { name: "Discard mine and load theirs" }));
+    editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
+    expect(editor.getByLabelText("Item 2 name")).toHaveValue("Torch");
+    expect(editor.getByLabelText("Item 3 name")).toHaveValue("");
+
+    inventory.saveElsewhere(bram.templateId, [{ name: "Rope", quantity: 3 }]);
+    await user.clear(editor.getByLabelText("Item 2 quantity"));
+    await typeInSplitPane(user, editor.getByLabelText("Item 2 quantity"), "5");
+    await user.click(editor.getByRole("button", { name: "Save" }));
+    await user.click(await editor.findByRole("button", { name: "Save mine over theirs" }));
+
+    await waitFor(() => expect(within(region).queryByRole("form")).not.toBeInTheDocument());
+    expect(inventory.writes.map(write => write.expectedRevision)).toEqual([1, 2, 3]);
+    expect(inventoryRows(region)).toEqual([["Rope", "1", ""], ["Torch", "5", ""]]);
+  });
+
+  test("a player follows a visible linked item; a hidden one shows only its saved label, quantity and notes", async () => {
+    const user = userEvent.setup();
+    const assigned = { [player.id]: [bram] };
+    serveCompendiumApi(assigned);
+    const inventory = serveInventory(() => TEMPLATES, assigned);
+    inventory.stored.set(bram.templateId, [
+      { name: "Sword", quantity: 1, itemId: plusOnePhb.id },
+      { name: "Strange lamp", quantity: 2, notes: "Warm", itemId: lantern.id },
+    ]);
+    // As the server answers a player: the hidden lantern has no catalog entry for them.
+    inventory.catalog.set(plusOnePhb.id, { name: "+1 Longsword", source: "DMG" });
+    renderAs(player, `/compendium?entity=${bram.templateId}`);
+
+    const region = await openInventory(user, await screen.findByLabelText("Character details"));
+    await waitFor(() => expect(inventoryRows(region)).toEqual([
+      ["+1 LongswordSaved as “Sword”", "1", ""],
+      ["Strange lamp", "2", "Warm"],
+    ]));
+    expect(within(region).getAllByRole("link").map(link => link.textContent)).toEqual(["+1 Longsword"]);
+    expect(within(region).queryByText(/deleted|Hidden/)).not.toBeInTheDocument();
+  });
+
+  test("13-F011: when one account switches from GM to player, the player reads its own redacted inventory and a late GM save stays out", async () => {
+    const user = userEvent.setup();
+    const samGm = testUser({ id: 5, username: "sam", isGm: true });
+    const samPlayer = testUser({ id: 5, username: "sam", isGm: false });
+    const assigned = { [samGm.id]: [bram] };
+    serveCompendiumApi(assigned);
+    let releaseSave = () => {};
+    const inventory = serveInventory(() => TEMPLATES, assigned, { holdSave: new Promise<void>(resolve => { releaseSave = resolve; }) });
+    inventory.stored.set(bram.templateId, [{ name: "Strange lamp", quantity: 1, itemId: lantern.id }]);
+    inventory.catalog.set(lantern.id, { name: "Whispering Lantern", source: "HB", hidden: true });
+    const { queryClient } = renderAs(samGm, `/compendium?entity=${bram.templateId}`, samPlayer);
+
+    // As GM: the hidden item's name and link, then a save the server is slow to answer.
+    const region = await openInventory(user, await screen.findByLabelText("Entity details"));
+    expect(await within(region).findByRole("link", { name: "Whispering Lantern" })).toBeVisible();
+    await user.click(within(region).getByRole("button", { name: "Add item" }));
+    await user.click(within(region).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(inventory.writes).toHaveLength(1));
+
+    await user.click(screen.getByRole("button", { name: "Switch to sam" }));
+    await screen.findByRole("listbox", { name: "My characters" });
+    pressRowInSplitPane(option("Bram"));
+    const playerRegion = await openInventory(user, await within(details("Character details")).findByRole("article", { name: "Bram" }));
+    await waitFor(() => expect(inventoryRows(playerRegion)).toEqual([["Strange lamp", "1", ""]]));
+    expect(within(playerRegion).queryByRole("link")).not.toBeInTheDocument();
+    expect(inventory.reads).toEqual([bram.templateId, bram.templateId]);
+
+    releaseSave();
+    await waitFor(() => expect(queryClient.isMutating()).toBe(0));
+    expect(queryClient.getQueriesData({ queryKey: INVENTORY_KEYS.viewer({ userId: samGm.id, isGm: true }) })).toEqual([]);
+    expect(inventoryRows(playerRegion)).toEqual([["Strange lamp", "1", ""]]);
+    expect(screen.queryByText("Whispering Lantern")).not.toBeInTheDocument();
+  });
+
+  test("13-F012: back on Entities, a player's collapsed or open inventory shows only a fresh answer, never a since-hidden link", async () => {
+    const user = userEvent.setup();
+    const assigned = { [player.id]: [aria] };
+    serveCompendiumApi(assigned);
+    const inventory = serveInventory(() => TEMPLATES, assigned);
+    inventory.stored.set(aria.templateId, [
+      { name: "Lamp", quantity: 2, itemId: lantern.id },
+      { name: "Sword", quantity: 1, itemId: plusOnePhb.id },
+    ]);
+    inventory.catalog.set(lantern.id, { name: "Whispering Lantern", source: "HB" });
+    inventory.catalog.set(plusOnePhb.id, { name: "+1 Longsword", source: "DMG" });
+    renderAs(player, `/compendium?entity=${aria.templateId}`);
+    let release = () => {};
+    // The GM hides an item while the player is on Spells; the player's next inventory read is slow.
+    const hideWhileAway = async (itemId: number, link: DnD5eInventoryItemLink) => {
+      await user.click(tab("Spells"));
+      inventory.catalog.set(itemId, { ...link, hidden: true });
+      inventory.holdReads = new Promise<void>(resolve => { release = resolve; });
+      await user.click(tab("Entities"));
+    };
+
+    // Opened, then collapsed before leaving.
+    const region = await openInventory(user, await screen.findByLabelText("Character details"));
+    expect(await within(region).findByRole("link", { name: "Whispering Lantern" })).toBeVisible();
+    await user.click(within(region).getByText("Inventory"));
+    await hideWhileAway(lantern.id, { name: "Whispering Lantern", source: "HB" });
+    await user.click(within(region).getByText("Inventory"));
+    expect(await within(region).findByText("Loading the inventory…")).toBeVisible();
+    expect(within(region).queryByRole("link")).not.toBeInTheDocument();
+    release();
+    await waitFor(() => expect(inventoryRows(region)).toEqual([["Lamp", "2", ""], ["+1 LongswordSaved as “Sword”", "1", ""]]));
+    expect(within(region).getAllByRole("link").map(link => link.textContent)).toEqual(["+1 Longsword"]);
+
+    // Left open.
+    await hideWhileAway(plusOnePhb.id, { name: "+1 Longsword", source: "DMG" });
+    expect(within(region).getByText("Loading the inventory…")).toBeVisible();
+    expect(within(region).queryByRole("link")).not.toBeInTheDocument();
+    release();
+    await waitFor(() => expect(inventoryRows(region)).toEqual([["Lamp", "2", ""], ["Sword", "1", ""]]));
+    expect(within(region).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  test("13-F018: back on Entities, a player's sheet waits for a fresh item lookup and a since-hidden item reads as authored", async () => {
+    const user = userEvent.setup();
+    const wand: ItemSummary = { id: 51, kind: "concrete", origin: "imported", name: "Wand", source: "DMG", rarity: "none", requiresAttunement: false, aliases: [] };
+    const sword: ItemSummary = { ...wand, id: 52, name: "Longsword", source: "PHB" };
+    const armed: DnD5eEntityDetails = {
+      ...aria,
+      actions: [{ name: "Strike", description: "Swings a {@item Longsword|PHB|longsword} or waves a {@item Wand|DMG}.", actionType: "action" }],
+    };
+    serveCompendiumApi({ [player.id]: [armed] });
+    const hidden = new Set<number>();
+    const resolveRequests: ItemRef[][] = [];
+    const hold: { reads?: Promise<void> } = {};
+    server.use(
+      http.post("/api/dnd5e/items/resolve", async ({ request }) => {
+        const { refs } = (await request.json()) as { refs: ItemRef[] };
+        resolveRequests.push(refs);
+        await hold.reads;
+        const visible = [wand, sword].filter(item => !hidden.has(item.id));
+        return json({ results: refs.map(ref => ({ ref, item: visible.find(item => item.name === ref.name && item.source === ref.source) ?? null })) });
+      }),
+      http.get("/api/dnd5e/items/:id", ({ params }) => {
+        const found = [wand, sword].find(item => item.id === Number(params.id) && !hidden.has(item.id));
+        return found ? json({ item: { ...found, details: {} } }) : apiError(404, "Item not found");
+      })
+    );
+    renderAs(player, `/compendium?entity=${aria.templateId}`);
+
+    const article = await within(await screen.findByLabelText("Character details")).findByRole("article", { name: "Aria" });
+    const sheet = within(article);
+    await user.click(sheet.getByText("Traits and actions"));
+    expect(await sheet.findByRole("button", { name: "Wand" })).toBeVisible();
+    expect(resolveRequests).toHaveLength(1);
+
+    // Away on Spells, the GM hides the wand; the player's next lookup is slow.
+    await user.click(tab("Spells"));
+    hidden.add(wand.id);
+    let release = () => {};
+    hold.reads = new Promise<void>(resolve => { release = resolve; });
+    await user.click(tab("Entities"));
+
+    expect(await sheet.findByText(/Swings a longsword or waves a Wand\./)).toBeVisible();
+    expect(sheet.queryByRole("button", { name: "Wand" })).not.toBeInTheDocument();
+    expect(sheet.queryByRole("button", { name: "longsword" })).not.toBeInTheDocument();
+    await waitFor(() => expect(resolveRequests).toHaveLength(2));
+
+    release();
+    expect(await sheet.findByRole("button", { name: "longsword" })).toBeVisible();
+    expect(sheet.queryByRole("button", { name: "Wand" })).not.toBeInTheDocument();
+  });
+
+  test("13-F014: on a narrow screen, Escape from the picker's Cancel or a result closes only the picker and keeps the draft", async () => {
+    installMatchMedia(500);
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES);
+    inventory.stored.set(bram.templateId, [{ name: "Old sword", quantity: 1 }]);
+    serveItemSearch(CATALOG);
+    renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const dialog = await screen.findByRole("dialog", { name: "Bram" });
+    const region = await openInventory(user, dialog);
+    await user.click(await within(region).findByRole("button", { name: "Add item" }));
+    const editor = within(within(region).getByRole("form", { name: "Edit inventory" }));
+    await user.type(editor.getByLabelText("Item 2 name"), "Lantern");
+    const linkButton = editor.getByRole("button", { name: "Link item 1 to a catalog item" });
+    const pickerName = "Choose a catalog item for item 1";
+
+    await user.click(linkButton);
+    act(() => within(editor.getByRole("group", { name: pickerName })).getByRole("button", { name: "Cancel" }).focus());
+    await user.keyboard("{Escape}");
+    expect(editor.queryByRole("group", { name: pickerName })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Bram" })).toBeVisible();
+    expect(editor.getByLabelText("Item 2 name")).toHaveValue("Lantern");
+    expect(linkButton).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    const picker = within(editor.getByRole("group", { name: pickerName }));
+    await user.type(picker.getByRole("searchbox", { name: "Search the item catalog" }), "+1 long");
+    const result = (await picker.findAllByRole("button", { name: /Longsword \(PHB\)/ }))[0];
+    act(() => result.focus());
+    await user.keyboard("{Escape}");
+    expect(editor.queryByRole("group", { name: pickerName })).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Bram" })).toBeVisible();
+    expect(editor.getByLabelText("Item 2 name")).toHaveValue("Lantern");
+    expect(linkButton).toHaveFocus();
+  });
+
+  test("13-F015: every printing of one name can be reached in the picker; the 21st is linked and saved with its own ID", async () => {
+    const user = userEvent.setup();
+    serveCompendiumApi({});
+    const inventory = serveInventory(() => TEMPLATES);
+    inventory.stored.set(bram.templateId, [{ name: "Warm ring", quantity: 1 }]);
+    const printings = Array.from({ length: 21 }, (_, index) =>
+      summary(200 + index, "Ring of Warmth", { source: `B${String(index + 1).padStart(2, "0")}` }));
+    const searches = serveItemSearch(printings);
+    renderAs(gm, `/compendium?entity=${bram.templateId}`);
+
+    const { region, editor } = await openEditor(user);
+    await user.click(editor.getByRole("button", { name: "Link item 1 to a catalog item" }));
+    const picker = within(editor.getByRole("group", { name: "Choose a catalog item for item 1" }));
+    await typeInSplitPane(user, picker.getByRole("searchbox", { name: "Search the item catalog" }), "ring of warmth");
+    const results = within(await picker.findByRole("list", { name: "Matching items" }));
+    expect(results.getAllByRole("button")).toHaveLength(20);
+    expect(picker.getByText("Showing 20 of 21.")).toBeVisible();
+
+    await user.click(picker.getByRole("button", { name: "Show more items" }));
+    const last = await results.findByRole("button", { name: /B21/ });
+    expect(searches.at(-1)).toBe("ring of warmth|concrete|20");
+    expect(picker.queryByRole("button", { name: "Show more items" })).not.toBeInTheDocument();
+    await user.click(last);
+    expect(editor.getByText("Linked to Ring of Warmth (B21)")).toBeVisible();
+
+    await user.click(editor.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(within(region).queryByRole("form")).not.toBeInTheDocument());
+    expect(inventory.writes[0].items).toEqual([{ name: "Warm ring", quantity: 1, itemId: 220 }]);
   });
 });

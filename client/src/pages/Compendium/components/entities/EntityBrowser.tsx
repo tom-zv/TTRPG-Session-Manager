@@ -14,6 +14,9 @@ import { EntityFilters } from "./EntityFilters.js";
 import { EntityList } from "./EntityList.js";
 import { EntitySheet } from "./EntitySheet.js";
 import { InventorySection } from "./InventorySection.js";
+import type { ItemMutationScope } from "../../api/query/itemCache.js";
+import type { ItemViewer } from "../../api/query/itemKeys.js";
+import { useMountedViewerScope } from "../../hooks/useMountedViewerScope.js";
 import { hasInventory } from "shared/domain/encounters/dnd5e/inventory.js";
 import {
   EMPTY_ENTITY_FILTERS,
@@ -28,7 +31,7 @@ import styles from "./Entities.module.css";
 
 type EntityBrowserProps = {
   /** The signed-in GM; viewer-scoped caches such as inventories are keyed by them. */
-  viewerId: number;
+  viewer: ItemViewer;
   /** The page and tab stay mounted while hidden; load the index the first time this is shown. */
   isActive: boolean;
   /** The Compendium owns the selection and its URL (?entity=<id>). */
@@ -43,7 +46,8 @@ type EntityFormMode = { kind: "create" } | { kind: "edit"; entity: DnD5eEntityDe
  * loads in full through the Encounter Manager's template loader and shares its cache. Create and
  * edit reuse the Encounter Manager's entity forms and mutations.
  */
-export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewerId, isActive, selectedId, onSelect }) => {
+export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewer, isActive, selectedId, onSelect }) => {
+  const scope = useMountedViewerScope(viewer);
   const [hasBeenActive, setHasBeenActive] = useState(isActive);
   if (isActive && !hasBeenActive) setHasBeenActive(true);
 
@@ -154,13 +158,14 @@ export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewerId, isActive
           <EntityDetail
             summary={selectedSummary}
             selectedId={selectedId}
-            viewerId={viewerId}
+            scope={scope}
             onEdit={entity => setFormMode({ kind: "edit", entity })}
           />
         }
         detailLabel="Entity details"
         dialogTitle={selectedSummary?.name ?? "Entity"}
-        hasSelection={selectedSummary !== undefined}
+        // Only while shown: following an inventory link to an item must not leave this dialog over Items.
+        hasSelection={isActive && selectedSummary !== undefined}
       />
     );
   }
@@ -176,11 +181,11 @@ export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewerId, isActive
 type EntityDetailProps = {
   summary?: DnD5eEntitySummary;
   selectedId: number | null;
-  viewerId: number;
+  scope: ItemMutationScope;
   onEdit: (entity: DnD5eEntityDetails) => void;
 };
 
-const EntityDetail: React.FC<EntityDetailProps> = ({ summary, selectedId, viewerId, onEdit }) => {
+const EntityDetail: React.FC<EntityDetailProps> = ({ summary, selectedId, scope, onEdit }) => {
   // Only a template in the index is loaded; an unknown ID shows a message instead of a failed request.
   const { data: entity, error, isLoading } = useDnD5eEntity(summary?.templateId ?? 0);
 
@@ -199,7 +204,7 @@ const EntityDetail: React.FC<EntityDetailProps> = ({ summary, selectedId, viewer
       }
     >
       {/* Shown only while the template is eligible; stored items return when it is again. */}
-      {hasInventory(entity) && <InventorySection entityId={entity.templateId} viewerId={viewerId} canEdit />}
+      {hasInventory(entity) && <InventorySection entityId={entity.templateId} scope={scope} canEdit />}
     </EntitySheet>
   );
 };

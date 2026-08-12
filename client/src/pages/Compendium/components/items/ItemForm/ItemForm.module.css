@@ -1,0 +1,139 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.5rem;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.row,
+.rowWide {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.rowWide {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--form-control-height, 2.25rem);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: auto;
+  margin: 0;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 6px);
+}
+
+.fieldset legend {
+  padding: 0 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.tagGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.hint {
+  margin: -0.4rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+}
+
+.warning {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent-warning, #ff9800);
+  background: rgba(255, 152, 0, 0.08);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.syntax {
+  margin-top: -0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.syntax summary {
+  cursor: pointer;
+  color: var(--text-tertiary);
+}
+
+.syntax ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.preview {
+  padding: 0.75rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md, 6px);
+  color: var(--text-primary);
+}
+
+.preview h4 {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+@media (max-width: 800px) {
+  .layout,
+  .tagGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rowWide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.inlineButton {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-primary, var(--text-primary));
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.baseItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-export type CompendiumSection = "spells" | "entities";
+export type CompendiumSection = "spells" | "entities" | "items";
 
 type CompendiumLocation = { section: CompendiumSection; id: number | null };
 
@@ -12,10 +12,11 @@ type CompendiumState = {
 };
 
 const SECTION_PARAM = "section";
-const ID_PARAMS: Record<CompendiumSection, string> = { spells: "spell", entities: "entity" };
-const OWNED_PARAMS = [SECTION_PARAM, ID_PARAMS.spells, ID_PARAMS.entities];
+const ID_PARAMS: Record<CompendiumSection, string> = { spells: "spell", entities: "entity", items: "item" };
+const OWNED_PARAMS = [SECTION_PARAM, ID_PARAMS.spells, ID_PARAMS.entities, ID_PARAMS.items];
+const SECTIONS: readonly string[] = ["spells", "entities", "items"];
 
-const INITIAL_STATE: CompendiumState = { section: "spells", selection: { spells: null, entities: null } };
+const INITIAL_STATE: CompendiumState = { section: "spells", selection: { spells: null, entities: null, items: null } };
 
 const parseId = (value: string | null): number | null => {
   if (value === null || !/^[1-9]\d*$/.test(value)) return null;
@@ -24,18 +25,20 @@ const parseId = (value: string | null): number | null => {
 };
 
 // What the URL asks for, or null when it names nothing (a bare /compendium): then remembered state applies.
-// A valid entity ID wins over a spell ID; an ID implies its section.
+// A valid entity ID wins over a spell ID, and a spell ID over an item ID; an ID implies its section.
 function readLocation(params: URLSearchParams): CompendiumLocation | null {
   const entityId = parseId(params.get(ID_PARAMS.entities));
   if (entityId !== null) return { section: "entities", id: entityId };
   const spellId = parseId(params.get(ID_PARAMS.spells));
   if (spellId !== null) return { section: "spells", id: spellId };
+  const itemId = parseId(params.get(ID_PARAMS.items));
+  if (itemId !== null) return { section: "items", id: itemId };
   const section = params.get(SECTION_PARAM);
-  if (section === "spells" || section === "entities") return { section, id: null };
+  if (section !== null && SECTIONS.includes(section)) return { section: section as CompendiumSection, id: null };
   return null;
 }
 
-// One canonical form per location: ?spell=42, ?entity=17, or ?section=<tab> without a selection.
+// One canonical form per location: ?spell=42, ?entity=17, ?item=5, or ?section=<tab> without a selection.
 // Parameters the Compendium does not own are kept.
 function writeLocation(params: URLSearchParams, location: CompendiumLocation): URLSearchParams {
   const next = new URLSearchParams(params);
@@ -43,6 +46,14 @@ function writeLocation(params: URLSearchParams, location: CompendiumLocation): U
   if (location.id === null) next.set(SECTION_PARAM, location.section);
   else next.set(ID_PARAMS[location.section], String(location.id));
   return next;
+}
+
+/**
+ * The search string of a link to a Compendium selection, e.g. from an inventory row to its item.
+ * Following it switches tab and selection as a new history entry; unrelated parameters stay.
+ */
+export function compendiumLinkSearch(params: URLSearchParams, section: CompendiumSection, id: number): string {
+  return `?${writeLocation(params, { section, id }).toString()}`;
 }
 
 const ownedParamsKey = (params: URLSearchParams) =>

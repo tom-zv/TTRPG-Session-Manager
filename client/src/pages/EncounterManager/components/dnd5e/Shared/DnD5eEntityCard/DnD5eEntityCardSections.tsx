@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { createContext, useContext, useMemo } from "react";
 import type {
   DnD5eEntityDetails,
   EntitySpellcasting,
@@ -24,9 +24,13 @@ import {
   titleCase,
 } from "./DnD5eEntityCard.utils.js";
 import styles from "./DnD5eEntityCard.module.css";
-// Monster text keeps {@spell} tags; they render as spell links with a preview.
-import { RichText } from "src/pages/Compendium/components/RichText/RichText.js";
+// Monster text keeps {@spell} and {@item} tags; they render as links with a preview.
+import { RichText, type ItemTokenRenderer } from "src/pages/Compendium/components/RichText/RichText.js";
 import { SpellLink, renderSpellLink } from "src/pages/Compendium/components/spells/SpellLink.js";
+import { useItemLinks } from "src/pages/Compendium/components/items/ItemLink.js";
+
+// The item links of the sections being shown, resolved once for all their text.
+const ItemLinks = createContext<ItemTokenRenderer | undefined>(undefined);
 
 type EntitySectionProps = {
   entity: DnD5eEntityDetails;
@@ -109,15 +113,23 @@ export const EntityEntrySections: React.FC<EntityEntrySectionsProps> = ({ entity
       .map(section => ({ ...section, entries: section.entries.filter(entry => kinds.includes(entry.kind)) }))
       .filter(section => section.entries.length > 0);
   }, [entity, kinds]);
+  const renderItem = useItemLinks(sectionTexts(entity, sections));
 
   return (
-    <>
+    <ItemLinks.Provider value={renderItem}>
       {sections.map((section) => (
         <EntrySection key={section.key} section={section} entity={entity} />
       ))}
-    </>
+    </ItemLinks.Provider>
   );
 };
+
+// Every text the sections render through MonsterText.
+const sectionTexts = (entity: DnD5eEntityDetails, sections: EntityCardSection[]): string[] => [
+  ...(sections.some(section => section.key === "legendary") ? entity.legendaryHeader ?? [] : []),
+  ...sections.flatMap(section => section.entries.flatMap(entry =>
+    entry.kind === "spellcasting" ? entry.spellcasting.descriptions ?? [] : [entry.description])),
+];
 
 type StatItemProps = {
   label: string;
@@ -307,9 +319,10 @@ const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
   );
 };
 
-const MonsterText: React.FC<{ text: string; className?: string }> = ({ text, className }) => (
-  <RichText inline text={text} renderSpell={renderSpellLink} className={className} />
-);
+const MonsterText: React.FC<{ text: string; className?: string }> = ({ text, className }) => {
+  const renderItem = useContext(ItemLinks);
+  return <RichText inline text={text} renderSpell={renderSpellLink} renderItem={renderItem} className={className} />;
+};
 
 const formatEntryName = (name: string): string =>
   /[.!?]$/.test(name.trim()) ? name.trim() : `${name.trim()}.`;

@@ -68,7 +68,10 @@ beforeEach(() => {
     }),
     // The player in these tests has no characters; Entities is covered in entities/Entities.test.tsx.
     http.get("/api/dnd5e/entities/mine", () => json({ entities: [] })),
-    http.get("/api/dnd5e/entities/mine/:id", () => json({ message: "Character not found" }, 404))
+    http.get("/api/dnd5e/entities/mine/:id", () => json({ message: "Character not found" }, 404)),
+    // Items are covered in items/Items.test.tsx.
+    http.get("/api/dnd5e/items", () =>
+      json({ items: [], total: 0, offset: 0, limit: 50, facets: { kinds: [], categories: [], origins: [], rarities: [], sources: [] } }))
   );
 });
 
@@ -157,11 +160,17 @@ describe("Compendium mode switch", () => {
     expect(screen.getByRole("tabpanel", { name: "Entities" })).toBeVisible();
     expect(currentUrl()).toBe("/compendium?section=entities");
 
+    await user.keyboard("{ArrowRight}");
+    expect(sectionTab("Items")).toHaveAttribute("aria-selected", "true");
+    expect(currentUrl()).toBe("/compendium?section=items");
+
     // Wraps around, and Home/End jump to the ends.
     await user.keyboard("{ArrowRight}");
     expect(sectionTab("Spells")).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowLeft}");
+    expect(sectionTab("Items")).toHaveAttribute("aria-selected", "true");
     await user.keyboard("{End}");
-    expect(sectionTab("Entities")).toHaveAttribute("aria-selected", "true");
+    expect(sectionTab("Items")).toHaveAttribute("aria-selected", "true");
     await user.keyboard("{Home}");
     expect(sectionTab("Spells")).toHaveFocus();
     await waitFor(() => expect(currentUrl()).toBe("/compendium?spell=7"));

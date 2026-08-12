@@ -7,6 +7,7 @@ import {
   type SpellSummary,
 } from "shared/domain/dnd5e/spell.js";
 import { RichText, type SpellTokenRenderer } from "../RichText/RichText.js";
+import { useItemLinks } from "../items/ItemLink.js";
 import { capitalize } from "./spellFilters.js";
 import styles from "./SpellCard.module.css";
 
@@ -37,6 +38,8 @@ export const SpellCard: React.FC<SpellCardProps> = ({
 }) => {
   const compact = variant === "compact";
   const HeadingTag = compact ? "h3" : "h2";
+  // A compact card is a preview: its item mentions stay plain text, so previews never nest.
+  const renderItem = useItemLinks([spell?.description, spell?.higherLevels], { enabled: !compact });
 
   return (
     <article className={`${styles.spellCard} ${compact ? styles.compact : ""}`} aria-labelledby={headingId}>
@@ -87,12 +90,12 @@ export const SpellCard: React.FC<SpellCardProps> = ({
             </div>
           </dl>
 
-          <RichText text={spell.description} renderSpell={renderSpell} className={styles.description} />
+          <RichText text={spell.description} renderSpell={renderSpell} renderItem={renderItem} className={styles.description} />
 
           {spell.higherLevels && (
             <section className={styles.higherLevels}>
               <h4>{spell.level === 0 ? "Cantrip Upgrade" : "Using a Higher-Level Spell Slot"}</h4>
-              <RichText text={spell.higherLevels} renderSpell={renderSpell} />
+              <RichText text={spell.higherLevels} renderSpell={renderSpell} renderItem={renderItem} />
             </section>
           )}
 
