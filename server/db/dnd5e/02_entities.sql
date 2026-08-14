@@ -10,7 +10,7 @@ CREATE TABLE
         ac INT NOT NULL DEFAULT 10,
         hp INT NOT NULL DEFAULT 1,
         current_hp INT NULL,                         -- player characters: HP carried over from the last finished combat; NULL means full
-        hp_formula VARCHAR(64) NULL,                 -- e.g. '6d10 + 12' or 'special: equal to warlock HP'
+        hp_formula VARCHAR(255) NULL,                -- e.g. '6d10 + 12', or a summon's rules text ('5 + five times your Ranger level ...')
         speeds JSON,                                 -- {type: INT} e.g. {walk: 30, fly: 60}
         size ENUM ('tiny', 'small', 'medium', 'large', 'huge', 'gargantuan') NOT NULL DEFAULT 'medium',
         alignment VARCHAR(64) NOT NULL DEFAULT 'unaligned',
@@ -47,7 +47,7 @@ CREATE TABLE
 CREATE TABLE
     IF NOT EXISTS dnd5e.entity_senses (
         entity_id INT NOT NULL,
-        sense VARCHAR(64) NOT NULL, -- e.g., darkvision 60ft, blindsight 10ft...
+        sense VARCHAR(128) NOT NULL, -- e.g., darkvision 60ft, blindsight 10ft...
         PRIMARY KEY (entity_id, sense),
         CONSTRAINT fk_entity_senses_entity FOREIGN KEY (entity_id) REFERENCES dnd5e.entities (id) ON DELETE CASCADE
     );
