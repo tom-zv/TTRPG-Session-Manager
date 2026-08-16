@@ -8,16 +8,16 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { describe, expect, test, vi } from 'vitest';
 import { dnd5ePool } from '../../../src/db.js';
 import {
-  importDnd5eToolsItems,
-  type Dnd5eToolsItemImportOptions,
-} from '../../../src/services/dnd5etools/dnd5eToolsItemImportService.js';
-import { buildItemImportPlan } from '../../../src/utils/dnd5etools/item-transformer.js';
-import { fixtureRecords, itemSources } from '../../fixtures/dnd5eToolsItems.js';
+  import5eToolsItems,
+  type FiveEToolsItemImportOptions,
+} from '../../../src/services/5etools/5eToolsItemImportService.js';
+import { buildItemImportPlan } from '../../../src/utils/5etools/item-transformer.js';
+import { fixtureRecords, itemSources } from '../../fixtures/5eToolsItems.js';
 
 const REVISION = 'c3a5185c8f3fc8937725fdc4be249eb7120057c7';
 const plan = (sources = itemSources()) => buildItemImportPlan(sources);
-const runImport = (options: Partial<Dnd5eToolsItemImportOptions> = {}, sources = itemSources()) =>
-  importDnd5eToolsItems(plan(sources), { revision: REVISION, ...options });
+const runImport = (options: Partial<FiveEToolsItemImportOptions> = {}, sources = itemSources()) =>
+  import5eToolsItems(plan(sources), { revision: REVISION, ...options });
 
 interface ItemRow {
   id: number;
@@ -261,9 +261,10 @@ describe('item import CLI', () => {
         writeFile(files.variants, JSON.stringify(sources.variants)),
       ]);
       // process.env carries the isolated test database settings (port 3307), which dotenv does not override.
+      // The fixtures are mostly PHB/DMG records, which the default selection leaves out.
       const { stdout } = await promisify(execFile)(
         tsx,
-        ['src/scripts/import-dnd5etools-items.ts', '--file', files.items, '--base', files.base, '--variants', files.variants, ...args],
+        ['src/scripts/import-5etools-items.ts', '--file', files.items, '--base', files.base, '--variants', files.variants, '--include-legacy', ...args],
         { cwd: serverDir, env: process.env },
       );
       return stdout;

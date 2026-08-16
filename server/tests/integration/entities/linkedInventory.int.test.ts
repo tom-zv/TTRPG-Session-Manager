@@ -4,9 +4,9 @@ import type { DnD5eEntityDetails } from 'shared/domain/encounters/dnd5e/entity.j
 import type { DnD5eInventory, DnD5eInventoryConflict } from 'shared/domain/encounters/dnd5e/inventory.js';
 import type { Item, ItemInput, ItemListResult } from 'shared/domain/dnd5e/item.js';
 import { dnd5ePool } from '../../../src/db.js';
-import { importDnd5eToolsItems } from '../../../src/services/dnd5etools/dnd5eToolsItemImportService.js';
-import { buildItemImportPlan } from '../../../src/utils/dnd5etools/item-transformer.js';
-import { itemSources } from '../../fixtures/dnd5eToolsItems.js';
+import { import5eToolsItems } from '../../../src/services/5etools/5eToolsItemImportService.js';
+import { buildItemImportPlan } from '../../../src/utils/5etools/item-transformer.js';
+import { itemSources } from '../../fixtures/5eToolsItems.js';
 import { createGm, createPlayer } from '../../support/factories.js';
 import { asToken, createHttpAgent } from '../../support/http.js';
 
@@ -62,7 +62,7 @@ async function setup() {
 
 // Import the fixture catalog and find an item by name and source, as the GM sees it.
 async function importCatalog(http: ReturnType<typeof createHttpAgent>, gmToken: string) {
-  await importDnd5eToolsItems(buildItemImportPlan(itemSources()), { revision: 'fixture' });
+  await import5eToolsItems(buildItemImportPlan(itemSources()), { revision: 'fixture' });
   const all = (await asToken(http.get('/api/dnd5e/items?specifics=true&limit=100'), gmToken).expect(200)).body as ItemListResult;
   return (name: string, source: string) => {
     const found = all.items.find(item => item.name === name && item.source === source);

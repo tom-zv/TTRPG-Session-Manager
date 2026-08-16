@@ -10,15 +10,15 @@ import type {
   ItemSummary,
 } from 'shared/domain/dnd5e/item.js';
 import { dnd5ePool } from '../../../src/db.js';
-import { importDnd5eToolsItems, type Dnd5eToolsItemImportOptions } from '../../../src/services/dnd5etools/dnd5eToolsItemImportService.js';
-import { buildItemImportPlan } from '../../../src/utils/dnd5etools/item-transformer.js';
-import { itemSources } from '../../fixtures/dnd5eToolsItems.js';
+import { import5eToolsItems, type FiveEToolsItemImportOptions } from '../../../src/services/5etools/5eToolsItemImportService.js';
+import { buildItemImportPlan } from '../../../src/utils/5etools/item-transformer.js';
+import { itemSources } from '../../fixtures/5eToolsItems.js';
 import { createGm, createPlayer } from '../../support/factories.js';
 import { asToken, createHttpAgent } from '../../support/http.js';
 
 const REVISION = 'c3a5185c8f3fc8937725fdc4be249eb7120057c7';
-const reimport = (options: Partial<Dnd5eToolsItemImportOptions> = {}) =>
-  importDnd5eToolsItems(buildItemImportPlan(itemSources()), { revision: REVISION, ...options });
+const reimport = (options: Partial<FiveEToolsItemImportOptions> = {}) =>
+  import5eToolsItems(buildItemImportPlan(itemSources()), { revision: REVISION, ...options });
 
 const label = (item: Pick<ItemSummary, 'name' | 'source'>) => `${item.name}|${item.source}`;
 

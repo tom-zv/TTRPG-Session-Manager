@@ -188,7 +188,7 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({
                 <p>No items are in the catalog yet.</p>
                 {isGm && (
                   <p className={browserStyles.hint}>
-                    Import them on the server with <code>npm run import:dnd5etools:items</code>.
+                    Import them on the server with <code>npm run import:5etools:items</code>.
                   </p>
                 )}
                 {newItemButton}

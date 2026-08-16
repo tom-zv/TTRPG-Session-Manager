@@ -102,7 +102,7 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId
       <div className={browserStyles.status}>
         <p>No spells have been imported yet.</p>
         <p className={browserStyles.hint}>
-          Import them on the server with <code>npm run import:dnd5etools:spells -- --file &lt;spells-xphb.json&gt;</code>.
+          Import them on the server with <code>npm run import:5etools:spells</code>.
         </p>
         {newSpellButton}
         {formDialog}

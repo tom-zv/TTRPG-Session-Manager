@@ -16,7 +16,7 @@
     "build:all": "cross-env NODE_ENV=production npm run build:shared && npm run build:client && npm run build:server",
     "build:client": "cd client && cross-env NODE_ENV=production npm run build",
     "build:server": "cd server && cross-env NODE_ENV=production npm run build",
-    "import:dnd5etools": "cd server && npm run import:dnd5etools",
+    "import:5etools": "cd server && npm run import:5etools --",
     "install:all": "npm install && npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
     "install:client": "cd client && npm install",

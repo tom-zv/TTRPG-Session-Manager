@@ -10,3 +10,6 @@ npm-debug.log*
 
 public/
 backups/
+
+# 5etools data mirror (npm run import:5etools)
+.cache/
