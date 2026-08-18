@@ -3,6 +3,7 @@ import type { Item, ItemLink, ItemMemberRelation } from "shared/domain/dnd5e/ite
 import { useItemMembers } from "../../api/query/useItemQueries.js";
 import type { ItemViewer } from "../../api/query/itemKeys.js";
 import { RichText } from "../RichText/RichText.js";
+import { SpellLink, renderSpellLink } from "../spells/SpellLink.js";
 import { useItemLinks } from "./ItemLink.js";
 import {
   capitalize,
@@ -121,12 +122,23 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, viewer, onSelect, head
         </dl>
       )}
 
-      {details.description && <RichText text={details.description} renderItem={renderItem} className={styles.description} />}
+      {details.description && (
+        <RichText text={details.description} renderSpell={renderSpellLink} renderItem={renderItem} className={styles.description} />
+      )}
 
       {details.spells && details.spells.length > 0 && (
         <section className={styles.section} aria-label="Spells">
           <h3>Spells</h3>
-          <p>{details.spells.map(spell => (spell.source ? `${spell.name} (${spell.source})` : spell.name)).join(", ")}</p>
+          <p>
+            {details.spells.map((spell, index) => (
+              <React.Fragment key={`${spell.name}|${spell.source ?? ""}`}>
+                {index > 0 && ", "}
+                <SpellLink name={spell.name} source={spell.source}>
+                  {spell.source ? `${spell.name} (${spell.source})` : spell.name}
+                </SpellLink>
+              </React.Fragment>
+            ))}
+          </p>
         </section>
       )}
 
