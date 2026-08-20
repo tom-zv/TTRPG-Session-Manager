@@ -1,7 +1,5 @@
 import { corePool } from "src/db.js";
-import { DnD5eEntitySummaryDB } from "./dnd5e/types.js";
-import { DnD5eEntityDB } from "./dnd5e/types.js";
-import { CoreEntityDB } from "./types.js";
+import type { DnD5eEntityDB, DnD5eEntitySummaryDB, DnD5eEntityUpdateDB, DnD5eEntityWriteDB } from "./dnd5e/types.js";
 import { ExecuteValues, ResultSetHeader, RowDataPacket } from "mysql2";
 import type { PoolConnection } from "mysql2/promise";
 import dnd5eModel from "./dnd5e/dnd5eEntityModel.js";
@@ -50,13 +48,13 @@ export type InventoryAppendResult<T extends SystemType> =
 // Type for core.entities table columns only
 interface CoreEntityTableData {
   name: string;
-  image_url?: string;
+  image_url?: string | null;
 }
 
 /**
  * Extract only the fields that belong to the core.entities table
  */
-function extractCoreEntityFields(data: Partial<CoreEntityDB>): Partial<CoreEntityTableData> {
+function extractCoreEntityFields(data: Partial<CoreEntityTableData>): Partial<CoreEntityTableData> {
   const coreFields: Partial<CoreEntityTableData> = {};
   
   if (data.name !== undefined) {
@@ -72,7 +70,7 @@ function extractCoreEntityFields(data: Partial<CoreEntityDB>): Partial<CoreEntit
 
 export async function insertCoreEntity(
   connection: PoolConnection,
-  data: Partial<CoreEntityDB>
+  data: Partial<CoreEntityTableData>
 ): Promise<number> {
   const coreData = extractCoreEntityFields(data);
 
@@ -87,7 +85,7 @@ export async function insertCoreEntity(
 export async function updateCoreEntity(
   connection: PoolConnection,
   id: number,
-  data: Partial<CoreEntityDB>
+  data: Partial<CoreEntityTableData>
 ): Promise<void> {
   const coreData = extractCoreEntityFields(data);
   const coreFields: string[] = [];
@@ -234,7 +232,7 @@ async function appendInventoryItem<T extends SystemType>(
 
 async function insertEntity<T extends SystemType>(
   system: T,
-  data: Omit<EntityDB<T>, "id" | "createdAt">
+  data: DnD5eEntityWriteDB
 ): Promise<number | null> {
   // Extract only core entity fields for core.entities table
   const coreData = extractCoreEntityFields(data);
@@ -250,7 +248,7 @@ async function insertEntity<T extends SystemType>(
         await dnd5eModel.insertEntity(
           connection,
           entityId,
-          data as Omit<DnD5eEntityDB, "id" | "createdAt">
+          data
         );
         break;
       default:
@@ -270,14 +268,9 @@ async function insertEntity<T extends SystemType>(
 async function updateEntity<T extends SystemType>(
   system: T,
   id: number,
-  data: Partial<Omit<EntityDB<T>, "id" | "createdAt">>
-): Promise<boolean> {
-  // Check if entity exists
-  const entity = await getEntityById(system, id);
-
-  if (!entity) {
-    throw new Error(`Entity with id ${id} not found`);
-  }
+  data: DnD5eEntityUpdateDB
+): Promise<void> {
+  await getEntityById(system, id);
 
   // Start transaction
   const connection = await corePool.getConnection();
@@ -292,7 +285,7 @@ async function updateEntity<T extends SystemType>(
         await dnd5eModel.updateEntity(
           connection,
           id,
-          data as Omit<DnD5eEntityDB, "id" | "createdAt">
+          data
         );
         break;
       default:
@@ -300,7 +293,6 @@ async function updateEntity<T extends SystemType>(
     }
 
     await connection.commit();
-    return true;
   } catch (error) {
     await connection.rollback();
     throw error;

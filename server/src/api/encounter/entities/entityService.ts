@@ -9,17 +9,12 @@ import {
 } from "./entityModel.js";
 import entityModel from "./entityModel.js";
 import encounterModel from "../encounters/encounterModel.js";
+import type { DnD5eEntityUpdateDB, DnD5eEntityWriteDB } from "./dnd5e/types.js";
 import { ConflictError, HttpError, NotFoundError, ValidationError } from "src/api/HttpErrors.js";
 import userModel from "src/api/users/userModel.js";
 
 async function getEntityById<T extends SystemType>(system: T, id: number): Promise<EntityDB<T>> {
-  const entity = await getEntityByIdFromModel(system, id);
-  
-  if (!entity) {
-    throw new Error(`Entity with ID ${id} not found`);
-  }
-  
-  return entity;
+  return getEntityByIdFromModel(system, id);
 }
 
 async function getEntitiesByIds<T extends SystemType>(
@@ -143,7 +138,7 @@ async function appendInventoryItem<T extends SystemType>(
 
 async function insertEntity<T extends SystemType>(
   system: T, 
-  data: Omit<EntityDB<T>, "id" | "createdAt">
+  data: DnD5eEntityWriteDB
 ): Promise<number> {
   const insertId = await entityModel.insertEntity(system, data);
 
@@ -157,17 +152,10 @@ async function insertEntity<T extends SystemType>(
 async function updateEntity<T extends SystemType>(
   system: T,
   id: number,
-  data: Partial<Omit<EntityDB<T>, "id" | "createdAt">>
+  data: DnD5eEntityUpdateDB
 ): Promise<EntityDB<T>> {
-  const result = await entityModel.updateEntity(system, id, data);
-  
-  if (!result) {
-    throw new Error(`Failed to update entity with ID ${id} for system ${system}`);
-  }
-
-  const updatedEntity = await getEntityById(system, id);
-  
-  return updatedEntity;
+  await entityModel.updateEntity(system, id, data);
+  return getEntityById(system, id);
 }
 
 /** Assign the users who may run this entity in an encounter. An empty list leaves it to the GM. */

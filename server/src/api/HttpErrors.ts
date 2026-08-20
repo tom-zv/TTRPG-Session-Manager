@@ -3,7 +3,7 @@ export class HttpError extends Error {
   readonly details?: unknown; // Used for custom error info e.g
                               // form fields that contain an error
 
-  constructor(statusCode: number, message?: string, details?: string) {
+  constructor(statusCode: number, message?: string, details?: unknown) {
     super(message);
     this.statusCode = statusCode;
     this.details = details;
@@ -12,8 +12,8 @@ export class HttpError extends Error {
 }
 
 export class ValidationError extends HttpError{
-    constructor(message?: string){
-        super(400, message)
+    constructor(message?: string, details?: unknown){
+        super(400, message, details)
     }
 }
 

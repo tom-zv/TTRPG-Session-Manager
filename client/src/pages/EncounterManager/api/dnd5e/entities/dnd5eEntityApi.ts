@@ -1,4 +1,5 @@
-import EntityApi, { CreateEntityRequest, UpdateEntityRequest } from "../../entityApi.js";
+import EntityApi from "../../entityApi.js";
+import type { CreateEntityRequest, UpdateEntityRequest } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import type { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
 import type { EntitySettings } from "shared/domain/encounters/dnd5e/settings.js";
 import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
@@ -59,7 +60,7 @@ export class DnD5eEntityApi {
    * @returns Object containing insertId and the created entity
    */
   static async createEntity(
-    entityData: CreateEntityRequest<DnD5eEntityDetails>
+    entityData: CreateEntityRequest
   ): Promise<{ insertId: number; entity: DnD5eEntityDetails }> {
     return EntityApi.createEntity('dnd5e', entityData);
   }
@@ -70,7 +71,7 @@ export class DnD5eEntityApi {
    */
   static async updateEntity(
     id: number, 
-    updateData: UpdateEntityRequest<DnD5eEntityDetails>
+    updateData: UpdateEntityRequest
   ): Promise<DnD5eEntityDetails> {
     return EntityApi.updateEntity('dnd5e', id, updateData);
   }

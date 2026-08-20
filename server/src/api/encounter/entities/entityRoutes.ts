@@ -2,6 +2,7 @@ import express from "express";
 import entityController from "./entityController.js";
 import { patchEntitySettings } from "./entitySettingsController.js";
 import { userAuth, requireGm } from "src/middleware/userAuth.js";
+import { trimBodyStrings } from "src/middleware/trimBodyStrings.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -28,10 +29,10 @@ router.get("/", entityController.getAllEntities);
 router.get("/:id", entityController.getEntityById);
 
 // POST /entities - Insert a new entity
-router.post("/", requireGm, entityController.insertEntity);
+router.post("/", requireGm, trimBodyStrings, entityController.insertEntity);
 
 // PUT /entities/:id - Update an entity
-router.put("/:id", requireGm, entityController.updateEntity);
+router.put("/:id", requireGm, trimBodyStrings, entityController.updateEntity);
 router.patch("/:id/settings", requireGm, patchEntitySettings);
 
 // GET /entities/:id/inventory - { items, revision }; GMs for PCs and featured NPCs, players for their

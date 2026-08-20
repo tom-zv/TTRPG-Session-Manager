@@ -1,13 +1,14 @@
-import { DnD5eEntityUpdateDB, DnD5eEntitySummaryDB, DnD5eEntityDB, EntitySpellcastingDB } from "src/api/encounter/entities/dnd5e/types.js";
+import { DnD5eEntityUpdateDB, DnD5eEntityWriteDB, DnD5eEntitySummaryDB, DnD5eEntityDB, EntitySpellcastingDB } from "src/api/encounter/entities/dnd5e/types.js";
 import { DnD5eEntityDetails, DnD5eEntitySummary, EntitySpellcasting } from "shared/domain/encounters/dnd5e/entity.js";
+import type { CreateEntityRequest, UpdateEntityRequest } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonColumn.js";
 
-export function dnd5eEntityToUpdateDb(entity: DnD5eEntityDetails): DnD5eEntityUpdateDB {
+export function dnd5eEntityToWriteDb(entity: CreateEntityRequest): DnD5eEntityWriteDB;
+export function dnd5eEntityToWriteDb(entity: UpdateEntityRequest): DnD5eEntityUpdateDB;
+export function dnd5eEntityToWriteDb(entity: UpdateEntityRequest): DnD5eEntityUpdateDB {
   return {
-    id: entity.templateId,
     name: entity.name,
     image_url: entity.imageUrl,
-    created_at: entity.createdAt,
 
     role: entity.role,
     settings: entity.settings,
@@ -76,43 +77,6 @@ export function dnd5eEntityDbToDomain(db: DnD5eEntityDB): DnD5eEntityDetails {
     traits: db.traits?.map(t => ({ name: t.name, description: t.description, sortOrder: t.sort_order })),
     actions: db.actions?.map(a => ({ name: a.name, description: a.description, actionType: a.action_type, sortOrder: a.sort_order })),
     spellcasting: db.spellcasting?.map(spellcastingDbToDomain),
-  };
-}
-
-export function dnd5eEntityToInsertDb(entity: DnD5eEntityDetails): Omit<DnD5eEntityDB, 'id'> {
-  return {
-    name: entity.name,
-    image_url: entity.imageUrl,
-    created_at: entity.createdAt || new Date().toISOString(),
-
-    role: entity.role,
-    settings: entity.settings,
-    creature_type: entity.creatureType,
-    type_tags: entity.typeTags,
-    cr: entity.cr,
-    ac: entity.ac ?? 10,
-    hp: entity.hp ?? 1,
-    hp_formula: entity.hpFormula,
-    speeds: entity.speeds ?? { walk: 30 },
-    size: entity.size ?? 'medium',
-    alignment: entity.alignment ?? 'unaligned',
-    ability_scores: entity.abilityScores ?? { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    saves: entity.saves,
-    skills: entity.skills,
-    passive_perception: entity.passivePerception,
-    senses: entity.senses ?? [],
-    languages: entity.languages,
-    legendary_action_count: entity.legendaryActionCount,
-    legendary_header: entity.legendaryHeader,
-
-    resistances: entity.resistances?.map(r => ({ damage_type: r.damageType, condition_note: r.conditionNote })) ?? [],
-    immunities: entity.immunities?.map(r => ({ damage_type: r.damageType, condition_note: r.conditionNote })) ?? [],
-    vulnerabilities: entity.vulnerabilities?.map(r => ({ damage_type: r.damageType, condition_note: r.conditionNote })) ?? [],
-    condition_immunities: entity.conditionImmunities?.map(c => ({ condition_name: c.conditionName, condition_note: c.conditionNote })) ?? [],
-
-    traits: entity.traits?.map((t, i) => ({ name: t.name, description: t.description, sort_order: t.sortOrder ?? i })) ?? [],
-    actions: entity.actions?.map((a, i) => ({ name: a.name, description: a.description, action_type: a.actionType, sort_order: a.sortOrder ?? i })) ?? [],
-    spellcasting: entity.spellcasting?.map(spellcastingToDb) ?? [],
   };
 }
 

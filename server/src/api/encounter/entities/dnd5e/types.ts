@@ -90,7 +90,16 @@ export interface DnD5eEntityDB extends CoreEntityDB {
   legendary_header?: string[];
 }
 
-export type DnD5eEntityUpdateDB = Partial<DnD5eEntityDB>;
+type NullableWriteColumn =
+  | "image_url" | "creature_type" | "type_tags" | "cr" | "hp_formula" | "speeds" | "saves" | "skills"
+  | "passive_perception" | "languages" | "legendary_header";
+
+type WritableColumns = Omit<DnD5eEntityDB, "id" | "created_at" | "controller_user_ids">;
+export type DnD5eEntityWriteDB = {
+  [K in keyof WritableColumns]: WritableColumns[K] | (K extends NullableWriteColumn ? null : never);
+};
+
+export type DnD5eEntityUpdateDB = Partial<DnD5eEntityWriteDB>;
 
 export interface DnD5eEntitySummaryDB extends CoreEntitySummaryDB {
   role: 'pc' | 'npc' | 'creature';

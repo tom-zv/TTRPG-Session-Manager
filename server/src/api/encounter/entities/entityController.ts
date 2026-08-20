@@ -3,12 +3,11 @@ import entityService from "./entityService.js";
 import { ValidationError } from "../../HttpErrors.js";
 import type { AuthRequest } from "src/middleware/userAuth.js";
 import { isSupportedSystem } from "shared/domain/encounters/coreEncounter.js";
-import { validateEntitySettingsPatch } from "shared/domain/encounters/dnd5e/settings.js";
+import { validateDnD5eEntityWrite } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import { validateExpectedRevision, validateInventory, validateInventoryAppend } from "shared/domain/encounters/dnd5e/inventory.js";
 import { notifyEntityTemplateUpdated } from "src/socket/namespaces/encounters/entityTemplateUpdates.js";
 import {
-  dnd5eEntityToUpdateDb,
-  dnd5eEntityToInsertDb,
+  dnd5eEntityToWriteDb,
   dnd5eEntitySummaryDbToDomain,
   dnd5eEntityDbToDomain,
 } from "src/utils/format-transformers/encounter-transformers/dnd5e/entity-transformer.js";
@@ -21,15 +20,13 @@ async function getEntityById(
   const { id, system } = req.params as { id: string; system?: string };
 
   try {
-    if (!id) {
-      throw new ValidationError("Entity ID is required");
-    }
+    const entityId = parseEntityId(id);
     
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
     
-    const entity = await entityService.getEntityById(system, Number(id));
+    const entity = await entityService.getEntityById(system, entityId);
     // Apply transform function for dnd5e
     let transformedEntity;
     switch (system) {
@@ -256,99 +253,39 @@ async function appendEntityInventoryItem(req: Request, res: Response, next: Next
 }
 
 async function insertEntity(req: Request, res: Response, next: NextFunction) {
-  const { data } = req.body;
   const { system } = req.params as { system?: string };
 
   try {
-    // Validate required fields
-    if (!data.name) {
-      throw new ValidationError("Entity name is required");
-    }
-
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
 
-    let formattedData;
+    const result = validateDnD5eEntityWrite(req.body?.data);
+    if (!result.ok) throw new ValidationError("Invalid entity data.", result.issues);
 
-    switch (system) {
-      case "dnd5e": // TODO: validation
-        if (data.settings !== undefined) {
-          try { validateEntitySettingsPatch(data.settings); }
-          catch (error) { throw new ValidationError((error as Error).message); }
-        }
-        formattedData = dnd5eEntityToInsertDb(data);
-        break;
-      default:
-        throw new ValidationError("Unsupported system.");
-    }
-
-  const insertId = await entityService.insertEntity(system, formattedData);
-    
-    let insertedEntity;
-    switch (system) {
-      case "dnd5e":
-        insertedEntity = await entityService.getEntityById(system, insertId);
-        insertedEntity = dnd5eEntityDbToDomain(insertedEntity);
-        break;
-      default:
-        throw new ValidationError("Unsupported system.");
-    }
-    res.status(201).json({ insertId, entity: insertedEntity });
+    const insertId = await entityService.insertEntity(system, dnd5eEntityToWriteDb(result.value));
+    const entity = await entityService.getEntityById(system, insertId);
+    res.status(201).json({ insertId, entity: dnd5eEntityDbToDomain(entity) });
   } catch (error) {
     next(error);
   }
 }
 
-async function updateEntity(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+async function updateEntity(req: Request, res: Response, next: NextFunction) {
   const { id, system } = req.params as { id: string; system?: string };
-  const { data } = req.body;
 
   try {
-    if (!id) {
-      throw new ValidationError("Entity ID is required");
-    }
-    
-    if (!data || Object.keys(data).length === 0) {
-      throw new ValidationError("Update data is required");
-    }
-    
+    const entityId = parseEntityId(id);
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
 
-    let formattedData;
-    switch (system) {
-      case 'dnd5e':
-        formattedData = dnd5eEntityToUpdateDb(data);
-        break;
-      default:
-        throw new ValidationError("Unsupported system.");
-    }
-    
-    if (data.settings !== undefined) {
-      try { validateEntitySettingsPatch(data.settings); }
-      catch (error) { throw new ValidationError((error as Error).message); }
-    }
-    const updatedEntity = await entityService.updateEntity(system, Number(id), formattedData);
-    notifyEntityTemplateUpdated(Number(id));
-    
-    // Transform to domain format
-    let transformedEntity;
-    switch (system) {
-      case 'dnd5e':
-        transformedEntity = dnd5eEntityDbToDomain(updatedEntity);
-        break;
-      default:
-        throw new ValidationError("Unsupported system.");
-    }
-    
-    res.status(200).json({ entity: transformedEntity });
-    
+    const result = validateDnD5eEntityWrite(req.body?.data, "update");
+    if (!result.ok) throw new ValidationError("Invalid entity data.", result.issues);
+
+    const entity = await entityService.updateEntity(system, entityId, dnd5eEntityToWriteDb(result.value));
+    notifyEntityTemplateUpdated(entityId);
+    res.status(200).json({ entity: dnd5eEntityDbToDomain(entity) });
   } catch (error) {
     next(error);
   }

@@ -1,3 +1,4 @@
+import { DAMAGE_TYPES } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import type { DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
 
 export const ABILITY_NAMES: Record<string, string> = {
@@ -30,21 +31,7 @@ export const SIZE_NAMES: Record<string, DnD5eEntityDB["size"]> = {
   G: "gargantuan",
 };
 
-export const STANDARD_DAMAGE_TYPES = new Set([
-  "acid",
-  "bludgeoning",
-  "cold",
-  "fire",
-  "force",
-  "lightning",
-  "necrotic",
-  "piercing",
-  "poison",
-  "psychic",
-  "radiant",
-  "slashing",
-  "thunder",
-]);
+export const STANDARD_DAMAGE_TYPES = new Set<string>(DAMAGE_TYPES);
 
 export const TAG_ARRAY_FIELDS: Array<{ field: string; tagType: string }> = [
   { field: "group", tagType: "group" },

@@ -1,6 +1,6 @@
 import { audioPool, corePool, dnd5ePool } from "src/db.js";
 import type { PoolConnection } from "mysql2/promise";
-import type { DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
+import type { DnD5eEntityWriteDB } from "src/api/encounter/entities/dnd5e/types.js";
 import {
   insertCoreEntity,
   updateCoreEntity,
@@ -45,10 +45,8 @@ export interface FiveEToolsImportResult {
   results: FiveEToolsImportItemResult[];
 }
 
-type Dnd5eEntityWriteData = Omit<DnD5eEntityDB, "id" | "created_at">;
-
 interface WritePayload {
-  entity: Dnd5eEntityWriteData;
+  entity: DnD5eEntityWriteDB;
   tags: EntityTagDB[];
 }
 
@@ -165,7 +163,7 @@ async function updateImportedEntity(
   return entityId;
 }
 
-function asModelWriteData(entity: Dnd5eEntityWriteData): Dnd5eEntityWriteData {
+function asModelWriteData(entity: DnD5eEntityWriteDB): DnD5eEntityWriteDB {
   return {
     ...entity,
     creature_type: entity.creature_type ?? null,
@@ -178,5 +176,7 @@ function asModelWriteData(entity: Dnd5eEntityWriteData): Dnd5eEntityWriteData {
     languages: entity.languages ?? null,
     legendary_action_count: entity.legendary_action_count ?? 0,
     legendary_header: entity.legendary_header ?? null,
-  } as unknown as Dnd5eEntityWriteData;
+    // Other child normalizers already return arrays. An omitted upstream sense list clears old senses.
+    senses: entity.senses ?? [],
+  };
 }

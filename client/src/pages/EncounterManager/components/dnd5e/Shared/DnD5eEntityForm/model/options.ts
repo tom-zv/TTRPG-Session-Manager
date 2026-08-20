@@ -1,6 +1,6 @@
+import { DAMAGE_TYPES } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import type {
   ConditionImmunity,
-  DamageModifier,
   DnD5eEntityDetails,
   EntityAction,
   SpellcastingDisplay,
@@ -82,21 +82,10 @@ export const ABILITY_PRESETS: Array<{
   { label: "Caster", scores: { str: 8, dex: 12, con: 12, int: 14, wis: 14, cha: 16 } },
 ];
 
-export const DAMAGE_TYPE_OPTIONS = [
-  { value: "acid", label: "Acid" },
-  { value: "bludgeoning", label: "Bludgeoning" },
-  { value: "cold", label: "Cold" },
-  { value: "fire", label: "Fire" },
-  { value: "force", label: "Force" },
-  { value: "lightning", label: "Lightning" },
-  { value: "necrotic", label: "Necrotic" },
-  { value: "piercing", label: "Piercing" },
-  { value: "poison", label: "Poison" },
-  { value: "psychic", label: "Psychic" },
-  { value: "radiant", label: "Radiant" },
-  { value: "slashing", label: "Slashing" },
-  { value: "thunder", label: "Thunder" },
-] satisfies Array<LabeledOption<DamageModifier["damageType"]>>;
+export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map(value => ({
+  value,
+  label: value.charAt(0).toUpperCase() + value.slice(1),
+}));
 
 export const CONDITION_OPTIONS = [
   { value: "blinded", label: "Blinded" },

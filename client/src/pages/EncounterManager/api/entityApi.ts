@@ -2,9 +2,10 @@ import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
 import type { 
   EntityDetailsBySystem,
   EntitySummaryBySystem,
-  CoreEntity
 } from "shared/domain/encounters/coreEntity.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
+
+import type { CreateEntityRequest, UpdateEntityRequest } from "shared/domain/encounters/dnd5e/entityValidation.js";
 
 interface EntityDetailsResponse<T = EntityDetailsBySystem<SystemType>> {
   entity: T;
@@ -22,12 +23,6 @@ interface InsertEntityResponse {
   insertId: number;
   entity: EntityDetailsBySystem<SystemType>;
 }
-
-// Request types for entity operations
-export type CreateEntityRequest<T extends CoreEntity = CoreEntity> = Omit<T, 'templateId' | 'createdAt'>;
-export type UpdateEntityRequest<T extends CoreEntity = CoreEntity> = Partial<Omit<T, 'templateId' | 'createdAt'>>;
-
-
 
 export class EntityApi {
   /**
@@ -129,7 +124,7 @@ export class EntityApi {
    */
   static async createEntity<T extends SystemType>(
     system: T,
-    entityData: CreateEntityRequest<EntityDetailsBySystem<T>>
+    entityData: CreateEntityRequest
   ): Promise<{ insertId: number; entity: EntityDetailsBySystem<T> }> {
     const response = await fetch(`/api/${system}/entities`, {
       method: 'POST',
@@ -157,7 +152,7 @@ export class EntityApi {
   static async updateEntity<T extends SystemType>(
     system: T,
     id: number,
-    updateData: UpdateEntityRequest<EntityDetailsBySystem<T>>
+    updateData: UpdateEntityRequest
   ): Promise<EntityDetailsBySystem<T>> {
     const response = await fetch(`/api/${system}/entities/${id}`, {
       method: 'PUT',

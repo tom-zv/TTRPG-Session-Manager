@@ -2,6 +2,8 @@ import { dnd5ePool } from "src/db.js";
 import {
   DnD5eEntitySummaryDB,
   DnD5eEntityDB,
+  DnD5eEntityWriteDB,
+  DnD5eEntityUpdateDB,
   DamageModifierDB,
   ConditionImmunityDB,
   EntityTraitDB,
@@ -9,7 +11,7 @@ import {
   EntitySpellcastingDB,
   SpellcastingLevelDB,
 } from "./types.js";
-import { RowDataPacket, PoolConnection, ExecuteValues } from "mysql2/promise";
+import { RowDataPacket, PoolConnection, ExecuteValues, ResultSetHeader } from "mysql2/promise";
 import {
   DnD5eEntityState,
   isSpellcastingDisplay,
@@ -23,7 +25,7 @@ import { readJsonNumberArrayColumn, readJsonObjectColumn } from "src/utils/jsonC
 import { NotFoundError } from "src/api/HttpErrors.js";
 
 // Extract only the columns that live on the dnd5e.entities main row
-function extractDnD5eTableFields(data: Omit<DnD5eEntityDB, "id" | "created_at">) {
+function extractDnD5eTableFields(data: DnD5eEntityUpdateDB) {
   return {
     role: data.role,
     settings: data.settings,
@@ -236,16 +238,16 @@ async function hydrateEntity(
 // ─── Write helpers ────────────────────────────────────────────────────────────
 
 async function upsertSenses(conn: PoolConnection, entityId: number, senses: string[] | undefined, isUpdate: boolean): Promise<void> {
+  if (senses === undefined) return;
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.entity_senses WHERE entity_id = ?`, [entityId]);
-  if (!senses || senses.length === 0) return;
   for (const sense of senses) {
     await conn.execute(`INSERT INTO dnd5e.entity_senses (entity_id, sense) VALUES (?, ?)`, [entityId, sense]);
   }
 }
 
 async function upsertConditionImmunities(conn: PoolConnection, entityId: number, items: ConditionImmunityDB[] | undefined, isUpdate: boolean): Promise<void> {
+  if (items === undefined) return;
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.entity_condition_immunities WHERE entity_id = ?`, [entityId]);
-  if (!items || items.length === 0) return;
   for (const item of items) {
     await conn.execute(
       `INSERT INTO dnd5e.entity_condition_immunities (entity_id, condition_name, condition_note) VALUES (?, ?, ?)`,
@@ -255,8 +257,8 @@ async function upsertConditionImmunities(conn: PoolConnection, entityId: number,
 }
 
 async function upsertDamageModifiers(conn: PoolConnection, entityId: number, table: string, items: DamageModifierDB[] | undefined, isUpdate: boolean): Promise<void> {
+  if (items === undefined) return;
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.${table} WHERE entity_id = ?`, [entityId]);
-  if (!items || items.length === 0) return;
   for (const item of items) {
     await conn.execute(
       `INSERT INTO dnd5e.${table} (entity_id, damage_type, condition_note) VALUES (?, ?, ?)`,
@@ -266,8 +268,8 @@ async function upsertDamageModifiers(conn: PoolConnection, entityId: number, tab
 }
 
 async function upsertTraits(conn: PoolConnection, entityId: number, traits: EntityTraitDB[] | undefined, isUpdate: boolean): Promise<void> {
+  if (traits === undefined) return;
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.entity_traits WHERE entity_id = ?`, [entityId]);
-  if (!traits || traits.length === 0) return;
   for (let i = 0; i < traits.length; i++) {
     const t = traits[i];
     await conn.execute(
@@ -278,8 +280,8 @@ async function upsertTraits(conn: PoolConnection, entityId: number, traits: Enti
 }
 
 async function upsertActions(conn: PoolConnection, entityId: number, actions: EntityActionDB[] | undefined, isUpdate: boolean): Promise<void> {
+  if (actions === undefined) return;
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.entity_actions WHERE entity_id = ?`, [entityId]);
-  if (!actions || actions.length === 0) return;
   for (let i = 0; i < actions.length; i++) {
     const a = actions[i];
     await conn.execute(
@@ -290,8 +292,8 @@ async function upsertActions(conn: PoolConnection, entityId: number, actions: En
 }
 
 async function upsertSpellcasting(conn: PoolConnection, entityId: number, spellcasting: EntitySpellcastingDB[] | undefined, isUpdate: boolean): Promise<void> {
+  if (spellcasting === undefined) return;
   if (isUpdate) await conn.execute(`DELETE FROM dnd5e.entity_spellcasting WHERE entity_id = ?`, [entityId]);
-  if (!spellcasting || spellcasting.length === 0) return;
 
   for (let scIndex = 0; scIndex < spellcasting.length; scIndex++) {
     const sc = spellcasting[scIndex];
@@ -343,7 +345,7 @@ async function upsertSpellcasting(conn: PoolConnection, entityId: number, spellc
 export async function insertEntity(
   connection: PoolConnection,
   entityId: number,
-  data: Omit<DnD5eEntityDB, "id" | "created_at">
+  data: DnD5eEntityWriteDB
 ): Promise<void> {
   const tableData = extractDnD5eTableFields(data);
   const { fields, values } = prepareEntityFields(tableData, false);
@@ -366,15 +368,17 @@ export async function insertEntity(
 export async function updateEntity(
   connection: PoolConnection,
   entityId: number,
-  data: Omit<DnD5eEntityDB, "id" | "created_at">
+  data: DnD5eEntityUpdateDB
 ): Promise<void> {
   const tableData = extractDnD5eTableFields(data);
   const { fields, values } = prepareEntityFields(tableData, true);
 
-  await connection.execute(
-    `UPDATE dnd5e.entities SET ${fields.join(", ")} WHERE id = ?`,
+  // Lock the parent row even for a child-only write so concurrent replacements serialize.
+  const [result] = await connection.execute<ResultSetHeader>(
+    `UPDATE dnd5e.entities SET ${fields.join(", ") || "id = id"} WHERE id = ?`,
     [...values, entityId]
   );
+  if (result.affectedRows === 0) throw new NotFoundError(`Entity with id ${entityId} not found`);
 
   await upsertSenses(connection, entityId, data.senses, true);
   await upsertConditionImmunities(connection, entityId, data.condition_immunities, true);
@@ -391,7 +395,7 @@ export async function getEntityById(entityId: number): Promise<DnD5eEntityDB> {
     `${ENTITY_SELECT} WHERE c.id = ?`,
     [entityId]
   );
-  if (rows.length === 0) throw new Error(`Entity with id ${entityId} not found`);
+  if (rows.length === 0) throw new NotFoundError(`Entity with id ${entityId} not found`);
 
   const entity = rows[0] as DnD5eEntityDB;
   await hydrateEntity(dnd5ePool, entity);
