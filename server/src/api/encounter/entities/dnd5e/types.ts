@@ -88,13 +88,21 @@ export interface DnD5eEntityDB extends CoreEntityDB {
   spellcasting?: EntitySpellcastingDB[];
   legendary_action_count?: number;
   legendary_header?: string[];
+  // Read-only provenance (ENTITY_SELECT). Only the importer writes these columns.
+  source: string;
+  page?: number | null;
+  imported: number | boolean;
+  locally_edited: number | boolean;
 }
+
+/** Selected by every entity and summary read; written only by the importer. */
+export type ProvenanceColumn = "source" | "page" | "imported" | "locally_edited";
 
 type NullableWriteColumn =
   | "image_url" | "creature_type" | "type_tags" | "cr" | "hp_formula" | "speeds" | "saves" | "skills"
   | "passive_perception" | "languages" | "legendary_header";
 
-type WritableColumns = Omit<DnD5eEntityDB, "id" | "created_at" | "controller_user_ids">;
+type WritableColumns = Omit<DnD5eEntityDB, "id" | "created_at" | "controller_user_ids" | ProvenanceColumn>;
 export type DnD5eEntityWriteDB = {
   [K in keyof WritableColumns]: WritableColumns[K] | (K extends NullableWriteColumn ? null : never);
 };
@@ -109,4 +117,8 @@ export interface DnD5eEntitySummaryDB extends CoreEntitySummaryDB {
   size: DnD5eEntitySize;
   in_party?: number | boolean;
   featured_npc?: number | boolean;
+  source: string;
+  page?: number | null;
+  imported: number | boolean;
+  locally_edited: number | boolean;
 }

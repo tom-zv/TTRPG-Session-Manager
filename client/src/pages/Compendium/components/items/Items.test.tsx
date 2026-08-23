@@ -972,6 +972,7 @@ describe("Choosing a base item (05-R1)", () => {
 describe("Giving an item to a character", () => {
   const character = (templateId: number, name: string, role: DnD5eEntitySummary["role"], featuredNpc = false): DnD5eEntitySummary => ({
     templateId, name, role, hp: 10, size: "medium", inParty: false, featuredNpc,
+    source: "homebrew", imported: false, locallyEdited: false,
   });
   const CHARACTERS = [character(11, "Bram", "pc"), character(12, "Wolf", "creature"), character(13, "Nyx", "npc", true), character(14, "Mara", "npc")];
 

@@ -21,6 +21,9 @@ const bram: DnD5eEntity = {
   size: "medium",
   alignment: "neutral",
   abilityScores: { str: 10, dex: 14, con: 12, int: 8, wis: 10, cha: 10 },
+  source: "homebrew",
+  imported: false,
+  locallyEdited: false,
   controllerUserIds: [],
 };
 

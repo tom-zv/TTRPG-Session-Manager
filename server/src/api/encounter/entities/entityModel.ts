@@ -265,11 +265,16 @@ async function insertEntity<T extends SystemType>(
   }
 }
 
+/**
+ * An app edit of an entity template. Returns "imported", writing nothing, when the entity has an
+ * import identity and `overwriteImported` was not given.
+ */
 async function updateEntity<T extends SystemType>(
   system: T,
   id: number,
-  data: DnD5eEntityUpdateDB
-): Promise<void> {
+  data: DnD5eEntityUpdateDB,
+  options: { overwriteImported?: boolean } = {}
+): Promise<"updated" | "imported"> {
   await getEntityById(system, id);
 
   // Start transaction
@@ -277,11 +282,14 @@ async function updateEntity<T extends SystemType>(
   await connection.beginTransaction();
 
   try {
-    await updateCoreEntity(connection, id, data);
-
     // Handle system-specific updates
     switch (system) {
       case "dnd5e":
+        if (await dnd5eModel.claimTemplateEdit(connection, id, options.overwriteImported === true) === "imported") {
+          await connection.rollback();
+          return "imported";
+        }
+        await updateCoreEntity(connection, id, data);
         await dnd5eModel.updateEntity(
           connection,
           id,
@@ -293,6 +301,7 @@ async function updateEntity<T extends SystemType>(
     }
 
     await connection.commit();
+    return "updated";
   } catch (error) {
     await connection.rollback();
     throw error;

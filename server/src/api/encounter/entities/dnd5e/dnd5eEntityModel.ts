@@ -52,6 +52,9 @@ function extractDnD5eTableFields(data: DnD5eEntityUpdateDB) {
 /** The users assigned to an entity, as a JSON array. Expects the core entity row aliased as `c`. */
 const CONTROLLER_IDS_SELECT = "(SELECT JSON_ARRAYAGG(ue.user_id) FROM core.user_entities ue WHERE ue.entity_id = c.id)";
 
+/** Read-only provenance columns. Expects the dnd5e entity row aliased as `e`. */
+const PROVENANCE_SELECT = "e.source, e.page, e.import_key IS NOT NULL AS imported, e.locally_edited";
+
 const ENTITY_SELECT = `
   SELECT
     c.id, c.name, c.image_url, c.created_at,
@@ -60,6 +63,7 @@ const ENTITY_SELECT = `
     e.ability_scores, e.saves, e.skills,
     e.passive_perception, e.languages,
     e.legendary_action_count, e.legendary_header,
+    ${PROVENANCE_SELECT},
     ${CONTROLLER_IDS_SELECT} AS controller_user_ids
   FROM core.entities c
   JOIN dnd5e.entities e ON c.id = e.id`;
@@ -365,6 +369,34 @@ export async function insertEntity(
   await upsertSpellcasting(connection, entityId, data.spellcasting, false);
 }
 
+/**
+ * Locks an entity for an app edit of its template: the core row first, then the D&D row, which is
+ * the order a cascading DELETE of the core row uses, so an edit and a delete cannot deadlock. A row with an import identity may only be
+ * edited when the GM confirmed overwriting it, which marks it locally edited so re-imports skip it.
+ * The importer writes through updateEntity directly and never calls this.
+ */
+export async function claimTemplateEdit(
+  connection: PoolConnection,
+  entityId: number,
+  overwriteImported: boolean
+): Promise<"editable" | "imported"> {
+  const [core] = await connection.execute<RowDataPacket[]>(
+    "SELECT id FROM core.entities WHERE id = ? FOR UPDATE",
+    [entityId]
+  );
+  if (core.length === 0) throw new NotFoundError(`Entity with id ${entityId} not found`);
+  const [rows] = await connection.execute<RowDataPacket[]>(
+    "SELECT import_key FROM dnd5e.entities WHERE id = ? FOR UPDATE",
+    [entityId]
+  );
+  if (rows.length === 0) throw new NotFoundError(`Entity with id ${entityId} not found`);
+  if (rows[0].import_key === null) return "editable";
+  if (!overwriteImported) return "imported";
+
+  await connection.execute("UPDATE dnd5e.entities SET locally_edited = 1 WHERE id = ?", [entityId]);
+  return "editable";
+}
+
 export async function updateEntity(
   connection: PoolConnection,
   entityId: number,
@@ -478,7 +510,8 @@ export const HAS_INVENTORY_SQL = `(e.role = 'pc' OR ${FEATURED_NPC_SQL})`;
 const SUMMARY_SELECT = `
   SELECT c.id, c.name, e.role, e.cr, e.hp, e.creature_type, e.size,
          COALESCE(JSON_EXTRACT(e.settings, '$.party.member') = TRUE, FALSE) AS in_party,
-         ${FEATURED_NPC_SQL} AS featured_npc
+         ${FEATURED_NPC_SQL} AS featured_npc,
+         ${PROVENANCE_SELECT}
   FROM core.entities c
   JOIN dnd5e.entities e ON c.id = e.id`;
 
@@ -565,6 +598,7 @@ export default {
   getAssignedPcSummaries,
   getAssignedPcById,
   updateEntity,
+  claimTemplateEdit,
   insertEntity,
   createDefaultEntityState,
 };

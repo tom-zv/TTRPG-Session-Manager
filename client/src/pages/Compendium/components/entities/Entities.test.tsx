@@ -21,6 +21,9 @@ const template = (templateId: number, name: string, patch: Partial<DnD5eEntityDe
   templateId,
   name,
   createdAt: "2026-01-01T00:00:00.000Z",
+  source: "homebrew",
+  imported: false,
+  locallyEdited: false,
   role: "creature",
   ac: 12,
   hp: 20,
@@ -41,6 +44,9 @@ const toSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
   size: entity.size,
   inParty: entity.settings?.party?.member ?? false,
   featuredNpc: entity.role === "npc" && entity.settings?.compendium?.featured === true,
+  source: entity.source,
+  imported: entity.imported,
+  locallyEdited: entity.locallyEdited,
 });
 
 const magicMissile: SpellSummary = {

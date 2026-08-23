@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import type { DnD5eEntityDetails, DnD5eEntitySummary } from 'shared/domain/encounters/dnd5e/entity.js';
+import type { EntityProvenanceField } from 'shared/domain/encounters/dnd5e/entityValidation.js';
 import { createGm, createPlayer } from '../../support/factories.js';
 import { asToken, createHttpAgent } from '../../support/http.js';
 
-type NewEntity = Omit<DnD5eEntityDetails, 'templateId' | 'createdAt'>;
+type NewEntity = Omit<DnD5eEntityDetails, 'templateId' | 'createdAt' | EntityProvenanceField>;
 
 const baseEntity = (name: string, patch: Partial<NewEntity> = {}): NewEntity => ({
   name,
@@ -58,6 +59,9 @@ describe('entity summaries', () => {
       size: 'small',
       inParty: false,
       featuredNpc: false,
+      source: 'homebrew',
+      imported: false,
+      locallyEdited: false,
     });
     expect(summaries.find(item => item.templateId === aria.templateId)).toMatchObject({ role: 'pc', inParty: true, size: 'medium' });
   });

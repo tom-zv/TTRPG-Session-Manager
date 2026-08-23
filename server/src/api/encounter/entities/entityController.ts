@@ -282,8 +282,14 @@ async function updateEntity(req: Request, res: Response, next: NextFunction) {
 
     const result = validateDnD5eEntityWrite(req.body?.data, "update");
     if (!result.ok) throw new ValidationError("Invalid entity data.", result.issues);
+    const overwriteImported: unknown = req.body?.overwriteImported;
+    if (overwriteImported !== undefined && typeof overwriteImported !== "boolean") {
+      throw new ValidationError("overwriteImported must be true or false.");
+    }
 
-    const entity = await entityService.updateEntity(system, entityId, dnd5eEntityToWriteDb(result.value));
+    const entity = await entityService.updateEntity(system, entityId, dnd5eEntityToWriteDb(result.value), {
+      overwriteImported: overwriteImported === true,
+    });
     notifyEntityTemplateUpdated(entityId);
     res.status(200).json({ entity: dnd5eEntityDbToDomain(entity) });
   } catch (error) {

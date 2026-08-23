@@ -10,7 +10,9 @@ import {
 import { isPlainObject } from "../settings.js";
 import { validateEntitySettingsPatch } from "./settings.js";
 
-export type DnD5eEntityWrite = Omit<DnD5eEntityDetails, "templateId" | "createdAt" | "controllerUserIds">;
+/** Read-only provenance columns. A write never sets them: POST stores homebrew, the importer owns the rest. */
+export type EntityProvenanceField = "source" | "page" | "imported" | "locallyEdited";
+export type DnD5eEntityWrite = Omit<DnD5eEntityDetails, "templateId" | "createdAt" | "controllerUserIds" | EntityProvenanceField>;
 export type CreateEntityRequest = DnD5eEntityWrite;
 
 const NULLABLE_COLUMNS = [
@@ -22,6 +24,15 @@ type NullableColumn = typeof NULLABLE_COLUMNS[number];
 export type UpdateEntityRequest = Partial<{
   [K in keyof DnD5eEntityWrite]: DnD5eEntityWrite[K] | (K extends NullableColumn ? null : never);
 }>;
+
+/**
+ * The PUT body. Updating an entity that has an import identity returns 409 unless
+ * `overwriteImported` confirms the in-place edit; the entity is then marked locally edited.
+ */
+export interface UpdateEntityBody {
+  data: UpdateEntityRequest;
+  overwriteImported?: true;
+}
 
 export interface EntityWriteIssue {
   path: string;

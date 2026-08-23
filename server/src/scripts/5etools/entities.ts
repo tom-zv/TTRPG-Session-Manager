@@ -3,9 +3,12 @@ import path from "node:path";
 import { prepareBestiary, type BestiaryIssue } from "src/utils/5etools/bestiary.js";
 import { parse5eToolsMonsters, transform5eToolsMonster } from "src/utils/5etools/monster-transformer.js";
 import type { FiveEToolsEntityImportPayload, FiveEToolsMonster } from "src/utils/5etools/types.js";
+import type { FiveEToolsImportItemResult } from "src/services/5etools/5eToolsEntityImportService.js";
 import {
   COMMON_USAGE,
   indexedFiles,
+  parseForce,
+  PREVIEW,
   printExclusions,
   printList,
   readArgValue,
@@ -34,6 +37,7 @@ Entities:
   --templates <file>       bestiary/template.json, for --file copies that apply templates.
   --check-spells           List spell references that match no spell in dnd5e.spells
                            (reads the database, also with --dry-run).
+  --force                  Also overwrite entities edited in the app (clears their edited mark).
 ${COMMON_USAGE}
 `,
   defaults: () => ({ checkSpells: false }),
@@ -43,7 +47,7 @@ ${COMMON_USAGE}
       case "-f": options.file = readArgValue(args, index + 1, args[index]); return index + 1;
       case "--templates": options.templates = readArgValue(args, index + 1, args[index]); return index + 1;
       case "--check-spells": options.checkSpells = true; return index;
-      default: return undefined;
+      default: return parseForce(args, index, options);
     }
   },
   run: runEntityImport,
@@ -80,11 +84,16 @@ async function runEntityImport(options: EntityOptions, context: RunContext): Pro
   }
 
   context.usesDatabase();
-  const { import5eToolsEntities } = await import("src/services/5etools/5eToolsEntityImportService.js");
-  const result = await import5eToolsEntities(monsters, { mode: options.mode, continueOnError: options.continueOnError });
+  const { import5eToolsEntities, ENTITY_SKIP_REASONS } = await import("src/services/5etools/5eToolsEntityImportService.js");
+  const result = await import5eToolsEntities(monsters, {
+    mode: options.mode,
+    continueOnError: options.continueOnError,
+    force: options.force,
+  });
 
   console.log(`Imported ${result.total} monster(s).`);
   console.log(`Inserted: ${result.inserted}; updated: ${result.updated}; skipped: ${result.skipped}; failed: ${result.failed}.`);
+  printSkips(result.results.filter(item => item.status === "skipped" && !(options.mode === "skip" && item.reason === ENTITY_SKIP_REASONS.exists)), options.verbose);
   printList(result.results.flatMap(item => item.warnings.map(warning => `warning: ${item.name}: ${warning}`)), options.verbose, "warning(s)");
   for (const failure of result.results.filter(item => item.status === "failed")) {
     console.error(`failed: ${failure.name}: ${failure.error ?? "Unknown error"}`);
@@ -106,6 +115,17 @@ async function loadMonsters(options: EntityOptions, context: RunContext): Promis
   const [templateJson, ...contents] = await mirror.readAll(["bestiary/template.json", ...files.map(entry => entry.file)]);
   const monsters = contents.flatMap(parse5eToolsMonsters);
   return { monsters, templateJson, origin: `${files.length} bestiary file(s)` };
+}
+
+// Counts per reason, then the skipped monsters, as the item import reports them.
+function printSkips(skipped: FiveEToolsImportItemResult[], verbose: boolean): void {
+  const reasons = new Map<string, number>();
+  for (const item of skipped) reasons.set(item.reason ?? "", (reasons.get(item.reason ?? "") ?? 0) + 1);
+  for (const [reason, count] of reasons) console.log(`skipped ${count}: ${reason}`);
+  for (const item of verbose ? skipped : skipped.slice(0, PREVIEW)) {
+    console.log(`  skipped: ${item.name}${item.source ? `|${item.source}` : ""}: ${item.reason ?? ""}`);
+  }
+  if (!verbose && skipped.length > PREVIEW) console.log(`  ... ${skipped.length - PREVIEW} more skipped monster(s); --verbose lists them.`);
 }
 
 // Grouped by message pattern, with a few examples each, unless --verbose.

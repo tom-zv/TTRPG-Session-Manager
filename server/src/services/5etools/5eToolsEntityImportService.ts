@@ -10,9 +10,12 @@ import {
   updateEntity as updateDnd5eEntity,
 } from "src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
 import {
-  findExistingImportedEntityId,
+  entityImportKey,
+  findImportedEntity,
   replaceImportedEntityTags,
+  writeEntityProvenance,
   writeImportedEntityTags,
+  type EntityProvenanceWrite,
 } from "./5eToolsEntityImportRepository.js";
 import { transform5eToolsMonster } from "src/utils/5etools/monster-transformer.js";
 import type {
@@ -25,6 +28,8 @@ export type FiveEToolsImportMode = "insert" | "upsert" | "skip";
 export interface FiveEToolsImportOptions {
   mode?: FiveEToolsImportMode;
   continueOnError?: boolean;
+  /** Overwrite entities edited in the app (locally_edited = 1) too, which clears the flag. */
+  force?: boolean;
 }
 
 export interface FiveEToolsImportItemResult {
@@ -32,6 +37,7 @@ export interface FiveEToolsImportItemResult {
   source?: string;
   entityId?: number;
   status: "inserted" | "updated" | "skipped" | "failed";
+  reason?: string;
   warnings: string[];
   error?: string;
 }
@@ -45,11 +51,24 @@ export interface FiveEToolsImportResult {
   results: FiveEToolsImportItemResult[];
 }
 
+export const ENTITY_SKIP_REASONS = {
+  exists: "already imported",
+  edited: "edited in the app (use --force to overwrite)",
+} as const;
+
 interface WritePayload {
   entity: DnD5eEntityWriteDB;
   tags: EntityTagDB[];
 }
 
+// Provenance lives in dnd5e.entities columns; the other tags stay in entity_tags.
+const PROVENANCE_TAG_TYPES = new Set(["source", "page"]);
+const MAX_PAGE = 65_535;
+
+/**
+ * Imports monsters one transaction each. Rows are matched by import_key, so a rename in the app
+ * keeps the match. A row edited in the app is skipped unless `force`.
+ */
 export async function import5eToolsEntities(
   monsters: FiveEToolsMonster[],
   options: FiveEToolsImportOptions = {}
@@ -67,56 +86,46 @@ export async function import5eToolsEntities(
 
   for (const monster of monsters) {
     const transformed = transform5eToolsMonster(monster);
+    const label = { name: transformed.entity.name, source: transformed.source };
+    const warnings = [...transformed.warnings];
 
     try {
+      const provenance = importProvenance(transformed.entity.name, transformed.tags, transformed.page, warnings);
+      const payload: WritePayload = {
+        entity: transformed.entity,
+        tags: transformed.tags.filter(tag => !PROVENANCE_TAG_TYPES.has(tag.tag_type)),
+      };
       const connection = await corePool.getConnection();
       await connection.beginTransaction();
 
       try {
-        const existingId = mode === "insert"
-          ? undefined
-          : await findExistingImportedEntityId(connection, transformed.entity.name, transformed.source);
+        const existing = await findImportedEntity(connection, provenance.importKey);
+        const skipReason = existing && (mode === "skip"
+          ? ENTITY_SKIP_REASONS.exists
+          : existing.locallyEdited && !options.force ? ENTITY_SKIP_REASONS.edited : undefined);
+        if (existing && mode === "insert") {
+          throw new Error(`${ENTITY_SKIP_REASONS.exists} (use --mode upsert or skip)`);
+        }
 
-        if (existingId !== undefined && mode === "skip") {
+        if (existing && skipReason) {
           await connection.rollback();
           connection.release();
           summary.skipped += 1;
-          summary.results.push({
-            name: transformed.entity.name,
-            source: transformed.source,
-            entityId: existingId,
-            status: "skipped",
-            warnings: transformed.warnings,
-          });
+          summary.results.push({ ...label, entityId: existing.id, status: "skipped", reason: skipReason, warnings });
           continue;
         }
 
-        const entityId = existingId !== undefined
-          ? await updateImportedEntity(connection, existingId, transformed)
-          : await insertImportedEntity(connection, transformed);
+        const entityId = existing
+          ? await updateImportedEntity(connection, existing.id, payload)
+          : await insertImportedEntity(connection, payload);
+        await writeEntityProvenance(connection, entityId, provenance);
 
         await connection.commit();
         connection.release();
 
-        if (existingId !== undefined) {
-          summary.updated += 1;
-          summary.results.push({
-            name: transformed.entity.name,
-            source: transformed.source,
-            entityId,
-            status: "updated",
-            warnings: transformed.warnings,
-          });
-        } else {
-          summary.inserted += 1;
-          summary.results.push({
-            name: transformed.entity.name,
-            source: transformed.source,
-            entityId,
-            status: "inserted",
-            warnings: transformed.warnings,
-          });
-        }
+        const status = existing ? "updated" : "inserted";
+        summary[status] += 1;
+        summary.results.push({ ...label, entityId, status, warnings });
       } catch (error) {
         await connection.rollback();
         connection.release();
@@ -125,10 +134,9 @@ export async function import5eToolsEntities(
     } catch (error) {
       summary.failed += 1;
       summary.results.push({
-        name: transformed.entity.name,
-        source: transformed.source,
+        ...label,
         status: "failed",
-        warnings: transformed.warnings,
+        warnings,
         error: error instanceof Error ? error.message : String(error),
       });
 
@@ -137,6 +145,21 @@ export async function import5eToolsEntities(
   }
 
   return summary;
+}
+
+/** Identity from the stored name and the normalized source tag, as the migration backfill reads them. */
+function importProvenance(
+  name: string,
+  tags: EntityTagDB[],
+  page: number | undefined,
+  warnings: string[]
+): EntityProvenanceWrite {
+  const source = tags.find(tag => tag.tag_type === "source")?.tag;
+  if (!source) throw new Error("The monster has no source, so it has no import identity.");
+
+  const validPage = page !== undefined && Number.isInteger(page) && page >= 0 && page <= MAX_PAGE;
+  if (page !== undefined && !validPage) warnings.push(`page ${page} is not a page number from 0 to ${MAX_PAGE}; stored without one.`);
+  return { importKey: entityImportKey(name, source), source, page: validPage ? page : null };
 }
 
 export async function close5eToolsImportPools(): Promise<void> {

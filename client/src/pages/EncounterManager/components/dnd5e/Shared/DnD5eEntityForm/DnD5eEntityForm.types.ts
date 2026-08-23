@@ -6,7 +6,7 @@ export type EntityFormMode = "create" | "edit";
 
 export type EntityFormSubmitValue = Omit<
   DnD5eEntityDetails,
-  "templateId" | "createdAt"
+  "templateId" | "createdAt" | "source" | "page" | "imported" | "locallyEdited"
 >;
 
 export type AbilityScoresDraft = Record<AbilityKey, string>;

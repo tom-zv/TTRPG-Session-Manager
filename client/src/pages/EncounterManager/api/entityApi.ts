@@ -5,7 +5,12 @@ import type {
 } from "shared/domain/encounters/coreEntity.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
 
-import type { CreateEntityRequest, UpdateEntityRequest } from "shared/domain/encounters/dnd5e/entityValidation.js";
+import type {
+  CreateEntityRequest,
+  EntityWriteIssue,
+  UpdateEntityBody,
+  UpdateEntityRequest,
+} from "shared/domain/encounters/dnd5e/entityValidation.js";
 
 interface EntityDetailsResponse<T = EntityDetailsBySystem<SystemType>> {
   entity: T;
@@ -22,6 +27,34 @@ interface EntitySummariesResponse<T = EntitySummaryBySystem<SystemType>> {
 interface InsertEntityResponse {
   insertId: number;
   entity: EntityDetailsBySystem<SystemType>;
+}
+
+/** A create or update the server rejected (400), with the write contract's issues by field path. */
+export class EntityWriteError extends Error {
+  readonly issues: EntityWriteIssue[];
+
+  constructor(message: string, issues: EntityWriteIssue[]) {
+    super(message);
+    this.name = "EntityWriteError";
+    this.issues = issues;
+  }
+}
+
+const isWriteIssue = (value: unknown): value is EntityWriteIssue =>
+  typeof value === "object" && value !== null
+  && typeof (value as Record<string, unknown>).path === "string"
+  && typeof (value as Record<string, unknown>).message === "string";
+
+/** The error a failed write throws: the issues when the server sent them, otherwise its message. */
+async function writeFailure(response: Response, failure: string): Promise<Error> {
+  const body: unknown = await response.json().catch(() => ({}));
+  const record = typeof body === "object" && body !== null ? body as Record<string, unknown> : {};
+  const message = typeof record.message === "string" && record.message ? record.message : failure;
+  const details = record.details;
+  if (response.status === 400 && Array.isArray(details) && details.length > 0 && details.every(isWriteIssue)) {
+    return new EntityWriteError(message, details);
+  }
+  return new Error(message);
 }
 
 export class EntityApi {
@@ -133,10 +166,7 @@ export class EntityApi {
       body: JSON.stringify({ data: entityData }),
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to create entity' }));
-      throw new Error(error.message || 'Failed to create entity');
-    }
+    if (!response.ok) throw await writeFailure(response, 'Failed to create entity');
 
     const data: InsertEntityResponse = await response.json();
     return {
@@ -146,25 +176,25 @@ export class EntityApi {
   }
 
   /**
-   * Update an existing entity
+   * Update an existing entity. An imported one is changed in place only with `overwriteImported`;
+   * without it the server answers 409.
    * @returns The updated entity
    */
   static async updateEntity<T extends SystemType>(
     system: T,
     id: number,
-    updateData: UpdateEntityRequest
+    updateData: UpdateEntityRequest,
+    options: { overwriteImported?: true } = {}
   ): Promise<EntityDetailsBySystem<T>> {
+    const body: UpdateEntityBody = { data: updateData, ...options };
     const response = await fetch(`/api/${system}/entities/${id}`, {
       method: 'PUT',
       headers: authenticatedJsonHeaders(),
       credentials: 'include',
-      body: JSON.stringify({ data: updateData }),
+      body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Failed to update entity' }));
-      throw new Error(error.message || 'Failed to update entity');
-    }
+    if (!response.ok) throw await writeFailure(response, 'Failed to update entity');
 
     const data: EntityDetailsResponse = await response.json();
     return data.entity as EntityDetailsBySystem<T>;

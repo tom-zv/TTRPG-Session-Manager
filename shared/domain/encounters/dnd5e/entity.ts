@@ -128,6 +128,13 @@ export interface DnD5eEntityDetails extends CoreEntity {
   spellcasting?: EntitySpellcasting[];
   legendaryActionCount?: number;
   legendaryHeader?: string[];
+  /** Read-only provenance; writes ignore it. The source book of an imported entity, or 'homebrew'. */
+  source: string;
+  page?: number;
+  /** Has an import identity, so a 5etools re-import matches this row. */
+  imported: boolean;
+  /** An imported entity saved in the app. Re-imports skip it unless forced. */
+  locallyEdited: boolean;
 }
 
 // Summary types for lightweight list display
@@ -143,6 +150,10 @@ export interface DnD5eEntitySummary {
   inParty?: boolean;
   /** An NPC with the entity setting `compendium.featured`; false for every other role. */
   featuredNpc: boolean;
+  source: string;
+  page?: number;
+  imported: boolean;
+  locallyEdited: boolean;
 }
 
 export interface DnD5eEntityState {

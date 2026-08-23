@@ -68,6 +68,7 @@ export function dnd5eEntityDbToDomain(db: DnD5eEntityDB): DnD5eEntityDetails {
     languages: db.languages,
     legendaryActionCount: db.legendary_action_count,
     legendaryHeader: db.legendary_header,
+    ...provenanceDbToDomain(db),
 
     resistances: db.resistances?.map(r => ({ damageType: r.damage_type, conditionNote: r.condition_note })),
     immunities: db.immunities?.map(r => ({ damageType: r.damage_type, conditionNote: r.condition_note })),
@@ -91,6 +92,16 @@ export function dnd5eEntitySummaryDbToDomain(db: DnD5eEntitySummaryDB): DnD5eEnt
     size: db.size,
     inParty: Boolean(db.in_party),
     featuredNpc: Boolean(db.featured_npc),
+    ...provenanceDbToDomain(db),
+  };
+}
+
+function provenanceDbToDomain(db: DnD5eEntityDB | DnD5eEntitySummaryDB): Pick<DnD5eEntityDetails, "source" | "page" | "imported" | "locallyEdited"> {
+  return {
+    source: db.source,
+    ...(db.page != null ? { page: db.page } : {}),
+    imported: Boolean(db.imported),
+    locallyEdited: Boolean(db.locally_edited),
   };
 }
 

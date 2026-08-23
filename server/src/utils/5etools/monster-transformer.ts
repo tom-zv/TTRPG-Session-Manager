@@ -1,4 +1,3 @@
-import type { DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
 import type {
   FiveEToolsEntityImportPayload,
   FiveEToolsMonster,
@@ -46,7 +45,7 @@ export function transform5eToolsMonster(monster: FiveEToolsMonster): FiveEToolsE
   const hp = normalizeHp(monster.hp, warnings);
   const legendaryActions = asArray(monster.legendary);
 
-  const entity: Omit<DnD5eEntityDB, "id" | "created_at"> = {
+  const entity: FiveEToolsEntityImportPayload["entity"] = {
     name,
     image_url: normalizeImageUrl(monster, warnings),
     role: "creature",

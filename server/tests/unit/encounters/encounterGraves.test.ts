@@ -263,7 +263,7 @@ test("joining loads the engine on demand and returns the current state; a missin
 
 test("NPC form round-trips death-save settings alongside the full entity snapshot", () => {
   const npc: DnD5eEntityDetails = {
-    templateId: 100, name: "Rowan", createdAt: "", role: "npc", hp: 12, ac: 13,
+    templateId: 100, name: "Rowan", createdAt: "", source: "homebrew", imported: false, locallyEdited: false, role: "npc", hp: 12, ac: 13,
     size: "medium", alignment: "neutral", speeds: { walk: 30 },
     abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
     settings: { combat: { deathSaves: true } },

@@ -1,4 +1,4 @@
-import type { DnD5eEntityDB } from "src/api/encounter/entities/dnd5e/types.js";
+import type { DnD5eEntityDB, ProvenanceColumn } from "src/api/encounter/entities/dnd5e/types.js";
 
 export interface FiveEToolsMonster {
   [key: string]: unknown;
@@ -13,7 +13,7 @@ export interface EntityTagDB {
 }
 
 export interface FiveEToolsEntityImportPayload {
-  entity: Omit<DnD5eEntityDB, "id" | "created_at">;
+  entity: Omit<DnD5eEntityDB, "id" | "created_at" | ProvenanceColumn>;
   tags: EntityTagDB[];
   source?: string;
   page?: number;

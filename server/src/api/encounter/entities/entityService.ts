@@ -149,12 +149,20 @@ async function insertEntity<T extends SystemType>(
   return insertId;
 }
 
+/**
+ * Update an entity template (GM). An imported entity is a 409 unless `overwriteImported` confirms
+ * editing the original in place; the edit then marks it locally edited, so re-imports skip it.
+ */
 async function updateEntity<T extends SystemType>(
   system: T,
   id: number,
-  data: DnD5eEntityUpdateDB
+  data: DnD5eEntityUpdateDB,
+  options: { overwriteImported?: boolean } = {}
 ): Promise<EntityDB<T>> {
-  await entityModel.updateEntity(system, id, data);
+  const result = await entityModel.updateEntity(system, id, data, options);
+  if (result === "imported") {
+    throw new HttpError(409, "This entity was imported. Save the changes as a homebrew copy, or confirm overwriting the imported original.");
+  }
   return getEntityById(system, id);
 }
 

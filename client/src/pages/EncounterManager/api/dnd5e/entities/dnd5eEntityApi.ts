@@ -70,10 +70,11 @@ export class DnD5eEntityApi {
    * @returns The updated entity
    */
   static async updateEntity(
-    id: number, 
-    updateData: UpdateEntityRequest
+    id: number,
+    updateData: UpdateEntityRequest,
+    options: { overwriteImported?: true } = {}
   ): Promise<DnD5eEntityDetails> {
-    return EntityApi.updateEntity('dnd5e', id, updateData);
+    return EntityApi.updateEntity('dnd5e', id, updateData, options);
   }
 
   /**

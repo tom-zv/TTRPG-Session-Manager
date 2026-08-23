@@ -23,6 +23,14 @@ CREATE TABLE
         legendary_header JSON NULL,                  -- intro text lines for legendary actions section
         inventory JSON NULL,                         -- ordered [{name, quantity, notes?, itemId?}] for PCs and featured NPCs; NULL = empty. Only the inventory API reads or writes it
         inventory_revision INT UNSIGNED NULL,        -- bumped by every inventory write, for stale-save detection; NULL reads as 0. Only the inventory API reads or writes it
+        -- Import provenance. import_key is the immutable identity 'lower(name)|lower(source)' set by the
+        -- first 5etools import; NULL for homebrew. Renames never change it.
+        import_key VARCHAR(192) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL,
+        source VARCHAR(32) NOT NULL DEFAULT 'homebrew',
+        page SMALLINT UNSIGNED NULL,
+        imported_at TIMESTAMP NULL,
+        locally_edited TINYINT(1) NOT NULL DEFAULT 0, -- an imported row edited in the app; re-imports skip it unless --force
+        UNIQUE KEY uq_dnd5e_entities_import_key (import_key),
         CONSTRAINT fk_dnd5e_entities_core_entity FOREIGN KEY (id) REFERENCES core.entities (id) ON DELETE CASCADE
     );
 CREATE TABLE

@@ -15,6 +15,9 @@ const entity = (templateId: number, name: string, patch: Partial<DnD5eEntitySumm
   hp: 10,
   size: "medium",
   featuredNpc: false,
+  source: "homebrew",
+  imported: false,
+  locallyEdited: false,
   ...patch,
 });
 

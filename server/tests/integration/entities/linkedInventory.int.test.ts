@@ -1,6 +1,7 @@
 import type { PoolConnection, RowDataPacket } from 'mysql2/promise';
 import { describe, expect, test, vi } from 'vitest';
 import type { DnD5eEntityDetails } from 'shared/domain/encounters/dnd5e/entity.js';
+import type { EntityProvenanceField } from 'shared/domain/encounters/dnd5e/entityValidation.js';
 import type { DnD5eInventory, DnD5eInventoryConflict } from 'shared/domain/encounters/dnd5e/inventory.js';
 import type { Item, ItemInput, ItemListResult } from 'shared/domain/dnd5e/item.js';
 import { dnd5ePool } from '../../../src/db.js';
@@ -10,7 +11,7 @@ import { itemSources } from '../../fixtures/5eToolsItems.js';
 import { createGm, createPlayer } from '../../support/factories.js';
 import { asToken, createHttpAgent } from '../../support/http.js';
 
-type NewEntity = Omit<DnD5eEntityDetails, 'templateId' | 'createdAt'>;
+type NewEntity = Omit<DnD5eEntityDetails, 'templateId' | 'createdAt' | EntityProvenanceField>;
 
 const entity = (name: string, patch: Partial<NewEntity> = {}): NewEntity => ({
   name,
