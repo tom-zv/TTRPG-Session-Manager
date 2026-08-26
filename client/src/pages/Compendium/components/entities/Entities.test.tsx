@@ -21,9 +21,6 @@ const template = (templateId: number, name: string, patch: Partial<DnD5eEntityDe
   templateId,
   name,
   createdAt: "2026-01-01T00:00:00.000Z",
-  source: "homebrew",
-  imported: false,
-  locallyEdited: false,
   role: "creature",
   ac: 12,
   hp: 20,
@@ -31,6 +28,9 @@ const template = (templateId: number, name: string, patch: Partial<DnD5eEntityDe
   size: "medium",
   alignment: "neutral",
   abilityScores: { str: 10, dex: 14, con: 12, int: 10, wis: 10, cha: 10 },
+  source: "homebrew",
+  imported: false,
+  locallyEdited: false,
   ...patch,
 });
 
@@ -45,6 +45,7 @@ const toSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
   inParty: entity.settings?.party?.member ?? false,
   featuredNpc: entity.role === "npc" && entity.settings?.compendium?.featured === true,
   source: entity.source,
+  page: entity.page,
   imported: entity.imported,
   locallyEdited: entity.locallyEdited,
 });
@@ -416,13 +417,19 @@ describe("GM entity browser", () => {
   });
 });
 
-type Saves = { created: DnD5eEntityDetails[]; updated: Array<{ id: number; data: DnD5eEntityDetails }>; summaries: number };
+type Saves = {
+  created: DnD5eEntityDetails[];
+  updated: Array<{ id: number; data: Partial<DnD5eEntityDetails> }>;
+  patched: Array<{ id: number; patch: unknown }>;
+  summaries: number;
+};
 
-// A catalog the forms can write to: POST assigns the next ID, PUT replaces the template.
+// A catalog the editor can write to: POST assigns the next ID, PUT updates the template's stat
+// block, and the settings PATCH merges the sent settings into the stored ones.
 function serveEditableCatalog(initial: DnD5eEntityDetails[], options: { failCreate?: string } = {}) {
   const store = new Map(initial.map(entity => [entity.templateId, entity]));
   let nextId = 101;
-  const saves: Saves = { created: [], updated: [], summaries: 0 };
+  const saves: Saves = { created: [], updated: [], patched: [], summaries: 0 };
   server.use(
     http.get("/api/dnd5e/spells", () => json({ spells: [magicMissile] })),
     http.get("/api/dnd5e/entities/summary", () => {
@@ -436,30 +443,52 @@ function serveEditableCatalog(initial: DnD5eEntityDetails[], options: { failCrea
     http.post("/api/dnd5e/entities", async ({ request }) => {
       if (options.failCreate) return apiError(500, options.failCreate);
       const { data } = (await request.json()) as { data: Omit<DnD5eEntityDetails, "templateId" | "createdAt"> };
-      const entity: DnD5eEntityDetails = { ...data, templateId: nextId++, createdAt: "2026-02-01T00:00:00.000Z" };
+      const entity: DnD5eEntityDetails = {
+        ...data, templateId: nextId++, createdAt: "2026-02-01T00:00:00.000Z", source: "homebrew", imported: false, locallyEdited: false,
+      };
       store.set(entity.templateId, entity);
       saves.created.push(entity);
       return json({ insertId: entity.templateId, entity }, 201);
     }),
     http.put("/api/dnd5e/entities/:id", async ({ params, request }) => {
       const id = Number(params.id);
-      const { data } = (await request.json()) as { data: DnD5eEntityDetails };
-      const entity: DnD5eEntityDetails = { ...data, templateId: id, createdAt: store.get(id)?.createdAt ?? "" };
+      const { data } = (await request.json()) as { data: Partial<DnD5eEntityDetails> };
+      const entity: DnD5eEntityDetails = { ...store.get(id)!, ...data, templateId: id };
       store.set(id, entity);
       saves.updated.push({ id, data });
       return json({ entity });
+    }),
+    http.patch("/api/dnd5e/entities/:id/settings", async ({ params, request }) => {
+      const id = Number(params.id);
+      const patch = (await request.json()) as NonNullable<DnD5eEntityDetails["settings"]>;
+      const stored = store.get(id)!;
+      const settings = { ...stored.settings };
+      for (const [group, leaves] of Object.entries(patch)) Object.assign(settings, { [group]: { ...settings[group as keyof typeof settings], ...leaves } });
+      store.set(id, { ...stored, settings });
+      saves.patched.push({ id, patch });
+      return json({ settings });
     })
   );
   serveInventory(() => [...store.values()]);
   return saves;
 }
 
-const formDialog = (name: string) => screen.findByRole("dialog", { name });
-// The GM's Edit lives in the sheet's actions menu.
-const openEdit = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+type TestUser = ReturnType<typeof userEvent.setup>;
+const editor = () => within(details()).getByRole("toolbar", { name: "Editing" });
+// The GM's Edit lives in the sheet's actions menu; it opens the sheet in edit mode.
+const openEdit = async (user: TestUser, name: string) => {
   await user.click(await within(details()).findByRole("button", { name: `Actions for ${name}` }));
   await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-  return within(await formDialog(`Edit ${name}`));
+  expect(editor()).toBeVisible();
+};
+const rename = async (user: TestUser, from: string, to: string) => {
+  // The inline editor opens with its text selected, so typing replaces it.
+  await user.click(within(details()).getByRole("button", { name: `Edit Name, ${from}` }));
+  await user.keyboard(`${to}{Enter}`);
+};
+const saveEdits = async (user: TestUser) => {
+  await user.click(within(editor()).getByRole("button", { name: "Save" }));
+  await waitFor(() => expect(within(details()).queryByRole("toolbar", { name: "Editing" })).not.toBeInTheDocument());
 };
 const listedNames = () => within(screen.getByRole("listbox", { name: "Entities" })).getAllByRole("option")
   .map(item => item.textContent?.match(/^(Mara|Goblin|Wolf)/)?.[0]);
@@ -471,26 +500,28 @@ describe("GM create and edit", () => {
     renderAs(gm, "/compendium?section=entities");
 
     await user.click(await screen.findByRole("button", { name: "New entity" }));
-    const create = within(await formDialog("New entity"));
-    await user.type(create.getByLabelText("Name"), "Mara");
-    await user.selectOptions(create.getByLabelText("Role"), "NPC");
-    await user.click(create.getByRole("button", { name: /Create Entity/ }));
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?entity=new"));
+    await rename(user, "New Entity", "Mara");
+    await user.click(within(details()).getByRole("button", { name: /^Edit Type/ }));
+    await user.selectOptions(await screen.findByRole("combobox", { name: "Role" }), "NPC");
+    await user.click(screen.getByRole("button", { name: "Done" }));
+    await saveEdits(user);
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     const id = saves.created[0]?.templateId;
     expect(id).toBe(101);
-    expect(currentUrl()).toBe(`/compendium?entity=${id}`);
+    expect(saves.created[0]).toMatchObject({ name: "Mara", role: "npc" });
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${id}`));
     expect(await within(details()).findByRole("heading", { name: "Mara" })).toBeVisible();
     expect(option("Mara")).toHaveAttribute("aria-selected", "true");
 
-    const edit = await openEdit(user, "Mara");
-    expect(edit.getByLabelText("Name")).toHaveValue("Mara");
-    await user.clear(edit.getByLabelText("AC"));
-    await user.type(edit.getByLabelText("AC"), "15");
-    await user.click(edit.getByRole("button", { name: /Save Entity/ }));
+    await openEdit(user, "Mara");
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${id}&edit=1`));
+    await user.click(within(details()).getByRole("button", { name: "Edit Armor Class, 10" }));
+    await user.keyboard("15{Enter}");
+    await saveEdits(user);
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(saves.updated.map(save => [save.id, save.data.ac])).toEqual([[id, 15]]);
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${id}`));
     expect(within(details()).getByText("AC").nextElementSibling).toHaveTextContent("15");
     expect(saves.summaries).toBe(1);
   });
@@ -502,17 +533,18 @@ describe("GM create and edit", () => {
     await within(await screen.findByLabelText("Entity details")).findByRole("heading", { name: "Mara" });
 
     await user.click(screen.getByRole("button", { name: "New entity" }));
-    const create = within(await formDialog("New entity"));
-    await user.type(create.getByLabelText("Name"), "Wolf");
-    await user.click(create.getByRole("button", { name: /Create Entity/ }));
+    await rename(user, "New Entity", "Wolf");
+    await user.click(within(editor()).getByRole("button", { name: "Save" }));
 
-    expect(await create.findByText("Database unavailable")).toBeVisible();
-    expect(create.getByLabelText("Name")).toHaveValue("Wolf");
+    expect(await within(details()).findByRole("alert")).toHaveTextContent("Database unavailable");
+    expect(within(details()).getByRole("button", { name: "Edit Name, Wolf" })).toBeVisible();
 
-    await user.click(create.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(currentUrl()).toBe(`/compendium?entity=${mara.templateId}`);
+    await user.click(within(editor()).getByRole("button", { name: "Cancel" }));
+    const confirm = within(within(details()).getByRole("group", { name: "Discard unsaved changes?" }));
+    await user.click(confirm.getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${mara.templateId}`));
     expect(within(details()).getByRole("heading", { name: "Mara" })).toBeVisible();
+    expect(screen.queryByRole("region", { name: "Unsaved changes" })).not.toBeInTheDocument();
   });
 
   test("marking an NPC Featured lists it under Featured NPCs without a reload and keeps its other settings", async () => {
@@ -523,13 +555,12 @@ describe("GM create and edit", () => {
     await user.click(views.getByRole("button", { name: "Featured NPCs" }));
     expect(screen.getByText("No entities match.")).toBeVisible();
 
-    const edit = await openEdit(user, "Mara");
-    await user.click(edit.getByRole("button", { name: /Identity/ }));
-    await user.click(edit.getByRole("checkbox", { name: /Featured NPC/ }));
-    await user.click(edit.getByRole("button", { name: /Save Entity/ }));
+    await openEdit(user, "Mara");
+    await user.click(within(details()).getByRole("checkbox", { name: /Featured NPC/ }));
+    await saveEdits(user);
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(saves.updated[0]?.data.settings).toEqual({ combat: { deathSaves: true }, compendium: { featured: true } });
+    expect(saves.updated[0]?.data).not.toHaveProperty("settings");
+    expect(saves.patched).toEqual([{ id: mara.templateId, patch: { compendium: { featured: true } } }]);
     expect(listedNames()).toEqual(["Mara"]);
     expect(within(details()).getByText(/Featured NPC/)).toBeVisible();
     expect(saves.summaries).toBe(1);
@@ -543,9 +574,8 @@ describe("GM create and edit", () => {
     await user.click(views.getByRole("button", { name: "NPCs" }));
 
     await user.click(screen.getByRole("button", { name: "New entity" }));
-    const create = within(await formDialog("New entity"));
-    await user.type(create.getByLabelText("Name"), "Wolf");
-    await user.click(create.getByRole("button", { name: /Create Entity/ }));
+    await rename(user, "New Entity", "Wolf");
+    await saveEdits(user);
 
     expect(await within(details()).findByRole("heading", { name: "Wolf" })).toBeVisible();
     expect(listedNames()).toEqual(["Mara"]);
@@ -721,11 +751,9 @@ describe("inventory", () => {
     expect(inventory.reads).toEqual([]);
 
     const toggleFeatured = async () => {
-      const edit = await openEdit(user, "Mara");
-      await user.click(edit.getByRole("button", { name: /Identity/ }));
-      await user.click(edit.getByRole("checkbox", { name: /Featured NPC/ }));
-      await user.click(edit.getByRole("button", { name: /Save Entity/ }));
-      await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+      await openEdit(user, "Mara");
+      await user.click(within(details()).getByRole("checkbox", { name: /Featured NPC/ }));
+      await saveEdits(user);
     };
     // Serve the inventory as if for the catalog's current Featured setting.
     let featured = false;

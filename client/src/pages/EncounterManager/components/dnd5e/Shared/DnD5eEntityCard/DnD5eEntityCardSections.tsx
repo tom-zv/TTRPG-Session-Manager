@@ -25,12 +25,15 @@ import {
 } from "./DnD5eEntityCard.utils.js";
 import styles from "./DnD5eEntityCard.module.css";
 // Monster text keeps {@spell} and {@item} tags; they render as links with a preview.
-import { RichText, type ItemTokenRenderer } from "src/pages/Compendium/components/RichText/RichText.js";
+import { RichText, type ItemTokenRenderer, type SpellTokenRenderer } from "src/pages/Compendium/components/RichText/RichText.js";
 import { SpellLink, renderSpellLink } from "src/pages/Compendium/components/spells/SpellLink.js";
 import { useItemLinks } from "src/pages/Compendium/components/items/ItemLink.js";
 
 // The item links of the sections being shown, resolved once for all their text.
-const ItemLinks = createContext<ItemTokenRenderer | undefined>(undefined);
+export const ItemLinks = createContext<ItemTokenRenderer | undefined>(undefined);
+// How spell mentions and spell lists render. Without a renderer they are plain text, as the
+// Compendium's edit mode needs, where a click on the text means edit.
+export const SpellLinks = createContext<SpellTokenRenderer | undefined>(renderSpellLink);
 
 type EntitySectionProps = {
   entity: DnD5eEntityDetails;
@@ -197,7 +200,7 @@ const EntrySection: React.FC<EntrySectionProps> = ({ entity, section }) => (
   </section>
 );
 
-const LegendaryIntro: React.FC<EntitySectionProps> = ({ entity }) => {
+export const LegendaryIntro: React.FC<EntitySectionProps> = ({ entity }) => {
   if (entity.legendaryHeader && entity.legendaryHeader.length > 0) {
     return (
       <>
@@ -231,23 +234,28 @@ const EntryRenderer: React.FC<EntryRendererProps> = ({ entry }) => {
   return <TextEntry name={entry.name} description={entry.description} />;
 };
 
+/** Renders an entry's formatted name, e.g. as the button that opens its editor. */
+type EntryNameRenderer = (formattedName: string) => React.ReactNode;
+
 type TextEntryProps = {
   name: string;
   description: string;
+  renderName?: EntryNameRenderer;
 };
 
-const TextEntry: React.FC<TextEntryProps> = ({ name, description }) => (
+export const TextEntry: React.FC<TextEntryProps> = ({ name, description, renderName }) => (
   <p className={styles.entry}>
-    <strong className={styles.entryName}>{formatEntryName(name)}</strong>{" "}
+    <strong className={styles.entryName}>{renderName ? renderName(formatEntryName(name)) : formatEntryName(name)}</strong>{" "}
     <MonsterText text={description} className={styles.entryText} />
   </p>
 );
 
 type SpellcastingEntryProps = {
   spellcasting: EntitySpellcasting;
+  renderName?: EntryNameRenderer;
 };
 
-const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) => {
+export const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting, renderName }) => {
   const meta = formatSpellcastingMeta(spellcasting);
   const descriptions = spellcasting.descriptions ?? [];
   // A hidden list is already named in the descriptions ("The mage casts Misty Step...").
@@ -259,7 +267,9 @@ const SpellcastingEntry: React.FC<SpellcastingEntryProps> = ({ spellcasting }) =
   return (
     <div className={styles.entryBlock}>
       <p className={styles.entry}>
-        <strong className={styles.entryName}>{formatEntryName(spellcasting.name)}</strong>
+        <strong className={styles.entryName}>
+          {renderName ? renderName(formatEntryName(spellcasting.name)) : formatEntryName(spellcasting.name)}
+        </strong>
         {descriptions.length > 0 && (
           <>
             {" "}
@@ -301,6 +311,7 @@ type SpellListLineProps = {
 };
 
 const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
+  const linked = useContext(SpellLinks) !== undefined;
   if (spells.length === 0) return null;
 
   return (
@@ -310,7 +321,7 @@ const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
         <React.Fragment key={`${index}-${spell.name}`}>
           {index > 0 && ", "}
           <span className={styles.spellListSpells}>
-            <SpellLink name={spell.name} source={spell.source} note={spell.note} />
+            {linked ? <SpellLink name={spell.name} source={spell.source} note={spell.note} /> : spell.name}
           </span>
           {spell.note && <span className={styles.spellNote}> ({spell.note})</span>}
         </React.Fragment>
@@ -321,7 +332,8 @@ const SpellListLine: React.FC<SpellListLineProps> = ({ label, spells }) => {
 
 const MonsterText: React.FC<{ text: string; className?: string }> = ({ text, className }) => {
   const renderItem = useContext(ItemLinks);
-  return <RichText inline text={text} renderSpell={renderSpellLink} renderItem={renderItem} className={className} />;
+  const renderSpell = useContext(SpellLinks);
+  return <RichText inline text={text} renderSpell={renderSpell} renderItem={renderItem} className={className} />;
 };
 
 const formatEntryName = (name: string): string =>

@@ -20,25 +20,33 @@ export type BrowserDetail = ReturnType<typeof useBrowserDetail>;
 type BrowserDetailOptions = {
   /**
    * The current selection. When given, a selection that did not come from the list (a direct link,
-   * Back/Forward, a save) opens the details dialog on narrow screens.
+   * Back/Forward, a save) opens the details dialog on narrow screens. A string names a selection
+   * that is not a list row, such as a new entity's draft.
    */
-  selectedId?: number | null;
+  selectedId?: number | string | null;
+  /**
+   * While true, narrow screens show the details dialog, however the details got there (Forward to
+   * the selected row's editor, a resize from the desktop layout). For work in progress, such as an
+   * editor; closing the dialog has to end that work first.
+   */
+  keepOpen?: boolean;
 };
 
 /** Where a browser shows its details: a pane beside the list, or a dialog on narrow screens. */
-export function useBrowserDetail({ selectedId }: BrowserDetailOptions = {}) {
+export function useBrowserDetail({ selectedId, keepOpen = false }: BrowserDetailOptions = {}) {
   const isNarrow = useMediaQuery(NARROW_BROWSER_QUERY);
   const [dialogOpen, setDialogOpen] = useState(false);
   // A callback ref kept in state, so the layout can attach it during render.
   const [detailPane, setDetailPane] = useState<HTMLDivElement | null>(null);
   // The last row chosen in the list, and the last selection seen; both compared during render.
   const [listSelectedId, setListSelectedId] = useState<number | null>(null);
-  const [seenSelectedId, setSeenSelectedId] = useState<number | null>(null);
+  const [seenSelectedId, setSeenSelectedId] = useState<number | string | null>(null);
 
   if (selectedId !== undefined && selectedId !== seenSelectedId) {
     setSeenSelectedId(selectedId);
     if (isNarrow && selectedId !== null && selectedId !== listSelectedId) setDialogOpen(true);
   }
+  if (keepOpen && isNarrow && !dialogOpen) setDialogOpen(true);
 
   return {
     isNarrow,

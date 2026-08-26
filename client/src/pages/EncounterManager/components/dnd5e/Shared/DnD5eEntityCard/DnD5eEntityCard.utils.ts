@@ -29,6 +29,9 @@ export {
 } from "../dnd5eUtils.js";
 export type { AbilityKey } from "../dnd5eUtils.js";
 
+/** Where an entry lives in the entity, so an editor can change the source row it was built from. */
+export type EntryOrigin = { list: "traits" | "actions" | "spellcasting"; index: number };
+
 export type EntityCardEntry =
   | {
       kind: "trait";
@@ -36,6 +39,7 @@ export type EntityCardEntry =
       name: string;
       description: string;
       sortOrder: number;
+      source: EntryOrigin;
     }
   | {
       kind: "action";
@@ -43,12 +47,14 @@ export type EntityCardEntry =
       name: string;
       description: string;
       sortOrder: number;
+      source: EntryOrigin;
     }
   | {
       kind: "spellcasting";
       key: string;
       spellcasting: EntitySpellcasting;
       sortOrder: number;
+      source: EntryOrigin;
     };
 
 export type EntityCardSection = {
@@ -57,7 +63,7 @@ export type EntityCardSection = {
   entries: EntityCardEntry[];
 };
 
-const SECTION_ORDER = [
+export const SECTION_ORDER: readonly string[] = [
   "trait",
   "spellcasting",
   "action",
@@ -239,6 +245,7 @@ export const buildEntitySections = (entity: DnD5eEntityDetails): EntityCardSecti
       key: `spellcasting-${index}-${spellcasting.name}`,
       spellcasting,
       sortOrder: Number.MAX_SAFE_INTEGER - 1000 + index,
+      source: { list: "spellcasting", index },
     });
   });
 
@@ -270,6 +277,7 @@ const traitToEntry = (trait: EntityTrait, index: number): EntityCardEntry => ({
   name: trait.name,
   description: trait.description,
   sortOrder: trait.sortOrder ?? index,
+  source: { list: "traits", index },
 });
 
 const actionToEntry = (action: EntityAction, index: number): EntityCardEntry => ({
@@ -278,12 +286,14 @@ const actionToEntry = (action: EntityAction, index: number): EntityCardEntry => 
   name: action.name,
   description: action.description,
   sortOrder: action.sortOrder ?? index,
+  source: { list: "actions", index },
 });
 
 const normalizeSpellcastingSection = (displayAs: string | undefined): string =>
   displayAs ? normalizeEntrySection(displayAs) : "spellcasting";
 
-const normalizeEntrySection = (value: string | undefined): string => {
+/** The section key an action type or display value belongs to: "Bonus Actions" and "bonus" are "bonus action". */
+export const normalizeEntrySection = (value: string | undefined): string => {
   const normalized = value?.trim().toLowerCase();
   if (!normalized) return "action";
 
@@ -328,7 +338,7 @@ const normalizeEntrySection = (value: string | undefined): string => {
   }
 };
 
-const getSectionTitle = (sectionKey: string): string =>
+export const getSectionTitle = (sectionKey: string): string =>
   SECTION_TITLES[sectionKey] ?? titleCase(sectionKey);
 
 const getSectionSortOrder = (sectionKey: string): number => {

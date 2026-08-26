@@ -2,6 +2,7 @@ import React from "react";
 import type { DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
 import { BrowserList, type SelectVia } from "../browser/BrowserList.js";
 import browserStyles from "../browser/Browser.module.css";
+import { SourceBadge } from "./SourceBadge.js";
 import styles from "./Entities.module.css";
 
 type EntityListProps = {
@@ -24,6 +25,7 @@ const renderEntityRow = (entity: DnD5eEntitySummary) => (
     <span className={browserStyles.rowName}>
       {entity.name}
       <span className={styles.roleBadge}>{ROLE_LABELS[entity.role]}</span>
+      <SourceBadge entity={entity} />
       {entity.role === "pc" && entity.inParty && <span className={styles.tagBadge}>Party</span>}
       {entity.role === "npc" && entity.featuredNpc && <span className={styles.tagBadge}>Featured</span>}
     </span>

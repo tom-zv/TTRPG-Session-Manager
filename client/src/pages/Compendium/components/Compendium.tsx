@@ -37,7 +37,7 @@ export const COMPENDIUM_PATH = "/compendium";
 // (BrowserDetailSlot). On narrow screens there is only the column, and details open in a dialog.
 export const Compendium: React.FC = () => {
   const isActive = useLocation().pathname === COMPENDIUM_PATH;
-  const { section, selection, showSection, select } = useCompendiumUrl(isActive);
+  const { section, selection, entityEdit, showSection, select, editEntity, endEntityEdit } = useCompendiumUrl(isActive);
   const { currentUser, isLoading: authLoading } = useAuth();
   const viewer = useMemo<ItemViewer | null>(
     () => (currentUser ? { userId: currentUser.id, isGm: currentUser.isGm } : null),
@@ -97,8 +97,12 @@ export const Compendium: React.FC = () => {
                       key={ITEM_KEYS.viewerSegment(viewer)}
                       viewer={viewer}
                       isActive={entitiesActive}
-                      selectedId={selection.entities}
+                      // A new entity's draft is not a selection; the previous one returns when it closes.
+                      selectedId={entityEdit?.target === "new" ? null : selection.entities}
                       onSelect={id => select("entities", id)}
+                      editing={entityEdit}
+                      onEdit={editEntity}
+                      onEditEnd={endEntityEdit}
                     />
                   ) : (
                     <MyCharactersBrowser

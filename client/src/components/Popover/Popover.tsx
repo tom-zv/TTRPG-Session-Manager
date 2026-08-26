@@ -68,7 +68,8 @@ export const Popover: React.FC<PopoverProps> = ({
     setPosition({ placement, top: Math.max(VIEWPORT_MARGIN, top), left });
   }, [anchorRef]);
 
-  // Measure before the first paint so the panel never flashes in the wrong place.
+  // Measure before the first paint so the panel never flashes in the wrong place. Until then it is
+  // transparent rather than `visibility: hidden`, so a control inside can already take focus.
   useLayoutEffect(() => {
     place();
   }, [place]);
@@ -121,7 +122,7 @@ export const Popover: React.FC<PopoverProps> = ({
       aria-label={label}
       className={styles.popover}
       data-placement={position?.placement ?? "below"}
-      style={{ top: position?.top ?? 0, left: position?.left ?? 0, visibility: position ? undefined : "hidden" }}
+      style={{ top: position?.top ?? 0, left: position?.left ?? 0, opacity: position ? undefined : 0, pointerEvents: position ? undefined : "none" }}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     >

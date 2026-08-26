@@ -11,6 +11,13 @@ type TagInputProps = {
   presets?: string[];
   name?: string;
   className?: string;
+  pendingText?: { value: string; onChange: (value: string) => void };
+};
+
+export const appendTag = (items: string[], value: string): string[] => {
+  const trimmed = value.trim();
+  if (!trimmed || items.some(item => item.toLowerCase() === trimmed.toLowerCase())) return items;
+  return [...items, trimmed];
 };
 
 export const TagInput: React.FC<TagInputProps> = ({
@@ -21,8 +28,11 @@ export const TagInput: React.FC<TagInputProps> = ({
   presets = [],
   name,
   className,
+  pendingText,
 }) => {
-  const [value, setValue] = useState("");
+  const [localValue, setLocalValue] = useState("");
+  const value = pendingText?.value ?? localValue;
+  const setValue = pendingText?.onChange ?? setLocalValue;
   const [presetValue, setPresetValue] = useState("");
   const generatedId = useId();
   const controlName = name ?? toFieldName(label);
@@ -32,10 +42,9 @@ export const TagInput: React.FC<TagInputProps> = ({
   const presetId = `${controlName}-${idSuffix}-preset`;
 
   const addItem = (nextValue = value) => {
-    const trimmed = nextValue.trim();
-    if (!trimmed) return;
-    const exists = items.some((item) => item.toLowerCase() === trimmed.toLowerCase());
-    if (!exists) onChange([...items, trimmed]);
+    if (!nextValue.trim()) return;
+    const nextItems = appendTag(items, nextValue);
+    if (nextItems !== items) onChange(nextItems);
     setValue("");
   };
 

@@ -1,14 +1,11 @@
 import { describe, expect, test } from "vitest";
 import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
-import { WIDE_CARD_MIN_SECTION_CHARS, fillsWideCard } from "./DnD5eEntityCard.utils.js";
+import { WIDE_CARD_MIN_SECTION_CHARS, buildEntitySections, fillsWideCard } from "./DnD5eEntityCard.utils.js";
 
 const entity = (patch: Partial<DnD5eEntityDetails> = {}): DnD5eEntityDetails => ({
   templateId: 1,
   name: "Test",
   createdAt: "2026-01-01T00:00:00.000Z",
-  source: "homebrew",
-  imported: false,
-  locallyEdited: false,
   role: "creature",
   ac: 12,
   hp: 20,
@@ -16,6 +13,9 @@ const entity = (patch: Partial<DnD5eEntityDetails> = {}): DnD5eEntityDetails => 
   size: "medium",
   alignment: "neutral",
   abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
+  source: "homebrew",
+  imported: false,
+  locallyEdited: false,
   ...patch,
 });
 
@@ -45,5 +45,30 @@ describe("fillsWideCard", () => {
     });
     expect(fillsWideCard(caster)).toBe(true);
     expect(fillsWideCard(entity({ spellcasting: [{ name: "Spellcasting", descriptions: [text(200)] }] }))).toBe(false);
+  });
+});
+
+describe("buildEntitySections", () => {
+  test("each entry points back to the row it was built from, whatever the section order and grouping", () => {
+    const sections = buildEntitySections(entity({
+      traits: [{ name: "Keen Smell", description: "" }, { name: "Pack Tactics", description: "" }],
+      actions: [
+        { name: "Parry", description: "", actionType: "reaction" },
+        { name: "Bite", description: "", actionType: "action" },
+        { name: "Claw", description: "", actionType: "action" },
+      ],
+      spellcasting: [{ name: "Innate Spellcasting", descriptions: [] }],
+    }));
+
+    const origins = Object.fromEntries(sections.flatMap(section => section.entries.map(entry =>
+      [entry.kind === "spellcasting" ? entry.spellcasting.name : entry.name, entry.source])));
+    expect(origins).toEqual({
+      "Keen Smell": { list: "traits", index: 0 },
+      "Pack Tactics": { list: "traits", index: 1 },
+      Parry: { list: "actions", index: 0 },
+      Bite: { list: "actions", index: 1 },
+      Claw: { list: "actions", index: 2 },
+      "Innate Spellcasting": { list: "spellcasting", index: 0 },
+    });
   });
 });

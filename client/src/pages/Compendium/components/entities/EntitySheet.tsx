@@ -14,14 +14,46 @@ import {
   formatSpeeds,
   type AbilityKey,
   type EntityCardEntry,
+  type EntityInfoLine,
 } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.utils.js";
 import { isFeaturedNpc } from "shared/domain/encounters/dnd5e/settings.js";
 import { SpellLookupStatus } from "../spells/SpellLookupStatus.js";
+import { EditableEntrySections } from "./editor/EditableEntrySections.js";
+import { EditTarget } from "./editor/EditTarget.js";
+import { useEntityEdit } from "./editor/EntityEditContext.js";
+import { SettingsStrip } from "./editor/SettingsStrip.js";
+import { DefenseEditor } from "./editor/editors/DefenseEditor.js";
+import { HpEditor } from "./editor/editors/HpEditor.js";
+import {
+  AbilityScoreEditor,
+  AcEditor,
+  CrEditor,
+  NameEditor,
+} from "./editor/editors/InlineEditors.js";
+import { ProficiencyEditor } from "./editor/editors/ProficiencyEditor.js";
+import { SpeedsEditor } from "./editor/editors/SpeedsEditor.js";
+import { SubtitleEditor } from "./editor/editors/SubtitleEditor.js";
+import { TagListEditor } from "./editor/editors/TagListEditor.js";
+import { TokenEditor } from "./editor/editors/TokenEditor.js";
+import { getProficiencyBonusForCr } from "./editor/model/calculations.js";
+import { SourceBadge } from "./SourceBadge.js";
 import styles from "./Entities.module.css";
 
 const ROLE_LABELS: Record<DnD5eEntityDetails["role"], string> = { pc: "Player character", npc: "NPC", creature: "Creature" };
 const SPELLCASTING_ONLY: readonly EntityCardEntry["kind"][] = ["spellcasting"];
 const WITHOUT_SPELLCASTING: readonly EntityCardEntry["kind"][] = ["trait", "action"];
+
+/** The stat block's label/value lines in sheet order, each with the editor that changes it. */
+const INFO_EDITORS: ReadonlyArray<{ label: string; id: string; editor: React.ReactNode }> = [
+  { label: "Saving Throws", id: "saves", editor: <ProficiencyEditor field="saves" /> },
+  { label: "Skills", id: "skills", editor: <ProficiencyEditor field="skills" /> },
+  { label: "Vulnerabilities", id: "vulnerabilities", editor: <DefenseEditor field="vulnerabilities" /> },
+  { label: "Resistances", id: "resistances", editor: <DefenseEditor field="resistances" /> },
+  { label: "Immunities", id: "immunities", editor: <DefenseEditor field="immunities" /> },
+  { label: "Condition Immunities", id: "conditionImmunities", editor: <DefenseEditor field="conditionImmunities" /> },
+  { label: "Senses", id: "senses", editor: <TagListEditor field="senses" /> },
+  { label: "Languages", id: "languages", editor: <TagListEditor field="languages" /> },
+];
 
 /**
  * A template's sheet in the Compendium: a reading layout rather than the encounter stat-block card.
@@ -30,6 +62,8 @@ const WITHOUT_SPELLCASTING: readonly EntityCardEntry["kind"][] = ["trait", "acti
  *
  * A PC's sheet leads with what a player looks up (HP, AC, abilities, skills, spells), with a Party
  * badge by the role when they are in the party; their traits and actions open on request.
+ *
+ * Inside an `EntityEditor` the same sheet is the edit surface: every value is an `EditTarget`.
  */
 export const EntitySheet: React.FC<{
   entity: DnD5eEntityDetails;
@@ -39,6 +73,8 @@ export const EntitySheet: React.FC<{
   children?: React.ReactNode;
 }> = ({ entity, headerAction, children }) => {
   const headingId = useId();
+  const edit = useEntityEdit();
+  const editing = edit !== null;
   const isPc = entity.role === "pc";
   // Rendered only while open: the closed block would otherwise repeat its headings and spell links.
   const [featuresOpen, setFeaturesOpen] = useState(false);
@@ -46,6 +82,8 @@ export const EntitySheet: React.FC<{
   const sections = useMemo(() => buildEntitySections(entity), [entity]);
   const hasSpellcasting = (entity.spellcasting?.length ?? 0) > 0;
   const hasFeatures = sections.some(section => section.entries.some(entry => entry.kind !== "spellcasting"));
+  // Editing shows every section, folded or not, so a PC's traits and actions are within reach.
+  const showAllSections = editing || !isPc;
 
   const stats = [
     { label: "AC", value: String(entity.ac) },
@@ -55,31 +93,67 @@ export const EntitySheet: React.FC<{
     ...(isPc ? [] : [{ label: "CR", value: entity.cr || "—" }]),
   ];
   const inParty = isPc && entity.settings?.party?.member === true;
+  const summary = formatCreatureSummary(entity);
+
+  const renderStat = (stat: (typeof stats)[number]): React.ReactNode => {
+    switch (stat.label) {
+      case "AC":
+        return <EditTarget id="ac" kind="inline" label={`Armor Class, ${stat.value}`} editor={<AcEditor />}>{stat.value}</EditTarget>;
+      case "HP":
+      case "Template HP":
+        return (
+          <>
+            <EditTarget id="hp" label={`${stat.label}, ${stat.value}`} editor={<HpEditor />}>{stat.value}</EditTarget>
+            {!entity.hpFormula && <EditTarget id="hpFormula" opens="hp" label="HP formula" placeholder />}
+          </>
+        );
+      case "Speed":
+        return <EditTarget id="speeds" label={`Speed, ${stat.value}`} editor={<SpeedsEditor />}>{stat.value}</EditTarget>;
+      case "Initiative":
+        return editing ? <span title="From the Dex modifier">{stat.value}</span> : stat.value;
+      default:
+        return (
+          <>
+            <EditTarget id="cr" kind="inline" label={`Challenge Rating, ${stat.value}`} editor={<CrEditor />}>{stat.value}</EditTarget>
+            {editing && <span title="Proficiency bonus from CR"> PB {formatSignedNumber(getProficiencyBonusForCr(entity.cr))}</span>}
+          </>
+        );
+    }
+  };
 
   return (
-    <article className={styles.sheet} aria-labelledby={headingId}>
+    <article className={`${styles.sheet} ${editing ? styles.sheetEditing : ""}`} aria-labelledby={headingId}>
       <header className={styles.sheetHeader}>
         <div className={styles.sheetTitle}>
-          <h2 id={headingId}>{entity.name}</h2>
-          <p className={styles.sheetSubtitle}>
-            {formatCreatureSummary(entity)}
+          <h2 id={headingId}>
+            <EditTarget id="name" kind="inline" label={`Name, ${entity.name}`} editor={<NameEditor />}>{entity.name}</EditTarget>
+          </h2>
+          <Subtitle editing={editing}>
+            <EditTarget id="subtitle" label={`Type, ${summary}`} editor={<SubtitleEditor />}>{summary}</EditTarget>
             <span className={styles.sheetRole}> · {isFeaturedNpc(entity) ? "Featured NPC" : ROLE_LABELS[entity.role]}</span>
+            <SourceBadge entity={entity} />
             {inParty && <span className={styles.partyBadge}>Party</span>}
-          </p>
+          </Subtitle>
           <dl className={styles.vitals}>
             {stats.map(stat => (
               <div key={stat.label}>
                 <dt>{stat.label}</dt>
-                <dd>{stat.value}</dd>
+                <dd>{renderStat(stat)}</dd>
               </div>
             ))}
           </dl>
         </div>
-        {entity.imageUrl && (
-          <img className={styles.sheetToken} src={entity.imageUrl} alt={`${entity.name} token`} loading="lazy" />
+        {entity.imageUrl ? (
+          <EditTarget id="imageUrl" label="Token image" editor={<TokenEditor />}>
+            <img className={styles.sheetToken} src={entity.imageUrl} alt={`${entity.name} token`} loading="lazy" />
+          </EditTarget>
+        ) : (
+          <EditTarget id="imageUrl" label="Token image" placeholder editor={<TokenEditor />} />
         )}
         {headerAction && <div className={styles.sheetActions}>{headerAction}</div>}
       </header>
+
+      {editing && <SettingsStrip />}
 
       {/* Abilities beside the info lines when the pane is wide, so the text sections start high. */}
       <div className={styles.sheetSummary}>
@@ -87,26 +161,47 @@ export const EntitySheet: React.FC<{
           <AbilityTable entity={entity} caption="Physical abilities" abilities={PHYSICAL} tone="physical" />
           <AbilityTable entity={entity} caption="Mental abilities" abilities={MENTAL} tone="mental" />
         </div>
-        {infoLines.length > 0 && (
+        {editing ? (
           <dl className={styles.sheetInfo}>
-            {infoLines.map(line => (
-              <div key={line.label}>
-                <dt>{line.label}</dt>
-                <dd>{line.items.join(", ")}</dd>
-              </div>
-            ))}
+            {INFO_EDITORS.map(({ label, id, editor }) => {
+              const line = infoLines.find(candidate => candidate.label === label);
+              // One shape whether the line is present or not, so adding the first value keeps the
+              // target (and its focus) mounted.
+              return (
+                <div key={id}>
+                  <dt className={line ? undefined : styles.visuallyHidden}>{label}</dt>
+                  <dd>
+                    <EditTarget
+                      id={id}
+                      label={line ? `${label}, ${line.items.join(", ")}` : label}
+                      placeholder={!line}
+                      editor={editor}
+                    >
+                      {line?.items.join(", ")}
+                    </EditTarget>
+                  </dd>
+                </div>
+              );
+            })}
           </dl>
+        ) : (
+          infoLines.length > 0 && <InfoLines lines={infoLines} />
         )}
       </div>
 
       {hasSpellcasting && <SpellLookupStatus />}
-      {(isPc ? hasSpellcasting : sections.length > 0) && (
+      {/* Editing always shows the body, so "+ Add section" is there on an empty sheet. */}
+      {editing ? (
         <div className={styles.sheetBody}>
-          <EntityEntrySections entity={entity} kinds={isPc ? SPELLCASTING_ONLY : undefined} />
+          <EditableEntrySections entity={entity} />
+        </div>
+      ) : (showAllSections ? sections.length > 0 : hasSpellcasting) && (
+        <div className={styles.sheetBody}>
+          <EntityEntrySections entity={entity} kinds={showAllSections ? undefined : SPELLCASTING_ONLY} />
         </div>
       )}
 
-      {isPc && hasFeatures && (
+      {!editing && isPc && hasFeatures && (
         <details className={styles.sheetMore} onToggle={event => setFeaturesOpen(event.currentTarget.open)}>
           <summary>Traits and actions</summary>
           {featuresOpen && (
@@ -121,6 +216,17 @@ export const EntitySheet: React.FC<{
   );
 };
 
+const InfoLines: React.FC<{ lines: EntityInfoLine[] }> = ({ lines }) => (
+  <dl className={styles.sheetInfo}>
+    {lines.map(line => (
+      <div key={line.label}>
+        <dt>{line.label}</dt>
+        <dd>{line.items.join(", ")}</dd>
+      </div>
+    ))}
+  </dl>
+);
+
 const PHYSICAL: readonly AbilityKey[] = ["str", "dex", "con"];
 const MENTAL: readonly AbilityKey[] = ["int", "wis", "cha"];
 
@@ -133,7 +239,9 @@ type AbilityTableProps = {
 
 // The 2024 stat block's ability table: each row is the ability and its score, then the modifier
 // and saving throw side by side.
-const AbilityTable: React.FC<AbilityTableProps> = ({ entity, caption, abilities, tone }) => (
+const AbilityTable: React.FC<AbilityTableProps> = ({ entity, caption, abilities, tone }) => {
+  const editing = useEntityEdit() !== null;
+  return (
   <table className={`${styles.abilityTable} ${tone === "physical" ? styles.physical : styles.mental}`}>
     <caption className={styles.visuallyHidden}>{caption}</caption>
     <thead>
@@ -148,17 +256,40 @@ const AbilityTable: React.FC<AbilityTableProps> = ({ entity, caption, abilities,
       {abilities.map(ability => {
         const score = entity.abilityScores[ability];
         const modifier = calcMod(score);
+        const save = formatSignedValue(entity.saves?.[ability] ?? modifier);
         return (
           <tr key={ability}>
             <th scope="row">
               <abbr title={ABILITY_FULL_NAMES[ability]}>{ABILITY_LABELS[ability]}</abbr>
             </th>
-            <td className={styles.abilityScore}>{score}</td>
-            <td className={styles.abilityValue}>{formatSignedNumber(modifier)}</td>
-            <td className={styles.abilityValue}>{formatSignedValue(entity.saves?.[ability] ?? modifier)}</td>
+            <td className={styles.abilityScore}>
+              <EditTarget
+                id={`abilityScores.${ability}`}
+                kind="inline"
+                label={`${ABILITY_FULL_NAMES[ability]} score, ${score}`}
+                editor={<AbilityScoreEditor ability={ability} />}
+              >
+                {score}
+              </EditTarget>
+            </td>
+            <td className={styles.abilityValue} title={editing ? `From ${ABILITY_FULL_NAMES[ability]}` : undefined}>{formatSignedNumber(modifier)}</td>
+            <td className={styles.abilityValue}>
+              <EditTarget
+                id={`saves.${ability}`}
+                label={`${ABILITY_FULL_NAMES[ability]} saving throw, ${save}`}
+                editor={<ProficiencyEditor field="saves" only={ability} />}
+              >
+                {save}
+              </EditTarget>
+            </td>
           </tr>
         );
       })}
     </tbody>
   </table>
-);
+  );
+};
+
+/** A paragraph in view mode. While editing it may hold an expanded editor, which a paragraph cannot contain. */
+const Subtitle: React.FC<{ editing: boolean; children: React.ReactNode }> = ({ editing, children }) =>
+  editing ? <div className={styles.sheetSubtitle}>{children}</div> : <p className={styles.sheetSubtitle}>{children}</p>;
