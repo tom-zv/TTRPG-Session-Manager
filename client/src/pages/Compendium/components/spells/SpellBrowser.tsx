@@ -67,7 +67,7 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId
           : formMode?.kind === "duplicate" ? `Duplicate ${formMode.spell.name}`
             : "New spell"
       }
-      className="entity-form-dialog"
+      className="form-dialog"
     >
       {formMode && (
         <SpellForm

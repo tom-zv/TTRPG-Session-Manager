@@ -27,7 +27,7 @@
   overflow: hidden;
 }
 
-.dialog-container.entity-form-dialog {
+.dialog-container.form-dialog {
   width: min(1120px, calc(100vw - 32px));
 }
 

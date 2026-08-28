@@ -264,7 +264,7 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({
           onClose={closeOverlay}
           title={overlay.kind === "create" ? "New item"
             : `${overlay.kind === "edit" ? "Edit" : "Duplicate"} ${overlay.item.name}`}
-          className="entity-form-dialog"
+          className="form-dialog"
         >
           <ItemForm
             mode={overlay}

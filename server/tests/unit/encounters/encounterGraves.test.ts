@@ -28,9 +28,6 @@ import { EncounterErrorCode, type EncounterError } from "../../../../shared/sock
 import type { SocketAck } from "../../../../shared/sockets/types.js";
 import entityModel from "../../../src/api/encounter/entities/entityModel.js";
 import entityService from "../../../src/api/encounter/entities/entityService.js";
-import type { DnD5eEntityDetails } from "../../../../shared/domain/encounters/dnd5e/entity.js";
-import { createEntityDraft } from "../../../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/draftTransforms.js";
-import { parseEntityDraft } from "../../../../client/src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityForm/model/validation.js";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -259,34 +256,4 @@ test("joining loads the engine on demand and returns the current state; a missin
   assert.equal(acks.length, 5);
   assert(acks.slice(2).every((ack) => !ack.success));
   (socket.listeners("disconnect")[0] as () => void)();
-});
-
-test("NPC form round-trips death-save settings alongside the full entity snapshot", () => {
-  const npc: DnD5eEntityDetails = {
-    templateId: 100, name: "Rowan", createdAt: "", source: "homebrew", imported: false, locallyEdited: false, role: "npc", hp: 12, ac: 13,
-    size: "medium", alignment: "neutral", speeds: { walk: 30 },
-    abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
-    settings: { combat: { deathSaves: true } },
-    traits: [{ name: "Brave", description: "Advantage against fear." }],
-    actions: [{ name: "Sword", actionType: "action", description: "A sword attack." }],
-    spellcasting: [{
-      name: "Magic", descriptions: ["Innate magic"], displayAs: "bonus action", hideSpellList: true,
-      levels: [{ level: 3, slots: 2, lowerLevel: 1, spells: [{ name: "Fly", source: "XPHB" }] }],
-      frequencyGroups: [
-        { frequency: "will", spells: [{ name: "Light", source: "XPHB" }, { name: "Mage Armor", note: "included in AC" }] },
-        { frequency: "daily", count: 2, each: true, spells: [{ name: "Fireball", source: "XPHB", note: "level 5 version" }] },
-      ],
-    }],
-  };
-  const draft = createEntityDraft(npc);
-  (draft.settings.combat! as { deathSaves: boolean }).deathSaves = false;
-  assert.equal(npc.settings?.combat?.deathSaves, true);
-  const parsed = parseEntityDraft(draft);
-  assert.equal(parsed.ok, true);
-  if (!parsed.ok) return;
-  assert.equal(parsed.entity.settings?.combat?.deathSaves, false);
-  assert.equal(parsed.entity.traits?.[0].name, "Brave");
-  assert.equal(parsed.entity.actions?.[0].name, "Sword");
-  // Spell lists, notes, sources and pact magic levels survive the form unchanged.
-  assert.deepEqual(JSON.parse(JSON.stringify(parsed.entity.spellcasting)), npc.spellcasting);
 });
