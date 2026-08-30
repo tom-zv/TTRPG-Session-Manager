@@ -225,9 +225,7 @@
 .numberStepperButtons button:focus-visible,
 .comboClearButton:focus-visible,
 .toolButton:focus-visible,
-.iconButton:focus-visible,
-.disclosureToggle:focus-visible,
-.segmentedTab:focus-visible {
+.iconButton:focus-visible {
   position: relative;
   z-index: 1;
   outline: 2px solid rgba(var(--accent-primary-rgb, 90, 169, 255), 0.78);
@@ -276,8 +274,7 @@
 }
 
 .toolButton,
-.iconButton,
-.segmentedTab {
+.iconButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -291,8 +288,7 @@
   font-weight: 700;
 }
 
-.toolButton,
-.segmentedTab {
+.toolButton {
   min-height: 2.1rem;
   padding: 0.38rem 0.65rem;
   font-size: 0.84rem;
@@ -308,84 +304,8 @@
 }
 
 .toolButton:hover,
-.iconButton:hover,
-.segmentedTab:hover {
+.iconButton:hover {
   background: var(--bg-hover, #273044);
-}
-
-.disclosureSection {
-  border: 1px solid color-mix(in srgb, var(--border-color, #3c4354) 72%, transparent);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-tertiary, #202634) 88%, black);
-}
-
-.disclosureToggle {
-  display: grid;
-  grid-template-columns: 1.1rem minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.72rem 0.85rem;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-primary, #e5e7eb);
-  cursor: pointer;
-  font: inherit;
-  font-weight: 750;
-  text-align: left;
-}
-
-.disclosureToggle:hover {
-  background: var(--bg-hover, #273044);
-}
-
-.disclosureTitle {
-  min-width: 0;
-}
-
-.disclosureCountWrap {
-  display: inline-flex;
-  justify-content: flex-end;
-  min-width: 1.5rem;
-}
-
-.disclosureCount,
-.segmentedTab span {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.35rem;
-  min-height: 1.3rem;
-  padding: 0.05rem 0.35rem;
-  border: 1px solid var(--form-accent-border, #3c4354);
-  border-radius: 999px;
-  background: var(--form-accent-soft, transparent);
-  color: var(--text-primary, #e5e7eb);
-  font-size: 0.72rem;
-}
-
-.disclosureBody {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  padding: 0.15rem 0.85rem 0.9rem;
-}
-
-.segmentedTabs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-}
-
-.segmentedTab {
-  color: var(--text-secondary, #b9c0cf);
-}
-
-.segmentedTabActive {
-  border-color: var(--form-accent-border, #3c4354);
-  background: var(--form-accent-soft, transparent);
-  color: var(--text-primary, #e5e7eb);
 }
 
 .fieldError {
