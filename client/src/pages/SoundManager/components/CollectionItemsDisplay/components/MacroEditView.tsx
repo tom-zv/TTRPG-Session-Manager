@@ -20,7 +20,7 @@ import styles from "./MacroEditView.module.css";
 interface MacroEditViewProps {
   macro: AudioMacro;
   parentCollectionInfo: { type: CollectionType; id: number };
-  dialogContentRef?: React.RefObject<HTMLDivElement>;
+  dialogContentRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 type DropAreaProps = Partial<

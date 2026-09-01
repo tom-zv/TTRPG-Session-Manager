@@ -1,6 +1,10 @@
 // services/audio/events.ts
 
-import mitt, { Emitter } from "mitt";
+import mittModule, { type Emitter } from "mitt";
+
+// mitt's index.d.ts is not marked as ESM, so under NodeNext TypeScript reads its default export as
+// the CommonJS module object. Vite loads dist/mitt.mjs, whose default export is the function itself.
+const mitt = mittModule as unknown as typeof mittModule.default;
 
 /** All the event names your app will use */
 export enum AudioEventTypes {

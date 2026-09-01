@@ -8,7 +8,7 @@ import { MdMusicNote } from "react-icons/md";
 
 
 
-export const getFolderIcon = (folderType: string, isOpen: boolean, hasContents: boolean) => {
+export const getFolderIcon = (_folderType: string, isOpen: boolean, hasContents: boolean) => {
   if (!hasContents) {
     if (isOpen) {
       return <PiFolderOpenLight />;

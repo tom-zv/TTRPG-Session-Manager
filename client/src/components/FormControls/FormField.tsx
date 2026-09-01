@@ -48,10 +48,10 @@ export const FormField: React.FC<FormFieldProps> = ({
         : undefined);
 
   const enhancedChildren = childList.map((child) => {
-    if (!React.isValidElement(child)) return child;
+    if (!React.isValidElement<Record<string, unknown>>(child)) return child;
 
     if (typeof child.type !== "string") {
-      return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+      return React.cloneElement(child, {
         "aria-describedby": child.props["aria-describedby"] ?? describedBy,
         "aria-invalid": child.props["aria-invalid"] ?? (Boolean(error) || undefined),
         "data-field": child.props["data-field"] ?? controlName,
@@ -64,13 +64,13 @@ export const FormField: React.FC<FormFieldProps> = ({
 
     if (!FORM_CONTROL_TAGS.has(child.type)) return child;
 
-    return React.cloneElement(child as React.ReactElement<Record<string, unknown>>, {
+    return React.cloneElement(child, {
       id: child.props.id ?? controlId,
       name: child.props.name ?? controlName,
       "aria-describedby": child.props["aria-describedby"] ?? describedBy,
       "aria-invalid": child.props["aria-invalid"] ?? (Boolean(error) || undefined),
       "data-field": child.props["data-field"] ?? controlName,
-      className: joinClassNames(child.props.className, error ? styles.inputError : undefined),
+      className: joinClassNames(child.props.className as string | undefined, error ? styles.inputError : undefined),
     });
   });
 

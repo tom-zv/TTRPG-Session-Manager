@@ -11,7 +11,7 @@ interface UseItemDragDropProps extends DragDropProps {
   items: AudioItem[];
   selectedItemIds: number[];
   contentType: string;
-  containerRef?: React.RefObject<HTMLElement>;
+  containerRef?: React.RefObject<HTMLElement | null>;
   addItems?: (items: AudioItem[], position?: number, isMacro?: boolean) => void;
   updateItemPosition?: (itemId: number, targetPosition: number, sourceStartPosition?: number, sourceEndPosition?: number) => void;
 }

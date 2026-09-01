@@ -16,7 +16,7 @@ export interface DialogProps {
   children: ReactNode;
   /** if true, use the side-panel cutout style; otherwise full-screen overlay */
   sidePanel?: boolean;
-  contentRef?: React.RefObject<HTMLDivElement>;
+  contentRef?: React.RefObject<HTMLDivElement | null>;
   initialFocusRef?: React.RefObject<HTMLElement>;
   returnFocusRef?: React.RefObject<HTMLElement>;
   className?: string;

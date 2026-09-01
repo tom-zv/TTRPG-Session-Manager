@@ -48,9 +48,7 @@ export const GridView: React.FC<GridViewProps> = ({
 }) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const gridRef = useRef<HTMLDivElement>(
-    null
-  ) as React.MutableRefObject<HTMLDivElement | null>;
+  const gridRef = useRef<HTMLDivElement>(null);
   const { toggleAudioItem } = useAudioItemControls();
   const { getAudioItemPlayState } = useAudioItemState();
 
