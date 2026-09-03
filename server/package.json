@@ -9,6 +9,7 @@
     "dev": "tsx src/index.ts",
     "dev:watch": "tsx watch src/index.ts",
     "import:5etools": "tsx src/scripts/import-5etools.ts",
+    "db": "tsx src/scripts/db.ts",
     "import:5etools:entities": "tsx src/scripts/import-5etools-entities.ts",
     "import:5etools:spells": "tsx src/scripts/import-5etools-spells.ts",
     "import:5etools:items": "tsx src/scripts/import-5etools-items.ts",

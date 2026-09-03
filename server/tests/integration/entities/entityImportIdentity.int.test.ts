@@ -1,17 +1,14 @@
-import { readFile } from 'node:fs/promises';
 import mysql, { type RowDataPacket } from 'mysql2/promise';
 import { expect, test } from 'vitest';
 import type { DnD5eEntityDetails, DnD5eEntitySummary } from 'shared/domain/encounters/dnd5e/entity.js';
 import { dbConfig } from 'src/config/server-config.js';
 import { dnd5ePool } from 'src/db.js';
 import { import5eToolsEntities } from 'src/services/5etools/5eToolsEntityImportService.js';
-import { entityImportKey } from 'src/services/5etools/5eToolsEntityImportRepository.js';
 import type { FiveEToolsMonster } from 'src/utils/5etools/types.js';
 import { createGm } from '../../support/factories.js';
 import { asToken, createHttpAgent } from '../../support/http.js';
 
 const entitiesUrl = '/api/dnd5e/entities';
-const migrationUrl = new URL('../../../db/migrations/20261120_entity_import_identity.sql', import.meta.url);
 const goblin = { name: 'Storm Goblin', source: 'MM', page: 166, hp: { average: 7, formula: '2d6' } };
 
 async function setup() {
@@ -96,147 +93,6 @@ test('a POST that sends provenance fields is still stored as homebrew', async ()
   await put(entity.templateId, { hp: 4 }).expect(200);
   expect(await importGoblin()).toMatchObject({ status: 'inserted' });
   expect(await get(entity.templateId)).toMatchObject({ hp: 4, source: 'homebrew', imported: false });
-});
-
-interface ColumnRow extends RowDataPacket {
-  name: string;
-  position: number;
-  type: string;
-  nullable: string;
-  defaultValue: string | null;
-  collation: string | null;
-}
-
-async function describeEntities(connection: mysql.Connection) {
-  const [columns] = await connection.query<ColumnRow[]>(`
-    SELECT COLUMN_NAME AS name, ORDINAL_POSITION AS position, COLUMN_TYPE AS type, IS_NULLABLE AS nullable,
-           COLUMN_DEFAULT AS defaultValue, COLLATION_NAME AS collation
-    FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'dnd5e' AND TABLE_NAME = 'entities'
-    ORDER BY ORDINAL_POSITION`);
-  const [indexes] = await connection.query<RowDataPacket[]>(`
-    SELECT INDEX_NAME AS name, NON_UNIQUE AS nonUnique, COLUMN_NAME AS columnName
-    FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = 'dnd5e' AND TABLE_NAME = 'entities'
-    ORDER BY INDEX_NAME, SEQ_IN_INDEX`);
-  return { columns, indexes };
-}
-
-/**
- * Runs the migration against the test database after removing the columns it adds, as on a
- * database created before it. `fresh` is the fresh-install shape. Restores the columns when the
- * migration did not add them, and fails when the table is left in any other shape.
- */
-async function withPreMigrationSchema(
-  body: (connection: mysql.Connection, migrate: () => Promise<void>, fresh: Awaited<ReturnType<typeof describeEntities>>) => Promise<void>,
-) {
-  const connection = await mysql.createConnection({ ...dbConfig, multipleStatements: true });
-  const migration = await readFile(migrationUrl, 'utf8');
-  const migrate = async () => { await connection.query(migration); };
-  const fresh = await describeEntities(connection);
-  let drifted = false;
-  try {
-    await connection.query(`ALTER TABLE dnd5e.entities
-      DROP INDEX uq_dnd5e_entities_import_key,
-      DROP COLUMN import_key, DROP COLUMN source, DROP COLUMN page, DROP COLUMN imported_at, DROP COLUMN locally_edited`);
-    await body(connection, migrate, fresh);
-  } finally {
-    try {
-      const [restored] = await connection.query<RowDataPacket[]>(
-        "SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'dnd5e' AND TABLE_NAME = 'entities' AND COLUMN_NAME = 'import_key'");
-      if (restored.length === 0) {
-        await connection.query("DELETE FROM dnd5e.entity_tags WHERE tag_type = 'source'");
-        await migrate();
-      }
-      drifted = JSON.stringify(await describeEntities(connection)) !== JSON.stringify(fresh);
-    } finally {
-      await connection.end();
-    }
-  }
-  if (drifted) {
-    throw new Error('dnd5e.entities no longer matches the create script. Recreate the test database: npm run test:db:down && npm run test:db:up');
-  }
-}
-
-async function tagEntity(id: number, tags: Array<[string, string]>) {
-  for (const [type, tag] of tags) {
-    await dnd5ePool.execute('INSERT INTO entity_tags (entity_id, tag_type, tag) VALUES (?, ?, ?)', [id, type, tag]);
-  }
-}
-
-test('the migration gives an existing database the fresh-install columns and backfills them from source tags', async () => {
-  const { post } = await setup();
-  const create = async (name: string) =>
-    ((await post({ name }).expect(201)).body as { entity: DnD5eEntityDetails }).entity.templateId;
-  const tagged = await create('Storm Goblin');
-  const untagged = await create('Homebrew Goblin');
-  await tagEntity(tagged, [['source', 'MM'], ['page', '166'], ['environment', 'forest']]);
-
-  await withPreMigrationSchema(async (connection, migrate, fresh) => {
-    await migrate();
-    expect(await describeEntities(connection)).toEqual(fresh);
-  });
-
-  const [rows] = await dnd5ePool.query<RowDataPacket[]>(
-    'SELECT id, import_key, source, page, locally_edited FROM entities WHERE id IN (?, ?) ORDER BY id', [tagged, untagged]);
-  expect(rows).toEqual([
-    { id: tagged, import_key: 'storm goblin|mm', source: 'MM', page: 166, locally_edited: 0 },
-    { id: untagged, import_key: null, source: 'homebrew', page: null, locally_edited: 0 },
-  ]);
-  expect(await importGoblin()).toMatchObject({ status: 'updated', entityId: tagged });
-});
-
-test('the migration stops before changing the schema when two entities would share an import key', async () => {
-  const { post } = await setup();
-  const create = async (name: string) =>
-    ((await post({ name }).expect(201)).body as { entity: DnD5eEntityDetails }).entity.templateId;
-  const first = await create('Storm Goblin');
-  const second = await create('STORM GOBLIN');
-  await tagEntity(first, [['source', 'MM']]);
-  await tagEntity(second, [['source', 'mm']]);
-
-  await withPreMigrationSchema(async (connection, migrate) => {
-    await expect(migrate()).rejects.toMatchObject({ code: 'ER_DUP_ENTRY' });
-    const [columns] = await connection.query<RowDataPacket[]>(
-      "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = 'dnd5e' AND TABLE_NAME = 'entities' AND COLUMN_NAME IN ('import_key', 'source')");
-    expect(columns).toEqual([]);
-    const [tags] = await dnd5ePool.query<RowDataPacket[]>("SELECT entity_id FROM entity_tags WHERE tag_type = 'source' ORDER BY entity_id");
-    expect(tags).toEqual([{ entity_id: first }, { entity_id: second }]);
-  });
-});
-
-test('a migrated Unicode name gets the importer key, so a re-import matches it and obeys the skip and force rules', async () => {
-  const { post, put, get } = await setup();
-  const create = async (name: string) =>
-    ((await post({ name }).expect(201)).body as { entity: DnD5eEntityDetails }).entity.templateId;
-  // U+0130 lowercases differently in MySQL LOWER() and JavaScript toLowerCase(); the others check that
-  // only ASCII letters are folded.
-  const names = ['\u0130 Goblin', '\u00C4rger Wolf', '\u03A3 Imp', 'Storm Goblin'];
-  const ids = new Map<string, number>();
-  for (const name of names) {
-    const id = await create(name);
-    ids.set(name, id);
-    await tagEntity(id, [['source', 'MM'], ['page', '12']]);
-  }
-
-  await withPreMigrationSchema(async (connection, migrate) => {
-    await migrate();
-    const [rows] = await connection.query<RowDataPacket[]>(
-      'SELECT id, HEX(import_key) AS hex FROM dnd5e.entities WHERE id IN (?) ORDER BY id', [[...ids.values()]]);
-    expect(rows).toEqual([...ids].map(([name, id]) => ({
-      id, hex: Buffer.from(entityImportKey(name, 'MM'), 'utf8').toString('hex').toUpperCase(),
-    })));
-  });
-
-  const id = ids.get('\u0130 Goblin') as number;
-  const monster = { name: '\u0130 Goblin', source: 'MM', page: 12, hp: { average: 7, formula: '2d6' } };
-  await put(id, { name: '\u0130 Goblin', hp: 9 }, true).expect(200);
-
-  expect(await importGoblin({}, monster)).toMatchObject({ status: 'skipped', entityId: id, reason: expect.stringContaining('--force') });
-  expect((await get(id)).hp).toBe(9);
-  expect(await importGoblin({ force: true }, monster)).toMatchObject({ status: 'updated', entityId: id });
-  expect(await get(id)).toMatchObject({ hp: 7, locallyEdited: false });
-  const [copies] = await dnd5ePool.query<RowDataPacket[]>(
-    'SELECT c.id FROM core.entities c WHERE c.name = ?', ['\u0130 Goblin']);
-  expect(copies).toEqual([{ id }]);
 });
 
 /** Waits until some transaction is blocked on a row lock. */

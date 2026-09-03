@@ -8,18 +8,29 @@
     "start": "cross-env NODE_ENV=production concurrently \"npm run start:server\" \"npm run start:client\"",
     "start:server": "cd server && cross-env NODE_ENV=production npm start",
     "start:client": "cd client && cross-env NODE_ENV=production npm run preview",
+
     "dev:all": "cross-env NODE_ENV=development concurrently \"npm run dev:server:watch\" \"npm run dev:client\"",
     "dev:server": "cd server && cross-env NODE_ENV=development npm run dev",
     "dev:server:watch": "cd server && cross-env NODE_ENV=development npm run dev:watch",
     "dev:client": "cd client && cross-env NODE_ENV=development npm run dev",
+
     "build:shared": "cd shared && tsc && tsc-alias",
     "build:all": "cross-env NODE_ENV=production npm run build:shared && npm run build:client && npm run build:server",
     "build:client": "cd client && cross-env NODE_ENV=production npm run build",
     "build:server": "cd server && cross-env NODE_ENV=production npm run build",
+
     "import:5etools": "cd server && npm run import:5etools --",
+
+    "db:status": "cd server && npm run db -- status",
+    "db:create": "cd server && npm run db -- create",
+    "db:reset": "cd server && npm run db -- reset",
+    "db:backup": "cd server && npm run db -- backup",
+    "db:diff": "cd server && npm run db -- diff",
+
     "install:all": "npm install && npm run install:server && npm run install:client",
     "install:server": "cd server && npm install",
     "install:client": "cd client && npm install",
+
     "test": "vitest run --project shared --project server --project client",
     "test:watch": "vitest --watch --project shared --project server --project client",
     "test:int": "npm run test:db:up && npm run build:server && vitest run --project server-int",
@@ -28,6 +39,7 @@
     "test:db:reset": "server/node_modules/.bin/tsx server/tests/support/dbCli.ts reset",
     "test:coverage": "npm test -- --coverage",
     "typecheck:tests": "tsc -p server/tsconfig.json",
+    
     "lint:tooling": "eslint --config ./eslint.config.js vitest.config.ts",
     "lint:shared": "eslint --config ./eslint.config.js ./shared/",
     "lint": "eslint --config ./eslint.config.js .",

@@ -1,8 +1,8 @@
-import { readdir, readFile } from 'node:fs/promises';
 import mysql, { type RowDataPacket } from 'mysql2/promise';
 import { dbConfig, type DatabaseConfig } from '../../src/config/server-config.js';
-
-const schemas = ['core', 'dnd5e', 'audio'];
+import {
+  applyCreateScripts, createScriptsHash, dropSchemas, readTestSchemaHash, SCHEMAS, TEST_SCHEMA_STATE,
+} from '../../src/scripts/db/createScripts.js';
 
 function assertTestPort(config: DatabaseConfig): void {
   const port = config.port ?? 3306;
@@ -26,31 +26,27 @@ export async function assertTestDatabase(config: DatabaseConfig = dbConfig): Pro
   }
 }
 
+/**
+ * Builds core, dnd5e and audio from the create scripts. The marker records the hash of the scripts
+ * the build came from; when they have changed since, the three schemas are dropped and rebuilt, so
+ * an edited create script never leaves a stale test schema.
+ */
 export async function loadSchema(): Promise<void> {
-  // Bootstrap is additive, but must refuse the development port before connecting.
+  // Must refuse the development port before connecting.
   assertTestPort(dbConfig);
   const connection = await mysql.createConnection({ ...dbConfig, multipleStatements: true });
   try {
     await connection.query('CREATE DATABASE IF NOT EXISTS ttrpg_test_marker');
     await assertTestDatabase();
-    const [loaded] = await connection.query<RowDataPacket[]>(
-      "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'ttrpg_test_marker' AND TABLE_NAME = 'schema_loaded'",
-    );
-    // The folder seed INSERTs are not idempotent. Only a completed load earns this marker.
-    if (loaded.length > 0) return;
+    const sourceHash = await createScriptsHash();
+    if (await readTestSchemaHash(connection) === sourceHash) return;
 
-    for (const schema of schemas) {
-      await connection.query(`CREATE DATABASE IF NOT EXISTS ${mysql.escapeId(schema)}`);
-    }
-    for (const schema of schemas) {
-      await connection.query(`USE ${mysql.escapeId(schema)}`);
-      const directory = new URL(`../../db/${schema}/`, import.meta.url);
-      const files = (await readdir(directory)).filter(file => file.endsWith('.sql')).sort();
-      for (const file of files) {
-        await connection.query(await readFile(new URL(file, directory), 'utf8'));
-      }
-    }
-    await connection.query('CREATE TABLE ttrpg_test_marker.schema_loaded (id INT PRIMARY KEY)');
+    // Cleared first, so an interrupted rebuild is redone on the next load.
+    await connection.query(`DROP TABLE IF EXISTS ${TEST_SCHEMA_STATE}, ttrpg_test_marker.schema_loaded`);
+    await dropSchemas(connection, SCHEMAS);
+    await applyCreateScripts(connection, SCHEMAS);
+    await connection.query(`CREATE TABLE ${TEST_SCHEMA_STATE} (id TINYINT PRIMARY KEY, source_hash CHAR(64) NOT NULL)`);
+    await connection.query(`INSERT INTO ${TEST_SCHEMA_STATE} (id, source_hash) VALUES (1, ?)`, [sourceHash]);
   } finally {
     await connection.end();
   }
