@@ -41,9 +41,9 @@ async function getSpellCasters(req: Request, res: Response, next: NextFunction) 
 }
 
 function readSpellInput(req: Request): SpellInput {
-  const errors = validateSpellInput(req.body);
-  if (errors.length > 0) throw new ValidationError(errors.join("\n"));
-  return req.body as SpellInput;
+  const validated = validateSpellInput(req.body);
+  if (!validated.ok) throw new ValidationError("Invalid spell data.", validated.issues);
+  return validated.value;
 }
 
 async function createSpell(req: Request, res: Response, next: NextFunction) {

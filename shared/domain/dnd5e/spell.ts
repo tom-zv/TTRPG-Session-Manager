@@ -1,3 +1,5 @@
+import type { WriteIssue, WriteValidation } from "../writeValidation.js";
+
 export const SPELL_SCHOOLS = [
   "abjuration",
   "conjuration",
@@ -172,57 +174,64 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isWholeNumber = (value: unknown, min = 0): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= min;
 
-/** Every problem with a spell payload, as messages for the user; empty when it is valid. */
-export function validateSpellInput(input: unknown): string[] {
-  if (!isRecord(input)) return ["The spell must be an object."];
-  const errors: string[] = [];
+/** Validates a spell snapshot and reports every problem by input path. */
+export function validateSpellInput(input: unknown): WriteValidation<SpellInput> {
+  if (!isRecord(input)) return { ok: false, issues: [{ path: "", message: "The spell must be an object." }] };
+  const issues: WriteIssue[] = [];
+  const issue = (path: string, message: string) => issues.push({ path, message });
 
   const text = (key: keyof typeof SPELL_LIMITS, label: string, required: boolean) => {
     const value = input[key];
     if (value === undefined || value === null || value === "") {
-      if (required) errors.push(`${label} is required.`);
+      if (required) issue(key, `${label} is required.`);
       return;
     }
-    if (typeof value !== "string") errors.push(`${label} must be text.`);
-    else if (required && !value.trim()) errors.push(`${label} is required.`);
-    else if (value.length > SPELL_LIMITS[key]) errors.push(`${label} can be at most ${SPELL_LIMITS[key]} characters.`);
+    if (typeof value !== "string") issue(key, `${label} must be text.`);
+    else if (required && !value.trim()) issue(key, `${label} is required.`);
+    else if (value.length > SPELL_LIMITS[key]) issue(key, `${label} can be at most ${SPELL_LIMITS[key]} characters.`);
   };
   const flag = (key: string, label: string) => {
-    if (typeof input[key] !== "boolean") errors.push(`${label} must be true or false.`);
+    if (typeof input[key] !== "boolean") issue(key, `${label} must be true or false.`);
   };
   const list = (key: string, label: string) => {
     const value = input[key];
-    if (!Array.isArray(value) || value.some(item => typeof item !== "string" || !item.trim())) {
-      errors.push(`${label} must be a list of names.`);
-    } else if (value.some(item => (item as string).length > SPELL_LIMITS.tag)) {
-      errors.push(`${label} can be at most ${SPELL_LIMITS.tag} characters each.`);
+    if (!Array.isArray(value)) {
+      issue(key, `${label} must be a list of names.`);
+      return;
     }
+    const invalid = value.findIndex((item, index) => index in value && (typeof item !== "string" || !item.trim()));
+    if (invalid !== -1) {
+      issue(`${key}.${invalid}`, `${label} must be a list of names.`);
+      return;
+    }
+    const tooLong = value.findIndex((item, index) => index in value && (item as string).length > SPELL_LIMITS.tag);
+    if (tooLong !== -1) issue(`${key}.${tooLong}`, `${label} can be at most ${SPELL_LIMITS.tag} characters each.`);
   };
 
   text("name", "Name", true);
   text("source", "Source", true);
-  if (input.page !== undefined && !isWholeNumber(input.page, 1)) errors.push("Page must be a whole number of at least 1.");
-  if (!isWholeNumber(input.level) || (input.level as number) > 9) errors.push("Level must be a whole number from 0 (cantrip) to 9.");
-  if (!(SPELL_SCHOOLS as readonly unknown[]).includes(input.school)) errors.push("Choose a school of magic.");
+  if (input.page !== undefined && !isWholeNumber(input.page, 1)) issue("page", "Page must be a whole number of at least 1.");
+  if (!isWholeNumber(input.level) || (input.level as number) > 9) issue("level", "Level must be a whole number from 0 (cantrip) to 9.");
+  if (!(SPELL_SCHOOLS as readonly unknown[]).includes(input.school)) issue("school", "Choose a school of magic.");
   flag("ritual", "Ritual");
   flag("concentration", "Concentration");
   text("castingTime", "Casting time", true);
-  if (!(SPELL_CASTING_UNITS as readonly unknown[]).includes(input.castingUnit)) errors.push("Choose a casting time unit.");
+  if (!(SPELL_CASTING_UNITS as readonly unknown[]).includes(input.castingUnit)) issue("castingUnit", "Choose a casting time unit.");
   text("castingTrigger", "Trigger", false);
   text("range", "Range", true);
-  if (input.rangeFeet !== undefined && !isWholeNumber(input.rangeFeet)) errors.push("Range in feet must be a whole number.");
+  if (input.rangeFeet !== undefined && !isWholeNumber(input.rangeFeet)) issue("rangeFeet", "Range in feet must be a whole number.");
 
   const components = input.components;
   if (!isRecord(components) || ["v", "s", "m"].some(key => typeof components[key] !== "boolean")) {
-    errors.push("Components must say which of V, S and M apply.");
+    issue("components", "Components must say which of V, S and M apply.");
   }
   text("material", "Material", false);
   if (input.materialCostCp !== undefined && !isWholeNumber(input.materialCostCp)) {
-    errors.push("Material cost must be a whole number of copper pieces.");
+    issue("materialCostCp", "Material cost must be a whole number of copper pieces.");
   }
   flag("materialConsumed", "Material consumed");
   if (isRecord(components) && components.m !== true && (input.material || input.materialCostCp !== undefined)) {
-    errors.push("A material or its cost needs the M component.");
+    issue(input.material ? "material" : "materialCostCp", "A material or its cost needs the M component.");
   }
 
   text("duration", "Duration", true);
@@ -234,7 +243,7 @@ export function validateSpellInput(input: unknown): string[] {
   list("conditions", "Conditions");
   list("aliases", "Aliases");
   if (input.attack !== undefined && input.attack !== "melee" && input.attack !== "ranged") {
-    errors.push("Spell attack must be melee or ranged.");
+    issue("attack", "Spell attack must be melee or ranged.");
   }
-  return errors;
+  return issues.length > 0 ? { ok: false, issues } : { ok: true, value: input as unknown as SpellInput };
 }

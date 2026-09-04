@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { SPELL_SCHOOLS, validateSpellInput, type Spell, type SpellSchool } from "shared/domain/dnd5e/spell.js";
+import { WriteValidationError } from "src/api/writeFailure.js";
 import {
   ComboboxInput,
   FormActions,
@@ -63,20 +64,23 @@ export const SpellForm: React.FC<SpellFormProps> = ({ mode, onSaved, onCancel })
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const input = draftToInput(draft);
-    const errors = validateSpellInput(input);
-    if (errors.length > 0) {
-      setError(errors.join("\n"));
+    const validated = validateSpellInput(draftToInput(draft));
+    if (!validated.ok) {
+      setError(validated.issues.map(issue => issue.message).join("\n"));
       return;
     }
     setError(null);
     try {
       const saved = editedId !== null
-        ? await updateSpell.mutateAsync({ id: editedId, input })
-        : await createSpell.mutateAsync(input);
+        ? await updateSpell.mutateAsync({ id: editedId, input: validated.value })
+        : await createSpell.mutateAsync(validated.value);
       onSaved(saved);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : "Failed to save the spell.");
+      if (submitError instanceof WriteValidationError) {
+        setError(submitError.issues.map(issue => issue.message).join("\n"));
+      } else {
+        setError(submitError instanceof Error ? submitError.message : "Failed to save the spell.");
+      }
     }
   };
 

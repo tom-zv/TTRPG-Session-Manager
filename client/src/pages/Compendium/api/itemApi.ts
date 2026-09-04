@@ -8,6 +8,7 @@ import type {
   ItemResolveResult,
 } from "shared/domain/dnd5e/item.js";
 import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
+import { writeFailure } from "src/api/writeFailure.js";
 
 // The D&D 5e item catalog (/api/dnd5e/items). Every route needs a signed-in user; the server
 // answers each viewer with what they may see, and a hidden item reads like a missing one.
@@ -19,8 +20,7 @@ async function request(url: string, init: RequestInit = {}): Promise<Response> {
 }
 
 async function failWith(response: Response, failure: string): Promise<never> {
-  const error = await response.json().catch(() => ({ message: failure }));
-  throw new Error(error.message || failure);
+  throw await writeFailure(response, failure);
 }
 
 async function itemFrom(response: Response, failure: string): Promise<Item> {

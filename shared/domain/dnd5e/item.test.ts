@@ -29,7 +29,7 @@ const valid = (): ItemInput => ({
 
 const errorsOf = (input: unknown): string[] => {
   const result = validateItemInput(input);
-  return result.ok ? [] : result.errors;
+  return result.ok ? [] : result.issues.map(issue => issue.message);
 };
 
 describe('GM item input', () => {
@@ -117,5 +117,21 @@ describe('GM item input', () => {
 
   test('every problem is reported at once', () => {
     expect(errorsOf({ name: '', source: '', rarity: 'x', requiresAttunement: 1, aliases: 'a', details: [] })).toHaveLength(6);
+  });
+
+  test('issues identify nested fields and the offending list entries', () => {
+    expect(validateItemInput({
+      ...valid(),
+      aliases: ['Cinder Sword', 'cinder sword'],
+      details: { damage: { type: 'fire' }, spells: [{ name: 'Light' }, { name: '' }, 42] },
+    })).toEqual({
+      ok: false,
+      issues: [
+        { path: 'aliases.1', message: 'Aliases must not repeat.' },
+        { path: 'details.damage.dice', message: 'Damage dice is required.' },
+        { path: 'details.spells.1.name', message: 'Spell 2 is required.' },
+        { path: 'details.spells.2', message: 'Spell 3 must name a spell.' },
+      ],
+    });
   });
 });

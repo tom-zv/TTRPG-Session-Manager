@@ -193,7 +193,7 @@ async function resolveItems(req: Request, res: Response, next: NextFunction) {
 
 function readItemInput(req: Request): ItemInput {
   const validated = validateItemInput(req.body);
-  if (!validated.ok) throw new ValidationError(validated.errors.join("\n"));
+  if (!validated.ok) throw new ValidationError("Invalid item data.", validated.issues);
   return validated.value;
 }
 

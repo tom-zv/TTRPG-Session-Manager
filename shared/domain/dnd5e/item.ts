@@ -1,4 +1,5 @@
 import type { SpellRef } from "./spell.js";
+import type { WriteIssue, WriteValidation } from "../writeValidation.js";
 
 // D&D 5e item catalog (dnd5e.items). Catalog items are references for the table: they never change
 // a character's or an encounter's statistics.
@@ -299,7 +300,7 @@ export const ITEM_LIMITS = {
 /** Canonical key stored with each alias for case-insensitive, accent-sensitive uniqueness. */
 export const itemAliasKey = (alias: string): string => alias.trim().toLowerCase().normalize("NFC");
 
-export type ItemValidation = { ok: true; value: ItemInput } | { ok: false; errors: string[] };
+export type ItemValidation = WriteValidation<ItemInput>;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -312,32 +313,33 @@ const isAbsent = (value: unknown) => value === undefined || value === null || va
  * write it. Otherwise lists every problem as a message for the user.
  */
 export function validateItemInput(input: unknown): ItemValidation {
-  if (!isRecord(input)) return { ok: false, errors: ["The item must be an object."] };
-  const errors: string[] = [];
+  if (!isRecord(input)) return { ok: false, issues: [{ path: "", message: "The item must be an object." }] };
+  const issues: WriteIssue[] = [];
+  const issue = (path: string, message: string) => issues.push({ path, message });
 
-  const text = (source: Record<string, unknown>, key: string, label: string, max: number, required: boolean) => {
+  const text = (source: Record<string, unknown>, key: string, label: string, max: number, required: boolean, prefix = "") => {
     const value = source[key];
     if (isAbsent(value)) {
-      if (required) errors.push(`${label} is required.`);
+      if (required) issue(prefix + key, `${label} is required.`);
       return undefined;
     }
     if (typeof value !== "string") {
-      errors.push(`${label} must be text.`);
+      issue(prefix + key, `${label} must be text.`);
       return undefined;
     }
     const trimmed = value.trim();
     if (!trimmed) {
-      if (required) errors.push(`${label} is required.`);
+      if (required) issue(prefix + key, `${label} is required.`);
       return undefined;
     }
-    if (trimmed.length > max) errors.push(`${label} can be at most ${max} characters.`);
+    if (trimmed.length > max) issue(prefix + key, `${label} can be at most ${max} characters.`);
     return trimmed;
   };
-  const whole = (source: Record<string, unknown>, key: string, label: string, min: number, max: number) => {
+  const whole = (source: Record<string, unknown>, key: string, label: string, min: number, max: number, prefix = "") => {
     const value = source[key];
     if (value === undefined || value === null) return undefined;
     if (typeof value !== "number" || !Number.isInteger(value) || value < min || value > max) {
-      errors.push(`${label} must be a whole number from ${min} to ${max}.`);
+      issue(prefix + key, `${label} must be a whole number from ${min} to ${max}.`);
       return undefined;
     }
     return value;
@@ -347,31 +349,45 @@ export function validateItemInput(input: unknown): ItemValidation {
     if (value === undefined || value === null) return undefined;
     if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > max
       || Number(value.toFixed(ITEM_LIMITS.decimals)) !== value) {
-      errors.push(`${label} must be a number from 0 to ${max} with at most ${ITEM_LIMITS.decimals} decimal places.`);
+      issue(key, `${label} must be a number from 0 to ${max} with at most ${ITEM_LIMITS.decimals} decimal places.`);
       return undefined;
     }
     return value;
   };
-  const flag = (source: Record<string, unknown>, key: string, label: string, required: boolean) => {
+  const flag = (source: Record<string, unknown>, key: string, label: string, required: boolean, prefix = "") => {
     const value = source[key];
     if (value === undefined && !required) return undefined;
     if (typeof value !== "boolean") {
-      errors.push(`${label} must be true or false.`);
+      issue(prefix + key, `${label} must be true or false.`);
       return undefined;
     }
     return value;
   };
-  const names = (source: Record<string, unknown>, key: string, label: string, max: number, count: number, required: boolean) => {
+  const names = (source: Record<string, unknown>, key: string, label: string, max: number, count: number, required: boolean, prefix = "") => {
     const value = source[key];
     if (value === undefined && !required) return undefined;
-    if (!Array.isArray(value) || value.some(item => typeof item !== "string" || !item.trim())) {
-      errors.push(`${label} must be a list of names.`);
+    const path = prefix + key;
+    if (!Array.isArray(value)) {
+      issue(path, `${label} must be a list of names.`);
+      return undefined;
+    }
+    const invalid = value.findIndex((item, index) => index in value && (typeof item !== "string" || !item.trim()));
+    if (invalid !== -1) {
+      issue(`${path}.${invalid}`, `${label} must be a list of names.`);
       return undefined;
     }
     const trimmed = (value as string[]).map(item => item.trim());
-    if (trimmed.length > count) errors.push(`${label} can hold at most ${count} entries.`);
-    if (trimmed.some(item => item.length > max)) errors.push(`${label} can be at most ${max} characters each.`);
-    if (new Set(trimmed.map(itemAliasKey)).size !== trimmed.length) errors.push(`${label} must not repeat.`);
+    if (trimmed.length > count) issue(path, `${label} can hold at most ${count} entries.`);
+    const tooLong = trimmed.findIndex(item => item !== undefined && item.length > max);
+    if (tooLong !== -1) issue(`${path}.${tooLong}`, `${label} can be at most ${max} characters each.`);
+    const seen = new Set<string>();
+    for (const [index, alias] of trimmed.map(itemAliasKey).entries()) {
+      if (seen.has(alias)) {
+        issue(`${path}.${index}`, `${label} must not repeat.`);
+        break;
+      }
+      seen.add(alias);
+    }
     return trimmed;
   };
 
@@ -382,15 +398,15 @@ export function validateItemInput(input: unknown): ItemValidation {
   const category = (ITEM_CATEGORIES as readonly unknown[]).includes(categoryInput)
     ? categoryInput as ItemCategory
     : undefined;
-  if (!isAbsent(categoryInput) && category === undefined) errors.push("Choose an item category.");
+  if (!isAbsent(categoryInput) && category === undefined) issue("category", "Choose an item category.");
   const rarity = (ITEM_RARITIES as readonly unknown[]).includes(input.rarity) ? input.rarity as ItemRarity : undefined;
-  if (!rarity) errors.push("Choose a rarity.");
+  if (!rarity) issue("rarity", "Choose a rarity.");
   const requiresAttunement = flag(input, "requiresAttunement", "Requires attunement", true);
   const note = text(input, "attunementNote", "Attunement note", ITEM_LIMITS.attunementNote, false);
   const optional = note?.toLowerCase() === OPTIONAL_ITEM_ATTUNEMENT.toLowerCase();
   const attunementNote = optional ? OPTIONAL_ITEM_ATTUNEMENT : note;
-  if (requiresAttunement === false && note !== undefined && !optional) errors.push("An attunement note needs Requires attunement.");
-  if (requiresAttunement === true && optional) errors.push("Optional attunement cannot be required.");
+  if (requiresAttunement === false && note !== undefined && !optional) issue("attunementNote", "An attunement note needs Requires attunement.");
+  if (requiresAttunement === true && optional) issue("attunementNote", "Optional attunement cannot be required.");
   const valueCp = decimal("valueCp", "Value", ITEM_LIMITS.valueCp);
   const weightLb = decimal("weightLb", "Weight", ITEM_LIMITS.weightLb);
   const aliases = names(input, "aliases", "Aliases", ITEM_LIMITS.alias, ITEM_LIMITS.aliases, true);
@@ -399,57 +415,58 @@ export function validateItemInput(input: unknown): ItemValidation {
   const details: ItemDetails = {};
   const raw = input.details;
   if (!isRecord(raw)) {
-    errors.push("Details must be an object.");
+    issue("details", "Details must be an object.");
   } else {
-    const short = (key: string, label: string) => text(raw, key, label, ITEM_LIMITS.shortText, false);
-    details.description = text(raw, "description", "Description", ITEM_LIMITS.description, false);
-    details.wondrous = flag(raw, "wondrous", "Wondrous", false);
+    const prefix = "details.";
+    const short = (key: string, label: string) => text(raw, key, label, ITEM_LIMITS.shortText, false, prefix);
+    details.description = text(raw, "description", "Description", ITEM_LIMITS.description, false, prefix);
+    details.wondrous = flag(raw, "wondrous", "Wondrous", false, prefix);
     if (raw.weaponCategory !== undefined) {
       if ((ITEM_WEAPON_CATEGORIES as readonly unknown[]).includes(raw.weaponCategory)) {
         details.weaponCategory = raw.weaponCategory as ItemWeaponCategory;
-      } else errors.push("Weapon category must be simple or martial.");
+      } else issue("details.weaponCategory", "Weapon category must be simple or martial.");
     }
     if (raw.damage !== undefined) {
-      if (!isRecord(raw.damage)) errors.push("Damage must be an object.");
+      if (!isRecord(raw.damage)) issue("details.damage", "Damage must be an object.");
       else {
-        const dice = text(raw.damage, "dice", "Damage dice", ITEM_LIMITS.shortText, true);
-        const damageType = text(raw.damage, "type", "Damage type", ITEM_LIMITS.shortText, false);
-        const versatileDice = text(raw.damage, "versatileDice", "Versatile damage", ITEM_LIMITS.shortText, false);
+        const dice = text(raw.damage, "dice", "Damage dice", ITEM_LIMITS.shortText, true, "details.damage.");
+        const damageType = text(raw.damage, "type", "Damage type", ITEM_LIMITS.shortText, false, "details.damage.");
+        const versatileDice = text(raw.damage, "versatileDice", "Versatile damage", ITEM_LIMITS.shortText, false, "details.damage.");
         if (dice) details.damage = dropUndefined({ dice, type: damageType, versatileDice });
       }
     }
     details.range = short("range", "Range");
-    details.properties = names(raw, "properties", "Properties", ITEM_LIMITS.shortText, ITEM_LIMITS.list, false);
-    details.mastery = names(raw, "mastery", "Mastery", ITEM_LIMITS.shortText, ITEM_LIMITS.list, false);
-    details.armorClass = whole(raw, "armorClass", "Armor class", 0, ITEM_LIMITS.armorClass);
-    details.strength = whole(raw, "strength", "Strength requirement", 1, ITEM_LIMITS.strength);
-    details.stealthDisadvantage = flag(raw, "stealthDisadvantage", "Stealth disadvantage", false);
+    details.properties = names(raw, "properties", "Properties", ITEM_LIMITS.shortText, ITEM_LIMITS.list, false, prefix);
+    details.mastery = names(raw, "mastery", "Mastery", ITEM_LIMITS.shortText, ITEM_LIMITS.list, false, prefix);
+    details.armorClass = whole(raw, "armorClass", "Armor class", 0, ITEM_LIMITS.armorClass, prefix);
+    details.strength = whole(raw, "strength", "Strength requirement", 1, ITEM_LIMITS.strength, prefix);
+    details.stealthDisadvantage = flag(raw, "stealthDisadvantage", "Stealth disadvantage", false, prefix);
     details.bonusWeapon = short("bonusWeapon", "Weapon bonus");
     details.bonusAc = short("bonusAc", "AC bonus");
     details.charges = typeof raw.charges === "string"
       ? short("charges", "Charges formula")
-      : whole(raw, "charges", "Charges", 0, ITEM_LIMITS.charges);
+      : whole(raw, "charges", "Charges", 0, ITEM_LIMITS.charges, prefix);
     details.recharge = short("recharge", "Recharge");
     details.rechargeAmount = short("rechargeAmount", "Recharge amount");
     if (raw.spells !== undefined) {
       if (!Array.isArray(raw.spells) || raw.spells.length > ITEM_LIMITS.list) {
-        errors.push(`Spells must be a list of at most ${ITEM_LIMITS.list} spells.`);
+        issue("details.spells", `Spells must be a list of at most ${ITEM_LIMITS.list} spells.`);
       } else {
         details.spells = raw.spells.flatMap((spell: unknown, index) => {
           if (!isRecord(spell)) {
-            errors.push(`Spell ${index + 1} must name a spell.`);
+            issue(`details.spells.${index}`, `Spell ${index + 1} must name a spell.`);
             return [];
           }
-          const spellName = text(spell, "name", `Spell ${index + 1}`, ITEM_LIMITS.name, true);
-          const spellSource = text(spell, "source", `Spell ${index + 1} source`, ITEM_LIMITS.source, false);
+          const spellName = text(spell, "name", `Spell ${index + 1}`, ITEM_LIMITS.name, true, `details.spells.${index}.`);
+          const spellSource = text(spell, "source", `Spell ${index + 1} source`, ITEM_LIMITS.source, false, `details.spells.${index}.`);
           return spellName ? [spellSource ? { name: spellName, source: spellSource } : { name: spellName }] : [];
         });
       }
     }
   }
 
-  if (errors.length > 0 || !name || !source || !rarity || requiresAttunement === undefined || !aliases) {
-    return { ok: false, errors };
+  if (issues.length > 0 || !name || !source || !rarity || requiresAttunement === undefined || !aliases) {
+    return { ok: false, issues };
   }
   return {
     ok: true,

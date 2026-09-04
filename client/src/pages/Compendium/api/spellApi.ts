@@ -1,5 +1,6 @@
 import type { Spell, SpellInput, SpellSummary } from "shared/domain/dnd5e/spell.js";
 import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
+import { writeFailure } from "src/api/writeFailure.js";
 
 export interface SpellCaster {
   id: number;
@@ -13,10 +14,7 @@ async function requestJson<T>(url: string, failure: string, init: RequestInit = 
     headers: authenticatedJsonHeaders(),
     credentials: "include",
   });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: failure }));
-    throw new Error(error.message || failure);
-  }
+  if (!response.ok) throw await writeFailure(response, failure);
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }

@@ -409,6 +409,31 @@ describe('item detail and members', () => {
 });
 
 describe('GM item authoring', () => {
+  test('creating an invalid item returns the nested damage field path', async () => {
+    const http = createHttpAgent();
+    const gm = await createGm();
+    const response = await asToken(http.post('/api/dnd5e/items'), gm.token)
+      .send(homebrew({ details: { damage: { dice: '' } } })).expect(400);
+    expect(response.body).toEqual({
+      message: 'Invalid item data.',
+      details: [{ path: 'details.damage.dice', message: 'Damage dice is required.' }],
+    });
+  });
+
+  test('updating an invalid item returns the value field path', async () => {
+    const http = createHttpAgent();
+    const gm = await createGm();
+    const post = () => asToken(http.post('/api/dnd5e/items'), gm.token);
+    const created = await post().send(homebrew()).expect(201);
+    const { item } = created.body as { item: Item };
+    const response = await asToken(http.put(`/api/dnd5e/items/${item.id}`), gm.token)
+      .send(homebrew({ valueCp: -1 })).expect(400);
+    expect(response.body).toEqual({
+      message: 'Invalid item data.',
+      details: [{ path: 'valueCp', message: expect.stringMatching(/^Value must be a number/) }],
+    });
+  });
+
   test('a GM can save a full-length multibyte description and oversized item JSON returns 413', async () => {
     const { http, gm, create, detail } = await setup();
     const item = await create(homebrew());

@@ -10,6 +10,7 @@ import {
   type ItemRarity,
   type ItemWeaponCategory,
 } from "shared/domain/dnd5e/item.js";
+import { WriteValidationError } from "src/api/writeFailure.js";
 import { FormActions, FormErrorAlert, FormField, TagInput } from "src/components/FormControls/index.js";
 import type { ItemMutationScope } from "../../../api/query/itemCache.js";
 import { useCreateItem, useUpdateItem } from "../../../api/query/useItemQueries.js";
@@ -68,7 +69,7 @@ export const ItemForm: React.FC<ItemFormProps> = ({ mode, mutationScope, onSaved
     event.preventDefault();
     const validated = validateItemInput(draftToInput(draft, mode.kind === "create" ? undefined : mode.item.details.charges));
     if (!validated.ok) {
-      setError(validated.errors.join("\n"));
+      setError(validated.issues.map(issue => issue.message).join("\n"));
       return;
     }
     setError(null);
@@ -81,10 +82,14 @@ export const ItemForm: React.FC<ItemFormProps> = ({ mode, mutationScope, onSaved
   const rechargeOptions = draft.recharge && !RECHARGE_OPTIONS.some(option => option.value === draft.recharge)
     ? [...RECHARGE_OPTIONS, { value: draft.recharge, label: draft.recharge }]
     : RECHARGE_OPTIONS;
+  const saveError = updateItem.error ?? createItem.error;
+  const saveErrorMessage = saveError instanceof WriteValidationError
+    ? saveError.issues.map(issue => issue.message).join("\n")
+    : saveError?.message;
 
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>
-      <FormErrorAlert error={error ?? updateItem.error?.message ?? createItem.error?.message ?? null} />
+      <FormErrorAlert error={error ?? saveErrorMessage ?? null} />
       {/* Settled for this editor: a family's page is its own; its specifics keep their own text. */}
       {editedKind === "family" && (
         <p className={styles.warning} role="note">

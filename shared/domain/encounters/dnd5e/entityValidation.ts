@@ -9,6 +9,7 @@ import {
 } from "./entity.js";
 import { isPlainObject } from "../settings.js";
 import { validateEntitySettingsPatch } from "./settings.js";
+import type { WriteIssue, WriteValidation } from "../../writeValidation.js";
 
 /** Read-only provenance columns. A write never sets them: POST stores homebrew, the importer owns the rest. */
 export type EntityProvenanceField = "source" | "page" | "imported" | "locallyEdited";
@@ -34,12 +35,7 @@ export interface UpdateEntityBody {
   overwriteImported?: true;
 }
 
-export interface EntityWriteIssue {
-  path: string;
-  message: string;
-}
-
-type Validation<T> = { ok: true; value: T } | { ok: false; issues: EntityWriteIssue[] };
+export type EntityWriteIssue = WriteIssue;
 
 export const ENTITY_LIMITS = {
   name: 128,
@@ -80,12 +76,12 @@ const unpairedSurrogate = /\p{Cs}/u;
 type Reader<T> = (value: unknown, path: string) => T | undefined;
 type Input = Record<string, unknown>;
 
-export function validateDnD5eEntityWrite(value: unknown, mode?: "create"): Validation<CreateEntityRequest>;
-export function validateDnD5eEntityWrite(value: unknown, mode: "update"): Validation<UpdateEntityRequest>;
+export function validateDnD5eEntityWrite(value: unknown, mode?: "create"): WriteValidation<CreateEntityRequest>;
+export function validateDnD5eEntityWrite(value: unknown, mode: "update"): WriteValidation<UpdateEntityRequest>;
 export function validateDnD5eEntityWrite(
   value: unknown,
   mode: "create" | "update" = "create",
-): Validation<CreateEntityRequest | UpdateEntityRequest> {
+): WriteValidation<CreateEntityRequest | UpdateEntityRequest> {
   if (!isPlainObject(value)) return { ok: false, issues: [{ path: "", message: "Entity data must be an object." }] };
 
   const issues: EntityWriteIssue[] = [];

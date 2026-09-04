@@ -541,7 +541,7 @@ function normalize(state: PlanState, input: NormalizeInput): ItemImportRecord {
   };
   // The same rules as GM authoring, so every imported row fits its columns and stays editable.
   const validation = validateItemInput(candidate);
-  if (!validation.ok) throw new Error(validation.errors.join(" "));
+  if (!validation.ok) throw new Error(validation.issues.map(issue => issue.message).join(" "));
   const value = validation.value;
   const importKey = itemImportKey(input.identity);
   if (Array.from(importKey).length > 512) throw new Error("Import identity is too long for the catalog.");
