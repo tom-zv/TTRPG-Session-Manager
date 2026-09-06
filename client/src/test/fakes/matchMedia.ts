@@ -1,18 +1,23 @@
 import { act } from "@testing-library/react";
 
 // jsdom has no matchMedia or layout. This fake evaluates (max-width: Npx) and (min-width: Npx) queries against a
-// viewport width the test sets, and notifies listeners when the width crosses a query's boundary. Other
-// queries, such as (pointer: coarse), never match: the tests run as a desktop with a mouse.
+// viewport width the test sets, and (pointer: fine|coarse) against the primary pointer it sets (a mouse unless a
+// test asks for touch). It notifies listeners when either change flips a query's result. Other queries never match.
 
 type Listener = (event: MediaQueryListEvent) => void;
 
+export type FakePointer = "fine" | "coarse";
+
 let viewportWidth = 1280;
+let primaryPointer: FakePointer = "fine";
 const lists = new Set<FakeMediaQueryList>();
 
 const matchesQuery = (query: string, width: number): boolean => {
-  const clauses = [...query.matchAll(/\((max|min)-width:\s*(\d+(?:\.\d+)?)px\)/g)];
-  if (clauses.length === 0) return false;
-  return clauses.every(([, kind, value]) => (kind === "max" ? width <= Number(value) : width >= Number(value)));
+  const widths = [...query.matchAll(/\((max|min)-width:\s*(\d+(?:\.\d+)?)px\)/g)];
+  const pointers = [...query.matchAll(/\(pointer:\s*(fine|coarse|none)\)/g)];
+  if (widths.length === 0 && pointers.length === 0) return false;
+  return widths.every(([, kind, value]) => (kind === "max" ? width <= Number(value) : width >= Number(value)))
+    && pointers.every(([, kind]) => kind === primaryPointer);
 };
 
 class FakeMediaQueryList extends EventTarget implements MediaQueryList {
@@ -57,9 +62,10 @@ class FakeMediaQueryList extends EventTarget implements MediaQueryList {
   }
 }
 
-/** Install `window.matchMedia` at the given viewport width. Call in `beforeEach`. */
-export function installMatchMedia(width = 1280) {
+/** Install `window.matchMedia` at the given viewport width and primary pointer (a mouse by default). Call in `beforeEach`. */
+export function installMatchMedia(width = 1280, { pointer = "fine" }: { pointer?: FakePointer } = {}) {
   viewportWidth = width;
+  primaryPointer = pointer;
   lists.clear();
   window.matchMedia = (query: string) => {
     const list = new FakeMediaQueryList(query);
@@ -72,6 +78,14 @@ export function installMatchMedia(width = 1280) {
 export function setViewportWidth(width: number) {
   act(() => {
     viewportWidth = width;
+    lists.forEach(list => list.notifyIfChanged());
+  });
+}
+
+/** Change the primary pointer (a mouse is "fine", touch is "coarse"); queries whose result changes notify their listeners. */
+export function setPrimaryPointer(pointer: FakePointer) {
+  act(() => {
+    primaryPointer = pointer;
     lists.forEach(list => list.notifyIfChanged());
   });
 }

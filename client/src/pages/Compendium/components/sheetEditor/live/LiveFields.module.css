@@ -1,0 +1,247 @@
+/* Live fields: inputs that take the room of their own text (sheet edit mode, `live`). */
+
+/* The hidden mirrors and the control share one grid cell, so the control is as wide as its longest
+   mirror: the stored value, or the typed text while it differs. Oversized values expand the
+   containing line and the reader pane scrolls instead of clipping text inside the control. */
+.live {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: max-content;
+  vertical-align: baseline;
+}
+
+.mirror,
+.input {
+  grid-area: 1 / 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-transform: inherit;
+  white-space: pre;
+}
+
+.mirror {
+  visibility: hidden;
+}
+
+/* No box of its own: a faint underline says "editable", hover and focus add a tint. Box shadows and
+   backgrounds never change layout. */
+/* Width 0 keeps the control's own intrinsic width (about 3ch, even at size=1) out of the column's
+   sizing, so only the mirror sets it; min-width then stretches the control across it. */
+.input {
+  width: 0;
+  min-width: 100%;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  text-align: inherit;
+  box-shadow: inset 0 -1px 0 color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  outline: none;
+}
+
+.input:hover {
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+}
+
+.input:focus {
+  background: color-mix(in srgb, var(--accent-primary) 16%, transparent);
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+.input::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+  opacity: 1;
+}
+
+/* The control is see-through on the sheet, so its menu would fall back to the browser's light
+   colours with the sheet's muted text. The menu takes the app's surface and text instead. */
+.select {
+  appearance: none;
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.select option {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-style: normal;
+}
+
+.live[data-invalid] .input {
+  box-shadow: inset 0 -2px 0 var(--error-color, #e06c75);
+}
+
+/* "Add" affordances exist only in edit mode: dimmer and dashed, so they read as controls. */
+.add {
+  margin-inline: 0.2rem;
+  min-width: 1.5rem;
+  padding-inline: 0.22rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent-primary) 7%, transparent);
+}
+
+.add .input {
+  color: var(--text-secondary);
+  font-style: normal;
+  font-size: 0.85em;
+  box-shadow: none;
+}
+
+.add .input::placeholder {
+  font-style: normal;
+  color: var(--text-secondary);
+}
+
+.add .input:focus {
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+}
+
+.add .mirror {
+  font-size: 0.85em;
+}
+
+.error {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 6;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--error-color, #e06c75);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+/* A value stored lowercase and shown title-cased, as view mode formats it. */
+.capitalize {
+  text-transform: capitalize;
+}
+
+/* A group whose extra control floats under it while it is in use. */
+.group {
+  position: relative;
+}
+
+.aside {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: 6;
+  display: none;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.group:hover .aside,
+.group:focus-within .aside {
+  display: block;
+}
+
+.entry {
+  position: relative;
+  display: inline-block;
+  white-space: nowrap;
+  margin-inline-end: 0.25rem;
+  border-radius: 3px;
+}
+
+.entry:is(:hover, :focus-within) {
+  background: color-mix(in srgb, var(--accent-primary) 7%, transparent);
+}
+
+.remove {
+  display: inline-flex;
+  vertical-align: middle;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+}
+
+.remove:hover,
+.remove:focus-visible {
+  background: var(--bg-tertiary);
+  color: var(--error-color, #e06c75);
+}
+
+.remove:focus-visible {
+  outline: 2px solid currentColor;
+}
+
+/* A value's mode marker sits in the corner of its host (the nearest `markerHost`), over its padding. */
+.markerHost {
+  position: relative;
+}
+
+.modeMarker {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 0.5rem;
+  height: 0.5rem;
+  padding: 0;
+  border: 1px solid var(--text-tertiary);
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+}
+
+/* Inline, after a value in a line of text rather than in a cell's corner. */
+.modeMarker[data-inline] {
+  position: relative;
+  top: -0.35em;
+  right: auto;
+  margin-left: 2px;
+}
+
+.modeMarker[data-look="filled"] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+}
+
+.modeMarker[data-look="double"] {
+  border-color: var(--accent-primary);
+  background: var(--accent-primary);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-primary) 40%, transparent);
+}
+
+.modeMarker[data-look="other"] {
+  border-color: var(--accent-secondary);
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.modeMarker:hover,
+.modeMarker:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
+}
+
+/* A derived or absent value shown, dimmed, where an editable one would be. */
+.hint {
+  color: var(--text-tertiary);
+  font-style: italic;
+}

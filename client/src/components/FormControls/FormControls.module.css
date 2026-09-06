@@ -148,6 +148,28 @@
   border-end-end-radius: 6px;
 }
 
+.comboInline {
+  position: relative;
+  grid-area: 1 / 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: 0;
+  min-width: 100%;
+}
+
+.comboInline .comboDropdown {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  right: auto;
+  width: max-content;
+  min-width: 8rem;
+  max-width: min(18rem, 80vw);
+  text-align: start;
+  text-transform: none;
+  font-weight: 400;
+  font-style: normal;
+}
+
 .comboInput {
   position: relative;
   display: grid;
