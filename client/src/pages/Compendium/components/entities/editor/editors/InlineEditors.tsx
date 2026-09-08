@@ -1,105 +1,65 @@
-import React from "react";
-import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
-import { ABILITY_FULL_NAMES, formatSignedNumber, type AbilityKey } from "src/pages/EncounterManager/components/dnd5e/Shared/dnd5eUtils.js";
+import React, { useId } from "react";
+import { formatSignedNumber, type AbilityKey } from "src/pages/EncounterManager/components/dnd5e/Shared/dnd5eUtils.js";
+import { specParse } from "../../../sheetEditor/fieldSpec.js";
+import { InlineField } from "../../../sheetEditor/InlineField.js";
+import { SuggestionList } from "../../../sheetEditor/PopoverForm.js";
 import { useActiveEdit } from "../EntityEditContext.js";
 import { getProficiencyBonusForCr } from "../model/calculations.js";
-import { MAX_ABILITY_SCORE, MAX_LEGENDARY_COUNT, MAX_WHOLE, textProblem } from "./fieldLimits.js";
-import { InlineField, parseWhole, type InlineParse } from "./InlineField.js";
+import {
+  ABILITY_ORDER,
+  AC_FIELD,
+  CR_FIELD,
+  LEGENDARY_COUNT_FIELD,
+  NAME_FIELD,
+  abilityScoreField,
+  type EntityField,
+} from "../model/fields.js";
 
-export const ABILITY_ORDER: readonly AbilityKey[] = ["str", "dex", "con", "int", "wis", "cha"];
-export const STANDARD_CRS: readonly string[] = [
-  "0", "1/8", "1/4", "1/2", ...Array.from({ length: 30 }, (_, index) => String(index + 1)),
-];
-const CR_LIST_ID = "entity-editor-standard-crs";
-
-export const NameEditor: React.FC = () => {
-  const edit = useActiveEdit();
-  return (
-    <InlineField
-      label="Name"
-      value={edit.draft.name}
-      parse={(text): InlineParse => {
-        const name = text.trim();
-        if (!name) return { ok: false, message: "A name is required." };
-        const problem = textProblem(name, ENTITY_LIMITS.name);
-        if (problem) return { ok: false, message: problem };
-        return { ok: true, apply: () => edit.commit({ name }) };
-      }}
-    />
-  );
+type SpecInlineEditorProps = {
+  spec: EntityField;
+  neighbour?: (direction: 1 | -1) => string | undefined;
+  hint?: (text: string) => string;
 };
 
-export const AcEditor: React.FC = () => {
+/** A target's inline editor for one field spec: the spec reads, parses and commits it. */
+const SpecInlineEditor: React.FC<SpecInlineEditorProps> = ({ spec, neighbour, hint }) => {
   const edit = useActiveEdit();
-  return (
-    <InlineField
-      label="Armor Class"
-      inputMode="numeric"
-      value={String(edit.draft.ac)}
-      parse={(text): InlineParse => {
-        const ac = parseWhole(text, 0, MAX_WHOLE);
-        return ac === undefined ? { ok: false, message: `A whole number from 0 to ${MAX_WHOLE}.` } : { ok: true, apply: () => edit.commit({ ac }) };
-      }}
-    />
-  );
-};
-
-export const CrEditor: React.FC = () => {
-  const edit = useActiveEdit();
-  const current = edit.draft.cr ?? "";
+  const listId = useId();
   return (
     <>
-      <datalist id={CR_LIST_ID}>
-        {STANDARD_CRS.map(cr => <option key={cr} value={cr} />)}
-      </datalist>
+      {spec.suggestions && <SuggestionList id={listId} options={spec.suggestions} />}
       <InlineField
-        label="Challenge Rating"
-        list={CR_LIST_ID}
-        value={current}
-        hint={text => `PB ${formatSignedNumber(getProficiencyBonusForCr(text))}`}
-        parse={(text): InlineParse => {
-          const cr = text.trim();
-          if (cr !== "" && !STANDARD_CRS.includes(cr)) return { ok: false, message: "Use 0, 1/8, 1/4, 1/2 or 1 to 30." };
-          return { ok: true, apply: () => edit.commit({ cr: cr === "" ? null : cr }) };
-        }}
+        label={spec.label}
+        value={spec.read(edit.draft, edit.modes)}
+        inputMode={spec.inputMode}
+        list={spec.suggestions ? listId : undefined}
+        neighbour={neighbour}
+        hint={hint}
+        parse={specParse(spec, edit)}
       />
     </>
   );
 };
 
+export const NameEditor: React.FC = () => <SpecInlineEditor spec={NAME_FIELD} />;
+
+export const AcEditor: React.FC = () => <SpecInlineEditor spec={AC_FIELD} />;
+
+export const CrEditor: React.FC = () => (
+  <SpecInlineEditor spec={CR_FIELD} hint={text => `PB ${formatSignedNumber(getProficiencyBonusForCr(text))}`} />
+);
+
 export const AbilityScoreEditor: React.FC<{ ability: AbilityKey }> = ({ ability }) => {
-  const edit = useActiveEdit();
   const index = ABILITY_ORDER.indexOf(ability);
   return (
-    <InlineField
-      label={`${ABILITY_FULL_NAMES[ability]} score`}
-      inputMode="numeric"
-      value={String(edit.draft.abilityScores[ability])}
+    <SpecInlineEditor
+      spec={abilityScoreField(ability)}
       neighbour={direction => {
         const next = ABILITY_ORDER[index + direction];
         return next ? `abilityScores.${next}` : undefined;
-      }}
-      parse={(text): InlineParse => {
-        const score = parseWhole(text, 0, MAX_ABILITY_SCORE);
-        return score === undefined
-          ? { ok: false, message: `A whole number from 0 to ${MAX_ABILITY_SCORE}.` }
-          : { ok: true, apply: () => edit.commit({ abilityScores: { ...edit.draft.abilityScores, [ability]: score } }) };
       }}
     />
   );
 };
 
-export const LegendaryCountEditor: React.FC = () => {
-  const edit = useActiveEdit();
-  return (
-    <InlineField
-      label="Legendary actions per round"
-      inputMode="numeric"
-      value={edit.draft.legendaryActionCount ? String(edit.draft.legendaryActionCount) : ""}
-      parse={(text): InlineParse => {
-        const count = text.trim() === "" ? 0 : parseWhole(text, 0, MAX_LEGENDARY_COUNT);
-        return count === undefined ? { ok: false, message: `A whole number from 0 to ${MAX_LEGENDARY_COUNT}.` } : { ok: true, apply: () => edit.commit({ legendaryActionCount: count }) };
-      }}
-    />
-  );
-};
+export const LegendaryCountEditor: React.FC = () => <SpecInlineEditor spec={LEGENDARY_COUNT_FIELD} />;

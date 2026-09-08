@@ -15,7 +15,8 @@ import {
   type EntityEditorHandle,
   type EntitySaveProgress,
 } from "./editor/EntityEditor.js";
-import { createEditorBuffer, hasOpenInput, type EditorBuffer } from "./editor/EntityEditContext.js";
+import { UnsavedBar, isWorthKeeping, useUnloadWarning } from "../sheetEditor/DraftSlot.js";
+import { createEditorBuffer, type EditorBuffer } from "../sheetEditor/SheetEditContext.js";
 import { createEntityDraftState, type EntityDraftState } from "./editor/hooks/useEntityDraft.js";
 import { createDefaultEntity, duplicateEntity, type EntityDraft } from "./editor/model/defaults.js";
 import { InventorySection } from "./InventorySection.js";
@@ -66,12 +67,6 @@ type DraftSlot = {
   buffer: EditorBuffer;
 };
 
-/**
- * A slot is kept aside when edit mode ends while it has changes, a save in flight (even of an
- * unchanged new entity, so revisiting it cannot send a second one) or input in an open editor.
- */
-const worthKeeping = (slot: DraftSlot) => slot.state.dirty || slot.save.pending || hasOpenInput(slot.buffer);
-
 const sameEdit = (left: EntityEditLocation, right: EntityEditLocation) =>
   left.target === right.target && (left.target !== "new" || left.from === right.from);
 
@@ -119,7 +114,7 @@ export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewer, isActive, 
     keepOpen: slotShown,
   });
   if (!slotShown) {
-    if (slot && !worthKeeping(slot)) {
+    if (slot && !isWorthKeeping(slot)) {
       setSlot(null);
     } else if (!slot && editing) {
       if (editing.target === "new" && (editing.from === null || fromEntity)) {
@@ -148,15 +143,7 @@ export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewer, isActive, 
   }
   const slotRef = useRef(slot);
   const hasSlot = slot !== null;
-  useEffect(() => {
-    if (!hasSlot) return;
-    // Read when the page unloads: typed input reaches the buffer without a render here.
-    const warn = (event: BeforeUnloadEvent) => {
-      if (slotRef.current && worthKeeping(slotRef.current)) event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [hasSlot]);
+  useUnloadWarning(hasSlot, () => slotRef.current !== null && isWorthKeeping(slotRef.current));
   const editingRef = useRef(editing);
   useEffect(() => {
     slotRef.current = slot;
@@ -198,12 +185,8 @@ export const EntityBrowser: React.FC<EntityBrowserProps> = ({ viewer, isActive, 
     onEditEnd(selected);
   };
 
-  const unsavedBar = slot && !slotShown && worthKeeping(slot) && (
-    <div className={styles.unsavedBar} role="region" aria-label="Unsaved changes">
-      <span>Unsaved changes to {draftName(slot)}</span>
-      <button type="button" className={browserStyles.secondaryButton} onClick={() => onEdit(slot.edit)}>Resume</button>
-      <button type="button" className={browserStyles.secondaryButton} onClick={() => setSlot(null)}>Discard</button>
-    </div>
+  const unsavedBar = slot && !slotShown && isWorthKeeping(slot) && (
+    <UnsavedBar name={draftName(slot)} onResume={() => onEdit(slot.edit)} onDiscard={() => setSlot(null)} />
   );
 
   let detail: React.ReactNode;

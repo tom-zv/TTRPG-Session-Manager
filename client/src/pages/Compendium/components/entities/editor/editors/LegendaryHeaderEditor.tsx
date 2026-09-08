@@ -1,8 +1,9 @@
 import React from "react";
 import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
-import { descriptionTooLong } from "./EntryCardFrame.js";
-import { Field, PopoverForm, keepAbsent } from "./PopoverForm.js";
+import { useActiveEdit } from "../EntityEditContext.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
+import { descriptionTooLong } from "../../../sheetEditor/EntryCardFrame.js";
+import { Field, PopoverForm, keepAbsent } from "../../../sheetEditor/PopoverForm.js";
 import { textProblem } from "./fieldLimits.js";
 
 /** The text above the legendary actions ("The dragon can take 3 legendary actions…"), one paragraph per blank line. */

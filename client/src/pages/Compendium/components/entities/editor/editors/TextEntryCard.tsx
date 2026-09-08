@@ -3,10 +3,11 @@ import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.j
 import type { SpellEntry } from "shared/domain/encounters/dnd5e/entity.js";
 import type { ItemSummary } from "shared/domain/dnd5e/item.js";
 import { ItemPicker } from "../../../items/ItemPicker.js";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
+import { useActiveEdit } from "../EntityEditContext.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
 import type { LayoutItem } from "../model/entryLayout.js";
-import { EntryCardFrame, descriptionTooLong, sameValue, type EntryCardHost } from "./EntryCardFrame.js";
-import { Field } from "./PopoverForm.js";
+import { EntryCardFrame, descriptionTooLong, sameValue, type EntryCardHost } from "../../../sheetEditor/EntryCardFrame.js";
+import { Field } from "../../../sheetEditor/PopoverForm.js";
 import { SpellSearch } from "./SpellSearch.js";
 import { textProblem } from "./fieldLimits.js";
 import styles from "./EntryCards.module.css";
@@ -21,7 +22,7 @@ const referenceTag = (type: "spell" | "item", name: string, source?: string): st
  * A trait or action as a card: its name and raw text (tags as written), buttons that insert spell
  * and item tags at the cursor, and the section it belongs to.
  */
-export const TextEntryCard: React.FC<{ host: EntryCardHost; item: TextItem }> = ({ host, item }) => {
+export const TextEntryCard: React.FC<{ host: EntryCardHost<LayoutItem>; item: TextItem }> = ({ host, item }) => {
   const { viewer } = useActiveEdit();
   const [name, setName] = useEditorState("text.name", item.value.name);
   const [description, setDescription] = useEditorState("text.description", item.value.description);

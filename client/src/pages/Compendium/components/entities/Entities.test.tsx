@@ -249,7 +249,7 @@ const pressRowInSplitPane = (row: HTMLElement) => act(() => void fireEvent.mouse
 
 beforeEach(() => {
   installLayoutApis();
-  installMatchMedia(1280);
+  installMatchMedia(1280, { pointer: "coarse" });
 });
 
 describe("GM entity browser", () => {

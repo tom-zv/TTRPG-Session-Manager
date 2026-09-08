@@ -9,16 +9,17 @@ import {
 } from "shared/domain/encounters/dnd5e/entity.js";
 import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import { formatSignedNumber } from "src/pages/EncounterManager/components/dnd5e/Shared/dnd5eUtils.js";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
+import { useActiveEdit } from "../EntityEditContext.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
 import { getProficiencyBonusForCr, getSpellAttackBonus, getSpellSaveDc } from "../model/calculations.js";
 import type { LayoutItem } from "../model/entryLayout.js";
 import type { SpellcastingModes } from "../model/inference.js";
 import { SPELL_GROUP_KIND_OPTIONS, SPELLCASTING_ABILITY_OPTIONS, SPELLCASTING_DISPLAY_OPTIONS } from "../model/options.js";
-import { EntryCardFrame, descriptionTooLong, sameValue, type EntryCardHost } from "./EntryCardFrame.js";
-import { Field } from "./PopoverForm.js";
+import { EntryCardFrame, descriptionTooLong, sameValue, type EntryCardHost } from "../../../sheetEditor/EntryCardFrame.js";
+import { Field } from "../../../sheetEditor/PopoverForm.js";
 import { SpellSearch } from "./SpellSearch.js";
 import { MAX_WHOLE, textProblem } from "./fieldLimits.js";
-import { parseWhole } from "./InlineField.js";
+import { parseWhole } from "../../../sheetEditor/InlineField.js";
 import styles from "./EntryCards.module.css";
 
 type SpellcastingItem = Extract<LayoutItem, { kind: "spellcasting" }>;
@@ -69,7 +70,7 @@ const toGroups = (spellcasting: EntitySpellcasting): GroupDraft[] => [
  * (each worked out from the ability and proficiency bonus, or typed), its descriptions, and its
  * spell lists. Spells are chosen from the spell index, so each keeps its source.
  */
-export const SpellcastingCard: React.FC<{ host: EntryCardHost; item: SpellcastingItem }> = ({ host, item }) => {
+export const SpellcastingCard: React.FC<{ host: EntryCardHost<LayoutItem>; item: SpellcastingItem }> = ({ host, item }) => {
   const { draft } = useActiveEdit();
   const original = item.value;
   const pb = getProficiencyBonusForCr(draft.cr);

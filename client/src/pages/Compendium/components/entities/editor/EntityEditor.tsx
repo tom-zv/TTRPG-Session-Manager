@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useEffect, useId, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
 import {
   ENTITY_LIMITS,
@@ -12,12 +12,17 @@ import {
   usePatchDnD5eEntitySettings,
   useUpdateDnD5eEntity,
 } from "src/pages/EncounterManager/api/dnd5e/entities/query/useDnD5eEntityQueries.js";
-import { EntityWriteError } from "src/pages/EncounterManager/api/entityApi.js";
+import { WriteValidationError } from "src/api/writeFailure.js";
 import { useMediaQuery } from "src/hooks/useMediaQuery.js";
 import type { ItemViewer } from "../../../api/query/itemKeys.js";
 import { NARROW_BROWSER_QUERY } from "../../browser/BrowserLayout.js";
+import { SheetEditContext, type EditorBuffer } from "../../sheetEditor/SheetEditContext.js";
+import { SheetEditorToolbar, handleSheetEditorKeyDown, useSheetHistory } from "../../sheetEditor/SheetEditorToolbar.js";
+import type { PlacedIssue } from "../../sheetEditor/issues.js";
+import { useOpenEditor } from "../../sheetEditor/useOpenEditor.js";
+import { usePresentation, type SheetPresentation } from "../../sheetEditor/usePresentation.js";
 import { EntitySheet } from "../EntitySheet.js";
-import { EntityEditContext, type EditorBuffer, type EditorBufferApi, type EntityEditApi } from "./EntityEditContext.js";
+import type { EntityEditApi } from "./EntityEditContext.js";
 import { MAX_PASSIVE_PERCEPTION } from "./editors/fieldLimits.js";
 import {
   entityDraftReducer,
@@ -27,8 +32,9 @@ import {
 } from "./hooks/useEntityDraft.js";
 import type { EntityDraft } from "./model/defaults.js";
 import { getAutoPassivePerception } from "./model/inference.js";
-import { placeIssues, type PlacedIssue } from "./model/issueTargets.js";
+import { placeIssues } from "./model/issueTargets.js";
 import { changedSettings } from "./model/settingsPatch.js";
+import sheetStyles from "../../sheetEditor/SheetEditor.module.css";
 import styles from "./EntityEditor.module.css";
 
 type EntityEditorProps = {
@@ -117,6 +123,10 @@ const createInput = (draft: EntityDraft): Record<string, unknown> => ({
   ...(draft.speeds == null ? { speeds: {} } : {}),
 });
 
+/** The first issue's target in a presentation, or null when no issue has one. */
+const firstTarget = (issues: readonly EntityWriteIssue[], draft: EntityDraft, presentation: SheetPresentation): string | null =>
+  placeIssues(issues, draft, presentation).find(issue => issue.targetId !== null)?.targetId ?? null;
+
 const withoutSettings = (draft: EntityDraft): Partial<EntityDraft> => {
   const data: Partial<EntityDraft> = { ...draft };
   delete data.settings;
@@ -139,12 +149,9 @@ const validateDraft = (state: EntityDraftState): CheckedDraft => {
   return result.ok ? { ok: true, create: false, id: state.target, value: result.value } : result;
 };
 
-const isEditableElement = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select") !== null);
-
 /**
  * Edit mode for the Compendium sheet: the toolbar (changes, issues, Undo and Redo, Cancel, Save),
- * the copy or overwrite banner for imported entities, and the save rules. Save validates the whole
+ * the copy or overwrite destination for imported entities, and the save rules. Save validates the whole
  * draft first; an existing template is PUT without its settings, followed by a PATCH of only the
  * settings that changed. A new entity or a copy of an imported one is POSTed with its settings.
  */
@@ -160,6 +167,17 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   useLayoutEffect(() => {
     latestRef.current = state;
   }, [state]);
+  const narrow = useMediaQuery(NARROW_BROWSER_QUERY);
+  const presentation = usePresentation();
+  const create = useCreateDnD5eEntity();
+  const update = useUpdateDnD5eEntity();
+  const patchSettings = usePatchDnD5eEntitySettings();
+  const [savingLocally, setSavingLocally] = useState(false);
+  const saving = savingLocally || saveProgress.pending;
+  const {
+    activeId, open, close, closeTo, switchTo, commitRef, takeFocus, focusOpenRef, claim, registerLive, requestLiveFocus, focusLive,
+    pendingLive, carriedId, bufferApi, reopen, settle, unapplied, settleLive, pruneLive,
+  } = useOpenEditor({ buffer, saving, presentation });
   const dispatch = useCallback((action: EntityDraftAction) => {
     const current = latestRef.current;
     const next = entityDraftReducer(current, action);
@@ -176,40 +194,11 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
     }
     if (next === current) return undefined;
     latestRef.current = next;
+    // Unapplied live text over a value this changed (Undo, another field) or removed is replaced.
+    pruneLive(getEntityDraftWrite(next), next.modes);
     onChange(next);
     return undefined;
-  }, [onChange]);
-  const bufferRef = useRef(buffer);
-  const [activeId, setActiveIdState] = useState<string | null>(buffer.activeId);
-  // Every change of editor starts the buffer afresh: the open input was committed first, and after
-  // a move renumbers entries the same id can name another entry. Only a remount restores it.
-  const setActiveId = useCallback((id: string | null) => {
-    bufferRef.current.activeId = id;
-    bufferRef.current.values = {};
-    bufferRef.current.newEntry = null;
-    setActiveIdState(id);
-  }, []);
-  const bufferApi = useMemo<EditorBufferApi>(() => ({
-    restore: key => Object.hasOwn(bufferRef.current.values, key) ? { value: bufferRef.current.values[key] } : undefined,
-    keep: (key, value) => {
-      bufferRef.current.values[key] = value;
-    },
-    forget: key => {
-      delete bufferRef.current.values[key];
-    },
-    restoreNewEntry: () => bufferRef.current.newEntry,
-    keepNewEntry: entry => {
-      bufferRef.current.newEntry = entry;
-    },
-  }), []);
-  const commitRef = useRef<(() => boolean) | null>(null);
-  const focusIdRef = useRef<string | null>(null);
-  const narrow = useMediaQuery(NARROW_BROWSER_QUERY);
-  const create = useCreateDnD5eEntity();
-  const update = useUpdateDnD5eEntity();
-  const patchSettings = usePatchDnD5eEntitySettings();
-  const [savingLocally, setSavingLocally] = useState(false);
-  const saving = savingLocally || saveProgress.pending;
+  }, [onChange, pruneLive]);
   // Client issues are re-checked as the draft changes; the server's stand until the next edit.
   const [clientIssues, setClientIssues] = useState(false);
   const rejection = saveProgress.rejected?.state === state ? saveProgress.rejected : undefined;
@@ -217,15 +206,19 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   // A rejection that arrives while this editor is mounted shows its issues and opens the first
   // one's editor. The editor that sent the save already wrote that editor into the slot's buffer.
   const [seenRejection, setSeenRejection] = useState(saveProgress.rejected);
+  // The first issue is resolved after the sheet renders, both for an immediate rejection and for
+  // Resume after a late one. The target is chosen in whichever presentation is active now.
+  const [jumpAfterRender, setJumpAfterRender] = useState<string | null>(
+    () => rejection ? firstTarget(rejection.issues, getEntityDraftWrite(rejection.state), presentation) : null,
+  );
   if (saveProgress.rejected !== seenRejection) {
     setSeenRejection(saveProgress.rejected);
     if (rejection) {
       setIssuesOpen(true);
-      if (rejection.openId !== null) setActiveIdState(rejection.openId);
+      setJumpAfterRender(firstTarget(rejection.issues, getEntityDraftWrite(rejection.state), presentation));
     }
   }
   const [confirming, setConfirming] = useState<"cancel" | "overwrite" | null>(null);
-  const issuesId = useId();
   const confirmRef = useRef<HTMLButtonElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const overwriteRef = useRef<HTMLButtonElement>(null);
@@ -237,47 +230,12 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
 
   const write = useMemo(() => getEntityDraftWrite(state), [state]);
   const issues = useMemo<PlacedIssue[]>(() => {
-    if (rejection) return placeIssues(rejection.issues, write);
+    if (rejection) return placeIssues(rejection.issues, write, presentation);
     if (!clientIssues) return [];
     const result = validateDraft(state);
-    return result.ok ? [] : placeIssues(result.issues, write);
-  }, [rejection, clientIssues, state, write]);
+    return result.ok ? [] : placeIssues(result.issues, write, presentation);
+  }, [rejection, clientIssues, state, write, presentation]);
 
-  const open = useCallback((id: string | (() => string | null)) => {
-    if (saving) return false;
-    if (commitRef.current && !commitRef.current()) return false;
-    setActiveId(typeof id === "function" ? id() : id);
-    return true;
-  }, [saving, setActiveId]);
-  const close = useCallback((restoreFocus = false) => {
-    focusIdRef.current = restoreFocus ? activeId : null;
-    setActiveId(null);
-  }, [activeId, setActiveId]);
-  const closeTo = useCallback((focusId: string) => {
-    focusIdRef.current = focusId;
-    setActiveId(null);
-  }, [setActiveId]);
-  const switchTo = useCallback((id: string) => {
-    focusIdRef.current = null;
-    setActiveId(id);
-  }, [setActiveId]);
-  const takeFocus = useCallback((id: string) => {
-    const mine = focusIdRef.current === id;
-    if (mine) focusIdRef.current = null;
-    return mine;
-  }, []);
-  /**
-   * A toolbar action while an editor is open: commits the editor's value and closes it, or, when
-   * the value is invalid, leaves it open with its message and reports false so the action stops.
-   */
-  const settle = useCallback((): boolean => {
-    // Navigation may leave a save in flight, but a save never starts with a buffer still open.
-    if (saving) return commitRef.current === null;
-    if (commitRef.current && !commitRef.current()) return false;
-    focusIdRef.current = null;
-    setActiveId(null);
-    return true;
-  }, [saving, setActiveId]);
   useImperativeHandle(ref, () => ({ settle }), [settle]);
   const commit = useCallback<EntityEditApi["commit"]>(
     (patch, modes) => saving ? "The entity is being saved." : dispatch({ type: "commit", patch, modes }),
@@ -285,22 +243,61 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   );
   // Input left open when this editor unmounts (Back, a breakpoint) stays in `buffer` for the next
   // mount. Controlled navigation settles it first, and an invalid value keeps that navigation in place.
-
   const api = useMemo<EntityEditApi>(
-    () => ({ draft: write, modes: state.modes, activeId, narrow, open, close, closeTo, switchTo, commit, commitRef, takeFocus, viewer, buffer: bufferApi }),
-    [write, state.modes, activeId, narrow, open, close, closeTo, switchTo, commit, takeFocus, viewer, bufferApi],
+    () => ({
+      draft: write, modes: state.modes, activeId, narrow, presentation, open, close, closeTo, switchTo, commit, commitRef, takeFocus, viewer,
+      buffer: bufferApi, focusOpenRef, claim, registerLive, requestLiveFocus, pendingLive, carriedId,
+    }),
+    [
+      write, state.modes, activeId, narrow, presentation, open, close, closeTo, switchTo, commit, commitRef, takeFocus, viewer,
+      bufferApi, focusOpenRef, claim, registerLive, requestLiveFocus, pendingLive, carriedId,
+    ],
   );
   const sheetEntity = useMemo(() => toSheetEntity(entity, write), [entity, write]);
+
+  /**
+   * An issue's jump in the current presentation: on a live sheet the field itself takes focus (its
+   * line's add control or first field when it is absent); otherwise, and for entry cards and
+   * pickers, the editor opens.
+   */
+  const jump = useCallback((targetId: string) => {
+    if (presentation === "live" && focusLive(targetId)) return;
+    open(targetId);
+  }, [presentation, focusLive, open]);
+  useEffect(() => {
+    if (jumpAfterRender === null) return;
+    // A target from the original presentation may have reached the slot just before Resume.
+    // Clear that carried editor so the current live presentation can mount and focus its field.
+    if (presentation === "live" && carriedId === activeId && activeId !== null) {
+      reopen(null);
+      return;
+    }
+    jump(jumpAfterRender);
+    setJumpAfterRender(null);
+  }, [activeId, carriedId, jumpAfterRender, jump, presentation, reopen]);
+
+  /** Applies valid unapplied live text through each field's spec; returns how many fields still hold text. */
+  const applyLiveText = useCallback(() => settleLive(
+    () => ({ draft: getEntityDraftWrite(latestRef.current), modes: latestRef.current.modes }),
+    result => (result.ok ? commit(result.patch as Partial<EntityDraft>, result.modes as EntityEditApi["modes"] | undefined) : result.message),
+  ), [settleLive, commit]);
+  // Leaving the live presentation is a blur: valid typed text applies. Text that does not apply
+  // keeps its field on the sheet (see `EntitySheet`), where it can be fixed or reverted.
+  useEffect(() => {
+    if (presentation === "targets") applyLiveText();
+  }, [presentation, applyLiveText]);
 
   /** Shows the issues and opens the editor of the first one that has an editor. */
   const showIssues = (placed: readonly PlacedIssue[]) => {
     setIssuesOpen(true);
     const first = placed.find(issue => issue.targetId !== null);
-    if (first?.targetId) open(first.targetId);
+    if (first?.targetId) jump(first.targetId);
   };
 
   const save = async () => {
     if (saving || !settle()) return;
+    // A live field that is not focused (after a remount or a switch) holds text no blur applied.
+    if (applyLiveText() > 0) return;
     const current = latestRef.current;
     // A pending edit that was valid is in the draft now; an unchanged template has nothing to send.
     if (!current.dirty && current.target !== "new") return;
@@ -313,7 +310,7 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
       onSaveProgress({ pending: false, error: null, acknowledged: earlier });
       setSavingLocally(false);
       setClientIssues(true);
-      showIssues(placeIssues(checked.issues, draft));
+      showIssues(placeIssues(checked.issues, draft, presentation));
       return;
     }
     setClientIssues(false);
@@ -354,16 +351,14 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
       }
       onSaved(saved);
     } catch (error) {
-      if (error instanceof EntityWriteError) {
+      if (error instanceof WriteValidationError) {
         // This editor may have unmounted (Back, Resume, a breakpoint) while the save was in flight.
         // The slot carries the issues to whichever editor is mounted now, and the buffer the editor
         // to open; no editor is open during a save, so there is nothing to commit first.
+        // A live sheet focuses the field instead, when the rejection reaches the mounted editor.
         const rejected = latestRef.current;
-        const openId = placeIssues(error.issues, getEntityDraftWrite(rejected)).find(issue => issue.targetId !== null)?.targetId ?? null;
-        if (openId !== null) {
-          focusIdRef.current = null;
-          setActiveId(openId);
-        }
+        const openId = firstTarget(error.issues, getEntityDraftWrite(rejected), "targets");
+        if (openId !== null && presentation === "targets") switchTo(openId);
         onSaveProgress({ pending: false, error: error.message, acknowledged: earlier, rejected: { issues: error.issues, state: rejected, openId } });
       } else {
         onSaveProgress({ pending: false, error: (error as Error).message, acknowledged: earlier });
@@ -372,27 +367,15 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
       setSavingLocally(false);
     }
   };
-  const undoRef = useRef<HTMLButtonElement>(null);
-  const redoRef = useRef<HTMLButtonElement>(null);
-  const step = (type: "undo" | "redo") => {
-    if (saving) return;
-    if (!settle()) return;
-    dispatch({ type });
-    // A step can remove the focused control (an added entry, an open card). Focus then goes to the
-    // history button that is certainly enabled now: Redo after Undo, Undo after Redo.
-    window.setTimeout(() => {
-      if (document.activeElement === null || document.activeElement === document.body) {
-        (type === "undo" ? redoRef : undoRef).current?.focus();
-      }
-    }, 0);
-  };
+  const { step, undoRef, redoRef } = useSheetHistory({ saving, settle, apply: type => dispatch({ type }) });
   const cancel = () => {
     if (!settle()) return;
     if (latestRef.current.dirty) setConfirming("cancel");
     else onCancel();
   };
-  // An open editor may hold a first edit the draft has not seen yet, so Save stays available.
-  const canSave = (state.dirty || activeId !== null || state.target === "new") && !saving;
+  // An open editor may hold a first edit the draft has not seen yet, so Save stays available. A
+  // live field's text that did not apply holds Save until it is fixed or reverted (Escape).
+  const canSave = (state.dirty || activeId !== null || pendingLive.length > 0 || state.target === "new") && !saving && unapplied === 0;
   // The destination of a save in flight cannot change under it.
   const setMode = (mode: "copy" | "overwrite") => {
     if (saving) return false;
@@ -406,117 +389,91 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
     window.requestAnimationFrame(() => (kind === "cancel" ? cancelRef : overwriteRef).current?.focus());
   };
 
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!event.currentTarget.contains(event.target as Node)) return;
-    // Undo and Redo over committed edits; text fields keep their own undo.
-    if ((event.ctrlKey || event.metaKey) && !event.altKey && event.key.toLowerCase() === "z" && !isEditableElement(event.target)) {
-      event.preventDefault();
-      step(event.shiftKey ? "redo" : "undo");
-      return;
-    }
-    if (event.key === "Escape" && confirming) {
-      event.preventDefault();
-      event.stopPropagation();
-      dismissConfirm();
-      return;
-    }
-    if (!narrow || activeId === null || event.key !== "Escape") return;
-    // Catch Escape from controls anywhere in the sheet before it reaches the narrow dialog.
-    event.preventDefault();
-    event.stopPropagation();
-    close(true);
-  };
-
   const name = entity.name;
-  const showBanner = entity.imported && state.target !== "new";
+  const imported = entity.imported && state.target !== "new";
   const changes = state.history.past.length;
 
   return (
-    <EntityEditContext value={api}>
+    <SheetEditContext value={api}>
       {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-      <div onKeyDown={handleKeyDown}>
-        <div className={styles.toolbar} role="toolbar" aria-label="Editing">
-          <span>
-            {state.target === "new" ? "New entity" : "Editing"}
-            {/* After a partial save, Undo can return to the loaded values, which are no longer stored. */}
-            {state.dirty ? (changes > 0 ? ` · ${changes} changes` : " · unsaved changes") : ""}
-          </span>
-          {issues.length > 0 && (
-            <button
-              type="button"
-              className={styles.issuesButton}
-              aria-expanded={issuesOpen}
-              aria-controls={issuesId}
-              onClick={() => setIssuesOpen(value => !value)}
-            >
-              {issues.length} {issues.length === 1 ? "issue" : "issues"}
-            </button>
-          )}
-          <button ref={undoRef} type="button" disabled={saving || state.history.past.length === 0} onClick={() => step("undo")} aria-keyshortcuts="Control+Z">Undo</button>
-          <button ref={redoRef} type="button" disabled={saving || state.history.future.length === 0} onClick={() => step("redo")} aria-keyshortcuts="Control+Shift+Z">Redo</button>
-          <button ref={cancelRef} type="button" disabled={saving} onClick={cancel}>Cancel</button>
-          <button type="button" className={styles.save} disabled={!canSave} onClick={() => void save()}>
-            {saving ? "Saving…" : "Save"}
-          </button>
-        </div>
-        {confirming === "cancel" && (
-          <div className={styles.confirm} role="group" aria-label="Discard unsaved changes?">
-            <p>Discard the unsaved changes to {write.name || name}?</p>
-            <button type="button" onClick={onCancel}>Discard changes</button>
-            <button ref={confirmRef} type="button" onClick={dismissConfirm}>Keep editing</button>
-          </div>
-        )}
-        {(saveProgress.error || (issues.length > 0 && !rejection && clientIssues)) && (
-          <p role="alert" className={styles.error}>
-            {saveProgress.error ?? `Not saved. Fix ${issues.length} ${issues.length === 1 ? "issue" : "issues"} first.`}
-          </p>
-        )}
-        {issuesOpen && issues.length > 0 && (
-          <ul id={issuesId} className={styles.issues} aria-label="Issues">
-            {issues.map((issue, index) => (
-              <li key={`${issue.path}-${index}`}>
-                {issue.targetId ? (
-                  <button type="button" onClick={() => open(issue.targetId!)}>
-                    {issue.place}: {issue.message}
-                  </button>
-                ) : (
-                  <span>{issue.place}: {issue.message}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-        {showBanner && (state.mode === "overwrite" ? (
-          <div className={styles.banner} role="note">
-            <p>Saving changes the imported {name} ({entity.source}) itself. Re-imports will skip it.</p>
-            <button ref={copyInsteadRef} type="button" disabled={saving} onClick={() => setMode("copy")}>Save as a copy instead</button>
-          </div>
-        ) : (
-          <div className={styles.banner} role="note">
-            <p>Saving creates a homebrew copy. The imported {name} ({entity.source}) is unchanged.</p>
-            {confirming === "overwrite" ? (
-              <div className={styles.confirm} role="group" aria-label={`Edit the imported ${name}?`}>
-                <p>Re-imports will skip {name}, and the encounters that use it will change.</p>
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => {
+      <div
+        onKeyDown={event => handleSheetEditorKeyDown(event, {
+          step,
+          confirming: confirming !== null,
+          dismissConfirm,
+          captureEscape: narrow && activeId !== null,
+          closeEditor: () => close(true),
+        })}
+      >
+        <EntitySheet
+          entity={sheetEntity}
+          renderEditHeading={title => (
+            <>
+              <SheetEditorToolbar
+                title={title}
+                heading={state.target === "new" ? "New entity" : "Editing"}
+                dirty={state.dirty}
+                changes={changes}
+                issues={issues}
+                issuesOpen={issuesOpen}
+                onToggleIssues={() => setIssuesOpen(value => !value)}
+                onOpenIssue={jump}
+                alert={saveProgress.error ?? (issues.length > 0 && !rejection && clientIssues
+                  ? `Not saved. Fix ${issues.length} ${issues.length === 1 ? "issue" : "issues"} first.`
+                  : null)}
+                saving={saving}
+                unapplied={unapplied}
+                canSave={canSave}
+                canUndo={state.history.past.length > 0}
+                canRedo={state.history.future.length > 0}
+                onStep={step}
+                undoRef={undoRef}
+                redoRef={redoRef}
+                onCancel={cancel}
+                cancelRef={cancelRef}
+                onSave={() => void save()}
+                confirmDiscard={confirming === "cancel"
+                  ? { name: write.name || name, onDiscard: onCancel, onKeep: dismissConfirm }
+                  : null}
+                keepRef={confirmRef}
+              />
+              {confirming === "overwrite" && (
+                <div className={sheetStyles.confirm} role="group" aria-label={`Edit the imported ${name}?`}>
+                  <p>Re-imports will skip {name}, and the encounters that use it will change.</p>
+                  <button type="button" disabled={saving} onClick={() => {
                     if (!setMode("overwrite")) return;
                     setConfirming(null);
                     window.requestAnimationFrame(() => copyInsteadRef.current?.focus());
-                  }}
-                >
-                  Edit the original
-                </button>
-                <button ref={confirmRef} type="button" onClick={dismissConfirm}>Keep saving a copy</button>
-              </div>
-            ) : (
-              <button ref={overwriteRef} type="button" disabled={saving} onClick={() => setConfirming("overwrite")}>Edit the original instead</button>
-            )}
-          </div>
-        ))}
-        <EntitySheet entity={sheetEntity}>{children}</EntitySheet>
+                  }}>Edit the original</button>
+                  <button ref={confirmRef} type="button" onClick={dismissConfirm}>Keep saving a copy</button>
+                </div>
+              )}
+            </>
+          )}
+          saveDestination={imported && (
+            <span className={styles.destination} role="note">
+              <span className={styles.visuallyHidden}>
+                {state.mode === "overwrite"
+                  ? `Saving changes the imported ${name} (${entity.source}) itself. Re-imports will skip it.`
+                  : `Saving creates a homebrew copy. The imported ${name} (${entity.source}) is unchanged.`}
+              </span>
+              {state.mode === "overwrite" ? (
+                <>
+                  Editing original
+                  <button ref={copyInsteadRef} type="button" disabled={saving} aria-label="Save as a copy instead" onClick={() => setMode("copy")}>Save as a copy</button>
+                </>
+              ) : (
+                <>
+                  Homebrew copy
+                  <button ref={overwriteRef} type="button" disabled={saving} aria-label="Edit the original instead" onClick={() => setConfirming("overwrite")}>Edit the original</button>
+                </>
+              )}
+            </span>
+          )}
+        >
+          {children}
+        </EntitySheet>
       </div>
-    </EntityEditContext>
+    </SheetEditContext>
   );
 });

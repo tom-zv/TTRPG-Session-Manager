@@ -9,10 +9,12 @@ import {
 import { getSectionTitle, normalizeEntrySection } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.utils.js";
 import cardStyles from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.module.css";
 import { useDropTarget } from "src/hooks/useDropTarget.js";
-import { EditTarget } from "./EditTarget.js";
-import { useActiveEdit } from "./EntityEditContext.js";
-import { ENTRY_DRAG_TYPE, type EntryCardHost, type EntryDropHandler } from "./editors/EntryCardFrame.js";
+import { EditTarget } from "../../sheetEditor/EditTarget.js";
+import { useActiveEdit, useLiveRegion } from "./EntityEditContext.js";
+import { ENTRY_DRAG_TYPE, type EntryCardHost, type EntryDropHandler } from "../../sheetEditor/EntryCardFrame.js";
 import { LegendaryCountEditor } from "./editors/InlineEditors.js";
+import { LiveSpecField } from "../../sheetEditor/live/LiveField.js";
+import { LEGENDARY_COUNT_FIELD } from "./model/fields.js";
 import { LegendaryHeaderEditor } from "./editors/LegendaryHeaderEditor.js";
 import { SpellcastingCard } from "./editors/SpellcastingCard.js";
 import { TextEntryCard } from "./editors/TextEntryCard.js";
@@ -37,7 +39,7 @@ import {
 import { AUTO_SPELLCASTING } from "./model/inference.js";
 import { RichText } from "../../RichText/RichText.js";
 import { getAddableSections } from "./model/sectionCatalog.js";
-import editStyles from "./EntityEditor.module.css";
+import editStyles from "../../sheetEditor/SheetEditor.module.css";
 import styles from "./editors/EntryCards.module.css";
 
 /** The editor id of the card for an entry that is not in the draft yet. */
@@ -69,6 +71,8 @@ const blankItem = (sectionKey: string, kind: "trait" | "action" | "spellcasting"
 };
 
 const isText = (item: LayoutItem) => item.kind !== "spellcasting";
+/** Entries move among text entries, or among spellcasting blocks, of a section. */
+const dropGroup = (item: LayoutItem) => (isText(item) ? "text" : "spellcasting");
 
 // A card's React key follows the entry's row object, not only its id: after a move renumbers the
 // list, the same id can name another entry, whose card must not keep the previous one's fields.
@@ -162,7 +166,7 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
     section: LayoutSection,
     at: LayoutAt | null,
     returnId: string,
-  ): EntryCardHost => {
+  ): EntryCardHost<LayoutItem> => {
     const group = section.items.filter(candidate => isText(candidate) === isText(item));
     return {
       id,
@@ -170,6 +174,7 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
       item,
       isNew: at === null,
       sectionKey: section.key,
+      group: dropGroup(item),
       position: at ? { index: at.item - (isText(item) ? 0 : section.items.length - group.length), count: group.length } : { index: 0, count: 1 },
       sectionChoices: sectionChoices(layout, item.kind),
       save: (value, move) => {
@@ -196,7 +201,7 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
   };
 
   // A new card remounts for each "+ Add", so it never keeps the fields of the previous one.
-  const renderCard = (cardHost: EntryCardHost, key: string) =>
+  const renderCard = (cardHost: EntryCardHost<LayoutItem>, key: string) =>
     cardHost.item.kind === "spellcasting"
       ? <SpellcastingCard key={key} host={cardHost} item={cardHost.item} />
       : <TextEntryCard key={key} host={cardHost} item={cardHost.item} />;
@@ -327,7 +332,7 @@ const EntrySlot: React.FC<EntrySlotProps> = ({ id, item, label, sectionKey, posi
   const triggerRef = useTakesFocus(id, false);
   const { dropAreaProps } = useDropTarget<{ index: number }>({
     acceptedTypes: [ENTRY_DRAG_TYPE],
-    onItemsDropped: async () => onDrop({ sectionKey, text: item.kind !== "spellcasting", position }),
+    onItemsDropped: async () => onDrop({ sectionKey, group: dropGroup(item), position }),
   });
   const renderName = (formatted: string) => (
     <button ref={triggerRef} type="button" className={editStyles.target} aria-label={`Edit ${label}`} aria-expanded={false} onClick={() => onOpen(id)}>
@@ -359,13 +364,14 @@ const AddButton: React.FC<{ id: string; label: string; onClick: () => void }> = 
 
 /** The legendary section's count and introduction, edited where they are shown. */
 const LegendaryControls: React.FC<{ entity: DnD5eEntityDetails }> = ({ entity }) => {
+  const live = useLiveRegion()("legendaryActionCount");
   const count = entity.legendaryActionCount;
   const header = entity.legendaryHeader ?? [];
   return (
     <div className={styles.legendary}>
       <p className={cardStyles.sectionIntro}>
         <strong>Legendary Action Uses:</strong>{" "}
-        {count ? (
+        {live ? <LiveSpecField spec={LEGENDARY_COUNT_FIELD} /> : count ? (
           <EditTarget id="legendaryActionCount" kind="inline" label={`Legendary actions per round, ${count}`} editor={<LegendaryCountEditor />}>
             {count}
           </EditTarget>

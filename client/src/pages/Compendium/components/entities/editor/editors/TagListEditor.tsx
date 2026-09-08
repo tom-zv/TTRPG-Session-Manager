@@ -1,60 +1,41 @@
 import React from "react";
-import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import { TagInput, appendTag } from "src/components/FormControls/TagInput.js";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
-import { LANGUAGE_PRESETS, SENSE_PRESETS } from "../model/options.js";
-import { Field, PopoverForm, keepAbsent } from "./PopoverForm.js";
-import { MAX_PASSIVE_PERCEPTION, textProblem } from "./fieldLimits.js";
-import { parseWhole } from "./InlineField.js";
+import { parseTokens } from "../../../sheetEditor/fieldSpec.js";
+import { Field, PopoverForm } from "../../../sheetEditor/PopoverForm.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
+import { useActiveEdit } from "../EntityEditContext.js";
+import { LANGUAGES, PASSIVE_PERCEPTION_FIELD, SENSES } from "../model/fields.js";
 
 /** Senses (with passive Perception) or languages: tags, with common ones offered as presets. */
 export const TagListEditor: React.FC<{ field: "senses" | "languages" }> = ({ field }) => {
   const edit = useActiveEdit();
   const { draft, modes } = edit;
-  const [items, setItems] = useEditorState("tags.items", draft[field] ?? []);
+  const spec = field === "senses" ? SENSES : LANGUAGES;
+  const [items, setItems] = useEditorState("tags.items", spec.read(draft));
   const [pendingText, setPendingText] = useEditorState("tags.pendingText", "");
   const [auto, setAuto] = useEditorState("tags.auto", modes.passivePerception === "auto");
   const [passive, setPassive] = useEditorState("tags.passive", String(draft.passivePerception ?? ""));
   const [error, setError] = useEditorState<string | null>("tags.error", null);
 
   const apply = (): boolean => {
-    const tags = appendTag(items, pendingText);
-    // Each sense is at most `sense` characters; every tag must be valid text, as the write contract requires.
-    for (const item of tags) {
-      const problem = textProblem(item, field === "senses" ? ENTITY_LIMITS.sense : undefined, true);
-      if (problem) {
-        setError(`${item.length > 24 ? `${[...item].slice(0, 24).join("")}…` : item}: ${problem}`);
-        return false;
-      }
-    }
-    if (field === "languages") {
-      edit.commit({ languages: keepAbsent(tags, draft.languages) });
-      return true;
-    }
-    const manual = parseWhole(passive, 0, MAX_PASSIVE_PERCEPTION);
-    if (!auto && manual === undefined) {
-      setError(`Passive Perception is a whole number from 0 to ${MAX_PASSIVE_PERCEPTION}.`);
-      return false;
-    }
-    const problem = edit.commit(
-      { senses: keepAbsent(tags, draft.senses), ...(auto ? {} : { passivePerception: manual }) },
-      { passivePerception: auto ? "auto" : "manual" },
-    );
-    if (problem) {
-      setError(problem);
-      return false;
-    }
-    return true;
+    const tags = parseTokens(spec, appendTag(items, pendingText), draft, modes);
+    // Blank, or a value equal to the computed one, is automatic, as on the live sheet.
+    const perception = field === "senses" ? PASSIVE_PERCEPTION_FIELD.parse(auto ? "" : passive, draft, modes) : undefined;
+    const problem = !tags.ok ? tags.message
+      : perception && !perception.ok ? `${PASSIVE_PERCEPTION_FIELD.label}: ${perception.message}`
+      : edit.commit({ ...tags.patch, ...perception?.patch }, perception?.modes);
+    setError(problem ?? null);
+    return problem === undefined;
   };
 
   return (
     <PopoverForm onApply={apply} error={error}>
       <TagInput
-        label={field === "senses" ? "Senses" : "Languages"}
+        label={spec.label}
         items={items}
         onChange={setItems}
         pendingText={{ value: pendingText, onChange: setPendingText }}
-        presets={field === "senses" ? SENSE_PRESETS : LANGUAGE_PRESETS}
+        presets={spec.suggestions?.map(option => option.value)}
       />
       {field === "senses" && (
         <>

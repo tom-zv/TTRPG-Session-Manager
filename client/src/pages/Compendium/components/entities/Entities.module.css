@@ -73,7 +73,7 @@
   min-width: 0;
 }
 
-.sheetTitle h2 {
+.sheet h2 {
   margin: 0;
   color: var(--text-primary);
   font-size: 1.5rem;
@@ -281,6 +281,12 @@
   margin: 0;
   font-size: 0.88rem;
   color: var(--text-primary);
+}
+
+/* Edit mode, targets: an absent line's "+ label" placeholder. Its label is visually hidden (out of
+   the grid), so the placeholder takes the whole row and the lines after it stay in their columns. */
+.sheetInfo .infoPlaceholder {
+  grid-column: 1 / -1;
 }
 
 @container detail-pane (max-width: 420px) {
@@ -586,23 +592,4 @@
   .inventoryRow {
     grid-template-columns: minmax(0, 1fr) 4.5rem;
   }
-}
-
-/* A draft kept aside while another entity is shown. */
-.unsavedBar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--accent-primary);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  font-size: 0.85rem;
-}
-
-.unsavedBar > span {
-  margin-right: auto;
 }

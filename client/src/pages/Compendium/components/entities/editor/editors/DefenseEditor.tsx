@@ -1,62 +1,36 @@
 import React from "react";
-import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
-import { CONDITION_OPTIONS, DAMAGE_TYPE_OPTIONS } from "../model/options.js";
-import { textProblem } from "./fieldLimits.js";
-import { PopoverForm } from "./PopoverForm.js";
-import styles from "../EntityEditor.module.css";
-
-export type DefenseField = "resistances" | "immunities" | "vulnerabilities" | "conditionImmunities";
-type Row = { name: string; note: string };
-
-const NOUNS: Record<DefenseField, string> = {
-  resistances: "resistance",
-  immunities: "immunity",
-  vulnerabilities: "vulnerability",
-  conditionImmunities: "condition immunity",
-};
+import { commitParse } from "../../../sheetEditor/fieldSpec.js";
+import { AddChoice, PopoverForm } from "../../../sheetEditor/PopoverForm.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
+import styles from "../../../sheetEditor/SheetEditor.module.css";
+import { useActiveEdit } from "../EntityEditContext.js";
+import {
+  DEFENSE_NOUNS,
+  defenseOptions,
+  defenseRows,
+  parseDefenseRows,
+  type DefenseField,
+  type DefenseRow,
+} from "../model/fields.js";
 
 /** One defense line: rows of a damage type (or condition) and an optional note. */
 export const DefenseEditor: React.FC<{ field: DefenseField }> = ({ field }) => {
   const edit = useActiveEdit();
   const { draft } = edit;
-  const isCondition = field === "conditionImmunities";
-  const options = isCondition ? CONDITION_OPTIONS : DAMAGE_TYPE_OPTIONS;
-  const noun = NOUNS[field];
+  const options = defenseOptions(field);
+  const noun = DEFENSE_NOUNS[field];
 
-  const [rows, setRows] = useEditorState<Row[]>("defense.rows", () =>
-    (draft[field] ?? []).map(entry => ({
-      name: "damageType" in entry ? entry.damageType : entry.conditionName,
-      note: entry.conditionNote ?? "",
-    })));
+  const [rows, setRows] = useEditorState<DefenseRow[]>("defense.rows", () => defenseRows(field, draft));
   const [error, setError] = useEditorState<string | null>("defense.error", null);
-  const update = (index: number, patch: Partial<Row>) =>
+  const update = (index: number, patch: Partial<DefenseRow>) =>
     setRows(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
-  const unused = options.find(option => !rows.some(row => row.name === option.value));
+  const unused = options.filter(option => !rows.some(row => row.name === option.value));
 
+  // The same rules as the live tokens: a type once, a changed row checked, stored rows kept as stored.
   const apply = (): boolean => {
-    const seen = new Set<string>();
-    for (const row of rows) {
-      if (seen.has(row.name.toLowerCase())) {
-        setError(`${row.name} is listed twice.`);
-        return false;
-      }
-      seen.add(row.name.toLowerCase());
-      const problem = textProblem(row.note, ENTITY_LIMITS.conditionNote);
-      if (problem) {
-        setError(`Note for ${row.name}: ${problem}`);
-        return false;
-      }
-    }
-    const unchanged = rows.length === 0 && !draft[field];
-    const note = (row: Row) => (row.note.trim() ? { conditionNote: row.note.trim() } : {});
-    if (unchanged) return true;
-    if (field === "conditionImmunities") {
-      edit.commit({ conditionImmunities: rows.map(row => ({ conditionName: row.name, ...note(row) })) });
-    } else {
-      edit.commit({ [field]: rows.map(row => ({ damageType: row.name, ...note(row) })) });
-    }
-    return true;
+    const problem = commitParse(edit, parseDefenseRows(field, rows, draft));
+    setError(problem ?? null);
+    return problem === undefined;
   };
 
   return (
@@ -71,9 +45,7 @@ export const DefenseEditor: React.FC<{ field: DefenseField }> = ({ field }) => {
           <button type="button" aria-label={`Remove ${row.name}`} onClick={() => setRows(rows.filter((_, rowIndex) => rowIndex !== index))}>×</button>
         </div>
       ))}
-      <button type="button" disabled={!unused} onClick={() => unused && setRows([...rows, { name: unused.value, note: "" }])}>
-        + Add {noun}
-      </button>
+      <AddChoice label={`Add ${noun}`} options={unused} onPick={name => setRows([...rows, { name, note: "" }])} />
     </PopoverForm>
   );
 };

@@ -20,10 +20,14 @@ type LabeledOption<Value extends string = string> = {
 export type RecordOption = LabeledOption & { ability: AbilityKey };
 type SpellGroupKind = "level" | SpellFrequency;
 
+/** Stored values offered as they are, labelled with a capital first letter ("slashing" → "Slashing"). */
+const capitalizedOptions = <Value extends string>(values: readonly Value[]): Array<LabeledOption<Value>> =>
+  values.map(value => ({ value, label: value.charAt(0).toUpperCase() + value.slice(1) }));
+
 export const ROLE_OPTIONS = [
   { value: "creature", label: "Creature" },
   { value: "npc", label: "NPC" },
-  { value: "pc", label: "PC" },
+  { value: "pc", label: "Player character" },
 ] satisfies Array<LabeledOption<DnD5eEntityDetails["role"]>>;
 
 export const SIZE_OPTIONS = [
@@ -85,10 +89,7 @@ export const ABILITY_PRESETS: Array<{
   { label: "Caster", scores: { str: 8, dex: 12, con: 12, int: 14, wis: 14, cha: 16 } },
 ];
 
-export const DAMAGE_TYPE_OPTIONS = DAMAGE_TYPES.map(value => ({
-  value,
-  label: value.charAt(0).toUpperCase() + value.slice(1),
-}));
+export const DAMAGE_TYPE_OPTIONS = capitalizedOptions(DAMAGE_TYPES);
 
 export const CONDITION_OPTIONS = [
   { value: "blinded", label: "Blinded" },
@@ -135,16 +136,16 @@ export const SAVE_OPTIONS: RecordOption[] = ABILITY_KEYS.map((ability) => ({
   ability,
 }));
 
-export const SENSE_PRESETS = [
+export const SENSE_OPTIONS = capitalizedOptions([
   "darkvision 60 ft.",
   "darkvision 120 ft.",
   "blindsight 10 ft.",
   "blindsight 30 ft.",
   "tremorsense 60 ft.",
   "truesight 120 ft.",
-];
+]);
 
-export const LANGUAGE_PRESETS = [
+export const LANGUAGE_OPTIONS = capitalizedOptions([
   "Common",
   "Draconic",
   "Dwarvish",
@@ -156,7 +157,7 @@ export const LANGUAGE_PRESETS = [
   "Sylvan",
   "telepathy 60 ft.",
   "understands Common but can't speak",
-];
+]);
 
 export const ACTION_TYPE_OPTIONS = [
   { value: "action", label: "Action" },

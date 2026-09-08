@@ -1,36 +1,26 @@
 import React from "react";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
+import { useActiveEdit } from "../EntityEditContext.js";
+import { commitParse } from "../../../sheetEditor/fieldSpec.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
 import { SPEED_TYPE_OPTIONS } from "../model/options.js";
-import styles from "../EntityEditor.module.css";
-import { PopoverForm } from "./PopoverForm.js";
-import { MAX_WHOLE } from "./fieldLimits.js";
-import { parseWhole } from "./InlineField.js";
-
-type SpeedRow = { type: string; feet: string };
+import styles from "../../../sheetEditor/SheetEditor.module.css";
+import { AddChoice, PopoverForm } from "../../../sheetEditor/PopoverForm.js";
+import { parseSpeedRows, type SpeedRow } from "../model/fields.js";
 
 export const SpeedsEditor: React.FC = () => {
   const edit = useActiveEdit();
-  const { draft } = edit;
+  const { draft, modes } = edit;
   const [rows, setRows] = useEditorState<SpeedRow[]>("speeds.rows", () => Object.entries(draft.speeds ?? {}).map(([type, feet]) => ({ type, feet: String(feet) })));
   const [error, setError] = useEditorState<string | null>("speeds.error", null);
   const update = (index: number, patch: Partial<SpeedRow>) =>
     setRows(rows.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row)));
-  const unused = SPEED_TYPE_OPTIONS.find(option => !rows.some(row => row.type === option.value));
+  const unused = SPEED_TYPE_OPTIONS.filter(option => !rows.some(row => row.type === option.value));
 
-  const fail = (message: string) => {
-    setError(message);
-    return false;
-  };
+  // Each row commits through the same speed field the live sheet uses.
   const apply = (): boolean => {
-    const speeds: Record<string, number> = {};
-    for (const row of rows) {
-      const feet = parseWhole(row.feet, 0, MAX_WHOLE);
-      if (feet === undefined) return fail(`Speed for ${row.type} must be a whole number of feet.`);
-      if (row.type in speeds) return fail(`Speed type ${row.type} is listed twice.`);
-      speeds[row.type] = feet;
-    }
-    edit.commit({ speeds: rows.length === 0 && !draft.speeds ? draft.speeds : speeds });
-    return true;
+    const problem = commitParse(edit, parseSpeedRows(rows, draft, modes));
+    setError(problem ?? null);
+    return problem === undefined;
   };
 
   return (
@@ -45,7 +35,7 @@ export const SpeedsEditor: React.FC = () => {
           <button type="button" aria-label={`Remove ${row.type} speed`} onClick={() => setRows(rows.filter((_, rowIndex) => rowIndex !== index))}>×</button>
         </div>
       ))}
-      <button type="button" disabled={!unused} onClick={() => unused && setRows([...rows, { type: unused.value, feet: "30" }])}>+ Add speed</button>
+      <AddChoice label="Add speed" options={unused} onPick={type => setRows([...rows, { type, feet: "30" }])} />
     </PopoverForm>
   );
 };

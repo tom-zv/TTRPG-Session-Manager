@@ -168,7 +168,7 @@ const replaceText = async (user: User, field: HTMLElement, value: string) => {
 
 beforeEach(() => {
   installLayoutApis();
-  installMatchMedia(1280);
+  installMatchMedia(1280, { pointer: "coarse" });
 });
 
 describe("saving an imported entity", () => {
@@ -244,7 +244,7 @@ describe("the draft slot", () => {
 
     await user.click(bar.getByRole("button", { name: "Resume" }));
     await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}&edit=1`));
-    expect(toolbar().getByText("Editing · 1 changes")).toBeVisible();
+    expect(toolbar().getByText("Editing · 1 change")).toBeVisible();
     expect(details().getByRole("button", { name: "Edit Armor Class, 15" })).toBeVisible();
     expect(screen.queryByRole("region", { name: "Unsaved changes" })).not.toBeInTheDocument();
 
@@ -652,7 +652,7 @@ describe("Step 06 corrections", () => {
     await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
     const resumed = within(await screen.findByRole("dialog", { name: "Goblin" }));
     expect(resumed.getByRole("button", { name: "Edit Wide Scimitar, Actions" })).toBeVisible();
-    expect(resumed.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 changes");
+    expect(resumed.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
   });
 
   test("06-R7: a server 400 released after Back and Resume lists its issues and opens their editor in the resumed editor", async () => {

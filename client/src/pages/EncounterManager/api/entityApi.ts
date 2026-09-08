@@ -1,4 +1,5 @@
 import { authenticatedJsonHeaders } from "src/api/requestHeaders.js";
+import { writeFailure } from "src/api/writeFailure.js";
 import type { 
   EntityDetailsBySystem,
   EntitySummaryBySystem,
@@ -7,7 +8,6 @@ import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
 
 import type {
   CreateEntityRequest,
-  EntityWriteIssue,
   UpdateEntityBody,
   UpdateEntityRequest,
 } from "shared/domain/encounters/dnd5e/entityValidation.js";
@@ -27,34 +27,6 @@ interface EntitySummariesResponse<T = EntitySummaryBySystem<SystemType>> {
 interface InsertEntityResponse {
   insertId: number;
   entity: EntityDetailsBySystem<SystemType>;
-}
-
-/** A create or update the server rejected (400), with the write contract's issues by field path. */
-export class EntityWriteError extends Error {
-  readonly issues: EntityWriteIssue[];
-
-  constructor(message: string, issues: EntityWriteIssue[]) {
-    super(message);
-    this.name = "EntityWriteError";
-    this.issues = issues;
-  }
-}
-
-const isWriteIssue = (value: unknown): value is EntityWriteIssue =>
-  typeof value === "object" && value !== null
-  && typeof (value as Record<string, unknown>).path === "string"
-  && typeof (value as Record<string, unknown>).message === "string";
-
-/** The error a failed write throws: the issues when the server sent them, otherwise its message. */
-async function writeFailure(response: Response, failure: string): Promise<Error> {
-  const body: unknown = await response.json().catch(() => ({}));
-  const record = typeof body === "object" && body !== null ? body as Record<string, unknown> : {};
-  const message = typeof record.message === "string" && record.message ? record.message : failure;
-  const details = record.details;
-  if (response.status === 400 && Array.isArray(details) && details.length > 0 && details.every(isWriteIssue)) {
-    return new EntityWriteError(message, details);
-  }
-  return new Error(message);
 }
 
 export class EntityApi {

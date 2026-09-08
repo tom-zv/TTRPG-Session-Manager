@@ -106,7 +106,7 @@ const startEditing = async (user: User, name: string) => {
 
 beforeEach(() => {
   installLayoutApis();
-  installMatchMedia(1280);
+  installMatchMedia(1280, { pointer: "coarse" });
   patches = [];
 });
 
@@ -239,8 +239,8 @@ describe("sheet edit mode", () => {
 
     await user.click(within(scope()).getByRole("button", { name: "+ Skills" }));
     const popover = within(await screen.findByRole("dialog", { name: "Edit Skills" }));
-    await user.click(popover.getByRole("button", { name: "+ Add skill" }));
-    await user.click(popover.getByRole("button", { name: "+ Add skill" }));
+    await user.selectOptions(popover.getByRole("combobox", { name: "Add skill" }), "Acrobatics");
+    await user.selectOptions(popover.getByRole("combobox", { name: "Add skill" }), "Athletics");
     await user.selectOptions(popover.getByRole("combobox", { name: "skill 2" }), "Acrobatics");
     await user.click(popover.getByRole("button", { name: "Done" }));
 
@@ -476,7 +476,7 @@ describe("review corrections: keyboard focus and markup (04-R2)", () => {
   });
 
   test("adding the first language returns focus to the line's target", async () => {
-    installMatchMedia(1280);
+    installMatchMedia(1280, { pointer: "coarse" });
     const user = userEvent.setup();
     serveCatalog();
     renderSheet(goblin.templateId);
@@ -491,7 +491,7 @@ describe("review corrections: keyboard focus and markup (04-R2)", () => {
   });
 
   test("adding an HP formula returns focus to the HP target", async () => {
-    installMatchMedia(1280);
+    installMatchMedia(1280, { pointer: "coarse" });
     const user = userEvent.setup();
     serveCatalog();
     renderSheet(goblin.templateId);
@@ -506,7 +506,7 @@ describe("review corrections: keyboard focus and markup (04-R2)", () => {
   });
 
   test("a popover opens on its first enabled control", async () => {
-    installMatchMedia(1280);
+    installMatchMedia(1280, { pointer: "coarse" });
     const user = userEvent.setup();
     serveCatalog();
     renderSheet(hydra.templateId);
@@ -515,14 +515,14 @@ describe("review corrections: keyboard focus and markup (04-R2)", () => {
     await user.click(within(scope()).getByRole("button", { name: /^Edit Speed/ }));
     const popover = within(await screen.findByRole("dialog", { name: /Edit Speed/ }));
     // Every speed type is in use, so Add is disabled and must not take the focus.
-    expect(popover.getByRole("button", { name: "+ Add speed" })).toBeDisabled();
+    expect(popover.getByRole("combobox", { name: "Add speed" })).toBeDisabled();
     const focused = document.activeElement as HTMLElement;
     expect(focused).not.toBeDisabled();
     expect(popover.getByRole("combobox", { name: "Speed type 1" })).toHaveFocus();
   });
 
   test("view mode keeps the reader's markup: a paragraph subtitle and no modifier hint", async () => {
-    installMatchMedia(1280);
+    installMatchMedia(1280, { pointer: "coarse" });
     serveCatalog();
     renderSheet(goblin.templateId);
     const sheet = await screen.findByRole("article", { name: "Goblin" });
@@ -532,7 +532,7 @@ describe("review corrections: keyboard focus and markup (04-R2)", () => {
   });
 
   test("edit mode keeps its rows valid: placeholders sit in a dt/dd pair, the subtitle is not a paragraph", async () => {
-    installMatchMedia(1280);
+    installMatchMedia(1280, { pointer: "coarse" });
     const user = userEvent.setup();
     serveCatalog();
     renderSheet(goblin.templateId);
@@ -546,7 +546,7 @@ describe("review corrections: keyboard focus and markup (04-R2)", () => {
 });
 
 describe("review corrections: cleared fields (04-R3)", () => {
-  beforeEach(() => installMatchMedia(1280));
+  beforeEach(() => installMatchMedia(1280, { pointer: "coarse" }));
 
   test("clearing CR and the token shows them absent, sends null, and Undo brings them back", async () => {
     const user = userEvent.setup();
@@ -611,7 +611,7 @@ describe("review corrections: cleared fields (04-R3)", () => {
 });
 
 describe("review corrections: proficiency row keys (04-R4)", () => {
-  beforeEach(() => installMatchMedia(1280));
+  beforeEach(() => installMatchMedia(1280, { pointer: "coarse" }));
 
   test("moving a Proficient skill to another ability recomputes it for that ability", async () => {
     const user = userEvent.setup();
@@ -639,7 +639,7 @@ describe("review corrections: proficiency row keys (04-R4)", () => {
 
     await user.click(within(scope()).getByRole("button", { name: /^Edit Skills/ }));
     const popover = within(await screen.findByRole("dialog", { name: /Edit Skills/ }));
-    await user.click(popover.getByRole("button", { name: "+ Add skill" }));
+    await user.selectOptions(popover.getByRole("combobox", { name: "Add skill" }), "Acrobatics");
     await user.selectOptions(popover.getByRole("combobox", { name: "Acrobatics mode" }), "Custom");
     await user.type(popover.getByRole("textbox", { name: "Acrobatics modifier" }), "+9");
     await user.selectOptions(popover.getByRole("combobox", { name: "skill 2" }), "Stealth");
@@ -652,7 +652,7 @@ describe("review corrections: proficiency row keys (04-R4)", () => {
 });
 
 describe("review corrections: settings in the preview (04-R5)", () => {
-  beforeEach(() => installMatchMedia(1280));
+  beforeEach(() => installMatchMedia(1280, { pointer: "coarse" }));
 
   test("a settings toggle is a draft edit, and Save PATCHes only that setting after a PUT without settings", async () => {
     const user = userEvent.setup();
@@ -664,7 +664,7 @@ describe("review corrections: settings in the preview (04-R5)", () => {
     expect(within(scope()).getByRole("checkbox", { name: /death saves/ })).toBeChecked();
     await user.click(featured);
     expect(featured).toBeChecked();
-    expect(within(scope()).getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 changes");
+    expect(within(scope()).getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
     await user.click(within(scope()).getByRole("button", { name: "Save" }));
 
     await waitFor(() => expect(patches).toHaveLength(1));
@@ -684,7 +684,7 @@ describe("review corrections: settings in the preview (04-R5)", () => {
     await user.click(deathSaves);
 
     expect(deathSaves).not.toBeChecked();
-    expect(within(scope()).getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 changes");
+    expect(within(scope()).getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
     expect(puts).toHaveLength(0);
     expect(patches).toHaveLength(0);
 
@@ -699,7 +699,7 @@ describe("review corrections: settings in the preview (04-R5)", () => {
 
 describe("review corrections: leaving the preview (04-R6)", () => {
   test("selecting another entity and coming back opens the sheet in view mode, not a blank draft", async () => {
-    installMatchMedia(1280);
+    installMatchMedia(1280, { pointer: "coarse" });
     const user = userEvent.setup();
     serveCatalog();
     renderSheet(goblin.templateId);
@@ -740,7 +740,7 @@ describe("review corrections: leaving the preview (04-R6)", () => {
 });
 
 describe("review corrections: field limits follow the write contract (04-R7)", () => {
-  beforeEach(() => installMatchMedia(1280));
+  beforeEach(() => installMatchMedia(1280, { pointer: "coarse" }));
 
   test("AC, HP and speed accept the contract's whole numbers, and the PUT passes the shared validator", async () => {
     const user = userEvent.setup();
@@ -912,7 +912,7 @@ describe("open Step 04 review findings", () => {
   });
 
   test.each([1280, 720])("04-R6: crossing the reader breakpoint from %i keeps the draft in edit mode", async width => {
-    installMatchMedia(width);
+    installMatchMedia(width, { pointer: "coarse" });
     const user = userEvent.setup();
     serveCatalog();
     renderSheet(goblin.templateId);
@@ -925,7 +925,7 @@ describe("open Step 04 review findings", () => {
     setViewportWidth(width === 720 ? 1280 : 720);
 
     const reader = width === 720 ? details() : await screen.findByRole("dialog", { name: "Goblin" });
-    expect(within(reader).getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 changes");
+    expect(within(reader).getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
     expect(within(reader).getByRole("button", { name: "Edit Armor Class, 20" })).toBeVisible();
   });
 
@@ -936,8 +936,7 @@ describe("open Step 04 review findings", () => {
     const scope = await startEditing(user, "Goblin");
     await user.click(within(scope()).getByRole("button", { name: /\+ Skills/ }));
     const skills = within(await screen.findByRole("dialog", { name: /Edit Skills/ }));
-    await user.click(skills.getByRole("button", { name: "+ Add skill" }));
-    await user.selectOptions(skills.getByRole("combobox", { name: "skill 1" }), "Perception");
+    await user.selectOptions(skills.getByRole("combobox", { name: "Add skill" }), "Perception");
     await user.selectOptions(skills.getByRole("combobox", { name: "Perception mode" }), "Custom");
     const modifier = skills.getByRole("textbox", { name: "Perception modifier" });
 
@@ -975,8 +974,7 @@ describe("open Step 04 review findings", () => {
 
     await user.click(within(scope()).getByRole("button", { name: /\+ Skills/ }));
     const skills = within(await screen.findByRole("dialog", { name: /Edit Skills/ }));
-    await user.click(skills.getByRole("button", { name: "+ Add skill" }));
-    await user.selectOptions(skills.getByRole("combobox", { name: "skill 1" }), "Perception");
+    await user.selectOptions(skills.getByRole("combobox", { name: "Add skill" }), "Perception");
     await user.selectOptions(skills.getByRole("combobox", { name: "Perception mode" }), "Custom");
     await user.type(skills.getByRole("textbox", { name: "Perception modifier" }), "+32758");
     await user.click(skills.getByRole("button", { name: "Done" }));

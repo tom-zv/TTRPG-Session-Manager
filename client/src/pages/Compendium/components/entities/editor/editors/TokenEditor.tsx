@@ -1,8 +1,9 @@
 import React from "react";
 import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
-import { useActiveEdit, useEditorState } from "../EntityEditContext.js";
+import { useActiveEdit } from "../EntityEditContext.js";
+import { useEditorState } from "../../../sheetEditor/SheetEditContext.js";
 import { textProblem } from "./fieldLimits.js";
-import { Field, PopoverForm, clearable } from "./PopoverForm.js";
+import { Field, PopoverForm, clearable } from "../../../sheetEditor/PopoverForm.js";
 
 export const TokenEditor: React.FC = () => {
   const edit = useActiveEdit();

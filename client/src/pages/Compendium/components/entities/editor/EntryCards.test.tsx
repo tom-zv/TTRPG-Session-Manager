@@ -148,7 +148,7 @@ const sectionNamed = (sheet: ReturnType<typeof within>, title: string) =>
 
 beforeEach(() => {
   installLayoutApis();
-  installMatchMedia(1280);
+  installMatchMedia(1280, { pointer: "coarse" });
 });
 
 describe("entry cards in edit mode", () => {
@@ -417,7 +417,7 @@ describe("entry cards in edit mode", () => {
     const card = within(sheet.getByRole("form", { name: "Edit Keen Smell, Traits" }));
     await fill(user, card.getByRole("textbox", { name: "Text" }), "Advantage on smell.");
     await user.click(card.getByRole("button", { name: "Done" }));
-    expect(screen.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 changes");
+    expect(screen.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
 
     const data = await save(user, puts);
     expect(data.actions).toEqual(drake.actions);
