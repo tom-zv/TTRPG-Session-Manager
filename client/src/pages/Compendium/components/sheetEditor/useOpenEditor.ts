@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { IssueJump } from "./issues.js";
 import type { FieldParse } from "./fieldSpec.js";
 import {
   countInvalidLive,
@@ -20,9 +21,11 @@ type OpenEditorOptions = {
 export type OpenEditor = Pick<
   SheetEditControls,
   "activeId" | "open" | "close" | "closeTo" | "switchTo" | "commitRef" | "takeFocus" | "focusOpenRef" | "claim"
-  | "registerLive" | "requestLiveFocus" | "pendingLive" | "carriedId"
+  | "registerLive" | "requestLiveFocus" | "pendingLive" | "carriedId" | "editorFocusId"
 > & {
   bufferApi: EditorBufferApi;
+  /** Opens the issue's editor and focuses its field once the controls mount. */
+  jumpToEditor: (targetId: string, fieldId: string) => void;
   /**
    * Makes `id` the open editor again without clearing its buffer, for an editor a save rejection
    * named while another mount of the editor sent the save (that mount already filled the buffer).
@@ -35,8 +38,11 @@ export type OpenEditor = Pick<
   settle: () => boolean;
   /** Live fields holding text that did not apply. Save waits until they are fixed or reverted. */
   unapplied: number;
-  /** Focuses the live control for `id` now: the exact one, else its line's add control, else the line's first field. */
-  focusLive: (id: string) => boolean;
+  /**
+   * Focuses the live control for `id` now: the exact one, else (unless `exact`) its line's add
+   * control, else the line's first field.
+   */
+  focusLive: (id: string, exact?: boolean) => boolean;
   /**
    * Applies every live field's unapplied text that is valid against the latest draft (a field that
    * is not mounted cannot be blurred). Text that does not apply keeps its message. Returns how many
@@ -66,9 +72,11 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
     setSeenPresentation(presentation);
     setCarriedId(presentation === "live" ? activeId : null);
   }
+  const [editorJump, setEditorJump] = useState<IssueJump | null>(null);
   // Every change of editor starts the buffer afresh: the open input was committed first, and after
   // a move renumbers entries the same id can name another entry. Only a remount restores it.
   const setActiveId = useCallback((id: string | null) => {
+    setEditorJump(null);
     bufferRef.current.activeId = id;
     bufferRef.current.values = {};
     bufferRef.current.newEntry = null;
@@ -92,6 +100,10 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
     restoreNewEntry: () => bufferRef.current.newEntry,
     keepNewEntry: entry => {
       bufferRef.current.newEntry = entry;
+    },
+    restoreAddedRow: () => bufferRef.current.addedRow,
+    keepAddedRow: row => {
+      bufferRef.current.addedRow = row;
     },
     restoreLive: key => bufferRef.current.live[key],
     keepLive: (key, entry) => {
@@ -132,7 +144,7 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
   }, [syncLive]);
 
   const commitRef = useRef<(() => boolean) | null>(null);
-  const focusOpenRef = useRef<(() => void) | null>(null);
+  const focusOpenRef = useRef<((fieldId?: string | null) => void) | null>(null);
   const focusIdRef = useRef<string | null>(null);
 
   const open = useCallback((id: string | (() => string | null)) => {
@@ -141,6 +153,14 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
     setActiveId(typeof id === "function" ? id() : id);
     return true;
   }, [saving, setActiveId]);
+  const jumpToEditor = useCallback((targetId: string, focusId: string) => {
+    if (saving) return;
+    if (activeId === targetId || open(targetId)) setEditorJump({ targetId, focusId });
+  }, [activeId, open, saving]);
+  useEffect(() => {
+    if (editorJump === null || activeId !== editorJump.targetId) return;
+    focusOpenRef.current?.(editorJump.focusId);
+  }, [activeId, editorJump]);
   const claim = useCallback((): boolean => {
     if (!saving && activeId === null && commitRef.current === null) return true;
     if (open(() => null)) return true;
@@ -183,10 +203,10 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
       for (const id of ids) if (controls.get(id) === element) controls.delete(id);
     };
   }, []);
-  const focusLive = useCallback((id: string): boolean => {
+  const focusLive = useCallback((id: string, exact = false): boolean => {
     const controls = controlsRef.current;
     const field = id.split(".")[0];
-    const element = controls.get(id)
+    const element = exact ? controls.get(id) : controls.get(id)
       ?? controls.get(field)
       ?? [...controls].find(([candidate]) => candidate.startsWith(`${field}.`))?.[1];
     if (!element) return false;
@@ -211,6 +231,7 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
   return {
     activeId, open, close, closeTo, switchTo, commitRef, takeFocus, focusOpenRef, claim,
     registerLive, requestLiveFocus, focusLive, pendingLive: live.ids, carriedId,
-    bufferApi, reopen: setActiveIdState, settle, unapplied: live.invalid, settleLive, pruneLive,
+    editorFocusId: editorJump?.targetId === activeId ? editorJump.focusId : null,
+    bufferApi, jumpToEditor, reopen: setActiveIdState, settle, unapplied: live.invalid, settleLive, pruneLive,
   };
 };

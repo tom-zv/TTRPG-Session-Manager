@@ -2,6 +2,7 @@ import React, { useEffect, useId, useRef } from "react";
 import { useDragSource } from "src/hooks/useDragSource.js";
 import { useActiveSheetEdit, useCommitHandler, useEditorState } from "./SheetEditContext.js";
 import styles from "./EntryCardFrame.module.css";
+import sheetStyles from "./SheetEditor.module.css";
 
 /** The drag payload type of an entry card; only entries of the same section accept it. */
 export const ENTRY_DRAG_TYPE = "sheet-entry";
@@ -155,7 +156,7 @@ export const EntryCardFrame = <Item,>({ host, read, error, name, children }: Ent
     // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
     <form
       ref={formRef}
-      className={styles.card}
+      className={`${styles.card} ${sheetStyles.entryPanel}`}
       aria-label={`Edit ${host.label}`}
       aria-describedby={shown ? errorId : undefined}
       noValidate

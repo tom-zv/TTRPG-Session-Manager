@@ -16,10 +16,14 @@ export const PopoverForm: React.FC<PopoverFormProps> = ({ onApply, error, childr
   const errorId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   useCommitHandler(onApply, formRef);
-  // A popover opens on a user's action: put focus on its first enabled control.
+  // A newly mounted issue editor follows the jump even when StrictMode replays its mount effects.
   useEffect(() => {
+    if (edit.editorFocusId !== null) {
+      edit.focusOpenRef.current?.(edit.editorFocusId);
+      return;
+    }
     formRef.current?.querySelector<HTMLElement>("input:not(:disabled), select:not(:disabled), button:not(:disabled)")?.focus();
-  }, []);
+  }, [edit.editorFocusId, edit.focusOpenRef]);
   return (
     <form
       ref={formRef}
@@ -53,10 +57,11 @@ export const Field: React.FC<{ label: string; children: (id: string) => React.Re
 /** Opening the picker leaves the group untouched until a choice is made. Its prompt is not a choice in the list. */
 export const AddChoice: React.FC<{
   label: string;
+  fieldId?: string;
   options: readonly FieldOption[];
   onPick: (value: string) => void;
-}> = ({ label, options, onPick }) => (
-  <select aria-label={label} value="" disabled={!options.length} onChange={event => onPick(event.target.value)}>
+}> = ({ label, fieldId, options, onPick }) => (
+  <select aria-label={label} data-sheet-field-id={fieldId} value="" disabled={!options.length} onChange={event => onPick(event.target.value)}>
     <option value="" disabled hidden>+ {label}</option>
     {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
   </select>
@@ -84,7 +89,7 @@ export function SpecControl<Draft, Modes>({ spec, value, onChange, placeholder }
   return (
     <Field label={spec.label}>
       {id => spec.options ? (
-        <select id={id} value={value} onChange={event => onChange(event.target.value)}>
+        <select id={id} data-sheet-field-id={spec.id} value={value} onChange={event => onChange(event.target.value)}>
           {/* A stored value outside the list stays selectable. */}
           {!spec.options.some(option => option.value === value) && <option value={value}>{value}</option>}
           {spec.options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
@@ -93,6 +98,7 @@ export function SpecControl<Draft, Modes>({ spec, value, onChange, placeholder }
         <>
           <input
             id={id}
+            data-sheet-field-id={spec.id}
             inputMode={spec.inputMode}
             list={spec.suggestions ? `${id}-list` : undefined}
             placeholder={placeholder}

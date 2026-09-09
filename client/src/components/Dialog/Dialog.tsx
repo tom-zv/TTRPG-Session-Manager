@@ -64,6 +64,7 @@ const Dialog: React.FC<DialogProps> = ({
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      if (event.isComposing) return;
       if (event.key === "Escape") {
         event.preventDefault();
         event.stopPropagation();
@@ -122,6 +123,9 @@ const Dialog: React.FC<DialogProps> = ({
 
     const focusTarget =
       initialFocusRef?.current ??
+      (previousActiveElement && dialogRef.current?.contains(previousActiveElement)
+        ? previousActiveElement
+        : null) ??
       getFocusableElements(getDialogContent(dialogRef.current)).find((element) =>
         isFormControl(element)
       ) ??

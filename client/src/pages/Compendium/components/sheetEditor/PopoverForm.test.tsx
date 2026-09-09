@@ -16,6 +16,7 @@ const api = (): SheetEditControls => ({
   commitRef: createRef<(() => boolean) | null>() as SheetEditControls["commitRef"],
   takeFocus: () => false,
   focusOpenRef: createRef<(() => void) | null>() as SheetEditControls["focusOpenRef"],
+  editorFocusId: null,
   claim: () => true,
   registerLive: () => () => undefined,
   requestLiveFocus: () => undefined,

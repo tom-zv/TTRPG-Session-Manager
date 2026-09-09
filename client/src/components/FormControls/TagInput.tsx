@@ -11,6 +11,7 @@ type TagInputProps = {
   presets?: string[];
   name?: string;
   className?: string;
+  sheetFieldId?: string;
   pendingText?: { value: string; onChange: (value: string) => void };
 };
 
@@ -28,6 +29,7 @@ export const TagInput: React.FC<TagInputProps> = ({
   presets = [],
   name,
   className,
+  sheetFieldId,
   pendingText,
 }) => {
   const [localValue, setLocalValue] = useState("");
@@ -79,6 +81,7 @@ export const TagInput: React.FC<TagInputProps> = ({
           type="text"
           name={`${controlName}-draft`}
           aria-labelledby={labelId}
+          data-sheet-field-id={sheetFieldId}
           value={value}
           onChange={(event) => setValue(event.target.value)}
           onKeyDown={(event) => {

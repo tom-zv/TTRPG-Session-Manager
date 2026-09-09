@@ -16,12 +16,12 @@ import styles from "./LiveFields.module.css";
  * `claim` keeps the one-open-editor rule (focusing or changing it commits and closes any
  * click-to-edit editor; an invalid one stays open, takes focus back, and the live edit does not apply).
  */
-const useLiveTarget = (ids: readonly string[], ref: RefObject<HTMLElement | null>): (() => boolean) => {
+export const useLiveTarget = (ids: readonly string[], ref: RefObject<HTMLElement | null>): (() => boolean) => {
   const { registerLive, claim } = useActiveSheetEdit();
   const key = ids.join("\n");
   useLayoutEffect(() => {
     const element = ref.current;
-    return element ? registerLive(key.split("\n"), element) : undefined;
+    return element && key ? registerLive(key.split("\n"), element) : undefined;
   }, [registerLive, key, ref]);
   return claim;
 };
@@ -234,8 +234,9 @@ export const LiveSelect: React.FC<LiveSelectProps> = ({ id, alsoTargets = [], la
         onFocus={() => void claim()}
         onBlur={() => setError(null)}
         onChange={event => {
-          // The select is controlled: a refused change shows the stored choice again.
-          if (event.target.value === "" || !claim()) return;
+          // The select is controlled: a refused change shows the stored choice again. An add
+          // menu's prompt is not a choice; any other empty value (no category) is one.
+          if ((prompt && event.target.value === "") || !claim()) return;
           setError(onChange(event.target.value) ?? null);
         }}
       >
@@ -245,6 +246,47 @@ export const LiveSelect: React.FC<LiveSelectProps> = ({ id, alsoTargets = [], la
         {!prompt && !options.some(option => option.value === value) && <option value={value}>{value}</option>}
         {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
       </select>
+      {error && <span id={errorId} role="alert" className={styles.error}>{error}</span>}
+    </span>
+  );
+};
+
+type LiveToggleProps = {
+  id: string;
+  alsoTargets?: readonly string[];
+  label: string;
+  /** The text the sheet shows for it, e.g. a spell component's letter. */
+  text: string;
+  pressed: boolean;
+  /** Applies the change; returns why it cannot apply, or undefined. */
+  onToggle: (pressed: boolean) => string | undefined;
+};
+
+/** A flag shown as its text: a press turns it on or off. Off, the text is dimmed and struck through. */
+export const LiveToggle: React.FC<LiveToggleProps> = ({ id, alsoTargets = [], label, text, pressed, onToggle }) => {
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const errorId = useId();
+  const [error, setError] = useState<string | null>(null);
+  const claim = useLiveTarget([id, ...alsoTargets], buttonRef);
+  return (
+    <span className={styles.live} data-invalid={error !== null || undefined}>
+      <span className={styles.mirror} aria-hidden="true">{text}</span>
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`${styles.input} ${styles.toggle}`}
+        aria-label={label}
+        aria-pressed={pressed}
+        aria-describedby={error ? errorId : undefined}
+        onFocus={() => void claim()}
+        onBlur={() => setError(null)}
+        onClick={() => {
+          if (!claim()) return;
+          setError(onToggle(!pressed) ?? null);
+        }}
+      >
+        {text}
+      </button>
       {error && <span id={errorId} role="alert" className={styles.error}>{error}</span>}
     </span>
   );
@@ -374,12 +416,17 @@ export const RemoveLiveEntry: React.FC<{
   label: string;
   onRemove: () => string | undefined;
   focusId: string;
-}> = ({ label, onRemove, focusId }) => {
+  /** Issue target ids that focus this button, for an entry that has no field of its own (a spell chip). */
+  targetIds?: readonly string[];
+}> = ({ label, onRemove, focusId, targetIds = [] }) => {
   const edit = useActiveSheetEdit();
   const [error, setError] = useState<string>();
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  useLiveTarget(targetIds, buttonRef);
   return (
     <>
       <button
+        ref={buttonRef}
         type="button"
         className={styles.remove}
         aria-label={label}

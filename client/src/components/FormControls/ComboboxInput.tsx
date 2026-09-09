@@ -224,7 +224,9 @@ export const ComboboxInput: React.FC<ComboboxInputProps> = ({
         </button>
       )}
       {expanded && (
-        <ul ref={listRef} id={listboxId} role="listbox" className={styles.comboDropdown} aria-label={ariaLabel}>
+        // tabIndex -1: Chrome makes a scrollable list a Tab stop, and Tab out of the input would land on
+        // it just as the blur removes it, leaving focus on the page. Arrow keys drive the list instead.
+        <ul ref={listRef} id={listboxId} role="listbox" tabIndex={-1} className={styles.comboDropdown} aria-label={ariaLabel}>
           {filteredOptions.map((option, index) => (
             // Keyboard focus stays on the input. Arrow keys and Enter select the active option.
             // eslint-disable-next-line jsx-a11y/click-events-have-key-events

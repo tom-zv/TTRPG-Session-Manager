@@ -71,6 +71,16 @@
   font-style: normal;
 }
 
+/* A flag drawn as its text. Off, the text stays in place, dimmed and struck through. */
+.toggle {
+  cursor: pointer;
+}
+
+.toggle[aria-pressed="false"] {
+  color: var(--text-tertiary);
+  text-decoration: line-through;
+}
+
 .live[data-invalid] .input {
   box-shadow: inset 0 -2px 0 var(--error-color, #e06c75);
 }
@@ -244,4 +254,143 @@
 .hint {
   color: var(--text-tertiary);
   font-style: italic;
+}
+
+/* Rich text in edit mode: its source in a textarea that grows with the text (both presentations). */
+.source {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* The textarea and its reference menu, which hangs under it as an overlay. */
+.sourceField {
+  position: relative;
+}
+
+.sourceText {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 4.5rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font: inherit;
+  line-height: inherit;
+  resize: none;
+  overflow: hidden;
+}
+
+.sourceText:focus {
+  border-color: var(--accent-primary);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.source[data-invalid] .sourceText {
+  border-color: var(--error-color, #e06c75);
+}
+
+/*
+ * The message slot follows the insert buttons on their line and is there whether or not it holds a
+ * message, so showing one moves nothing and covers neither button. Where the line is too narrow for
+ * it, the slot takes a line of its own below the buttons, in valid and invalid text alike.
+ */
+.sourceMessage {
+  position: relative;
+  min-height: 1.75rem;
+}
+
+.sourceError {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 6;
+  max-width: 100%;
+  margin: 0;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--error-color, #e06c75);
+  border-radius: 3px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+/* The `{` reference menu: the textarea's full width, over the sheet, rows of a fixed height. */
+.referenceMenu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  right: 0;
+  z-index: 8;
+  margin: 0;
+  padding: 0.2rem 0;
+  list-style: none;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--bg-secondary);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 35%);
+}
+
+.referenceOption {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-sizing: border-box;
+  height: 2rem;
+  padding: 0 0.6rem;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.referenceOption[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent-primary) 18%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.referenceOption[aria-disabled="true"] {
+  color: var(--text-secondary);
+  font-style: italic;
+  cursor: default;
+}
+
+.referenceLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.referenceMeta {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+@media (pointer: coarse) {
+  .remove {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .referenceOption {
+    height: 44px;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

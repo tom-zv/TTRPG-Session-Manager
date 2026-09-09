@@ -14,8 +14,9 @@ type PopoverProps = {
   label: string;
   /** The element the popover points at. Clicks on it are not "outside". */
   anchorRef: RefObject<HTMLElement | null>;
+  className?: string;
   /** `returnFocus` is true when the user closed it from the keyboard (Escape). */
-  onClose: (returnFocus: boolean) => void;
+  onClose: (returnFocus: boolean, outsideTarget?: Node) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
   children: React.ReactNode;
@@ -34,6 +35,7 @@ export const Popover: React.FC<PopoverProps> = ({
   id,
   label,
   anchorRef,
+  className,
   onClose,
   onPointerEnter,
   onPointerLeave,
@@ -97,7 +99,7 @@ export const Popover: React.FC<PopoverProps> = ({
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (panelRef.current?.contains(target) || anchorRef.current?.contains(target)) return;
-      onCloseRef.current(false);
+      onCloseRef.current(false, target);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
@@ -120,7 +122,7 @@ export const Popover: React.FC<PopoverProps> = ({
       id={id}
       role="dialog"
       aria-label={label}
-      className={styles.popover}
+      className={className ? `${styles.popover} ${className}` : styles.popover}
       data-placement={position?.placement ?? "below"}
       style={{ top: position?.top ?? 0, left: position?.left ?? 0, opacity: position ? undefined : 0, pointerEvents: position ? undefined : "none" }}
       onPointerEnter={onPointerEnter}

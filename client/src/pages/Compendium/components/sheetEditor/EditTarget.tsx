@@ -73,7 +73,10 @@ export const EditTarget: React.FC<EditTargetProps> = ({ id, label, kind = "popov
           id={panelId}
           label={`Edit ${label}`}
           anchorRef={triggerRef}
-          onClose={returnFocus => {
+          className={styles.popoverPanel}
+          onClose={(returnFocus, outsideTarget) => {
+            // An issue jump handles the open editor itself, including a jump within the same group.
+            if (outsideTarget instanceof Element && outsideTarget.closest("[data-sheet-issue]")) return;
             // Escape discards; a press outside keeps a valid edit, and an invalid one stays open.
             if (returnFocus) edit.close(true);
             else if (edit.commitRef.current?.() !== false) edit.close();

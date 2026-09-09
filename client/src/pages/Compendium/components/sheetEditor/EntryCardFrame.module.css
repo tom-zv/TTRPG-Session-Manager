@@ -28,6 +28,13 @@
   resize: vertical;
 }
 
+@media (pointer: coarse) {
+  .card.card :is(button, input:not([type="checkbox"]), select, textarea, a[href], [role="option"]) {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
 .cardTools {
   display: flex;
   flex-wrap: wrap;

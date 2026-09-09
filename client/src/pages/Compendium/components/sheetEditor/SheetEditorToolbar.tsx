@@ -87,11 +87,14 @@ type SheetEditorToolbarProps = {
   issuesOpen: boolean;
   onToggleIssues: () => void;
   /** An issue's jump: opens (or focuses) the editor that fixes it. */
-  onOpenIssue: (targetId: string) => void;
+  onOpenIssue: (targetId: string, focusId: string | null) => void;
   /** Shown as an alert under the toolbar: why the last save failed. */
   alert: string | null;
   saving: boolean;
-  /** Live fields holding text that did not apply; Save waits for them (the editor's `canSave`). */
+  /**
+   * Live fields holding text that did not apply; Save waits for them (the editor's `canSave`). The
+   * notice's room is kept from the start of edit mode, so the notice appearing moves nothing.
+   */
   unapplied?: number;
   canSave: boolean;
   canUndo: boolean;
@@ -145,15 +148,27 @@ export const SheetEditorToolbar: React.FC<SheetEditorToolbarProps> = ({
             </button>
           )}
           {children}
-          {unapplied > 0 && (
-            <p className={styles.unapplied}>
-              {unapplied} {unapplied === 1 ? "field holds" : "fields hold"} unapplied text
-            </p>
-          )}
+          <p className={styles.unapplied}>
+            {/* The longest the notice reads, hidden: it sizes the reserved room. */}
+            <span className={styles.unappliedSizer} aria-hidden="true">99 fields hold unapplied text</span>
+            {unapplied > 0 && <span>{unapplied} {unapplied === 1 ? "field holds" : "fields hold"} unapplied text</span>}
+          </p>
           <button ref={undoRef} type="button" disabled={saving || !canUndo} onClick={() => onStep("undo")} aria-keyshortcuts="Control+Z" aria-label="Undo" title="Undo (Ctrl/⌘ Z)"><FiRotateCcw aria-hidden="true" /></button>
           <button ref={redoRef} type="button" disabled={saving || !canRedo} onClick={() => onStep("redo")} aria-keyshortcuts="Control+Shift+Z" aria-label="Redo" title="Redo (Ctrl/⌘ Shift Z)"><FiRotateCw aria-hidden="true" /></button>
           <button ref={cancelRef} type="button" disabled={saving} onClick={onCancel}>Cancel</button>
-          <button type="button" className={styles.save} disabled={!canSave} onClick={onSave}>
+          <button
+            type="button"
+            className={styles.save}
+            disabled={!canSave}
+            onMouseDown={event => {
+              // The inline field's blur can commit and move Save before mouseup. Save already
+              // settles that field on click, so keep focus in it until the click completes.
+              if (event.button === 0 && document.activeElement?.classList.contains(styles.inlineInput)) {
+                event.preventDefault();
+              }
+            }}
+            onClick={onSave}
+          >
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
@@ -171,7 +186,7 @@ export const SheetEditorToolbar: React.FC<SheetEditorToolbarProps> = ({
           {issues.map((issue, index) => (
             <li key={`${issue.path}-${index}`}>
               {issue.targetId ? (
-                <button type="button" onClick={() => onOpenIssue(issue.targetId!)}>
+                <button type="button" data-sheet-issue="" onClick={() => onOpenIssue(issue.targetId!, issue.focusId)}>
                   {issue.place}: {issue.message}
                 </button>
               ) : (

@@ -107,17 +107,20 @@ function parseLine(line: string): RichTextLine {
   return match ? { lead: match[1], text: match[2] } : { text: line };
 }
 
-// "| a | {@spell X|XPHB} |" -> ["a", "{@spell X|XPHB}"]; pipes inside {...} belong to the tag.
+// "| a | {@spell X|XPHB} |" -> ["a", "{@spell X|XPHB}"]; pipes inside {@...} belong to the tag.
 export function splitTableRow(line: string): string[] {
   const body = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  const tags = [...body.matchAll(TAG_PATTERN)];
   const cells: string[] = [];
-  let depth = 0;
+  let tagIndex = 0;
   let current = "";
 
-  for (const char of body) {
-    if (char === "{") depth += 1;
-    if (char === "}") depth = Math.max(0, depth - 1);
-    if (char === "|" && depth === 0) {
+  for (let i = 0; i < body.length; i += 1) {
+    const char = body[i];
+    while (tags[tagIndex] && tags[tagIndex].index + tags[tagIndex][0].length <= i) tagIndex += 1;
+    const tag = tags[tagIndex];
+    const insideTag = tag && i > tag.index && i < tag.index + tag[0].length;
+    if (char === "|" && !insideTag) {
       cells.push(current.trim());
       current = "";
       continue;

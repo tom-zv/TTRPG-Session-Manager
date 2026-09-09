@@ -15,6 +15,12 @@ export type EditorBuffer = {
   /** A new entry whose card is open; it is not in the draft until the card saves. */
   newEntry: unknown;
   /**
+   * A row added on the sheet that is not in the draft yet (an entity trait being typed). Unlike
+   * `newEntry` it is not an editor, so it outlives editor changes; the sheet drops it once it lands
+   * in the draft or is left blank.
+   */
+  addedRow: unknown;
+  /**
    * Text typed into live fields that is not in the draft, by the field's buffer key: still being
    * typed, or invalid and showing its message. It outlives the open editor, which live fields are not.
    */
@@ -37,7 +43,7 @@ export type LiveText = {
   parse: (text: string, draft: unknown, modes: unknown) => FieldParse<unknown, unknown>;
 };
 
-export const createEditorBuffer = (): EditorBuffer => ({ activeId: null, values: {}, newEntry: null, live: {} });
+export const createEditorBuffer = (): EditorBuffer => ({ activeId: null, values: {}, newEntry: null, addedRow: null, live: {} });
 
 /** Whether the open editor or a live field holds input the draft has not seen yet. */
 export const hasOpenInput = (buffer: EditorBuffer): boolean =>
@@ -59,6 +65,9 @@ export type EditorBufferApi = {
   /** The new entry whose card was open, for the sheet's entry sections. */
   restoreNewEntry: () => unknown;
   keepNewEntry: (entry: unknown) => void;
+  /** The added row that is not in the draft yet; see `EditorBuffer.addedRow`. */
+  restoreAddedRow: () => unknown;
+  keepAddedRow: (row: unknown) => void;
   /** A live field's unapplied text by buffer key, restored when the field mounts again (Resume, a breakpoint). */
   restoreLive: (key: string) => LiveText | undefined;
   keepLive: (key: string, entry: LiveText) => void;
@@ -93,8 +102,10 @@ export type SheetEditControls = {
   takeFocus: (id: string) => boolean;
   /** The open editor's input, kept with the draft slot; absent for a control rendered on its own. */
   buffer?: EditorBufferApi;
-  /** Set by the open editor: puts focus back on it (its invalid control first), when it refuses to close. */
-  focusOpenRef: MutableRefObject<(() => void) | null>;
+  /** Set by the open editor: focuses an exact field, or its invalid/first control when omitted. */
+  focusOpenRef: MutableRefObject<((fieldId?: string | null) => void) | null>;
+  /** The exact field an issue jump wants a newly mounted editor to focus. */
+  editorFocusId: string | null;
   /**
    * A live control is about to change the draft: commits and closes the open editor first. False,
    * with focus back on that editor, when it is invalid and stays open; the live edit then must not apply.
@@ -153,9 +164,12 @@ export const useActiveSheetEdit = <Draft = unknown, Modes = unknown>(): SheetEdi
   return edit;
 };
 
-/** The open editor's invalid control, else its first enabled one. */
-const focusEditorIn = (element: HTMLElement | null) => {
-  const target = element?.querySelector<HTMLElement>("[aria-invalid=\"true\"]")
+const focusEditorIn = (element: HTMLElement | null, fieldId?: string | null) => {
+  const controls = [...(element?.querySelectorAll<HTMLElement>("[data-sheet-field-id]:not(:disabled)") ?? [])];
+  const field = fieldId?.split(".")[0];
+  const target = controls.find(control => control.dataset.sheetFieldId === fieldId)
+    ?? controls.find(control => control.dataset.sheetFieldId === field)
+    ?? element?.querySelector<HTMLElement>("[aria-invalid=\"true\"]")
     ?? element?.querySelector<HTMLElement>("input:not(:disabled), textarea:not(:disabled), select:not(:disabled)");
   target?.focus();
 };
@@ -172,7 +186,7 @@ export const useCommitHandler = (commit: () => boolean, element?: RefObject<HTML
   });
   useEffect(() => {
     commitRef.current = () => latest.current();
-    focusOpenRef.current = element ? () => focusEditorIn(element.current) : null;
+    focusOpenRef.current = element ? fieldId => focusEditorIn(element.current, fieldId) : null;
     return () => {
       commitRef.current = null;
       focusOpenRef.current = null;

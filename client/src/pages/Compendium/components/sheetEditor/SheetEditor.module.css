@@ -1,5 +1,9 @@
 /* Sheet edit mode: the toolbar, targets, placeholders, inline fields and popover forms. */
 
+/*
+ * The edit heading replaces the sheet's title. Each sheet names its own spacing (`--sheet-gap` between
+ * its blocks, `--sheet-title-gap` under the title), so the line below sits where it does in view mode.
+ */
 .editHeading {
   position: sticky;
   top: 0;
@@ -9,7 +13,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.2rem 0.8rem;
-  margin-bottom: -0.7rem;
+  margin-bottom: calc(var(--sheet-title-gap, 0.2rem) - var(--sheet-gap, 0.9rem));
   background: color-mix(in srgb, var(--bg-secondary) 45%, var(--bg-primary));
 }
 
@@ -18,6 +22,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.15rem;
+  /* A sheet's own toolbar item (an options menu) may be taller than the title; it overlaps instead of
+     making the heading row taller than the title it replaces. */
+  margin-block: -0.2rem;
   max-width: 100%;
   font-size: 0.78rem;
   color: var(--text-secondary);
@@ -71,9 +78,19 @@
 }
 
 .unapplied {
+  display: inline-grid;
   margin: 0;
   color: var(--error-color, #e06c75);
   font-size: 0.8rem;
+}
+
+/* The notice and its sizer share one cell, so the reserved room fits every count. */
+.unapplied > span {
+  grid-area: 1 / 1;
+}
+
+.unappliedSizer {
+  visibility: hidden;
 }
 
 .error {
@@ -154,6 +171,14 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm, 4px);
   background: var(--bg-secondary);
+}
+
+@media (pointer: coarse) {
+  :is(.inlinePanel, .popoverPanel, .entryPanel) :is(button, input, select, textarea, a[href], [role="option"]),
+  .inlineInput {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .form {
