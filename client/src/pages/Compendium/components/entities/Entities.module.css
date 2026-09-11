@@ -52,9 +52,11 @@
    kept compact so the text sections (traits, actions…) get most of the height. */
 
 .sheet {
+  --sheet-gap: 0.9rem;
+  --sheet-title-gap: 0.2rem;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: var(--sheet-gap);
   max-width: 76rem;
   color: var(--text-secondary);
 }
@@ -69,7 +71,7 @@
 .sheetTitle {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: var(--sheet-title-gap);
   min-width: 0;
 }
 

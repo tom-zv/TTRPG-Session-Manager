@@ -122,3 +122,63 @@
   color: var(--text-tertiary);
   font-size: 0.85rem;
 }
+
+/* A trait or action in edit mode: the name's line (name, then the entry options), then its text. */
+.entryRow {
+  display: grid;
+  grid-template-areas: "head tools" "text text";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 0.4rem;
+  row-gap: 0.2rem;
+  border-radius: 3px;
+}
+
+.entryText {
+  grid-area: text;
+  min-width: 0;
+}
+
+.entryRow:global(.drop-target.active) {
+  outline: 2px dashed var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.entryHead {
+  grid-area: head;
+  min-width: 0;
+  margin: 0;
+}
+
+.entryName {
+  min-width: 0;
+}
+
+.unnamed {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Kept in edit mode whether or not it is hovered or focused; its menu is an overlay. */
+.entryTools {
+  grid-area: tools;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+}
+
+.dragHandle {
+  padding: 0 0.2rem;
+  color: var(--text-tertiary);
+  cursor: grab;
+  user-select: none;
+}
+
+@media (pointer: coarse) {
+  .entryTools button[aria-haspopup="menu"],
+  .entryTools [role="menuitem"] {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

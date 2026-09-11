@@ -80,11 +80,21 @@
   border-bottom: none;
 }
 
+.item[aria-disabled="true"] {
+  color: var(--text-tertiary);
+  cursor: default;
+}
+
 .item:hover,
 .item:focus-visible {
   background: var(--bg-hover);
   color: var(--accent-primary);
   outline: none;
+}
+
+.item[aria-disabled="true"]:hover,
+.item[aria-disabled="true"]:focus-visible {
+  color: var(--text-tertiary);
 }
 
 .icon {

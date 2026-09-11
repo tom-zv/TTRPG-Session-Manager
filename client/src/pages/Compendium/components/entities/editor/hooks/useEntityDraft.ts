@@ -1,4 +1,3 @@
-import { useReducer } from "react";
 import {
   createSheetDraftReducer,
   createSheetDraftState,
@@ -8,6 +7,7 @@ import {
   type SheetDraftState,
 } from "../../../sheetEditor/sheetDraft.js";
 import { loadEntityDraft, type EntityDraft } from "../model/defaults.js";
+import { carryEntryKey } from "../model/entryKeys.js";
 import {
   getAutoPassivePerception,
   inferEntityModes,
@@ -71,6 +71,14 @@ const inferEditedRecord = (
  */
 const normalizeEntityCommit: SheetDraftNormalize<EntityDraft, EntityDraftModes> = (previous, next, patch, patchModes) => {
   const { draft, modes } = next;
+  // The draft holds clones of the entries a commit sends; each clone keeps its row's key, so the
+  // sheet's field for that entry stays mounted (see `entryKeys.ts`).
+  for (const list of ["traits", "actions", "spellcasting"] as const) {
+    const stored = draft[list];
+    patch[list]?.forEach((row, index) => {
+      if (stored?.[index]) carryEntryKey(row, stored[index]);
+    });
+  }
   const fields: readonly ProficiencyField[] = ["saves", "skills"];
   for (const field of fields) {
     if (Object.hasOwn(patch, field)) {
@@ -108,6 +116,3 @@ export const entityDraftReducer = (state: EntityDraftState, action: EntityDraftA
       return sheetDraftReducer(state, action);
   }
 };
-
-export const useEntityDraft = (initial: EntityDraftInitial) =>
-  useReducer(entityDraftReducer, initial, createEntityDraftState);

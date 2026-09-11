@@ -354,7 +354,7 @@ describe("validation", () => {
     expect(await details().findByRole("alert")).toHaveTextContent("Not saved. Fix 1 issue first.");
     expect(requests.puts).toEqual([]);
     // The first issue's editor opens at once; the list stays for the others.
-    expect(details().getByRole("form", { name: /^Edit x{70}, Traits$/ })).toBeVisible();
+    expect(details().getByRole("textbox", { name: /^Name of x{70}, Traits$/ })).toHaveFocus();
     const issues = within(details().getByRole("list", { name: "Issues" }));
     expect(issues.getByRole("button", { name: /^Traits: x{70}: Must have at most 64 characters\.$/ })).toBeVisible();
     expect(toolbar().getByRole("button", { name: "1 issue" })).toHaveAttribute("aria-expanded", "true");
@@ -375,7 +375,7 @@ describe("validation", () => {
 
     await waitFor(() => expect(requests.puts).toHaveLength(1));
     expect(await details().findByRole("alert")).toHaveTextContent("Invalid entity data.");
-    expect(details().getByRole("form", { name: "Edit Scimitar, Actions" })).toBeVisible();
+    expect(details().getByRole("textbox", { name: "Name of Scimitar, Actions" })).toHaveFocus();
     const issues = within(details().getByRole("list", { name: "Issues" }));
     expect(issues.getByRole("button", { name: "Actions: Scimitar: Must not be empty." })).toBeVisible();
 
@@ -500,14 +500,13 @@ describe("Step 06 corrections", () => {
     expect(requests.posts).toHaveLength(1);
   });
 
-  test("06-R2: a valid open card settles before navigation, Cancel and unload; an invalid one stays", async () => {
+  test("06-R2: a valid open editor settles before navigation, Cancel and unload; an invalid one stays", async () => {
     const user = userEvent.setup();
     serveCatalog([goblin, mara]);
     render(`/compendium?entity=${goblin.templateId}`);
     await startEditing(user, "Goblin");
-    await user.click(details().getByRole("button", { name: "Edit Scimitar, Actions" }));
-    const card = within(details().getByRole("form", { name: "Edit Scimitar, Actions" }));
-    const name = card.getByRole("textbox", { name: "Name" });
+    await user.click(details().getByRole("button", { name: "Edit Name of Scimitar, Actions" }));
+    const name = details().getByRole("textbox", { name: "Name of Scimitar, Actions" });
     await replaceText(user, name, "Pending Scimitar");
     expect(name).toHaveValue("Pending Scimitar");
 
@@ -517,7 +516,7 @@ describe("Step 06 corrections", () => {
       return event.defaultPrevented;
     };
     expect(unload()).toBe(true);
-    expect(card.getByRole("textbox", { name: "Name" })).toHaveValue("Pending Scimitar");
+    expect(details().getByRole("textbox", { name: "Name of Scimitar, Actions" })).toHaveValue("Pending Scimitar");
     await replaceText(user, name, "Later Scimitar");
     await pressRow("Mara");
     expect(await details().findByRole("article", { name: "Mara" })).toBeVisible();
@@ -525,32 +524,30 @@ describe("Step 06 corrections", () => {
 
     const bar = within(screen.getByRole("region", { name: "Unsaved changes" }));
     await user.click(bar.getByRole("button", { name: "Resume" }));
-    expect(details().getByRole("button", { name: "Edit Later Scimitar, Actions" })).toBeVisible();
-    await user.click(details().getByRole("button", { name: "Edit Later Scimitar, Actions" }));
-    let resumedCard = within(details().getByRole("form", { name: "Edit Later Scimitar, Actions" }));
-    await replaceText(user, resumedCard.getByRole("textbox", { name: "Name" }), "Final Scimitar");
+    expect(details().getByRole("button", { name: "Edit Name of Later Scimitar, Actions" })).toBeVisible();
+    await user.click(details().getByRole("button", { name: "Edit Name of Later Scimitar, Actions" }));
+    await replaceText(user, details().getByRole("textbox", { name: "Name of Later Scimitar, Actions" }), "Final Scimitar");
     await user.click(toolbar().getByRole("button", { name: "Cancel" }));
     const confirm = within(details().getByRole("group", { name: "Discard unsaved changes?" }));
     await user.click(confirm.getByRole("button", { name: "Keep editing" }));
-    await user.click(details().getByRole("button", { name: "Edit Final Scimitar, Actions" }));
-    resumedCard = within(details().getByRole("form", { name: "Edit Final Scimitar, Actions" }));
-    const invalid = resumedCard;
-    await replaceText(user, invalid.getByRole("textbox", { name: "Name" }), "");
+    await user.click(details().getByRole("button", { name: "Edit Name of Final Scimitar, Actions" }));
+    const invalid = details().getByRole("textbox", { name: "Name of Final Scimitar, Actions" });
+    await replaceText(user, invalid, "");
     await pressRow("Mara");
-    expect(details().getByRole("form", { name: "Edit Final Scimitar, Actions" })).toBeVisible();
-    expect(invalid.getByRole("alert")).toHaveTextContent("Name: This can't be empty.");
+    expect(invalid).toBeVisible();
+    expect(invalid).toHaveAccessibleDescription("Name: This can't be empty.");
     await user.click(toolbar().getByRole("button", { name: "Cancel" }));
-    expect(invalid.getByRole("alert")).toHaveTextContent("Name: This can't be empty.");
+    expect(invalid).toHaveAccessibleDescription("Name: This can't be empty.");
     expect(details().queryByRole("group", { name: "Discard unsaved changes?" })).not.toBeInTheDocument();
   });
 
-  test("06-R2: input typed into an open card, as the first change, survives Back and returns with Forward and Resume", async () => {
+  test("06-R2: input typed into an open editor, as the first change, survives Back and returns with Forward and Resume", async () => {
     const user = userEvent.setup();
     const requests = serveCatalog([goblin, mara]);
     render(`/compendium?entity=${goblin.templateId}`);
     await startEditing(user, "Goblin");
-    await user.click(details().getByRole("button", { name: "Edit Scimitar, Actions" }));
-    await replaceText(user, within(details().getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("textbox", { name: "Name" }), "Pending Scimitar");
+    await user.click(details().getByRole("button", { name: "Edit Name of Scimitar, Actions" }));
+    await replaceText(user, details().getByRole("textbox", { name: "Name of Scimitar, Actions" }), "Pending Scimitar");
 
     await go(-1);
     await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}`));
@@ -559,20 +556,20 @@ describe("Step 06 corrections", () => {
 
     await go(1);
     await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}&edit=1`));
-    expect(within(details().getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("textbox", { name: "Name" })).toHaveValue("Pending Scimitar");
+    expect(details().getByRole("textbox", { name: "Name of Scimitar, Actions" })).toHaveValue("Pending Scimitar");
 
     await go(-1);
     await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}`));
     await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
-    const card = within(details().getByRole("form", { name: "Edit Scimitar, Actions" }));
-    expect(card.getByRole("textbox", { name: "Name" })).toHaveValue("Pending Scimitar");
-    await user.click(card.getByRole("button", { name: "Done" }));
+    const name = details().getByRole("textbox", { name: "Name of Scimitar, Actions" });
+    expect(name).toHaveValue("Pending Scimitar");
+    await replaceText(user, name, "Pending Scimitar{Enter}");
     await user.click(toolbar().getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.puts).toHaveLength(1));
     expect(requests.puts[0]?.body.data.actions?.map(action => action.name)).toEqual(["Pending Scimitar"]);
   });
 
-  test("06-R2: an open card keeps its input, invalid or valid, across reader breakpoint remounts", async () => {
+  test("06-R2: an open editor keeps its input, invalid or valid, across reader breakpoint remounts", async () => {
     installMatchMedia(800);
     const user = userEvent.setup();
     const requests = serveCatalog([goblin]);
@@ -581,29 +578,30 @@ describe("Step 06 corrections", () => {
     await within(await screen.findByRole("dialog", { name: "Goblin" })).findByRole("article", { name: "Goblin" });
     await user.click(reader().getByRole("button", { name: "Actions for Goblin" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    await user.click(reader().getByRole("button", { name: "Edit Scimitar, Actions" }));
-    await replaceText(user, within(reader().getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("textbox", { name: "Name" }), "");
+    await user.click(reader().getByRole("button", { name: "Edit Name of Scimitar, Actions" }));
+    await replaceText(user, reader().getByRole("textbox", { name: "Name of Scimitar, Actions" }), "");
 
-    // Close cannot settle an invalid card, so the reader stays.
+    // Close cannot settle an invalid editor, so the reader stays.
     await user.click(reader().getByRole("button", { name: "Close" }));
-    expect(within(reader().getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("alert")).toHaveTextContent("Name: This can't be empty.");
+    expect(reader().getByRole("textbox", { name: "Name of Scimitar, Actions" })).toHaveAccessibleDescription("Name: This can't be empty.");
 
+    // Wide with a mouse the sheet is live, and the open editor stays open there.
     setViewportWidth(1280);
-    let card = within(details().getByRole("form", { name: "Edit Scimitar, Actions" }));
-    expect(card.getByRole("textbox", { name: "Name" })).toHaveValue("");
-    expect(card.getByRole("alert")).toHaveTextContent("Name: This can't be empty.");
-    await replaceText(user, card.getByRole("textbox", { name: "Name" }), "Sharp Scimitar");
+    let name = details().getByRole("textbox", { name: "Name of Scimitar, Actions" });
+    expect(name).toHaveValue("");
+    expect(name).toHaveAccessibleDescription("Name: This can't be empty.");
+    await replaceText(user, name, "Sharp Scimitar");
 
     setViewportWidth(800);
-    card = within(reader().getByRole("form", { name: "Edit Scimitar, Actions" }));
-    expect(card.getByRole("textbox", { name: "Name" })).toHaveValue("Sharp Scimitar");
-    await user.click(card.getByRole("button", { name: "Done" }));
+    name = reader().getByRole("textbox", { name: "Name of Scimitar, Actions" });
+    expect(name).toHaveValue("Sharp Scimitar");
+    await replaceText(user, name, "Sharp Scimitar{Enter}");
     await user.click(reader().getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.puts).toHaveLength(1));
     expect(requests.puts[0]?.body.data.actions?.map(action => action.name)).toEqual(["Sharp Scimitar"]);
   });
 
-  test("06-R2: at narrow width, Forward to the selected row's edit URL reopens the closed reader with its open card", async () => {
+  test("06-R2: at narrow width, Forward to the selected row's edit URL reopens the closed reader with its open editor", async () => {
     installMatchMedia(800);
     const user = userEvent.setup();
     const requests = serveCatalog([goblin]);
@@ -612,8 +610,8 @@ describe("Step 06 corrections", () => {
     await within(await screen.findByRole("dialog", { name: "Goblin" })).findByRole("article", { name: "Goblin" });
     await user.click(reader().getByRole("button", { name: "Actions for Goblin" }));
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    await user.click(reader().getByRole("button", { name: "Edit Scimitar, Actions" }));
-    await replaceText(user, within(reader().getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("textbox", { name: "Name" }), "Narrow Forward Scimitar");
+    await user.click(reader().getByRole("button", { name: "Edit Name of Scimitar, Actions" }));
+    await replaceText(user, reader().getByRole("textbox", { name: "Name of Scimitar, Actions" }), "Narrow Forward Scimitar");
 
     await go(-1);
     await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}`));
@@ -625,10 +623,10 @@ describe("Step 06 corrections", () => {
     // The selection stays Goblin, so only the edit URL changes.
     await go(1);
     await waitFor(() => expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}&edit=1`));
-    const card = within(within(await screen.findByRole("dialog", { name: "Goblin" })).getByRole("form", { name: "Edit Scimitar, Actions" }));
-    expect(card.getByRole("textbox", { name: "Name" })).toHaveValue("Narrow Forward Scimitar");
+    const name = within(await screen.findByRole("dialog", { name: "Goblin" })).getByRole("textbox", { name: "Name of Scimitar, Actions" });
+    expect(name).toHaveValue("Narrow Forward Scimitar");
     expect(screen.queryByRole("region", { name: "Unsaved changes" })).not.toBeInTheDocument();
-    await user.click(card.getByRole("button", { name: "Done" }));
+    await replaceText(user, name, "Narrow Forward Scimitar{Enter}");
     await user.click(reader().getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.puts).toHaveLength(1));
     expect(requests.puts[0]?.body.data.actions?.map(action => action.name)).toEqual(["Narrow Forward Scimitar"]);
@@ -639,19 +637,19 @@ describe("Step 06 corrections", () => {
     serveCatalog([goblin]);
     render(`/compendium?entity=${goblin.templateId}`);
     await startEditing(user, "Goblin");
-    await user.click(details().getByRole("button", { name: "Edit Scimitar, Actions" }));
-    await replaceText(user, within(details().getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("textbox", { name: "Name" }), "Wide Scimitar");
+    await user.click(details().getByRole("button", { name: "Edit Name of Scimitar, Actions" }));
+    await replaceText(user, details().getByRole("textbox", { name: "Name of Scimitar, Actions" }), "Wide Scimitar");
 
     setViewportWidth(800);
     const reader = within(await screen.findByRole("dialog", { name: "Goblin" }));
-    expect(within(reader.getByRole("form", { name: "Edit Scimitar, Actions" })).getByRole("textbox", { name: "Name" })).toHaveValue("Wide Scimitar");
+    expect(reader.getByRole("textbox", { name: "Name of Scimitar, Actions" })).toHaveValue("Wide Scimitar");
 
     await user.click(reader.getByRole("button", { name: "Close" }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Goblin" })).not.toBeInTheDocument());
     expect(currentUrl()).toBe(`/compendium?entity=${goblin.templateId}`);
     await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
     const resumed = within(await screen.findByRole("dialog", { name: "Goblin" }));
-    expect(resumed.getByRole("button", { name: "Edit Wide Scimitar, Actions" })).toBeVisible();
+    expect(resumed.getByRole("button", { name: "Edit Name of Wide Scimitar, Actions" })).toBeVisible();
     expect(resumed.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
   });
 
@@ -676,15 +674,14 @@ describe("Step 06 corrections", () => {
     await act(async () => gate.resolve());
     expect(await details().findByRole("alert")).toHaveTextContent("Invalid entity data.");
     expect(currentUrl()).toBe(`/compendium?entity=new&from=${goblin.templateId}`);
-    const card = within(details().getByRole("form", { name: "Edit Scimitar, Actions" }));
-    expect(card.getByRole("textbox", { name: "Name" })).toHaveFocus();
+    const name = details().getByRole("textbox", { name: "Name of Scimitar, Actions" });
+    expect(name).toHaveFocus();
     const issues = within(details().getByRole("list", { name: "Issues" }));
     expect(issues.getByRole("button", { name: "Actions: Scimitar: The server rejects this name." })).toBeVisible();
     expect(requests.posts).toHaveLength(1);
 
     // The issues stand until the next committed edit.
-    await replaceText(user, card.getByRole("textbox", { name: "Name" }), "Bite");
-    await user.click(card.getByRole("button", { name: "Done" }));
+    await replaceText(user, name, "Bite{Enter}");
     expect(details().queryByRole("list", { name: "Issues" })).not.toBeInTheDocument();
     expect(requests.posts).toHaveLength(1);
   });

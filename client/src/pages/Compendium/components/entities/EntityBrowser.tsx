@@ -22,7 +22,7 @@ import { createDefaultEntity, duplicateEntity, type EntityDraft } from "./editor
 import { InventorySection } from "./InventorySection.js";
 import type { ItemMutationScope } from "../../api/query/itemCache.js";
 import type { ItemViewer } from "../../api/query/itemKeys.js";
-import type { EntityEditLocation } from "../../hooks/useCompendiumUrl.js";
+import type { EditLocation } from "../../hooks/useCompendiumUrl.js";
 import { useMountedViewerScope } from "../../hooks/useMountedViewerScope.js";
 import { hasInventory } from "shared/domain/encounters/dnd5e/inventory.js";
 import {
@@ -45,9 +45,9 @@ type EntityBrowserProps = {
   selectedId: number | null;
   onSelect: (id: number | null) => void;
   /** The entity in edit mode, from the URL (?entity=<id>&edit=1, ?entity=new&from=<id>). */
-  editing: EntityEditLocation | null;
+  editing: EditLocation | null;
   /** Open edit mode as a new history entry. */
-  onEdit: (edit: EntityEditLocation) => void;
+  onEdit: (edit: EditLocation) => void;
   /** Leave edit mode, selecting the saved template, keeping the selection (undefined) or clearing it (null). */
   onEditEnd: (selected?: number | null) => void;
 };
@@ -58,7 +58,7 @@ type EntityBrowserProps = {
  */
 type DraftSlot = {
   serial: number;
-  edit: EntityEditLocation;
+  edit: EditLocation;
   /** What the sheet renders under the draft: the template as loaded, or a homebrew shell. */
   entity: DnD5eEntityDetails;
   state: EntityDraftState;
@@ -67,7 +67,7 @@ type DraftSlot = {
   buffer: EditorBuffer;
 };
 
-const sameEdit = (left: EntityEditLocation, right: EntityEditLocation) =>
+const sameEdit = (left: EditLocation, right: EditLocation) =>
   left.target === right.target && (left.target !== "new" || left.from === right.from);
 
 /** A sheet for a draft that has no template yet. */
@@ -316,7 +316,7 @@ type EntityDetailProps = {
   summary?: DnD5eEntitySummary;
   selectedId: number | null;
   scope: ItemMutationScope;
-  onEdit: (edit: EntityEditLocation) => void;
+  onEdit: (edit: EditLocation) => void;
 };
 
 const EntityDetail: React.FC<EntityDetailProps> = ({ summary, selectedId, scope, onEdit }) => {

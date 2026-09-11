@@ -56,6 +56,7 @@ export const ProficiencyEditor: React.FC<ProficiencyEditorProps> = ({ field, onl
           )}
           <select
             aria-label={only ? `${ABILITY_FULL_NAMES[only]} save mode` : `${labelOf(row.key)} mode`}
+            data-sheet-field-id={row.mode === "custom" ? undefined : `${field}.${row.key}`}
             value={row.mode}
             onChange={event => update(index, { mode: event.target.value as RecordMode })}
           >
@@ -63,7 +64,7 @@ export const ProficiencyEditor: React.FC<ProficiencyEditorProps> = ({ field, onl
               .map(mode => <option key={mode} value={mode}>{MODE_LABELS[mode]}</option>)}
           </select>
           {row.mode === "custom" && (
-            <input aria-label={`${labelOf(row.key)} modifier`} value={row.custom} onChange={event => update(index, { custom: event.target.value })} />
+            <input aria-label={`${labelOf(row.key)} modifier`} data-sheet-field-id={`${field}.${row.key}`} value={row.custom} onChange={event => update(index, { custom: event.target.value })} />
           )}
           {!only && (
             <button type="button" aria-label={`Remove ${labelOf(row.key)}`} onClick={() => setRows(rows.filter((_, rowIndex) => rowIndex !== index))}>×</button>
@@ -71,7 +72,7 @@ export const ProficiencyEditor: React.FC<ProficiencyEditorProps> = ({ field, onl
         </div>
       )))}
       {!only && (
-        <AddChoice label={`Add ${noun}`} options={unused} onPick={key => setRows([...rows, { key, mode: "proficient", custom: "" }])} />
+        <AddChoice label={`Add ${noun}`} fieldId={field} options={unused} onPick={key => setRows([...rows, { key, mode: "proficient", custom: "" }])} />
       )}
     </PopoverForm>
   );

@@ -51,7 +51,7 @@ const toSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
 const goblin = template(14, "Goblin");
 const mara = template(13, "Mara", { role: "npc", cr: "2" });
 const skyGoblin = template(15, "Sky Goblin", { speeds: { walk: 30, fly: 60 } });
-const drake = template(16, "Drake", { traits: [{ name: "Keen Smell", description: "Advantage on smell checks.", sortOrder: 0 }] });
+const seer = template(16, "Seer", { spellcasting: [{ name: "Innate Spellcasting", descriptions: ["The seer casts spells."] }] });
 // A stored note with a line break, and a condition the write contract allows but the presets do not list.
 const STORED_FIRE = { damageType: "fire", conditionNote: "from nonmagical\nattacks" };
 const warded = template(17, "Warded Goblin", {
@@ -62,7 +62,7 @@ const warded = template(17, "Warded Goblin", {
     { conditionName: "Dazed (magical)" },
   ],
 });
-const CATALOG = [goblin, mara, skyGoblin, drake, warded];
+const CATALOG = [goblin, mara, skyGoblin, seer, warded];
 const gm = testUser({ id: 1, username: "gm", isGm: true });
 
 function serveCatalog({ rejectPut, holdPut }: { rejectPut?: EntityWriteIssue[]; holdPut?: Promise<void> } = {}) {
@@ -143,7 +143,7 @@ describe("live presentation (a mouse on a wide pane)", () => {
     await user.keyboard("{Escape}");
     expect(ac).toHaveValue("12");
     expect(sheet.queryByRole("alert")).not.toBeInTheDocument();
-    expect(toolbar().queryByText(/unapplied text/)).not.toBeInTheDocument();
+    expect(toolbar().queryByText("1 field holds unapplied text")).not.toBeInTheDocument();
     // The revert is local to the field: edit mode stays.
     expect(details().getByRole("toolbar", { name: "Editing" })).toBeVisible();
 
@@ -324,7 +324,7 @@ describe("02-entity-live-fields-R2: input survives a switch of presentation", ()
     await retype(user, ac, "20");
     await user.keyboard("{Enter}");
     expect(sheet.getByRole("button", { name: "Edit Armor Class, 20" })).toBeVisible();
-    expect(toolbar().queryByText(/unapplied text/)).not.toBeInTheDocument();
+    expect(toolbar().queryByText("1 field holds unapplied text")).not.toBeInTheDocument();
 
     setPrimaryPointer("fine");
     expect(sheet.getByRole("textbox", { name: "Armor Class" })).toHaveValue("20");
@@ -415,7 +415,7 @@ describe("live presentation: tokens, issues and the open editor", () => {
     expect(toolbar().getByText("1 field holds unapplied text")).toBeVisible();
     await user.keyboard("{Escape}");
     expect(first).toHaveValue("Draconic");
-    expect(toolbar().queryByText(/unapplied text/)).not.toBeInTheDocument();
+    expect(toolbar().queryByText("1 field holds unapplied text")).not.toBeInTheDocument();
 
     await typeInto(user, add, "Elvish{Enter}");
     await retype(user, sheet.getByRole("combobox", { name: "Language 2" }), "draconic");
@@ -423,7 +423,7 @@ describe("live presentation: tokens, issues and the open editor", () => {
     expect(toolbar().getByText("1 field holds unapplied text")).toBeVisible();
     await user.click(toolbar().getByRole("button", { name: "Undo" }));
     expect(sheet.queryByRole("combobox", { name: "Language 2" })).not.toBeInTheDocument();
-    expect(toolbar().queryByText(/unapplied text/)).not.toBeInTheDocument();
+    expect(toolbar().queryByText("1 field holds unapplied text")).not.toBeInTheDocument();
     expect(toolbar().getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
@@ -453,9 +453,18 @@ describe("live presentation: tokens, issues and the open editor", () => {
     expect(sheet.getByRole("combobox", { name: "Add a speed" })).toHaveFocus();
 
     setPrimaryPointer("coarse");
-    await user.click(issues().getByRole("button", { name: "HP formula: Formula rejected." }));
+    const issue = issues().getByRole("button", { name: "HP formula: Formula rejected." });
+    await user.click(issue);
     const popover = within(await screen.findByRole("dialog", { name: /^Edit HP/ }));
-    expect(popover.getByRole("textbox", { name: "Hit points" })).toHaveFocus();
+    const formula = popover.getByRole("textbox", { name: "Hit point formula" });
+    expect(formula).toHaveFocus();
+    await retype(user, popover.getByRole("textbox", { name: "Hit points" }), "16");
+    await user.click(issue);
+    expect(formula).toHaveFocus();
+    expect(popover.getByRole("textbox", { name: "Hit points" })).toHaveValue("16");
+    await user.keyboard("{Escape}");
+    await user.click(issues().getByRole("button", { name: "Speed: Fly rejected." }));
+    expect(within(await screen.findByRole("dialog", { name: /^Edit Speed/ })).getByRole("textbox", { name: "Feet 2" })).toHaveFocus();
   });
 
   test.each([
@@ -493,7 +502,7 @@ describe("live presentation: tokens, issues and the open editor", () => {
     const resumed = within(await details().findByRole("article", { name: "Goblin" }));
     const focusTarget = to === "live"
       ? resumed.getByRole("textbox", { name: "Hit point formula" })
-      : within(await screen.findByRole("dialog", { name: /^Edit HP/ })).getByRole("textbox", { name: "Hit points" });
+      : within(await screen.findByRole("dialog", { name: /^Edit HP/ })).getByRole("textbox", { name: "Hit point formula" });
     await waitFor(() => expect(focusTarget).toHaveFocus());
     const issues = within(details().getByRole("list", { name: "Issues" }));
     expect(issues.getByRole("button", { name: "HP formula: Formula rejected." })).toBeVisible();
@@ -502,10 +511,10 @@ describe("live presentation: tokens, issues and the open editor", () => {
   test("02-entity-live-fields-R5: an invalid entry card keeps focus and its error, and no live field or marker applies until it is fixed", async () => {
     const user = userEvent.setup();
     const puts = serveCatalog();
-    renderSheet(drake.templateId);
-    const sheet = await startEditing(user, "Drake");
-    await user.click(sheet.getByRole("button", { name: "Edit Keen Smell, Traits" }));
-    const card = () => within(sheet.getByRole("form", { name: "Edit Keen Smell, Traits" }));
+    renderSheet(seer.templateId);
+    const sheet = await startEditing(user, "Seer");
+    await user.click(sheet.getByRole("button", { name: "Edit Innate Spellcasting, Spellcasting" }));
+    const card = () => within(sheet.getByRole("form", { name: "Edit Innate Spellcasting, Spellcasting" }));
     await user.clear(card().getByRole("textbox", { name: "Name" }));
 
     const ac = sheet.getByRole("textbox", { name: "Armor Class" });
@@ -519,13 +528,13 @@ describe("live presentation: tokens, issues and the open editor", () => {
     expect(toolbar().queryByText(/changes/)).not.toBeInTheDocument();
 
     // Fixed, the card settles when a live field takes focus, and the field's edit applies.
-    await typeInto(user, card().getByRole("textbox", { name: "Name" }), "Keen Nose");
+    await typeInto(user, card().getByRole("textbox", { name: "Name" }), "Divination");
     await retype(user, ac, "21");
     await user.keyboard("{Enter}");
-    expect(sheet.queryByRole("form", { name: /^Edit Keen/ })).not.toBeInTheDocument();
+    expect(sheet.queryByRole("form", { name: /Spellcasting$/ })).not.toBeInTheDocument();
     await user.click(toolbar().getByRole("button", { name: "Save" }));
     await waitFor(() => expect(puts).toHaveLength(1));
-    expect(puts[0]?.data).toMatchObject({ ac: 21, traits: [expect.objectContaining({ name: "Keen Nose" })] });
+    expect(puts[0]?.data).toMatchObject({ ac: 21, spellcasting: [expect.objectContaining({ name: "Divination" })] });
   });
 
   test("02-entity-live-fields-R6: editing colliding defense displays keeps each stored row's name and note", async () => {

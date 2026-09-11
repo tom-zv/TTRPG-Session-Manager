@@ -37,11 +37,11 @@ export const DefenseEditor: React.FC<{ field: DefenseField }> = ({ field }) => {
     <PopoverForm onApply={apply} error={error}>
       {rows.map((row, index) => (
         <div key={index} className={styles.row}>
-          <select aria-label={`${noun} ${index + 1}`} value={row.name} onChange={event => update(index, { name: event.target.value })}>
+          <select aria-label={`${noun} ${index + 1}`} data-sheet-field-id={`${field}.${index}.${field === "conditionImmunities" ? "conditionName" : "damageType"}`} value={row.name} onChange={event => update(index, { name: event.target.value })}>
             {[...options, ...(options.some(option => option.value === row.name) ? [] : [{ value: row.name, label: row.name }])]
               .map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
-          <input aria-label={`${noun} ${index + 1} note`} placeholder="Note" value={row.note} onChange={event => update(index, { note: event.target.value })} />
+          <input aria-label={`${noun} ${index + 1} note`} data-sheet-field-id={`${field}.${index}.conditionNote`} placeholder="Note" value={row.note} onChange={event => update(index, { note: event.target.value })} />
           <button type="button" aria-label={`Remove ${row.name}`} onClick={() => setRows(rows.filter((_, rowIndex) => rowIndex !== index))}>×</button>
         </div>
       ))}

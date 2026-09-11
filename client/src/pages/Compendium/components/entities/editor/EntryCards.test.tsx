@@ -1,10 +1,10 @@
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { http } from "msw";
 import { beforeEach, describe, expect, test } from "vitest";
 import type { SpellSummary } from "shared/domain/dnd5e/spell.js";
 import type { DnD5eEntityDetails, DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
-import { validateDnD5eEntityWrite, type UpdateEntityRequest } from "shared/domain/encounters/dnd5e/entityValidation.js";
+import { ENTITY_LIMITS, validateDnD5eEntityWrite, type EntityWriteIssue, type UpdateEntityRequest } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import { installLayoutApis, installMatchMedia } from "src/test/fakes/matchMedia.js";
 import { json } from "src/test/msw/handlers.js";
 import { server } from "src/test/msw/server.js";
@@ -66,6 +66,7 @@ const wyrm = template(24, "Wyrm", {
 });
 const mage = template(22, "Mage", {
   cr: "6",
+  actions: [{ name: "Rend", description: "Tears at the target.", actionType: "action", sortOrder: 0 }],
   spellcasting: [{
     name: "Spellcasting",
     ability: "int",
@@ -87,7 +88,7 @@ const CATALOG = [drake, mage, titan, wyrm, colossus];
 
 const gm = testUser({ id: 1, username: "gm", isGm: true });
 
-function serveCatalog() {
+function serveCatalog({ rejectPut }: { rejectPut?: EntityWriteIssue[] } = {}) {
   const puts: UpdateEntityRequest[] = [];
   server.use(
     http.get("/api/dnd5e/spells", () => json({ spells: SPELLS })),
@@ -105,6 +106,7 @@ function serveCatalog() {
       const id = Number(params.id);
       const { data } = (await request.json()) as { data: UpdateEntityRequest };
       puts.push(data);
+      if (rejectPut) return json({ message: "Invalid entity data.", details: rejectPut }, 400);
       const base = CATALOG.find(entity => entity.templateId === id)!;
       return json({ entity: { ...base, ...data, templateId: id } });
     }),
@@ -146,106 +148,280 @@ const save = async (user: User, puts: UpdateEntityRequest[]) => {
 const sectionNamed = (sheet: ReturnType<typeof within>, title: string) =>
   sheet.getByRole("heading", { name: title }).closest("section")!;
 
+// jsdom's zero-size panes make react-resizable-panels cancel clicks; press rows with mousedown.
+const pressRow = (name: string) => act(() => void fireEvent.mouseDown(screen.getByRole("option", { name: new RegExp(`^${name}`) })));
+const toolbar = () => within(screen.getByRole("toolbar", { name: "Editing" }));
+/** Focus leaves the entries for the Armor Class (a live field, or its target on touch). */
+const leaveEntries = (sheet: ReturnType<typeof within>) =>
+  act(() => (sheet.queryByRole("textbox", { name: "Armor Class" }) ?? sheet.getByRole("button", { name: /^Edit Armor Class/ })).focus());
+const chooseOption = async (user: User, entry: string, ...path: string[]) => {
+  await user.click(screen.getByRole("button", { name: `Entry options for ${entry}` }));
+  for (const label of path) await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: label }));
+};
+
 beforeEach(() => {
   installLayoutApis();
   installMatchMedia(1280, { pointer: "coarse" });
 });
 
-describe("entry cards in edit mode", () => {
-  test("“+ Add section” → Bonus Actions creates an entry under Bonus Actions", async () => {
+describe("traits and actions in edit mode", () => {
+  test("a name and a text are separate fields in place, edited and saved where the entry is stored", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, drake);
 
-    await user.click(sheet.getByRole("button", { name: "+ Add section" }));
-    await user.click(sheet.getByRole("button", { name: "Bonus Actions" }));
-    const card = sheet.getByRole("form", { name: "Edit new entry, Bonus Actions" });
-    expect(within(card).getByRole("textbox", { name: "Name" })).toHaveFocus();
-    await user.keyboard("Nimble Escape");
-    await fill(user, within(card).getByRole("textbox", { name: "Text" }), "Disengages or hides.");
-    await user.click(within(card).getByRole("button", { name: "Done" }));
+    // An untouched field adds no change.
+    act(() => sheet.getByRole("textbox", { name: "Name of Bite, Actions" }).focus());
+    leaveEntries(sheet);
+    expect(toolbar().getByText(/^Editing/)).not.toHaveTextContent("·");
 
-    const bonus = within(sectionNamed(sheet, "Bonus Actions"));
-    expect(bonus.getByRole("button", { name: "Edit Nimble Escape, Bonus Actions" })).toHaveFocus();
-    expect(bonus.getByText("Disengages or hides.")).toBeVisible();
+    await fill(user, sheet.getByRole("textbox", { name: "Name of Bite, Actions" }), "Big Bite");
+    await fill(user, sheet.getByRole("textbox", { name: "Text of Bite, Actions" }), "Melee attack, 2d6.");
+    leaveEntries(sheet);
+    expect(sheet.getByRole("textbox", { name: "Text of Big Bite, Actions" })).toHaveValue("Melee attack, 2d6.");
+    expect(screen.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 2 changes");
 
     const data = await save(user, puts);
-    expect(data.actions).toContainEqual(expect.objectContaining({
-      name: "Nimble Escape", description: "Disengages or hides.", actionType: "bonus action",
-    }));
+    // A content edit keeps the stored order: Tail (legendary) still sits between the two actions.
+    expect(data.actions).toEqual([
+      { name: "Big Bite", description: "Melee attack, 2d6.", actionType: "action", sortOrder: 0 },
+      drake.actions![1],
+      drake.actions![2],
+    ]);
+    expect(data.traits).toEqual(drake.traits);
   });
 
-  test("a new entry abandoned empty is dropped, and its section does not appear", async () => {
+  test("a new entry left blank is dropped with its section; one with a name and text is a change Undo and Redo replay", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
-    serveCatalog();
+    const puts = serveCatalog();
     const sheet = await startEditing(user, drake);
 
     await user.click(sheet.getByRole("button", { name: "+ Add section" }));
     await user.click(sheet.getByRole("button", { name: "Reactions" }));
     expect(sheet.getByRole("heading", { name: "Reactions" })).toBeVisible();
-    await user.click(within(sheet.getByRole("form", { name: "Edit new entry, Reactions" })).getByRole("button", { name: "Done" }));
-
+    expect(sheet.getByRole("textbox", { name: "Name of new entry, Reactions" })).toHaveFocus();
+    leaveEntries(sheet);
     expect(sheet.queryByRole("heading", { name: "Reactions" })).not.toBeInTheDocument();
-    expect(screen.getByRole("toolbar", { name: "Editing" })).toHaveTextContent(/^Editing(?! ·)/);
+    expect(toolbar().getByText(/^Editing/)).not.toHaveTextContent("·");
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  });
 
-  test("moving an action up changes its order in the saved body", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, drake);
+    await user.click(sheet.getByRole("button", { name: "+ Add section" }));
+    await user.click(sheet.getByRole("button", { name: "Bonus Actions" }));
+    // Tab goes from the name to the text, then to the entry's options.
+    await user.keyboard("Nimble Escape{Tab}");
+    expect(sheet.getByRole("textbox", { name: "Text of Nimble Escape, Bonus Actions" })).toHaveFocus();
+    await user.keyboard("Disengages or hides.{Tab}");
+    expect(sheet.getByRole("button", { name: "Entry options for Nimble Escape" })).toHaveFocus();
+    leaveEntries(sheet);
+    const bonus = () => within(sectionNamed(sheet, "Bonus Actions"));
+    expect(bonus().getByRole("textbox", { name: "Name of Nimble Escape, Bonus Actions" })).toHaveValue("Nimble Escape");
+    expect(bonus().getByRole("textbox", { name: "Text of Nimble Escape, Bonus Actions" })).toHaveValue("Disengages or hides.");
 
-    await user.click(sheet.getByRole("button", { name: "Edit Claw, Actions" }));
-    const card = sheet.getByRole("form", { name: "Edit Claw, Actions" });
-    expect(within(card).getByRole("button", { name: "Move down" })).toBeDisabled();
-    await user.click(within(card).getByRole("button", { name: "Move up" }));
-
-    // The card follows the entry to its new place and keeps focus on the control.
-    const moved = sheet.getByRole("form", { name: "Edit Claw, Actions" });
-    expect(within(moved).getByRole("button", { name: "Move up" })).toBeDisabled();
-    expect(within(moved).getByRole("button", { name: "Move down" })).toHaveFocus();
-    await user.click(within(moved).getByRole("button", { name: "Done" }));
-
-    const names = within(sectionNamed(sheet, "Actions")).getAllByRole("button", { name: /^Edit .*, Actions$/ });
-    expect(names.map(button => button.textContent)).toEqual(["Claw.", "Bite."]);
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(sheet.queryByRole("heading", { name: "Bonus Actions" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Redo" }));
+    await user.click(screen.getByRole("button", { name: "Redo" }));
+    expect(bonus().getByRole("textbox", { name: "Text of Nimble Escape, Bonus Actions" })).toHaveValue("Disengages or hides.");
 
     const data = await save(user, puts);
-    const byOrder = [...data.actions!].sort((left, right) => left.sortOrder! - right.sortOrder!);
-    expect(byOrder.filter(action => action.actionType === "action").map(action => action.name)).toEqual(["Claw", "Bite"]);
-    // The array itself is in sheet order too, and the legendary action is untouched.
-    expect(data.actions!.map(action => action.name)).toEqual(["Claw", "Bite", "Tail"]);
-    expect(data.actions!.find(action => action.name === "Tail")).toMatchObject({ actionType: "legendary", description: "Sweeps." });
+    // Sheet order: Actions, then Bonus Actions, then Legendary Actions.
+    expect(data.actions!.map(action => [action.name, action.actionType, action.sortOrder])).toEqual([
+      ["Bite", "action", 0], ["Claw", "action", 1], ["Nimble Escape", "bonus action", 2], ["Tail", "legendary", 3],
+    ]);
   });
 
-  test("moving an action to Traits makes it a trait", async () => {
+  test("08-R1: an invalid added entry remains reachable when another entry or section is requested", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    serveCatalog();
+    const sheet = await startEditing(user, drake);
+
+    await user.click(sheet.getByRole("button", { name: "+ Add trait" }));
+    const longName = "x".repeat(65);
+    await user.keyboard(`${longName}{Enter}`);
+    const invalid = sheet.getByRole("textbox", { name: "Name of new entry, Traits" });
+    expect(invalid).toHaveAccessibleDescription("Name: At most 64 characters.");
+
+    await user.click(sheet.getByRole("button", { name: "+ Add action" }));
+    expect(invalid).toBeVisible();
+    await waitFor(() => expect(invalid).toHaveFocus());
+
+    await user.click(sheet.getByRole("button", { name: "+ Add section" }));
+    await user.click(sheet.getByRole("button", { name: "Reactions" }));
+    expect(sheet.queryByRole("heading", { name: "Reactions" })).not.toBeInTheDocument();
+    expect(invalid).toBeVisible();
+
+    await user.keyboard("{Escape}");
+    leaveEntries(sheet);
+    expect(sheet.queryByRole("textbox", { name: "Name of new entry, Traits" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    await user.click(sheet.getByRole("button", { name: "+ Add section" }));
+    await user.click(sheet.getByRole("button", { name: "Reactions" }));
+    await user.keyboard("Retaliate{Tab}");
+    expect(sheet.getByRole("textbox", { name: "Text of Retaliate, Reactions" })).toHaveFocus();
+    await user.keyboard("Strikes back.");
+    leaveEntries(sheet);
+    expect(sheet.getByRole("textbox", { name: "Text of Retaliate, Reactions" })).toHaveValue("Strikes back.");
+  });
+
+  test("08-R2: an added row keeps its invalid name live after landing, moving and Resume", async () => {
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, drake);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Actions" }));
-    const card = sheet.getByRole("form", { name: "Edit Bite, Actions" });
-    await user.selectOptions(within(card).getByRole("combobox", { name: "Section" }), "Traits");
-    await user.click(within(card).getByRole("button", { name: "Done" }));
+    await user.click(sheet.getByRole("button", { name: "+ Add action" }));
+    const longName = "x".repeat(65);
+    await user.keyboard(`${longName}{Enter}`);
+    await fill(user, sheet.getByRole("textbox", { name: "Text of new entry, Actions" }), "Strikes from behind.");
+    await user.keyboard("{Tab}");
 
-    expect(within(sectionNamed(sheet, "Traits")).getByRole("button", { name: "Edit Bite, Traits" })).toHaveFocus();
+    let name = await sheet.findByRole("textbox", { name: "Name of unnamed entry, Actions" });
+    expect(name).toHaveValue(longName);
+    expect(name).toHaveAccessibleDescription("Name: At most 64 characters.");
+
+    await chooseOption(user, "unnamed entry", "Move to section ▸", "Traits");
+    name = sheet.getByRole("textbox", { name: "Name of unnamed entry, Traits" });
+    expect(name).toHaveValue(longName);
+    expect(name).toHaveAccessibleDescription("Name: At most 64 characters.");
+    expect(sheet.getByRole("textbox", { name: "Text of unnamed entry, Traits" })).toHaveValue("Strikes from behind.");
+
+    pressRow("Mage");
+    expect(await screen.findByRole("article", { name: "Mage" })).toBeVisible();
+    await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
+
+    const resumed = within(await screen.findByRole("article", { name: "Drake" }));
+    name = resumed.getByRole("textbox", { name: "Name of unnamed entry, Traits" });
+    expect(name).toHaveValue(longName);
+    expect(name).toHaveAccessibleDescription("Name: At most 64 characters.");
+    expect(resumed.getByRole("textbox", { name: "Text of unnamed entry, Traits" })).toHaveValue("Strikes from behind.");
+
+    await fill(user, name, "Ambush{Enter}");
     const data = await save(user, puts);
-    expect(data.traits!.map(trait => trait.name)).toEqual(["Keen Smell", "Bite"]);
-    expect(data.actions!.map(action => action.name)).toEqual(["Claw", "Tail"]);
+    expect(data.traits).toContainEqual(expect.objectContaining({ name: "Ambush", description: "Strikes from behind." }));
   });
 
-  test("delete then Undo restores the entry", async () => {
+  test("08-R3: an invalid spellcasting card keeps its focus and blocks an entry menu until corrected", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    serveCatalog();
+    const sheet = await startEditing(user, mage);
+
+    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
+    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
+    const name = card.getByRole("textbox", { name: "Name" });
+    await user.clear(name);
+    const options = sheet.getByRole("button", { name: "Entry options for Rend" });
+
+    await user.click(options);
+    expect(await card.findByRole("alert")).toHaveTextContent("Name: This can't be empty.");
+    expect(name).toHaveFocus();
+    expect(screen.queryByRole("menu", { name: "Entry options for Rend" })).not.toBeInTheDocument();
+
+    await fill(user, name, "Innate Spellcasting");
+    await user.click(options);
+    expect(sheet.queryByRole("form", { name: "Edit Spellcasting, Spellcasting" })).not.toBeInTheDocument();
+    expect(screen.getByRole("menu", { name: "Entry options for Rend" })).toBeVisible();
+  });
+
+  test("08-R4: deleting a pending entry clears its unapplied fields and a later edit can save", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, drake);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Actions" }));
-    await user.click(within(sheet.getByRole("form", { name: "Edit Bite, Actions" })).getByRole("button", { name: "Delete" }));
-    expect(sheet.queryByRole("button", { name: "Edit Bite, Actions" })).not.toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Deleted Bite. Undo restores it.");
+    const addTrait = sheet.getByRole("button", { name: "+ Add trait" });
+    await user.click(addTrait);
+    await user.keyboard(`${"x".repeat(ENTITY_LIMITS.entryName + 1)}{Enter}{Tab}`);
+    const name = sheet.getByRole("textbox", { name: "Name of new entry, Traits" });
+    const text = sheet.getByRole("textbox", { name: "Text of new entry, Traits" });
+    expect(text).toHaveFocus();
+    await user.paste("x".repeat(ENTITY_LIMITS.descriptionBytes + 1));
+    await user.tab();
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(text).toHaveAttribute("aria-invalid", "true");
+    expect(toolbar().getByText("2 fields hold unapplied text")).toBeVisible();
+
+    await chooseOption(user, "new entry", "Delete");
+    expect(name).not.toBeInTheDocument();
+    expect(text).not.toBeInTheDocument();
+    expect(addTrait).toHaveFocus();
+    expect(toolbar().queryByText(/^[12] fields? holds? unapplied text$/)).not.toBeInTheDocument();
+    expect(toolbar().getByRole("button", { name: "Undo" })).toBeDisabled();
+
+    await fill(user, sheet.getByRole("textbox", { name: "Name of Bite, Actions" }), "Snap{Enter}");
+    const data = await save(user, puts);
+    expect(data.traits).toEqual(drake.traits);
+    expect(data.actions?.[0]).toMatchObject({ name: "Snap" });
+  });
+
+  test("08-R5: one mouse click on entry options settles a valid spellcasting card on activation", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, mage);
+
+    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
+    const card = sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" });
+    const name = within(card).getByRole("textbox", { name: "Name" });
+    await fill(user, name, "Innate Spellcasting");
+    const options = sheet.getByRole("button", { name: "Entry options for Rend" });
+
+    // The resizable pane cancels the pointer sequence in jsdom. Apply the browser's
+    // default focus change manually if the mouse press is not canceled by the trigger.
+    if (fireEvent.mouseDown(options, { button: 0 })) act(() => options.focus());
+    expect(name).toHaveFocus();
+    expect(card).toBeVisible();
+    fireEvent.mouseUp(options, { button: 0 });
+    fireEvent.click(options);
+    expect(card).not.toBeInTheDocument();
+    const menu = sheet.getByRole("menu", { name: "Entry options for Rend" });
+    expect(within(menu).getByRole("menuitem", { name: "Move up" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(options).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(sheet.getByRole("menu", { name: "Entry options for Rend" })).toBeVisible();
+    await user.keyboard("{Escape}");
+
+    const data = await save(user, puts);
+    expect(data.spellcasting?.[0]).toMatchObject({ name: "Innate Spellcasting" });
+  });
+
+  test("on touch an added entry's name is typed in place, then becomes its edit button like every other name", async () => {
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, drake);
+
+    await user.click(sheet.getByRole("button", { name: "+ Add trait" }));
+    expect(sheet.getByRole("textbox", { name: "Name of new entry, Traits" })).toHaveFocus();
+    await user.keyboard("Amphibious");
+    await fill(user, sheet.getByRole("textbox", { name: "Text of new entry, Traits" }), "Breathes air and water.");
+    leaveEntries(sheet);
+    expect(sheet.getByRole("button", { name: "Edit Name of Amphibious, Traits" })).toBeVisible();
+    expect(sheet.queryByRole("textbox", { name: "Name of Amphibious, Traits" })).not.toBeInTheDocument();
+
+    const data = await save(user, puts);
+    expect(data.traits).toEqual([
+      drake.traits![0],
+      { name: "Amphibious", description: "Breathes air and water.", sortOrder: 1 },
+    ]);
+  });
+
+  test("Delete in the entry options is one change: focus goes to the section's add button, and Undo restores the entry", async () => {
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, drake);
+
+    await chooseOption(user, "Bite", "Delete");
+    expect(sheet.queryByRole("button", { name: "Edit Name of Bite, Actions" })).not.toBeInTheDocument();
+    expect(screen.getByText("Deleted Bite. Undo restores it.")).toHaveAttribute("role", "status");
     expect(sheet.getByRole("button", { name: "+ Add action" })).toHaveFocus();
 
     await user.click(screen.getByRole("button", { name: "Undo" }));
-    expect(sheet.getByRole("button", { name: "Edit Bite, Actions" })).toBeVisible();
+    expect(sheet.getByRole("button", { name: "Edit Name of Bite, Actions" })).toBeVisible();
 
     // Back to the loaded entity: a later edit saves Bite where it was.
     await user.click(sheet.getByRole("button", { name: "Edit Armor Class, 12" }));
@@ -254,6 +430,121 @@ describe("entry cards in edit mode", () => {
     expect(data.actions).toEqual(drake.actions);
   });
 
+  test("Move up, Move down and Move to section in the entry options move the entry, and focus stays on its options", async () => {
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, drake);
+    const names = (title: string) =>
+      within(sectionNamed(sheet, title)).getAllByRole("button", { name: new RegExp(`^Edit Name of .*, ${title}$`) }).map(button => button.textContent);
+
+    await user.click(screen.getByRole("button", { name: "Entry options for Claw" }));
+    const menu = within(screen.getByRole("menu", { name: "Entry options for Claw" }));
+    // The last entry cannot move down; the item is still listed.
+    expect(menu.getByRole("menuitem", { name: "Move down" })).toHaveAttribute("aria-disabled", "true");
+    await user.click(menu.getByRole("menuitem", { name: "Move down" }));
+    expect(screen.getByRole("menu", { name: "Entry options for Claw" })).toBeVisible();
+    await user.click(menu.getByRole("menuitem", { name: "Move up" }));
+    expect(names("Actions")).toEqual(["Claw", "Bite"]);
+    expect(sheet.getByRole("button", { name: "Entry options for Claw" })).toHaveFocus();
+
+    await chooseOption(user, "Claw", "Move down");
+    expect(names("Actions")).toEqual(["Bite", "Claw"]);
+    expect(sheet.getByRole("button", { name: "Entry options for Claw" })).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Entry options for Bite" }));
+    await user.click(within(screen.getByRole("menu")).getByRole("menuitem", { name: "Move to section ▸" }));
+    const sections = within(screen.getByRole("menu", { name: "Move to section" }));
+    expect(sections.getByRole("menuitem", { name: "Actions" })).toHaveAttribute("aria-disabled", "true");
+    await user.click(sections.getByRole("menuitem", { name: "Traits" }));
+    expect(names("Traits")).toEqual(["Keen Smell", "Bite"]);
+    expect(within(sectionNamed(sheet, "Traits")).getByRole("button", { name: "Entry options for Bite" })).toHaveFocus();
+
+    const data = await save(user, puts);
+    expect(data.traits!.map(trait => trait.name)).toEqual(["Keen Smell", "Bite"]);
+    expect(data.traits![1]).not.toHaveProperty("actionType");
+    expect(data.actions!.map(action => [action.name, action.actionType])).toEqual([["Claw", "action"], ["Tail", "legendary"]]);
+  });
+
+  test("typing { in a trait's text picks a spell reference and saves its canonical tag", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, drake);
+
+    const text = sheet.getByRole("textbox", { name: "Text of Keen Smell, Traits" }) as HTMLTextAreaElement;
+    act(() => {
+      text.focus();
+      text.setSelectionRange(text.value.length, text.value.length);
+    });
+    await user.keyboard(" Smells {{s fire b");
+    expect(await screen.findByRole("option", { name: "Fire Bolt (XPHB)" })).toBeVisible();
+    await user.keyboard("{Enter}");
+    expect(text).toHaveValue("Advantage on smell checks. Smells {@spell Fire Bolt|XPHB}");
+    expect(text).toHaveFocus();
+
+    const data = await save(user, puts);
+    expect(data.traits![0].description).toBe("Advantage on smell checks. Smells {@spell Fire Bolt|XPHB}");
+  });
+
+  test.each([
+    ["live", "fine"],
+    ["targets", "coarse"],
+  ] as const)("a server issue on an action's text focuses that text area (%s)", async (_presentation, pointer) => {
+    installMatchMedia(1280, { pointer });
+    const user = userEvent.setup();
+    const puts = serveCatalog({ rejectPut: [{ path: "actions.2.description", message: "The server rejects this text." }] });
+    const sheet = await startEditing(user, drake);
+
+    if (pointer === "coarse") {
+      await user.click(sheet.getByRole("button", { name: "Edit Armor Class, 12" }));
+      await user.keyboard("13{Enter}");
+    } else {
+      await fill(user, sheet.getByRole("textbox", { name: "Armor Class" }), "13{Enter}");
+    }
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    // Stored at index 2, Claw is the second action on the sheet.
+    expect(await sheet.findByRole("textbox", { name: "Text of Claw, Actions" })).toHaveFocus();
+    const issues = within(screen.getByRole("list", { name: "Issues" }));
+    expect(issues.getByRole("button", { name: "Actions: Claw: The server rejects this text." })).toBeVisible();
+  });
+
+  test("unapplied name and text survive selecting another entity and Resume, and the invalid name holds Save", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, drake);
+
+    await fill(user, sheet.getByRole("textbox", { name: "Name of Bite, Actions" }), "{Backspace}");
+    await fill(user, sheet.getByRole("textbox", { name: "Text of Bite, Actions" }), "Chomps.");
+    expect(sheet.getByRole("textbox", { name: "Name of Bite, Actions" })).toHaveAccessibleDescription("Name: This can't be empty.");
+    pressRow("Mage");
+    expect(await screen.findByRole("article", { name: "Mage" })).toBeVisible();
+    await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
+
+    const resumed = within(await screen.findByRole("article", { name: "Drake" }));
+    const name = resumed.getByRole("textbox", { name: "Name of Bite, Actions" });
+    expect(name).toHaveValue("");
+    expect(name).toHaveAccessibleDescription("Name: This can't be empty.");
+    expect(resumed.getByRole("textbox", { name: "Text of Bite, Actions" })).toHaveValue("Chomps.");
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    await fill(user, name, "Bite{Enter}");
+    const data = await save(user, puts);
+    expect(data.actions![0]).toMatchObject({ name: "Bite", description: "Chomps." });
+  });
+
+  test("a spell mention in an action is plain text while editing: the text area holds its tag as written", async () => {
+    const user = userEvent.setup();
+    serveCatalog();
+    const sheet = await startEditing(user, drake);
+
+    expect(sheet.getByRole("textbox", { name: "Text of Claw, Actions" })).toHaveValue("Rakes {@spell Fireball|XPHB} style.");
+    expect(sheet.queryByRole("button", { name: "Fireball" })).not.toBeInTheDocument();
+  });
+});
+
+describe("spellcasting cards and the legendary section in edit mode", () => {
   test("a spell picked from the autocomplete saves with its source", async () => {
     const user = userEvent.setup();
     const puts = serveCatalog();
@@ -318,38 +609,6 @@ describe("entry cards in edit mode", () => {
     expect(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" })).toBeVisible();
   });
 
-  test("a spell mention in an action is plain text while editing, and the card shows its tag as written", async () => {
-    const user = userEvent.setup();
-    serveCatalog();
-    const sheet = await startEditing(user, drake);
-
-    expect(sheet.getByText(/Rakes Fireball style\./)).toBeVisible();
-    expect(sheet.queryByRole("button", { name: "Fireball" })).not.toBeInTheDocument();
-    await user.click(sheet.getByText(/Rakes Fireball style\./));
-    expect(within(sheet.getByRole("form", { name: "Edit Claw, Actions" })).getByRole("textbox", { name: "Text" }))
-      .toHaveValue("Rakes {@spell Fireball|XPHB} style.");
-  });
-
-  test("Insert spell puts a canonical tag with the picked source at the cursor", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, drake);
-
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Actions" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Bite, Actions" }));
-    const text = card.getByRole("textbox", { name: "Text" }) as HTMLTextAreaElement;
-    text.setSelectionRange(6, 6);
-    await user.click(card.getByRole("button", { name: "Insert spell" }));
-    await user.keyboard("fire b");
-    expect(await card.findByRole("option", { name: "Fire Bolt (XPHB)" })).toBeVisible();
-    await user.keyboard("{ArrowDown}{Enter}");
-    expect(text).toHaveValue("Melee {@spell Fire Bolt|XPHB}attack.");
-    await user.click(card.getByRole("button", { name: "Done" }));
-
-    const data = await save(user, puts);
-    expect(data.actions!.find(action => action.name === "Bite")?.description).toBe("Melee {@spell Fire Bolt|XPHB}attack.");
-  });
-
   test("the legendary count is edited inside the legendary section", async () => {
     const user = userEvent.setup();
     const puts = serveCatalog();
@@ -364,82 +623,6 @@ describe("entry cards in edit mode", () => {
 
     const data = await save(user, puts);
     expect(data).toMatchObject({ legendaryActionCount: 2, legendaryHeader: ["The drake can take 2 legendary actions."] });
-  });
-
-  test("05-R1: an entry clicked while another card moves sections opens that entry, and its edit saves to it", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, drake);
-
-    // Bite to Bonus Actions, then straight to Claw: the move renumbers the actions.
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Actions" }));
-    await user.selectOptions(within(sheet.getByRole("form", { name: "Edit Bite, Actions" })).getByRole("combobox", { name: "Section" }), "Bonus Actions");
-    await user.click(sheet.getByRole("button", { name: "Edit Claw, Actions" }));
-    const claw = within(sheet.getByRole("form", { name: "Edit Claw, Actions" }));
-    expect(claw.getByRole("textbox", { name: "Name" })).toHaveValue("Claw");
-    await fill(user, claw.getByRole("textbox", { name: "Text" }), "Rakes twice.");
-    await user.click(claw.getByRole("button", { name: "Done" }));
-
-    // Then Bite to Traits, and Tail opens.
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Bonus Actions" }));
-    await user.selectOptions(within(sheet.getByRole("form", { name: "Edit Bite, Bonus Actions" })).getByRole("combobox", { name: "Section" }), "Traits");
-    await user.click(sheet.getByRole("button", { name: "Edit Tail, Legendary Actions" }));
-    expect(within(sheet.getByRole("form", { name: "Edit Tail, Legendary Actions" })).getByRole("textbox", { name: "Name" })).toHaveValue("Tail");
-
-    // An invalid card still stays open, and the clicked entry does not open.
-    const tail = within(sheet.getByRole("form", { name: "Edit Tail, Legendary Actions" }));
-    await fill(user, tail.getByRole("textbox", { name: "Name" }), "{Backspace}");
-    await user.click(sheet.getByRole("button", { name: "Edit Claw, Actions" }));
-    expect(tail.getByRole("alert")).toHaveTextContent("Name: This can't be empty.");
-    expect(sheet.queryByRole("form", { name: "Edit Claw, Actions" })).not.toBeInTheDocument();
-    await user.click(tail.getByRole("button", { name: "Cancel" }));
-
-    const data = await save(user, puts);
-    expect(data.traits!.map(trait => trait.name)).toEqual(["Keen Smell", "Bite"]);
-    expect(data.actions!.map(action => [action.name, action.actionType, action.description])).toEqual([
-      ["Claw", "action", "Rakes twice."],
-      ["Tail", "legendary", "Sweeps."],
-    ]);
-  });
-
-  test("05-R2: an untouched card adds no change, and a content edit keeps the stored order", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, drake);
-
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Actions" }));
-    await user.click(within(sheet.getByRole("form", { name: "Edit Bite, Actions" })).getByRole("button", { name: "Done" }));
-    expect(screen.getByRole("toolbar", { name: "Editing" })).toHaveTextContent(/^Editing(?! ·)/);
-    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-
-    // Editing a trait leaves the actions, stored Bite, Tail, Claw, exactly as they are.
-    await user.click(sheet.getByRole("button", { name: "Edit Keen Smell, Traits" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Keen Smell, Traits" }));
-    await fill(user, card.getByRole("textbox", { name: "Text" }), "Advantage on smell.");
-    await user.click(card.getByRole("button", { name: "Done" }));
-    expect(screen.getByRole("toolbar", { name: "Editing" })).toHaveTextContent("Editing · 1 change");
-
-    const data = await save(user, puts);
-    expect(data.actions).toEqual(drake.actions);
-    expect(data.traits).toEqual([{ name: "Keen Smell", description: "Advantage on smell.", sortOrder: 0 }]);
-  });
-
-  test("05-R2: the first entry of a new section is saved where the sheet shows it", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, drake);
-
-    await user.click(sheet.getByRole("button", { name: "+ Add section" }));
-    await user.click(sheet.getByRole("button", { name: "Bonus Actions" }));
-    const card = within(sheet.getByRole("form", { name: "Edit new entry, Bonus Actions" }));
-    await user.keyboard("Nimble Escape");
-    await user.click(card.getByRole("button", { name: "Done" }));
-
-    const data = await save(user, puts);
-    // Sheet order: Actions, then Bonus Actions, then Legendary Actions.
-    expect(data.actions!.map(action => [action.name, action.sortOrder])).toEqual([
-      ["Bite", 0], ["Claw", 1], ["Nimble Escape", 2], ["Tail", 3],
-    ]);
   });
 
   test("05-R3: a spell name over 64 characters keeps the card open and sends nothing; 64 saves", async () => {
@@ -553,20 +736,6 @@ describe("entry cards in edit mode", () => {
     expect(sheet.queryByRole("heading", { name: "Spellcasting" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Mage" })).toBeVisible();
     expect(sheet.getByRole("button", { name: "+ Add section" })).toHaveFocus();
-  });
-
-  test("05-R6: Escape in Insert spell closes only the picker and returns focus to its button", async () => {
-    const user = userEvent.setup();
-    serveCatalog();
-    const sheet = await startEditing(user, drake);
-
-    await user.click(sheet.getByRole("button", { name: "Edit Bite, Actions" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Bite, Actions" }));
-    await user.click(card.getByRole("button", { name: "Insert spell" }));
-    expect(card.getByRole("combobox", { name: "Spell to insert" })).toHaveFocus();
-    await user.keyboard("{Escape}");
-    expect(card.queryByRole("combobox", { name: "Spell to insert" })).not.toBeInTheDocument();
-    expect(card.getByRole("button", { name: "Insert spell" })).toHaveFocus();
   });
 
   test("05-R6: two printings of a spell have their own note and remove controls", async () => {

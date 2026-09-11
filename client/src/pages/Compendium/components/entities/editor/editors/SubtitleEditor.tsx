@@ -32,7 +32,7 @@ export const SubtitleEditor: React.FC = () => {
     <PopoverForm onApply={apply} error={error}>
       <SpecControl spec={SIZE_FIELD} value={size} onChange={setSize} />
       <SpecControl spec={CREATURE_TYPE_FIELD} value={creatureType} onChange={setCreatureType} />
-      <TagInput label={TYPE_TAGS.label} items={typeTags} onChange={setTypeTags} pendingText={{ value: pendingText, onChange: setPendingText }} />
+      <TagInput label={TYPE_TAGS.label} sheetFieldId={TYPE_TAGS.id} items={typeTags} onChange={setTypeTags} pendingText={{ value: pendingText, onChange: setPendingText }} />
       <SpecControl spec={ALIGNMENT_FIELD} value={alignment} onChange={setAlignment} />
       <SpecControl spec={ROLE_FIELD} value={role} onChange={setRole} />
     </PopoverForm>

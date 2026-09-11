@@ -9,9 +9,11 @@ import {
   buildEntitySections,
   getSectionTitle,
   SECTION_ORDER,
+  type EntitySectionSource,
   type EntryOrigin,
 } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.utils.js";
 import type { EntityDraft } from "./defaults.js";
+import { carryEntryKey } from "./entryKeys.js";
 import type { SpellcastingModes } from "./inference.js";
 
 /** One entry of a section, holding the row it is stored as, and where it was read from. */
@@ -48,8 +50,17 @@ export const entryId = ({ list, index }: EntryOrigin): string => `${list}.${inde
 const isText = (item: LayoutItem): boolean => item.kind !== "spellcasting";
 const listOf = (item: LayoutItem): EntryList => (item.kind === "trait" ? "traits" : item.kind === "action" ? "actions" : "spellcasting");
 
+/** A draft's entry lists as the sheet reads them (a stored NULL is no list). */
+export const draftEntries = (draft: EntityDraft): EntitySectionSource => ({
+  traits: draft.traits ?? undefined,
+  actions: draft.actions ?? undefined,
+  spellcasting: draft.spellcasting ?? undefined,
+  legendaryHeader: draft.legendaryHeader ?? undefined,
+  legendaryActionCount: draft.legendaryActionCount ?? undefined,
+});
+
 /** The sheet's sections of a draft, in the order `buildEntitySections` shows them. */
-export const readLayout = (entity: DnD5eEntityDetails, modes: readonly SpellcastingModes[]): LayoutSection[] =>
+export const readLayout = (entity: EntitySectionSource, modes: readonly SpellcastingModes[]): LayoutSection[] =>
   buildEntitySections(entity).map(section => ({
     key: section.key,
     title: section.title,
@@ -110,10 +121,10 @@ export const writeLayout = (
   const patch: Partial<EntryLists> = {};
   let modes: LayoutWrite["modes"];
   if (lists.has("traits")) {
-    patch.traits = written.traits.map((item, sortOrder) => ({ ...(item.value as EntityTrait), sortOrder }));
+    patch.traits = written.traits.map((item, sortOrder) => carryEntryKey(item.value, { ...(item.value as EntityTrait), sortOrder }));
   }
   if (lists.has("actions")) {
-    patch.actions = written.actions.map((item, sortOrder) => ({ ...(item.value as EntityAction), sortOrder }));
+    patch.actions = written.actions.map((item, sortOrder) => carryEntryKey(item.value, { ...(item.value as EntityAction), sortOrder }));
   }
   if (lists.has("spellcasting")) {
     const blocks = written.spellcasting.filter((item): item is Extract<LayoutItem, { kind: "spellcasting" }> => item.kind === "spellcasting");
@@ -191,14 +202,14 @@ export const moveItem = (layout: readonly LayoutSection[], at: LayoutAt, to: num
  */
 export const itemForSection = (item: LayoutItem, sectionKey: string, actionType = sectionKey): LayoutItem => {
   if (item.kind === "spellcasting") {
-    const value = { ...item.value };
+    const value = carryEntryKey(item.value, { ...item.value });
     delete value.displayAs;
     return { kind: "spellcasting", value: isSpellcastingDisplay(sectionKey) ? { ...value, displayAs: sectionKey } : value, modes: item.modes };
   }
   const { name, description } = item.value;
   return sectionKey === "trait"
-    ? { kind: "trait", value: { name, description } }
-    : { kind: "action", value: { name, description, actionType } };
+    ? { kind: "trait", value: carryEntryKey(item.value, { name, description }) }
+    : { kind: "action", value: carryEntryKey(item.value, { name, description, actionType }) };
 };
 
 /** The sections an item may move to: every standard section, and the custom ones already in use. */

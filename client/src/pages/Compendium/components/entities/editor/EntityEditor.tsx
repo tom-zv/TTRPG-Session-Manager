@@ -18,7 +18,7 @@ import type { ItemViewer } from "../../../api/query/itemKeys.js";
 import { NARROW_BROWSER_QUERY } from "../../browser/BrowserLayout.js";
 import { SheetEditContext, type EditorBuffer } from "../../sheetEditor/SheetEditContext.js";
 import { SheetEditorToolbar, handleSheetEditorKeyDown, useSheetHistory } from "../../sheetEditor/SheetEditorToolbar.js";
-import type { PlacedIssue } from "../../sheetEditor/issues.js";
+import { firstIssueJump, type IssueJump, type PlacedIssue } from "../../sheetEditor/issues.js";
 import { useOpenEditor } from "../../sheetEditor/useOpenEditor.js";
 import { usePresentation, type SheetPresentation } from "../../sheetEditor/usePresentation.js";
 import { EntitySheet } from "../EntitySheet.js";
@@ -32,7 +32,7 @@ import {
 } from "./hooks/useEntityDraft.js";
 import type { EntityDraft } from "./model/defaults.js";
 import { getAutoPassivePerception } from "./model/inference.js";
-import { placeIssues } from "./model/issueTargets.js";
+import { isEntryTextId, placeIssues } from "./model/issueTargets.js";
 import { changedSettings } from "./model/settingsPatch.js";
 import sheetStyles from "../../sheetEditor/SheetEditor.module.css";
 import styles from "./EntityEditor.module.css";
@@ -124,8 +124,8 @@ const createInput = (draft: EntityDraft): Record<string, unknown> => ({
 });
 
 /** The first issue's target in a presentation, or null when no issue has one. */
-const firstTarget = (issues: readonly EntityWriteIssue[], draft: EntityDraft, presentation: SheetPresentation): string | null =>
-  placeIssues(issues, draft, presentation).find(issue => issue.targetId !== null)?.targetId ?? null;
+const firstTarget = (issues: readonly EntityWriteIssue[], draft: EntityDraft, presentation: SheetPresentation) =>
+  firstIssueJump(placeIssues(issues, draft, presentation));
 
 const withoutSettings = (draft: EntityDraft): Partial<EntityDraft> => {
   const data: Partial<EntityDraft> = { ...draft };
@@ -175,7 +175,7 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   const [savingLocally, setSavingLocally] = useState(false);
   const saving = savingLocally || saveProgress.pending;
   const {
-    activeId, open, close, closeTo, switchTo, commitRef, takeFocus, focusOpenRef, claim, registerLive, requestLiveFocus, focusLive,
+    activeId, open, close, closeTo, switchTo, commitRef, takeFocus, focusOpenRef, editorFocusId, claim, registerLive, requestLiveFocus, focusLive, jumpToEditor,
     pendingLive, carriedId, bufferApi, reopen, settle, unapplied, settleLive, pruneLive,
   } = useOpenEditor({ buffer, saving, presentation });
   const dispatch = useCallback((action: EntityDraftAction) => {
@@ -208,7 +208,7 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   const [seenRejection, setSeenRejection] = useState(saveProgress.rejected);
   // The first issue is resolved after the sheet renders, both for an immediate rejection and for
   // Resume after a late one. The target is chosen in whichever presentation is active now.
-  const [jumpAfterRender, setJumpAfterRender] = useState<string | null>(
+  const [jumpAfterRender, setJumpAfterRender] = useState<IssueJump | null>(
     () => rejection ? firstTarget(rejection.issues, getEntityDraftWrite(rejection.state), presentation) : null,
   );
   if (saveProgress.rejected !== seenRejection) {
@@ -246,24 +246,25 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   const api = useMemo<EntityEditApi>(
     () => ({
       draft: write, modes: state.modes, activeId, narrow, presentation, open, close, closeTo, switchTo, commit, commitRef, takeFocus, viewer,
-      buffer: bufferApi, focusOpenRef, claim, registerLive, requestLiveFocus, pendingLive, carriedId,
+      buffer: bufferApi, focusOpenRef, editorFocusId, claim, registerLive, requestLiveFocus, pendingLive, carriedId,
     }),
     [
       write, state.modes, activeId, narrow, presentation, open, close, closeTo, switchTo, commit, commitRef, takeFocus, viewer,
-      bufferApi, focusOpenRef, claim, registerLive, requestLiveFocus, pendingLive, carriedId,
+      bufferApi, focusOpenRef, editorFocusId, claim, registerLive, requestLiveFocus, pendingLive, carriedId,
     ],
   );
   const sheetEntity = useMemo(() => toSheetEntity(entity, write), [entity, write]);
 
   /**
    * An issue's jump in the current presentation: on a live sheet the field itself takes focus (its
-   * line's add control or first field when it is absent); otherwise, and for entry cards and
-   * pickers, the editor opens.
+   * line's add control or first field when it is absent); otherwise, and for spellcasting cards
+   * and pickers, the editor opens. An entry's text is the same textarea in both presentations.
    */
-  const jump = useCallback((targetId: string) => {
-    if (presentation === "live" && focusLive(targetId)) return;
-    open(targetId);
-  }, [presentation, focusLive, open]);
+  const jump = useCallback((targetId: string, focusId: string | null = targetId) => {
+    const exactId = focusId ?? targetId;
+    if (presentation === "live" ? focusLive(exactId) : isEntryTextId(targetId) && focusLive(targetId, true)) return;
+    jumpToEditor(targetId, exactId);
+  }, [presentation, focusLive, jumpToEditor]);
   useEffect(() => {
     if (jumpAfterRender === null) return;
     // A target from the original presentation may have reached the slot just before Resume.
@@ -272,7 +273,7 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
       reopen(null);
       return;
     }
-    jump(jumpAfterRender);
+    jump(jumpAfterRender.targetId, jumpAfterRender.focusId);
     setJumpAfterRender(null);
   }, [activeId, carriedId, jumpAfterRender, jump, presentation, reopen]);
 
@@ -291,7 +292,7 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
   const showIssues = (placed: readonly PlacedIssue[]) => {
     setIssuesOpen(true);
     const first = placed.find(issue => issue.targetId !== null);
-    if (first?.targetId) jump(first.targetId);
+    if (first?.targetId) jump(first.targetId, first.focusId);
   };
 
   const save = async () => {
@@ -357,7 +358,7 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
         // to open; no editor is open during a save, so there is nothing to commit first.
         // A live sheet focuses the field instead, when the rejection reaches the mounted editor.
         const rejected = latestRef.current;
-        const openId = firstTarget(error.issues, getEntityDraftWrite(rejected), "targets");
+        const openId = firstTarget(error.issues, getEntityDraftWrite(rejected), "targets")?.targetId ?? null;
         if (openId !== null && presentation === "targets") switchTo(openId);
         onSaveProgress({ pending: false, error: error.message, acknowledged: earlier, rejected: { issues: error.issues, state: rejected, openId } });
       } else {

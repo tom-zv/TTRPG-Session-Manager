@@ -17,7 +17,7 @@ import type { SpellcastingModes } from "../model/inference.js";
 import { SPELL_GROUP_KIND_OPTIONS, SPELLCASTING_ABILITY_OPTIONS, SPELLCASTING_DISPLAY_OPTIONS } from "../model/options.js";
 import { EntryCardFrame, descriptionTooLong, sameValue, type EntryCardHost } from "../../../sheetEditor/EntryCardFrame.js";
 import { Field } from "../../../sheetEditor/PopoverForm.js";
-import { SpellSearch } from "./SpellSearch.js";
+import { SpellSearch } from "../../../sheetEditor/SpellSearch.js";
 import { MAX_WHOLE, textProblem } from "./fieldLimits.js";
 import { parseWhole } from "../../../sheetEditor/InlineField.js";
 import styles from "./EntryCards.module.css";

@@ -32,6 +32,7 @@ export const TagListEditor: React.FC<{ field: "senses" | "languages" }> = ({ fie
     <PopoverForm onApply={apply} error={error}>
       <TagInput
         label={spec.label}
+        sheetFieldId={spec.id}
         items={items}
         onChange={setItems}
         pendingText={{ value: pendingText, onChange: setPendingText }}
@@ -40,9 +41,9 @@ export const TagListEditor: React.FC<{ field: "senses" | "languages" }> = ({ fie
       {field === "senses" && (
         <>
           <label>
-            <input type="checkbox" checked={auto} onChange={event => setAuto(event.target.checked)} /> Passive Perception from Perception
+            <input type="checkbox" data-sheet-field-id={auto ? PASSIVE_PERCEPTION_FIELD.id : undefined} checked={auto} onChange={event => setAuto(event.target.checked)} /> Passive Perception from Perception
           </label>
-          {!auto && <Field label="Passive Perception">{id => <input id={id} inputMode="numeric" value={passive} onChange={event => setPassive(event.target.value)} />}</Field>}
+          {!auto && <Field label="Passive Perception">{id => <input id={id} data-sheet-field-id={PASSIVE_PERCEPTION_FIELD.id} inputMode="numeric" value={passive} onChange={event => setPassive(event.target.value)} />}</Field>}
         </>
       )}
     </PopoverForm>

@@ -31,11 +31,11 @@ export const SpeedsEditor: React.FC = () => {
             {[...SPEED_TYPE_OPTIONS, ...(SPEED_TYPE_OPTIONS.some(option => option.value === row.type) ? [] : [{ value: row.type, label: row.type }])]
               .map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
-          <input aria-label={`Feet ${index + 1}`} inputMode="numeric" value={row.feet} onChange={event => update(index, { feet: event.target.value })} />
+          <input aria-label={`Feet ${index + 1}`} data-sheet-field-id={`speeds.${row.type}`} inputMode="numeric" value={row.feet} onChange={event => update(index, { feet: event.target.value })} />
           <button type="button" aria-label={`Remove ${row.type} speed`} onClick={() => setRows(rows.filter((_, rowIndex) => rowIndex !== index))}>×</button>
         </div>
       ))}
-      <AddChoice label="Add speed" options={unused} onPick={type => setRows([...rows, { type, feet: "30" }])} />
+      <AddChoice label="Add speed" fieldId="speeds" options={unused} onPick={type => setRows([...rows, { type, feet: "30" }])} />
     </PopoverForm>
   );
 };

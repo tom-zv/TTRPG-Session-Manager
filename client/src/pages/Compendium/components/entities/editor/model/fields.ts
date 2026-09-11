@@ -1,3 +1,4 @@
+import type { EntityAction, EntityTrait } from "shared/domain/encounters/dnd5e/entity.js";
 import { ENTITY_LIMITS } from "shared/domain/encounters/dnd5e/entityValidation.js";
 import {
   ABILITY_FULL_NAMES,
@@ -9,9 +10,12 @@ import {
 import { fail, type FieldParse, type FieldSpec, type TokenListSpec } from "../../../sheetEditor/fieldSpec.js";
 import { parseWhole } from "../../../sheetEditor/InlineField.js";
 import { clearable, keepAbsent } from "../../../sheetEditor/PopoverForm.js";
+import { descriptionTooLong } from "../../../sheetEditor/EntryCardFrame.js";
 import { MAX_ABILITY_SCORE, MAX_LEGENDARY_COUNT, MAX_PASSIVE_PERCEPTION, MAX_WHOLE, textProblem } from "../editors/fieldLimits.js";
 import { getProficiencyBonusForCr, getRecordDefaultValue, type RecordEntryMode } from "./calculations.js";
 import type { EntityDraft } from "./defaults.js";
+import { carryEntryKey, entryKey } from "./entryKeys.js";
+import { draftEntries, insertItem, readLayout, writeLayout, type LayoutItem } from "./entryLayout.js";
 import { getAutoPassivePerception, type EntityDraftModes, type ProficiencyField } from "./inference.js";
 import {
   ALIGNMENT_OPTIONS,
@@ -544,4 +548,103 @@ export const LEGENDARY_COUNT_FIELD: EntityField = {
   placeholder: "—",
   read: draft => (draft.legendaryActionCount ? String(draft.legendaryActionCount) : ""),
   parse: text => (text.trim() === "" ? ok({ legendaryActionCount: 0 }) : wholeField(text, MAX_LEGENDARY_COUNT, count => ({ legendaryActionCount: count }))),
+};
+
+/** A text entry's row: a trait, or an action of any section. */
+export type TextEntryRow = EntityTrait | EntityAction;
+
+/**
+ * A trait or action added on the sheet that is not in the draft yet: it joins the draft, in
+ * `sectionKey`, when its name or text is first applied, and is dropped if it is left blank.
+ */
+export type AddedEntry = { row: TextEntryRow; list: "traits" | "actions"; sectionKey: string };
+
+/**
+ * One text entry field (name or text). Like a field spec, but its entry is found by its key rather
+ * than its position, so a move does not hand its field, or text typed into it, to another entry;
+ * `read` is undefined once the entry is gone.
+ */
+export type EntryField = {
+  /** The issue target id: the validator path, `actions.3.name`. */
+  id: string;
+  label: string;
+  read: (draft: EntityDraft) => string | undefined;
+  parse: (text: string, draft: EntityDraft, modes: EntityDraftModes) => EntityParse;
+};
+
+/** An entry field as a field spec, for the targets presentation's inline editor. */
+export const entryFieldSpec = (field: EntryField): EntityField => ({ ...field, read: draft => field.read(draft) ?? "" });
+
+/** Where the entry with this key is now: its list, its index and its row. */
+export const findEntry = (draft: EntityDraft, key: number): { list: "traits" | "actions"; index: number; row: TextEntryRow } | null => {
+  for (const list of ["traits", "actions"] as const) {
+    const rows: readonly TextEntryRow[] = draft[list] ?? [];
+    const index = rows.findIndex(row => entryKey(row) === key);
+    if (index >= 0) return { list, index, row: rows[index] };
+  }
+  return null;
+};
+
+/**
+ * A content edit of one entry: its row replaced where it is stored, every other row in place. An
+ * added entry that is not in the draft yet is inserted where the sheet shows it instead.
+ */
+const writeEntry = (
+  draft: EntityDraft,
+  modes: EntityDraftModes,
+  key: number,
+  added: AddedEntry | undefined,
+  change: (row: TextEntryRow) => TextEntryRow,
+): EntityParse => {
+  const found = findEntry(draft, key);
+  if (found) {
+    if (found.list === "traits") {
+      const traits = [...(draft.traits ?? [])];
+      traits[found.index] = carryEntryKey(found.row, change(found.row));
+      return ok({ traits });
+    }
+    const actions = [...(draft.actions ?? [])];
+    actions[found.index] = carryEntryKey(found.row, change(found.row) as EntityAction);
+    return ok({ actions });
+  }
+  if (!added) return fail("This entry was removed.");
+  const value = carryEntryKey(added.row, change(added.row));
+  const item: LayoutItem = added.list === "traits" ? { kind: "trait", value } : { kind: "action", value: value as EntityAction };
+  const layout = readLayout(draftEntries(draft), modes.spellcasting);
+  return ok(writeLayout(layout, insertItem(layout, added.sectionKey, item), new Set([added.list])).patch);
+};
+
+/**
+ * The name and text of a trait or action, addressed by its key. `id` is the entry's validator
+ * path (`actions.3`), so the fields are `actions.3.name` and `actions.3.description`.
+ */
+export const entryFields = (
+  { key, id, place, added }: { key: number; id: string; place: string; added?: AddedEntry },
+): { name: EntryField; text: EntryField } => {
+  const current = (draft: EntityDraft) => findEntry(draft, key)?.row ?? added?.row;
+  return {
+    name: {
+      id: `${id}.name`,
+      label: `Name of ${place}`,
+      read: draft => current(draft)?.name,
+      parse: (text, draft, modes) => {
+        const row = current(draft);
+        // A blank entry may have no name; it is removed once it is left blank.
+        const problem = textProblem(text, ENTITY_LIMITS.entryName, Boolean(row?.description.trim()));
+        if (problem) return fail(`Name: ${problem}`);
+        return writeEntry(draft, modes, key, added, entry => ({ ...entry, name: text.trim() }));
+      },
+    },
+    text: {
+      id: `${id}.description`,
+      label: `Text of ${place}`,
+      read: draft => current(draft)?.description,
+      parse: (text, draft, modes) => {
+        const problem = textProblem(text);
+        if (problem) return fail(`Text: ${problem}`);
+        if (descriptionTooLong(text, ENTITY_LIMITS.descriptionBytes)) return fail("Text: this is too long to save.");
+        return writeEntry(draft, modes, key, added, entry => ({ ...entry, description: text.trim() }));
+      },
+    },
+  };
 };

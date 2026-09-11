@@ -43,6 +43,9 @@ const SpecInlineEditor: React.FC<SpecInlineEditorProps> = ({ spec, neighbour, hi
 
 export const NameEditor: React.FC = () => <SpecInlineEditor spec={NAME_FIELD} />;
 
+/** A trait's or action's name, on touch and narrow screens. */
+export const EntryNameEditor: React.FC<{ spec: EntityField }> = ({ spec }) => <SpecInlineEditor spec={spec} />;
+
 export const AcEditor: React.FC = () => <SpecInlineEditor spec={AC_FIELD} />;
 
 export const CrEditor: React.FC = () => (

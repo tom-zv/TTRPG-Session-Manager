@@ -37,11 +37,16 @@ const isIndex = (segment: string | undefined): segment is string => segment !== 
 
 /**
  * The editor that fixes a validator path. Paths follow the shared validator: `ac`,
- * `abilityScores.str`, `actions.3.name`, `spellcasting.0.levels.2.slots`. Entries open their card
- * (`actions.3`); settings and unknown paths have no editor.
+ * `abilityScores.str`, `actions.3.name`, `spellcasting.0.levels.2.slots`. A trait's or action's
+ * issue is on its name or its text (`actions.3.description`); any other part of it (its order, its
+ * section) goes to the name. A spellcasting block opens its card (`spellcasting.0`). Settings and
+ * unknown paths have no editor.
  */
 export const issueTargetId = (path: string): string | null => {
-  const [field, second] = path.split(".");
+  const [field, second, third] = path.split(".");
+  if (field === "traits" || field === "actions") {
+    return isIndex(second) ? `${field}.${second}.${third === "description" ? "description" : "name"}` : null;
+  }
   if (ENTRY_LISTS.has(field)) return isIndex(second) ? `${field}.${second}` : null;
   if (field === "abilityScores") return second && second in ABILITY_FULL_NAMES ? `abilityScores.${second}` : null;
   return FIELD_TARGETS[field] ?? (OWN_TARGETS.has(field) ? field : null);
@@ -59,9 +64,9 @@ const OWN_LIVE_FIELDS = new Set([
 
 /**
  * The live field that fixes a path, on a live sheet: the exact field (`hpFormula`, `alignment`,
- * `speeds.fly`, `languages.1`). A jump falls back to the line's add control or first field when
- * that one is absent (see `useOpenEditor`'s `focusLive`). Entries, the token image and the
- * legendary introduction open their editors, as on targets.
+ * `speeds.fly`, `languages.1`, `actions.3.description`). A jump falls back to the line's add
+ * control or first field when that one is absent (see `useOpenEditor`'s `focusLive`). Spellcasting
+ * blocks, the token image and the legendary introduction open their editors, as on targets.
  */
 export const liveIssueTargetId = (path: string): string | null => {
   const [field, second] = path.split(".");
@@ -87,8 +92,11 @@ const describePath = (path: string, draft: EntityDraft): string => {
   return FIELD_PLACES[field] ?? (path || "Entity");
 };
 
+/** An entry's text, which is the same source textarea in both presentations. */
+export const isEntryTextId = (id: string): boolean => /^(traits|actions)\.\d+\.description$/.test(id);
+
 const PLACEMENTS: Record<SheetPresentation, IssuePlacement<EntityDraft>> = {
-  targets: { issueTargetId, describePath },
+  targets: { issueTargetId, issueFocusId: path => path, describePath },
   live: { issueTargetId: liveIssueTargetId, describePath },
 };
 
