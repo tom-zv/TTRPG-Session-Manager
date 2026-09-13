@@ -10,15 +10,10 @@ import {
   type ItemWeaponCategory,
 } from "shared/domain/dnd5e/item.js";
 import type { SpellRef } from "shared/domain/dnd5e/spell.js";
-import { itemValueInGold } from "../itemFormat.js";
+import { itemValueInGold } from "../../itemFormat.js";
 
-export type ItemFormMode =
-  | { kind: "create" }
-  | { kind: "edit"; item: Item }
-  | { kind: "duplicate"; item: Item };
-
-// Form state: text for every input, converted to an ItemInput on submit. Every normalized detail
-// has a field, so a full-snapshot save keeps what it does not change.
+// The item sheet's draft: text for every value, converted to an ItemInput on save. Every normalized
+// detail has a field, so a full-snapshot save keeps what it does not change.
 export interface ItemDraft {
   name: string;
   source: string;
@@ -130,7 +125,7 @@ const number = (value: string) => (value.trim() === "" ? undefined : Number(valu
 
 // Move the decimal point in the text before converting to Number. The supported cp range
 // has fewer than 16 significant digits, so each value round-trips at the column's scale.
-function goldToCopper(value: string): number | undefined {
+export function goldToCopper(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) return undefined;
   const match = /^\+?(\d*)(?:\.(\d*))?$/.exec(trimmed);
@@ -184,12 +179,13 @@ export function draftToInput(draft: ItemDraft, originalCharges?: ItemDetails["ch
   };
 }
 
+/** When charges come back, labelled as the sheet reads ("1d6 + 4 at dawn"). */
 export const RECHARGE_OPTIONS = [
-  { value: "dawn", label: "Dawn" },
-  { value: "dusk", label: "Dusk" },
-  { value: "midnight", label: "Midnight" },
-  { value: "restShort", label: "Short rest" },
-  { value: "restLong", label: "Long rest" },
+  { value: "dawn", label: "at dawn" },
+  { value: "dusk", label: "at dusk" },
+  { value: "midnight", label: "at midnight" },
+  { value: "restShort", label: "after a short rest" },
+  { value: "restLong", label: "after a long rest" },
 ];
 
 export const PROPERTY_PRESETS = [

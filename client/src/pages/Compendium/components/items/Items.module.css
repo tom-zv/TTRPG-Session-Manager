@@ -27,9 +27,11 @@
 /* Item page */
 
 .itemCard {
+  --sheet-gap: 1rem;
+  --sheet-title-gap: 0.15rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--sheet-gap);
   color: var(--text-secondary);
 }
 
@@ -37,7 +39,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--sheet-title-gap);
 }
 
 .headerAction {
@@ -207,4 +209,46 @@
   color: var(--text-primary);
   font: inherit;
   font-size: 0.9rem;
+}
+
+/* Edit mode */
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hint {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+
+.notice {
+  margin: 0;
+  padding: 0.35rem 0.6rem;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm, 4px);
+  font-size: 0.85rem;
+}
+
+/* The "+ stat" line spans both columns, so the stats keep their places. */
+.statsEditing > div:last-child:has(> .visuallyHidden) {
+  grid-column: 1 / -1;
+}
+
+.spellSearch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 16rem;
+}
+
+.spellError {
+  margin: 0;
+  color: var(--error-color, #e06c75);
+  font-size: 0.8rem;
 }

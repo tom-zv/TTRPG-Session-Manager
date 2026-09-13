@@ -1,13 +1,10 @@
 import React, { useEffect, useId, useRef, useState } from "react";
 import { ITEM_LIST_LIMITS, type ItemSummary } from "shared/domain/dnd5e/item.js";
 import type { ItemViewer } from "../../api/query/itemKeys.js";
-import { useItemPicker } from "../../api/query/useItemQueries.js";
 import { formatItemLink } from "./itemFormat.js";
+import { useItemMatches } from "./useItemMatches.js";
 import browserStyles from "../browser/Browser.module.css";
 import styles from "./ItemPicker.module.css";
-
-/** Wait this long after typing before searching the server, like the Items browser. */
-const SEARCH_DELAY_MS = 250;
 
 type ItemPickerProps = {
   viewer: ItemViewer;
@@ -31,12 +28,7 @@ type ItemPickerProps = {
 export const ItemPicker: React.FC<ItemPickerProps> = ({ viewer, label, onPick, onCancel, excludeSpecifics, excludeId }) => {
   const headingId = useId();
   const [text, setText] = useState("");
-  const [query, setQuery] = useState("");
-  useEffect(() => {
-    const timer = window.setTimeout(() => setQuery(text.trim()), SEARCH_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [text]);
-  const results = useItemPicker(viewer, query, excludeSpecifics ? { specifics: false } : {});
+  const { query, results, items, total, shown } = useItemMatches(viewer, text, { excludeSpecifics, excludeId });
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     input.current?.focus();
@@ -57,11 +49,6 @@ export const ItemPicker: React.FC<ItemPickerProps> = ({ viewer, label, onPick, o
     node.addEventListener("keydown", onKeyDown);
     return () => node.removeEventListener("keydown", onKeyDown);
   }, [onCancel]);
-
-  const pages = query ? results.data?.pages ?? [] : [];
-  const items = pages.flatMap(page => page.items).filter(item => item.id !== excludeId);
-  const total = pages[0]?.total ?? 0;
-  const shown = pages.reduce((count, page) => count + page.items.length, 0);
 
   return (
     <div ref={root} className={styles.picker} role="group" aria-labelledby={headingId}>

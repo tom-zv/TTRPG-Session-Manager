@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { http } from "msw";
-import { beforeEach, describe, expect, test } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import {
   ITEM_LIST_LIMITS,
   type Item,
@@ -15,12 +15,13 @@ import {
 } from "shared/domain/dnd5e/item.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
 import type { User } from "src/api/types.js";
-import { installLayoutApis, installMatchMedia } from "src/test/fakes/matchMedia.js";
+import { installLayoutApis, installMatchMedia, setViewportWidth } from "src/test/fakes/matchMedia.js";
 import { apiError, json } from "src/test/msw/handlers.js";
 import { server } from "src/test/msw/server.js";
 import { renderWithProviders, testUser } from "src/test/render.js";
 import { RouterProbe, currentUrl, go } from "src/test/routerProbe.js";
 import type { DnD5eEntitySummary } from "shared/domain/encounters/dnd5e/entity.js";
+import type { WriteIssue } from "shared/domain/writeValidation.js";
 import type { DnD5eInventory } from "shared/domain/encounters/dnd5e/inventory.js";
 import { INVENTORY_KEYS } from "../../api/query/inventoryKeys.js";
 import { ITEM_KEYS } from "../../api/query/itemKeys.js";
@@ -55,7 +56,7 @@ const bagOfHolding = item(6, "Bag of Holding", {
 });
 const secretBlade = item(7, "Secret Blade", { source: "homebrew", origin: "homebrew", category: "melee weapon" });
 
-type Stored = { item: Item; hidden: boolean; deleted: boolean };
+type Stored = { item: Item; hidden: boolean; deleted: boolean; edited?: boolean };
 
 type Catalog = {
   stored: Map<number, Stored>;
@@ -86,6 +87,8 @@ function serveCatalog(items: Item[], options: {
   failCreate?: string;
   groupMembers?: Record<number, number[]>;
   holdWrite?: Promise<void>;
+  /** Answer each PUT with a 400 that lists these field issues. */
+  rejectPut?: WriteIssue[];
 } = {}): Catalog {
   const catalog: Catalog = {
     stored: new Map(items.map(entry => [entry.id, { item: entry, hidden: options.hidden?.includes(entry.id) ?? false, deleted: false }])),
@@ -103,7 +106,7 @@ function serveCatalog(items: Item[], options: {
     return !stored.hidden && !familyOf(stored)?.hidden;
   };
   const toDetail = (stored: Stored): Item => (viewerIsGm()
-    ? { ...stored.item, gm: { hidden: stored.hidden, hiddenByFamily: familyOf(stored)?.hidden ?? false, locallyEdited: false } }
+    ? { ...stored.item, gm: { hidden: stored.hidden, hiddenByFamily: familyOf(stored)?.hidden ?? false, locallyEdited: stored.edited ?? false } }
     : stored.item);
   const fromInput = (id: number, input: ItemInput, previous?: Item): Item => {
     const { baseItemId, ...rest } = input;
@@ -203,7 +206,10 @@ function serveCatalog(items: Item[], options: {
       const stored = catalog.stored.get(Number(params.id))!;
       const body = (await request.json()) as ItemInput;
       catalog.writes.push({ method: "PUT", id: stored.item.id, body });
+      if (options.rejectPut) return json({ message: "Invalid item data.", details: options.rejectPut }, 400);
       stored.item = fromInput(stored.item.id, body, stored.item);
+      // The server marks an edited import, so re-imports skip it.
+      stored.edited = stored.item.origin === "imported";
       const response = json({ item: toDetail(stored) });
       await options.holdWrite;
       return response;
@@ -266,10 +272,40 @@ const card = async (name: string) => within(await screen.findByLabelText("Item d
 const pressRow = (row: HTMLElement) => act(() => void fireEvent.mouseDown(row));
 
 async function openItemAction(reader: HTMLElement, action: string, title: string) {
-  await userEvent.click(await within(reader).findByRole("button", { name: /^Actions for/ }));
-  await userEvent.click(screen.getByRole("menuitem", { name: action }));
+  await chooseItemAction(reader, action);
   return screen.findByRole("dialog", { name: title });
 }
+
+async function chooseItemAction(reader: HTMLElement, action: string) {
+  await userEvent.click(await within(reader).findByRole("button", { name: /^Actions for/ }));
+  await userEvent.click(screen.getByRole("menuitem", { name: action }));
+}
+
+type EventUser = ReturnType<typeof userEvent.setup>;
+const toolbar = () => within(screen.getByRole("toolbar", { name: "Editing" }));
+const saveButton = () => toolbar().getByRole("button", { name: "Save" });
+// The editing sheet, wherever the reader is (the pane, or the narrow dialog).
+const sheet = () => within(screen.getByRole("toolbar", { name: "Editing" }).closest("article")!);
+// A target's popover editor, named "Edit <its label>".
+const popover = (name: string) => within(screen.getByRole("dialog", { name }));
+
+/** Opens an item's sheet in edit mode from its actions menu. */
+async function startEditing(name: string) {
+  await chooseItemAction(await card(name), "Edit");
+  await screen.findByRole("toolbar", { name: "Editing" });
+  return sheet();
+}
+
+// A pointer press in jsdom's zero-size panes focuses the panel separator (react-resizable-panels),
+// which would blur the field; focus fields directly and type without the click.
+const typeInto = async (user: EventUser, field: HTMLElement, text: string) => {
+  act(() => field.focus());
+  await user.type(field, text, { skipClick: true });
+};
+const retype = async (user: EventUser, field: HTMLElement, text: string) => {
+  await user.clear(field);
+  await typeInto(user, field, text);
+};
 
 beforeEach(() => {
   installLayoutApis();
@@ -451,12 +487,176 @@ describe("Item controls by role", () => {
     expect(screen.queryByRole("menuitem", { name: "Duplicate as homebrew" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
 
-    const dialog = await screen.findByRole("dialog", { name: "Edit +1 Weapon" });
-    expect(within(dialog).getByText(/Specific items made from it keep their current text/)).toBeVisible();
+    expect(await screen.findByRole("toolbar", { name: "Editing" })).toBeVisible();
+    expect(sheet().getByRole("note")).toHaveTextContent("Specific items made from it keep their current text.");
   });
 });
 
-describe("GM authoring", () => {
+// The item sheet is the edit surface (step 04). With a mouse on a wide pane its values are inputs;
+// on touch or a narrow pane each value opens its own editor. Both draw the same field specs.
+describe("GM editing on the item sheet", () => {
+  const longswordSnapshot = (patch: Partial<ItemInput>): ItemInput => ({
+    name: "Longsword",
+    source: "PHB",
+    category: "melee weapon",
+    rarity: "none",
+    requiresAttunement: false,
+    valueCp: 1500,
+    weightLb: 3,
+    aliases: [],
+    details: { damage: { dice: "1d8", type: "slashing", versatileDice: "1d10" } },
+    ...patch,
+  });
+
+  test("editing an imported item's rarity and weight in place saves its full snapshot; the page then says it was edited", async () => {
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    const fields = await startEditing("Longsword");
+    expect(currentUrl()).toBe(`/compendium?item=${longswordPhb.id}&edit=1`);
+
+    expect(fields.queryByRole("button", { name: /^Edit Weight/ })).not.toBeInTheDocument();
+    await user.selectOptions(fields.getByRole("combobox", { name: "Rarity" }), "rare");
+    await retype(user, fields.getByRole("textbox", { name: "Weight (lb.)" }), "3.5");
+    await user.keyboard("{Enter}");
+    expect(toolbar().getByText("Editing · 2 changes")).toBeVisible();
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0]).toEqual({ method: "PUT", id: longswordPhb.id, body: longswordSnapshot({ rarity: "rare", weightLb: 3.5 }) });
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?item=${longswordPhb.id}`));
+    const page = await card("Longsword");
+    expect(within(page).getByText("PHB · edited")).toBeVisible();
+    expect(within(page).getByText("3.5 lb.")).toBeVisible();
+  });
+
+  test("on touch the same edit goes through each value's editor", async () => {
+    installMatchMedia(1280, { pointer: "coarse" });
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    const fields = await startEditing("Longsword");
+
+    expect(fields.queryByRole("textbox", { name: "Weight (lb.)" })).not.toBeInTheDocument();
+    await user.click(fields.getByRole("button", { name: "Edit Type, Melee weapon" }));
+    await user.selectOptions(popover("Edit Type, Melee weapon").getByRole("combobox", { name: "Rarity" }), "rare");
+    await user.click(popover("Edit Type, Melee weapon").getByRole("button", { name: "Done" }));
+    await user.click(fields.getByRole("button", { name: "Edit Weight, 3 lb." }));
+    await retype(user, popover("Edit Weight, 3 lb.").getByRole("textbox", { name: "Weight (lb.)" }), "3.5");
+    await user.click(popover("Edit Weight, 3 lb.").getByRole("button", { name: "Done" }));
+    expect(fields.getByRole("button", { name: "Edit Weight, 3.5 lb." })).toBeVisible();
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0]).toEqual({ method: "PUT", id: longswordPhb.id, body: longswordSnapshot({ rarity: "rare", weightLb: 3.5 }) });
+    expect(within(await card("Longsword")).getByText("PHB · edited")).toBeVisible();
+  });
+
+  test("an invalid weight keeps its text and message and holds Save; a stored invalid weight is an issue that jumps to the field", async () => {
+    const user = userEvent.setup();
+    // Five decimal places: more than the shared rules store.
+    const anvil = item(9, "Anvil", { source: "homebrew", origin: "homebrew", weightLb: 0.00001 });
+    const catalog = serveCatalog([...CATALOG, anvil]);
+    renderAs(gm, `/compendium?item=${anvil.id}`);
+    const fields = await startEditing("Anvil");
+
+    const weight = fields.getByRole("textbox", { name: "Weight (lb.)" });
+    await retype(user, weight, "heavy");
+    await user.keyboard("{Enter}");
+    expect(weight).toHaveValue("heavy");
+    expect(weight).toHaveAccessibleDescription(/^Weight must be a number from 0 to/);
+    expect(toolbar().getByText("1 field holds unapplied text")).toBeVisible();
+    expect(saveButton()).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+    expect(weight).toHaveValue("0.00001");
+    await user.selectOptions(fields.getByRole("combobox", { name: "Rarity" }), "rare");
+    await user.click(saveButton());
+
+    expect(await screen.findByText("Not saved. Fix 1 issue first.")).toBeVisible();
+    const issue = within(screen.getByRole("list", { name: "Issues" })).getByRole("button", { name: /^Weight: Weight must be a number/ });
+    await waitFor(() => expect(weight).toHaveFocus());
+    act(() => issue.focus());
+    await user.click(issue);
+    expect(weight).toHaveFocus();
+    expect(catalog.writes).toEqual([]);
+  });
+
+  test("a server 400 on details.damage.dice focuses the live Damage dice field", async () => {
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG, { rejectPut: [{ path: "details.damage.dice", message: "Damage dice must be dice." }] });
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    const fields = await startEditing("Longsword");
+    await user.selectOptions(fields.getByRole("combobox", { name: "Rarity" }), "rare");
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    const issue = await within(screen.getByRole("list", { name: "Issues" }))
+      .findByRole("button", { name: "Damage dice: Damage dice must be dice." });
+    expect(issue).toBeVisible();
+    await waitFor(() => expect(fields.getByRole("textbox", { name: "Damage dice" })).toHaveFocus());
+  });
+
+  test.each([
+    { width: 1500, pointer: "coarse", layout: "popover", role: "dialog" },
+    { width: 700, pointer: "fine", layout: "inline panel", role: "group" },
+  ] as const)("a server 400 focuses Damage type in the $layout", async ({ width, pointer, role }) => {
+    installMatchMedia(width, { pointer });
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG, { rejectPut: [{ path: "details.damage.type", message: "Damage type rejected." }] });
+    renderAs(gm, `/compendium?item=${longswordPhb.id}&edit=1`);
+    await screen.findByRole("toolbar", { name: "Editing" });
+    const fields = sheet();
+    const name = "Edit Type, Melee weapon";
+    await user.click(fields.getByRole("button", { name }));
+    const editor = within(screen.getByRole(role, { name }));
+    await user.selectOptions(editor.getByRole("combobox", { name: "Rarity" }), "rare");
+    await user.click(editor.getByRole("button", { name: "Done" }));
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    const issue = await within(screen.getByRole("list", { name: "Issues" }))
+      .findByRole("button", { name: "Damage type: Damage type rejected." });
+    const damageType = screen.getByRole("textbox", { name: "Damage type" });
+    await waitFor(() => expect(damageType).toHaveFocus());
+
+    const trigger = fields.getByRole("button", { name: /^Edit Damage/ });
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    const dice = screen.getByRole("textbox", { name: "Damage dice" });
+    await retype(user, dice, "2d8");
+    await user.click(issue);
+    expect(damageType).toHaveFocus();
+    expect(dice).toHaveValue("2d8");
+    await user.keyboard("{Escape}");
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    expect(screen.getByRole("textbox", { name: "Damage dice" })).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "Damage dice" })).toHaveValue("1d8");
+  });
+
+  test("New item creates a homebrew item from the sheet; the URL then names it and the list shows it", async () => {
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    renderAs(gm, "/compendium?section=items");
+    const list = await itemList();
+
+    await user.click(screen.getByRole("button", { name: "New item" }));
+    expect(await toolbar().findByText("New item")).toBeVisible();
+    expect(currentUrl()).toBe("/compendium?item=new");
+    await typeInto(user, sheet().getByRole("textbox", { name: "Name" }), "Lantern of Truth");
+    await user.keyboard("{Enter}");
+    await user.selectOptions(sheet().getByRole("combobox", { name: "Add a stat" }), "valueCp");
+    const value = sheet().getByRole("textbox", { name: "Value (gp)" });
+    await waitFor(() => expect(value).toHaveFocus());
+    await user.type(value, "12.5{Enter}", { skipClick: true });
+    await user.click(saveButton());
+
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?item=100"));
+    expect(catalog.writes[0].body).toMatchObject({ name: "Lantern of Truth", source: "homebrew", valueCp: 1250 });
+    expect(await card("Lantern of Truth")).toBeVisible();
+    await waitFor(() => expect(within(list).getByRole("option", { name: /^Lantern of Truth/ })).toBeVisible());
+  });
+
   test("a failed create keeps the draft and shows the server's message", async () => {
     const user = userEvent.setup();
     const catalog = serveCatalog(CATALOG, { failCreate: "An item named Lantern of Truth already exists in homebrew." });
@@ -464,87 +664,82 @@ describe("GM authoring", () => {
     await itemList();
 
     await user.click(screen.getByRole("button", { name: "New item" }));
-    const dialog = await screen.findByRole("dialog", { name: "New item" });
-    await user.type(within(dialog).getByLabelText("Name"), "Lantern of Truth");
-    await user.click(within(dialog).getByRole("button", { name: "Create item" }));
+    const name = await sheet().findByRole("textbox", { name: "Name" });
+    await typeInto(user, name, "Lantern of Truth");
+    await user.keyboard("{Enter}");
+    await user.click(saveButton());
 
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("already exists in homebrew");
-    expect(within(dialog).getByLabelText("Name")).toHaveValue("Lantern of Truth");
+    expect(await screen.findByRole("alert")).toHaveTextContent("already exists in homebrew");
+    expect(sheet().getByRole("textbox", { name: "Name" })).toHaveValue("Lantern of Truth");
     expect(catalog.writes).toHaveLength(1);
+    expect(currentUrl()).toBe("/compendium?item=new");
   });
 
-  test("the shared rules reject an invalid draft before anything is sent", async () => {
-    const user = userEvent.setup();
-    const catalog = serveCatalog(CATALOG);
-    renderAs(gm, "/compendium?section=items");
-    await itemList();
-
-    await user.click(screen.getByRole("button", { name: "New item" }));
-    const dialog = await screen.findByRole("dialog", { name: "New item" });
-    await user.type(within(dialog).getByLabelText("Name"), "Coin");
-    await user.type(within(dialog).getByLabelText("Value (gp)"), "lots");
-    await user.click(within(dialog).getByRole("button", { name: "Create item" }));
-
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("Value must be a number");
-    expect(catalog.writes).toEqual([]);
-  });
-
-  test("creating an item selects it and lists it", async () => {
-    const user = userEvent.setup();
-    const catalog = serveCatalog(CATALOG);
-    renderAs(gm, "/compendium?section=items");
-    const list = await itemList();
-
-    await user.click(screen.getByRole("button", { name: "New item" }));
-    const dialog = await screen.findByRole("dialog", { name: "New item" });
-    await user.type(within(dialog).getByLabelText("Name"), "Lantern of Truth");
-    await user.type(within(dialog).getByLabelText("Value (gp)"), "12.5");
-    await user.click(within(dialog).getByRole("button", { name: "Create item" }));
-
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(catalog.writes[0].body).toMatchObject({ name: "Lantern of Truth", source: "homebrew", valueCp: 1250 });
-    await waitFor(() => expect(currentUrl()).toBe("/compendium?item=100"));
-    expect(await card("Lantern of Truth")).toBeVisible();
-    await waitFor(() => expect(within(list).getByRole("option", { name: /^Lantern of Truth/ })).toBeVisible());
-  });
-
-  test("duplicating an imported item creates a homebrew copy that keeps its base and drops its page", async () => {
+  test("Duplicate as homebrew opens ?item=new&from=<id> as homebrew without a page, keeps the base and creates on Save", async () => {
     const user = userEvent.setup();
     const catalog = serveCatalog(CATALOG);
     renderAs(gm, `/compendium?item=${plusOnePhb.id}`);
 
-    const page = await card("+1 Longsword");
-    await user.click(within(page).getByRole("button", { name: "Actions for +1 Longsword" }));
-    await user.click(screen.getByRole("menuitem", { name: "Duplicate as homebrew" }));
-    const dialog = await screen.findByRole("dialog", { name: "Duplicate +1 Longsword" });
-    expect(within(dialog).getByLabelText("Source")).toHaveValue("homebrew");
-    expect(within(dialog).getByLabelText("Page")).toHaveValue("");
-    await user.click(within(dialog).getByRole("button", { name: "Create item" }));
+    await chooseItemAction(await card("+1 Longsword"), "Duplicate as homebrew");
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?item=new&from=${plusOnePhb.id}`));
+    const fields = await screen.findByRole("toolbar", { name: "Editing" }).then(() => sheet());
+    expect(toolbar().getByText("New item")).toBeVisible();
+    expect(fields.getByRole("textbox", { name: "Source" })).toHaveValue("homebrew");
+    expect(fields.getByRole("textbox", { name: "Page" })).toHaveValue("");
+    // A standalone copy may change its base.
+    expect(fields.getByRole("button", { name: "Edit Base item, Longsword (PHB)" })).toBeVisible();
+    await user.click(saveButton());
 
     await waitFor(() => expect(currentUrl()).toBe("/compendium?item=100"));
     expect(catalog.writes[0]).toMatchObject({ method: "POST", body: { name: "+1 Longsword", source: "homebrew", baseItemId: longswordPhb.id } });
     expect(catalog.writes[0].body).not.toHaveProperty("page");
   });
 
-  test("editing a generated specific never sends a base change", async () => {
+  test.each(["fine", "coarse"] as const)("a generated specific's base is shown but cannot be changed, and is never sent (%s pointer)", async pointer => {
+    installMatchMedia(1280, { pointer });
     const user = userEvent.setup();
     const catalog = serveCatalog(CATALOG);
     renderAs(gm, `/compendium?item=${plusOnePhb.id}`);
+    const fields = await startEditing("+1 Longsword");
 
-    const page = await card("+1 Longsword");
-    await user.click(within(page).getByRole("button", { name: "Actions for +1 Longsword" }));
-    await user.click(screen.getByRole("menuitem", { name: "Edit" }));
-    const dialog = await screen.findByRole("dialog", { name: "Edit +1 Longsword" });
-    // 05-R1: a generated specific's base is its identity, so it offers no base picker.
-    expect(within(dialog).getByText("Base item: Longsword (PHB) (fixed for a generated item)")).toBeVisible();
-    expect(within(dialog).queryByRole("button", { name: /base item/ })).not.toBeInTheDocument();
-    await user.clear(within(dialog).getByLabelText("Name"));
-    await user.type(within(dialog).getByLabelText("Name"), "Keen Longsword");
-    await user.click(within(dialog).getByRole("button", { name: "Save item" }));
+    expect(fields.getByText("Longsword (PHB)")).toBeVisible();
+    expect(fields.getByText("(fixed for a generated item)")).toBeVisible();
+    expect(fields.queryByRole("button", { name: /Base item/ })).not.toBeInTheDocument();
+    if (pointer === "coarse") await user.click(fields.getByRole("button", { name: "Edit Name, +1 Longsword" }));
+    await retype(user, screen.getByRole("textbox", { name: "Name" }), "Keen Longsword");
+    await user.keyboard("{Enter}");
+    await user.click(saveButton());
 
     expect(await card("Keen Longsword")).toBeVisible();
     expect(catalog.writes[0]).toMatchObject({ method: "PUT", id: plusOnePhb.id });
     expect(catalog.writes[0].body).not.toHaveProperty("baseItemId");
+  });
+
+  test("unapplied text survives selecting another item and Resume", async () => {
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${bagOfHolding.id}`);
+    const list = await itemList();
+    const fields = await startEditing("Bag of Holding");
+
+    await user.selectOptions(fields.getByRole("combobox", { name: "Add a stat" }), "weightLb");
+    const weight = fields.getByRole("textbox", { name: "Weight (lb.)" });
+    await waitFor(() => expect(weight).toHaveFocus());
+    await user.type(weight, "heavy{Enter}", { skipClick: true });
+    expect(weight).toHaveAttribute("aria-invalid", "true");
+
+    pressRow(within(list).getAllByRole("option", { name: /^Longsword/ })[0]);
+    expect(await card("Longsword")).toBeVisible();
+    const bar = screen.getByRole("region", { name: "Unsaved changes" });
+    expect(bar).toHaveTextContent("Unsaved changes to Bag of Holding");
+    await user.click(within(bar).getByRole("button", { name: "Resume" }));
+
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?item=${bagOfHolding.id}&edit=1`));
+    const resumed = (await screen.findByRole("toolbar", { name: "Editing" })) && sheet().getByRole("textbox", { name: "Weight (lb.)" });
+    expect(resumed).toHaveValue("heavy");
+    expect(resumed).toHaveAccessibleDescription(/^Weight must be a number/);
+    expect(saveButton()).toBeDisabled();
+    expect(catalog.writes).toEqual([]);
   });
 
   test("deleting an item clears the selection and removes it from the list", async () => {
@@ -621,10 +816,21 @@ describe("Item catalog regressions", () => {
     expect(members().queryByRole("button", { name: plusOnePhb.name })).not.toBeInTheDocument();
   });
 
-  test.each([
-    ["PUT", "Edit", "Edit Secret Blade", "Save item"],
-    ["DELETE", "Delete…", "Delete Secret Blade?", "Delete item"],
-  ])("13-F004: a late %s cannot restore GM data or alter the player's URL", async (method, action, title, submit) => {
+  // Each starts a write the server holds: a save from the editing sheet, or a confirmed delete.
+  const startWrite: Record<"PUT" | "DELETE", (user: EventUser) => Promise<void>> = {
+    PUT: async user => {
+      const fields = await startEditing(secretBlade.name);
+      await retype(user, fields.getByRole("textbox", { name: "Name" }), "Secret Blade II");
+      await user.keyboard("{Enter}");
+      await user.click(saveButton());
+    },
+    DELETE: async user => {
+      const dialog = await openItemAction(await card(secretBlade.name), "Delete…", "Delete Secret Blade?");
+      await user.click(within(dialog).getByRole("button", { name: "Delete item" }));
+    },
+  };
+
+  test.each(["PUT", "DELETE"] as const)("13-F004: a late %s cannot restore GM data or alter the player's URL", async method => {
     const user = userEvent.setup();
     let release!: () => void;
     const holdWrite = new Promise<void>(resolve => { release = resolve; });
@@ -633,8 +839,7 @@ describe("Item catalog regressions", () => {
     const gmKeys = ITEM_KEYS.viewer({ userId: gm.id, isGm: true });
 
     try {
-      const dialog = await openItemAction(await card(secretBlade.name), action, title);
-      await user.click(within(dialog).getByRole("button", { name: submit }));
+      await startWrite[method](user);
       await waitFor(() => expect(catalog.writes[0]).toMatchObject({ method, id: secretBlade.id }));
 
       await user.click(screen.getByRole("button", { name: "Switch to player", hidden: true }));
@@ -662,13 +867,14 @@ describe("Item catalog regressions", () => {
     const { queryClient } = renderAs(gm, "/compendium?item=6");
 
     try {
-      const editor = await openItemAction(await card(bagOfHolding.name), "Edit", "Edit Bag of Holding");
-      await user.type(within(editor).getByLabelText("Name"), " II");
-      await user.click(within(editor).getByRole("button", { name: "Save item" }));
+      const fields = await startEditing(bagOfHolding.name);
+      await retype(user, fields.getByRole("textbox", { name: "Name" }), "Bag of Holding II");
+      await user.keyboard("{Enter}");
+      await user.click(saveButton());
       await waitFor(() => expect(catalog.writes[0]).toMatchObject({ method: "PUT", id: bagOfHolding.id }));
 
       await go("/compendium?item=2");
-      expect(editor).not.toBeInTheDocument();
+      expect(screen.queryByRole("toolbar", { name: "Editing" })).not.toBeInTheDocument();
       expect(await card(longswordPhb.name)).toBeVisible();
       await act(async () => release());
       await waitFor(() => expect(queryClient.isMutating()).toBe(0));
@@ -692,7 +898,10 @@ describe("Item catalog regressions", () => {
     if (width === 420) await userEvent.click(within(reader).getByRole("button", { name: "Close" }));
     expect(await screen.findByText("No items are in the catalog yet.")).toBeVisible();
     await userEvent.click(screen.getByRole("button", { name: "New item" }));
-    expect(await screen.findByRole("dialog", { name: "New item" })).toBeVisible();
+    // The new item's sheet opens in edit mode: in the reader, or in the narrow reader's dialog.
+    const editing = await screen.findByRole("toolbar", { name: "Editing" });
+    expect(within(editing).getByText("New item")).toBeVisible();
+    expect(width === 420 ? screen.getByRole("dialog", { name: "New item" }) : details()).toContainElement(editing);
   });
 
   test("13-F005: search stays bounded and editable after a failed index request while the reader stays open", async () => {
@@ -725,7 +934,7 @@ describe("Item catalog regressions", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
-  test("13-F006: narrow Back closes authoring over Spells, and Forward reopens the remembered item and filters", async () => {
+  test("13-F006: narrow Back leaves the editing sheet for the item, then the item for Spells; Forward returns to both", async () => {
     installMatchMedia(420);
     const user = userEvent.setup();
     serveCatalog(CATALOG);
@@ -734,7 +943,14 @@ describe("Item catalog regressions", () => {
     await user.click(screen.getByRole("checkbox", { name: "Show specific variants" }));
     pressRow(within(await itemList()).getByRole("option", { name: /^Bag of Holding/ }));
     const reader = await screen.findByRole("dialog", { name: bagOfHolding.name });
-    await openItemAction(reader, "Edit", "Edit Bag of Holding");
+    await chooseItemAction(reader, "Edit");
+    expect(await within(reader).findByRole("toolbar", { name: "Editing" })).toBeVisible();
+    expect(currentUrl()).toBe("/compendium?item=6&edit=1");
+
+    await go(-1);
+    expect(currentUrl()).toBe("/compendium?item=6");
+    const read = await screen.findByRole("dialog", { name: bagOfHolding.name });
+    await waitFor(() => expect(within(read).queryByRole("toolbar", { name: "Editing" })).not.toBeInTheDocument());
 
     await go(-1);
     expect(currentUrl()).toBe("/compendium?section=spells");
@@ -742,27 +958,52 @@ describe("Item catalog regressions", () => {
     expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
     expect(container.inert).toBeFalsy();
     expect(container).not.toHaveAttribute("aria-hidden");
-    await user.click(await screen.findByRole("button", { name: "New spell" }));
-    expect(await screen.findByRole("dialog", { name: "New spell" })).toBeVisible();
-    await user.keyboard("{Escape}");
 
     await go(1);
     expect(currentUrl()).toBe("/compendium?item=6");
     expect(await screen.findByRole("dialog", { name: bagOfHolding.name })).toBeVisible();
-    await go(-1);
-    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
-    expect(container.inert).toBeFalsy();
     await go(1);
-    expect(await screen.findByRole("dialog", { name: bagOfHolding.name })).toBeVisible();
+    expect(currentUrl()).toBe("/compendium?item=6&edit=1");
+    expect(await within(screen.getByRole("dialog", { name: bagOfHolding.name })).findByRole("toolbar", { name: "Editing" })).toBeVisible();
+    await user.click(toolbar().getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?item=6"));
     await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
     expect(screen.getByRole("checkbox", { name: "Show specific variants" })).toBeChecked();
   });
 
-  test.each([
-    ["Edit", "Edit Bag of Holding", "Save item", "Bag of Holding", "?item=6"],
-    ["Duplicate as homebrew", "Duplicate Bag of Holding", "Create item", "Spare Bag", "?item=100"],
-    ["Delete…", "Delete Bag of Holding?", "Delete item", null, "?section=items"],
-  ])("13-F007: narrow %s gives the active dialog focus and supports Cancel, Escape and success", async (action, title, submit, result, location) => {
+  test("13-F007: on a narrow screen Edit and Duplicate keep the editing sheet in the reader dialog; Cancel and Save return to the item", async () => {
+    installMatchMedia(420);
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    const { container } = renderAs(gm, "/compendium?item=6");
+    const reader = () => screen.findByRole("dialog", { name: bagOfHolding.name });
+
+    await chooseItemAction(await reader(), "Edit");
+    const editing = await within(await reader()).findByRole("toolbar", { name: "Editing" });
+    expect(screen.getAllByRole("dialog", { hidden: true })).toHaveLength(1);
+    await user.click(within(editing).getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?item=6"));
+    expect(within(await reader()).queryByRole("toolbar", { name: "Editing" })).not.toBeInTheDocument();
+
+    await chooseItemAction(await reader(), "Duplicate as homebrew");
+    const copy = await screen.findByRole("dialog", { name: "New item" });
+    await user.click(within(copy).getByRole("button", { name: "Edit Name, Bag of Holding" }));
+    await retype(user, within(copy).getByRole("textbox", { name: "Name" }), "Spare Bag");
+    await user.keyboard("{Enter}");
+    await user.click(within(copy).getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?item=100"));
+    const saved = await screen.findByRole("dialog", { name: "Spare Bag" });
+    await within(saved).findByRole("article", { name: "Spare Bag" });
+    expect(catalog.writes).toMatchObject([{ method: "POST", body: { name: "Spare Bag", source: "homebrew" } }]);
+    await user.keyboard("{Escape}");
+    expect(within(await itemList()).getAllByRole("option", { name: /^(Bag of Holding|Spare Bag)/ })).toHaveLength(2);
+    expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
+    expect(container.inert).toBeFalsy();
+  });
+
+  test("13-F007: narrow Delete gives its dialog focus and supports Cancel, Escape and success", async () => {
     installMatchMedia(420);
     const user = userEvent.setup();
     serveCatalog(CATALOG);
@@ -770,7 +1011,7 @@ describe("Item catalog regressions", () => {
     const reader = () => screen.findByRole("dialog", { name: bagOfHolding.name });
 
     for (const cancelWithEscape of [false, true]) {
-      const dialog = await openItemAction(await reader(), action, title);
+      const dialog = await openItemAction(await reader(), "Delete…", "Delete Bag of Holding?");
       expect(screen.getAllByRole("dialog", { hidden: true })).toEqual([dialog]);
       await waitFor(() => expect(dialog).toContainElement(document.activeElement as HTMLElement));
       if (cancelWithEscape) await user.keyboard("{Escape}");
@@ -779,29 +1020,15 @@ describe("Item catalog regressions", () => {
       await waitFor(() => expect(restored).toContainElement(document.activeElement as HTMLElement));
     }
 
-    const dialog = await openItemAction(await reader(), action, title);
-    if (action === "Duplicate as homebrew") {
-      const name = within(dialog).getByLabelText("Name");
-      await user.clear(name);
-      await user.type(name, "Spare Bag");
-    }
-    await user.click(within(dialog).getByRole("button", { name: submit }));
+    const dialog = await openItemAction(await reader(), "Delete…", "Delete Bag of Holding?");
+    await user.click(within(dialog).getByRole("button", { name: "Delete item" }));
     await waitFor(() => expect(dialog).not.toBeInTheDocument());
-    await waitFor(() => expect(currentUrl()).toBe(`/compendium${location}`));
-    const focusTarget = result
-      ? await screen.findByRole("dialog", { name: result })
-      : screen.getByRole("searchbox", { name: "Search items by name" });
-    await waitFor(() => expect(focusTarget).toContainElement(document.activeElement as HTMLElement));
-    if (result) {
-      await within(focusTarget).findByRole("article", { name: result });
-      await user.keyboard("{Escape}");
-    }
-    expect(within(await itemList()).queryAllByRole("option", { name: /^Bag of Holding/ })).toHaveLength(result ? 1 : 0);
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?section=items"));
+    await waitFor(() => expect(screen.getByRole("searchbox", { name: "Search items by name" })).toHaveFocus());
+    expect(within(await itemList()).queryAllByRole("option", { name: /^Bag of Holding/ })).toHaveLength(0);
     expect(screen.queryByRole("dialog", { hidden: true })).not.toBeInTheDocument();
     expect(container.inert).toBeFalsy();
     expect(container).not.toHaveAttribute("aria-hidden");
-    await user.click(screen.getByRole("button", { name: "New item" }));
-    expect(await screen.findByRole("dialog", { name: "New item" })).toBeVisible();
   });
 
   test.each([
@@ -813,34 +1040,40 @@ describe("Item catalog regressions", () => {
     renderAs(gm, "/compendium?section=items");
     await screen.findByText("No items are in the catalog yet.");
     await user.click(screen.getByRole("button", { name: "New item" }));
-    const dialog = within(await screen.findByRole("dialog", { name: "New item" }));
-    await user.type(dialog.getByLabelText("Name"), "Test weapon");
-    await user.type(dialog.getByLabelText(label), value);
-    await user.click(dialog.getByRole("button", { name: "Create item" }));
+    await typeInto(user, await sheet().findByRole("textbox", { name: "Name" }), "Test weapon");
+    await user.keyboard("{Enter}");
+    await user.selectOptions(sheet().getByRole("combobox", { name: "Add a stat" }), "damage");
+    await typeInto(user, sheet().getByRole("textbox", { name: label }), value);
+    await user.keyboard("{Enter}");
+    await user.click(saveButton());
 
-    expect(await dialog.findByRole("alert")).toHaveTextContent("Damage dice is required");
-    expect(dialog.getByLabelText(label)).toHaveValue(value);
+    expect(await within(screen.getByRole("list", { name: "Issues" })).findByRole("button", { name: "Damage dice: Damage dice is required." })).toBeVisible();
+    const dice = sheet().getByRole("textbox", { name: "Damage dice" });
+    await waitFor(() => expect(dice).toHaveFocus());
+    expect(sheet().getByRole("textbox", { name: label })).toHaveValue(value);
     expect(catalog.writes).toEqual([]);
 
-    await user.type(dialog.getByLabelText("Damage dice"), "1d8");
-    await user.click(dialog.getByRole("button", { name: "Create item" }));
+    await user.type(dice, "1d8{Enter}", { skipClick: true });
+    await user.click(saveButton());
     expect(await card("Test weapon")).toBeVisible();
     expect(catalog.writes[0].body).toMatchObject({ details: { damage: { dice: "1d8", [field]: value } } });
   });
 
   test.each(["-0.0000001", "1.0000001", "999999999.9999999"])(
-    "13-F009: saving %s gp keeps the draft open and sends no rounded price",
+    "13-F009: a price of %s gp keeps its text and message, holds Save and sends no rounded price",
     async value => {
       const user = userEvent.setup();
       const catalog = serveCatalog(CATALOG);
       renderAs(gm, "/compendium?item=6");
-      const dialog = within(await openItemAction(await card(bagOfHolding.name), "Edit", "Edit Bag of Holding"));
-      const price = dialog.getByLabelText("Value (gp)");
-      await user.type(price, value);
-      await user.click(dialog.getByRole("button", { name: "Save item" }));
+      const fields = await startEditing(bagOfHolding.name);
+      await user.selectOptions(fields.getByRole("combobox", { name: "Add a stat" }), "valueCp");
+      const price = fields.getByRole("textbox", { name: "Value (gp)" });
+      await waitFor(() => expect(price).toHaveFocus());
+      await user.type(price, `${value}{Enter}`, { skipClick: true });
 
-      expect(await dialog.findByRole("alert")).toHaveTextContent("Value must be a number");
       expect(price).toHaveValue(value);
+      expect(price).toHaveAccessibleDescription(/^Value must be a number/);
+      expect(saveButton()).toBeDisabled();
       expect(catalog.writes).toEqual([]);
     }
   );
@@ -856,15 +1089,16 @@ describe("Item catalog regressions", () => {
     const page = await card(bagOfHolding.name);
     expect(within(page).getByText(display)).toBeVisible();
 
-    const dialog = await openItemAction(page, "Edit", "Edit Bag of Holding");
-    const price = within(dialog).getByLabelText("Value (gp)");
-    expect(price).toHaveValue(gpInput);
-    await user.click(within(dialog).getByRole("button", { name: "Save item" }));
-    await waitFor(() => expect(dialog).not.toBeInTheDocument());
+    const fields = await startEditing(bagOfHolding.name);
+    expect(fields.getByRole("textbox", { name: "Value (gp)" })).toHaveValue(gpInput);
+    await retype(user, fields.getByRole("textbox", { name: "Name" }), "Bag of Holding II");
+    await user.keyboard("{Enter}");
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
     expect(catalog.writes[0].body).toMatchObject({ valueCp });
   });
 
-  test("13-F010: no-op, rename and spell addition preserve the original typed details", async () => {
+  test("13-F010: rename and spell addition preserve the original typed details; an unchanged item has nothing to save", async () => {
     const user = userEvent.setup();
     const original = {
       ...bagOfHolding,
@@ -880,37 +1114,485 @@ describe("Item catalog regressions", () => {
     };
     const catalog = serveCatalog([original]);
     renderAs(gm, "/compendium?item=6");
-    const edit = () => openItemAction(screen.getByRole("article", { name: bagOfHolding.name }), "Edit", "Edit Bag of Holding");
 
-    expect(await card(bagOfHolding.name)).toBeVisible();
-    const noOp = await edit();
-    expect(within(noOp).getByLabelText("Spell 1 name")).toHaveValue("A|B");
-    expect(within(noOp).getByLabelText("Spell 1 source")).toHaveValue("Book");
-    await user.click(within(noOp).getByRole("button", { name: "Save item" }));
-    await waitFor(() => expect(noOp).not.toBeInTheDocument());
+    const fields = await startEditing(bagOfHolding.name);
+    expect(fields.getByText("A|B (Book)")).toBeVisible();
+    expect(saveButton()).toBeDisabled();
+    await retype(user, fields.getByRole("textbox", { name: "Name" }), "Bag of Holding II");
+    await user.keyboard("{Enter}");
+    await user.click(saveButton());
+    expect(await card("Bag of Holding II")).toBeVisible();
     expect(catalog.writes[0].body).toHaveProperty("details", original.details);
 
-    const rename = within(await edit());
-    await user.type(rename.getByLabelText("Name"), " II");
-    await user.click(rename.getByRole("button", { name: "Save item" }));
-    const renamed = await card("Bag of Holding II");
-    expect(catalog.writes[1].body).toHaveProperty("details", original.details);
-
-    const add = within(await openItemAction(renamed, "Edit", "Edit Bag of Holding II"));
-    await user.click(add.getByRole("button", { name: "Add spell" }));
-    await user.type(add.getByLabelText("Spell 2 name"), "C|D");
-    await user.type(add.getByLabelText("Spell 2 source"), "Volume|2");
-    await user.click(add.getByRole("button", { name: "Save item" }));
-    await waitFor(() => expect(catalog.writes[2]?.body).toHaveProperty("details", {
+    const again = await startEditing("Bag of Holding II");
+    await user.click(again.getByRole("button", { name: "+ spell" }));
+    const search = screen.getByRole("combobox", { name: "Spell to add" });
+    await waitFor(() => expect(search).toHaveFocus());
+    await user.type(search, "C|D{Enter}", { skipClick: true });
+    // Missing from the index: its own name, and no source unless one is given.
+    await user.click(popover("Edit spell").getByRole("button", { name: "Done" }));
+    expect(again.getByText("C|D")).toBeVisible();
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes[1]?.body).toHaveProperty("details", {
       ...original.details,
-      spells: [...original.details.spells, { name: "C|D", source: "Volume|2" }],
+      spells: [...original.details.spells, { name: "C|D" }],
     }));
+  });
+});
+
+describe("Step 04 review corrections", () => {
+  const issueButton = (name: string | RegExp) => within(screen.getByRole("list", { name: "Issues" })).findByRole("button", { name });
+
+  test.each(["Close", "Escape"] as const)("04-item-sheet-edit-R1: leaving the narrow reader with %s keeps the draft for Resume", async how => {
+    installMatchMedia(700);
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    const reader = () => screen.findByRole("dialog", { name: "Longsword" });
+
+    await chooseItemAction(await reader(), "Edit");
+    const editing = within(await reader());
+    await editing.findByRole("toolbar", { name: "Editing" });
+    await user.click(editing.getByRole("button", { name: /^Edit Damage/ }));
+    const panel = within(editing.getByRole("group", { name: /^Edit Damage/ }));
+    await retype(user, panel.getByRole("textbox", { name: "Damage dice" }), "2d8");
+    await user.click(panel.getByRole("button", { name: "Done" }));
+    expect(editing.getByText("Editing · 1 change")).toBeVisible();
+    if (how === "Close") await user.click(editing.getByRole("button", { name: "Close" }));
+    else await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?item=${longswordPhb.id}`));
+    expect(screen.queryByRole("dialog", { name: "Longsword" })).not.toBeInTheDocument();
+    const bar = screen.getByRole("region", { name: "Unsaved changes" });
+    expect(bar).toHaveTextContent("Unsaved changes to Longsword");
+    await user.click(within(bar).getByRole("button", { name: "Resume" }));
+
+    const resumed = within(await reader());
+    expect(await resumed.findByRole("button", { name: "Edit Damage, 2d8 slashing (versatile 1d10)" })).toBeVisible();
+    await user.click(resumed.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0].body).toMatchObject({ details: { damage: { dice: "2d8", type: "slashing", versatileDice: "1d10" } } });
+  });
+
+  test("04-item-sheet-edit-R1: a save held while the narrow reader closes settles against its kept draft", async () => {
+    installMatchMedia(700);
+    const user = userEvent.setup();
+    let release!: () => void;
+    const catalog = serveCatalog(CATALOG, { holdWrite: new Promise<void>(resolve => { release = resolve; }) });
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    const reader = () => screen.findByRole("dialog", { name: "Longsword" });
+
+    await chooseItemAction(await reader(), "Edit");
+    const editing = within(await reader());
+    await user.click(await editing.findByRole("button", { name: "Edit Weight, 3 lb." }));
+    const panel = within(editing.getByRole("group", { name: "Edit Weight, 3 lb." }));
+    await retype(user, panel.getByRole("textbox", { name: "Weight (lb.)" }), "3.5");
+    await user.click(panel.getByRole("button", { name: "Done" }));
+    await user.click(editing.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    await user.click(editing.getByRole("button", { name: "Close" }));
+
+    await waitFor(() => expect(currentUrl()).toBe(`/compendium?item=${longswordPhb.id}`));
+    expect(screen.getByRole("region", { name: "Unsaved changes" })).toHaveTextContent("Unsaved changes to Longsword");
+    act(() => release());
+    await waitFor(() => expect(screen.queryByRole("region", { name: "Unsaved changes" })).not.toBeInTheDocument());
+    expect(currentUrl()).toBe(`/compendium?item=${longswordPhb.id}`);
+
+    pressRow(within(await itemList()).getAllByRole("option", { name: /^Longsword/ })[0]);
+    const page = within(await reader());
+    expect(await page.findByText("3.5 lb.")).toBeVisible();
+    expect(page.getByText("PHB · edited")).toBeVisible();
+    expect(catalog.writes).toHaveLength(1);
+  });
+
+  test("04-item-sheet-edit-R2: an open editor for a just-added stat keeps its line and text through a breakpoint and Resume", async () => {
+    installMatchMedia(1280, { pointer: "coarse" });
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    await startEditing("Longsword");
+
+    await user.click(sheet().getByRole("button", { name: "+ stat" }));
+    await user.selectOptions(popover("Edit stat").getByRole("combobox", { name: "stat" }), "charges");
+    await typeInto(user, popover("Edit Charges").getByRole("textbox", { name: "Charges" }), "1d6 + 2");
+
+    setViewportWidth(700);
+    const reader = within(await screen.findByRole("dialog", { name: "Longsword" }));
+    const narrowPanel = within(reader.getByRole("group", { name: "Edit Charges" }));
+    expect(narrowPanel.getByRole("textbox", { name: "Charges" })).toHaveValue("1d6 + 2");
+
+    setViewportWidth(1280);
+    await go("/compendium?item=6");
+    expect(await card("Bag of Holding")).toBeVisible();
+    await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
+    const resumed = await screen.findByRole("dialog", { name: "Edit Charges" });
+    expect(within(resumed).getByRole("textbox", { name: "Charges" })).toHaveValue("1d6 + 2");
+    await user.click(within(resumed).getByRole("button", { name: "Done" }));
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0].body).toMatchObject({ details: { charges: "1d6 + 2" } });
+  });
+
+  test("04-item-sheet-edit-R3: a reference picked from the menu goes where the caret was, and the caret follows it", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${secretBlade.id}`);
+    const fields = await startEditing("Secret Blade");
+    const description = fields.getByRole("textbox", { name: "Description" }) as HTMLTextAreaElement;
+
+    await typeInto(user, description, "Glows near the dead.");
+    await user.type(description, "{{", { skipClick: true, initialSelectionStart: 6, initialSelectionEnd: 6 });
+    await user.keyboard("{Enter}Light");
+    await screen.findByRole("option", { name: "Light (not in the spell index)" });
+    await user.keyboard("{Enter}");
+    expect(description).toHaveValue("Glows {@spell Light}near the dead.");
+    expect(description).toHaveFocus();
+    expect(description.selectionStart).toBe(6 + "{@spell Light}".length);
+  });
+
+  test.each(["fine", "coarse"] as const)("04-item-sheet-edit-R4: clearing the category and the recharge time is sent, keeping the amount (%s pointer)", async pointer => {
+    installMatchMedia(1280, { pointer });
+    const user = userEvent.setup();
+    const wand = item(10, "Wand of Sparks", {
+      source: "homebrew", origin: "homebrew", category: "wand", rarity: "uncommon",
+      details: { charges: "7", recharge: "dawn", rechargeAmount: "1d6 + 1" },
+    });
+    const catalog = serveCatalog([...CATALOG, wand]);
+    renderAs(gm, `/compendium?item=${wand.id}`);
+    const fields = await startEditing("Wand of Sparks");
+
+    if (pointer === "fine") {
+      await user.selectOptions(fields.getByRole("combobox", { name: "Category" }), "Item");
+      await user.selectOptions(fields.getByRole("combobox", { name: "Recharge" }), "no set time");
+    } else {
+      await user.click(fields.getByRole("button", { name: /^Edit Type/ }));
+      await user.selectOptions(within(screen.getByRole("dialog", { name: /^Edit Type/ })).getByRole("combobox", { name: "Category" }), "Item");
+      await user.click(screen.getByRole("button", { name: "Done" }));
+      await user.click(fields.getByRole("button", { name: /^Edit Recharge/ }));
+      await user.selectOptions(screen.getByRole("combobox", { name: "Recharge" }), "no set time");
+      await user.click(screen.getByRole("button", { name: "Done" }));
+    }
+    expect(toolbar().getByText("Editing · 2 changes")).toBeVisible();
+    // Live, the "+ stat" prompt is the closed menu's text, not a choice in its list.
+    const addStat = fields.queryByRole("combobox", { name: "Add a stat" });
+    expect(addStat && within(addStat).queryByRole("option", { name: "+ stat" })).toBeNull();
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    const body = catalog.writes[0].body as ItemInput;
+    expect(body).not.toHaveProperty("category");
+    expect(body.details).toEqual({ charges: "7", rechargeAmount: "1d6 + 1" });
+  });
+
+  test("04-item-sheet-edit-R5: a description that fails on blur keeps its text and names the message as its description", async () => {
+    serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${secretBlade.id}`);
+    const fields = await startEditing("Secret Blade");
+    const description = fields.getByRole("textbox", { name: "Description" });
+
+    act(() => description.focus());
+    fireEvent.change(description, { target: { value: "x".repeat(66_000) } });
+    act(() => description.blur());
+
+    expect(description).toHaveAttribute("aria-invalid", "true");
+    expect(description).toHaveAccessibleDescription(/^Description can be at most/);
+    expect(fields.getByRole("alert")).toHaveTextContent(/^Description can be at most/);
+    expect(toolbar().getByText("1 field holds unapplied text")).toBeVisible();
+  });
+
+  const rejectNoteAfterWeightEdit = async (pointer: "fine" | "coarse") => {
+    installMatchMedia(1280, { pointer });
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG, { rejectPut: [{ path: "attunementNote", message: "An attunement note needs Requires attunement." }] });
+    renderAs(gm, `/compendium?item=${longswordPhb.id}`);
+    const fields = await startEditing("Longsword");
+    expect(fields.queryByRole("textbox", { name: "Attunement note" })).not.toBeInTheDocument();
+    if (pointer === "fine") {
+      await retype(user, fields.getByRole("textbox", { name: "Weight (lb.)" }), "4");
+      await user.keyboard("{Enter}");
+    } else {
+      await user.click(fields.getByRole("button", { name: "Edit Weight, 3 lb." }));
+      await retype(user, popover("Edit Weight, 3 lb.").getByRole("textbox", { name: "Weight (lb.)" }), "4");
+      await user.click(popover("Edit Weight, 3 lb.").getByRole("button", { name: "Done" }));
+    }
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    return { user, fields, issue: await issueButton("Attunement note: An attunement note needs Requires attunement.") };
+  };
+
+  test("04-item-sheet-edit-R6: live, an attunement note issue focuses the Attunement choice while the note is hidden", async () => {
+    const { user, fields, issue } = await rejectNoteAfterWeightEdit("fine");
+    const attunement = fields.getByRole("combobox", { name: "Attunement" });
+    await waitFor(() => expect(attunement).toHaveFocus());
+    act(() => issue.focus());
+    await user.click(issue);
+    expect(attunement).toHaveFocus();
+  });
+
+  test("04-item-sheet-edit-R6: on touch, an attunement note issue opens the type editor with the attunement controls", async () => {
+    const { user, issue } = await rejectNoteAfterWeightEdit("coarse");
+    const editor = within(await screen.findByRole("dialog", { name: /^Edit Type/ }));
+    expect(editor.getByRole("combobox", { name: "Attunement" })).toBeVisible();
+    expect(editor.getByRole("textbox", { name: "Attunement note" })).toBeVisible();
+    await user.click(editor.getByRole("button", { name: "Cancel" }));
+    await user.click(issue);
+    expect(await screen.findByRole("dialog", { name: /^Edit Type/ })).toBeVisible();
+  });
+
+  test("04-item-sheet-edit-R6: a stored note without Requires attunement is shown live, and its issue focuses it", async () => {
+    const user = userEvent.setup();
+    const charm = item(11, "Charm", { source: "homebrew", origin: "homebrew", attunementNote: "by a bard" });
+    const catalog = serveCatalog([...CATALOG, charm]);
+    renderAs(gm, `/compendium?item=${charm.id}`);
+    const fields = await startEditing("Charm");
+    const note = fields.getByRole("textbox", { name: "Attunement note" });
+    expect(note).toHaveValue("by a bard");
+
+    await user.selectOptions(fields.getByRole("combobox", { name: "Rarity" }), "rare");
+    await user.click(saveButton());
+    const issue = await issueButton("Attunement note: An attunement note needs Requires attunement.");
+    await waitFor(() => expect(note).toHaveFocus());
+    act(() => issue.focus());
+    await user.click(issue);
+    expect(note).toHaveFocus();
+    expect(catalog.writes).toEqual([]);
+  });
+
+  test.each(["fine", "coarse"] as const)("04-item-sheet-edit-R6: a server issue on one listed spell focuses that spell's chip (%s pointer)", async pointer => {
+    installMatchMedia(1280, { pointer });
+    const user = userEvent.setup();
+    const staff = item(12, "Staff of Charms", {
+      source: "homebrew", origin: "homebrew",
+      details: { spells: [{ name: "Charm Person", source: "PHB" }, { name: "Shield", source: "PHB" }, { name: "Light" }] },
+    });
+    const catalog = serveCatalog([...CATALOG, staff], { rejectPut: [{ path: "details.spells.1.source", message: "Spell sources can be at most 32 characters." }] });
+    renderAs(gm, `/compendium?item=${staff.id}`);
+    const fields = await startEditing("Staff of Charms");
+    await user.click(fields.getByRole("button", { name: "Remove spell Light" }));
+    await user.click(saveButton());
+
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    const issue = await issueButton("Spells: Shield: Spell sources can be at most 32 characters.");
+    const chip = fields.getByRole("button", { name: "Remove spell Shield (PHB)" });
+    await waitFor(() => expect(chip).toHaveFocus());
+    expect(screen.queryByRole("combobox", { name: "Spell to add" })).not.toBeInTheDocument();
+    act(() => issue.focus());
+    await user.click(issue);
+    expect(chip).toHaveFocus();
+  });
+
+  const indexedSpell = (id: number, name: string, source: string) => ({
+    id, name, source, level: 3, school: "evocation" as const, ritual: false, concentration: false,
+    castingTime: "1 action", castingUnit: "action" as const, components: { v: true, s: true, m: false },
+    classes: ["wizard"], damageTypes: [], saves: [], aliases: [],
+  });
+  const serveFireballs = () =>
+    server.use(http.get("/api/dnd5e/spells", () => json({ spells: [indexedSpell(41, "Fireball", "PHB"), indexedSpell(42, "Fireball", "XPHB")] })));
+  const staff = item(12, "Staff of Charms", { source: "homebrew", origin: "homebrew" });
+  /** Opens the staff's editing sheet, in the pane or (narrow) in the reader dialog. */
+  const editStaff = async (width: number) => {
+    installMatchMedia(width);
+    renderAs(gm, `/compendium?item=${staff.id}`);
+    if (width > 800) return startEditing(staff.name);
+    await chooseItemAction(await screen.findByRole("dialog", { name: staff.name }), "Edit");
+    await screen.findByRole("toolbar", { name: "Editing" });
+    return sheet();
+  };
+
+  test.each([1280, 700])("04-item-sheet-edit-R7: + spell adds an indexed printing, and a name missing from the index with or without its source (%i px)", async width => {
+    const user = userEvent.setup();
+    const catalog = serveCatalog([...CATALOG, staff]);
+    serveFireballs();
+    const fields = await editStaff(width);
+    const editor = () => within(screen.getByRole(width > 800 ? "dialog" : "group", { name: "Edit spell" }));
+    const search = async () => {
+      await user.click(fields.getByRole("button", { name: "+ spell" }));
+      const input = editor().getByRole("combobox", { name: "Spell to add" });
+      await waitFor(() => expect(input).toHaveFocus());
+      return input;
+    };
+
+    // Two printings share the name; the chosen one keeps its source.
+    await user.type(await search(), "Fireball", { skipClick: true });
+    await user.click(within(await screen.findByRole("listbox", { name: "Spell to add" })).getByRole("option", { name: "Fireball (XPHB)" }));
+    expect(fields.getByRole("button", { name: "Remove spell Fireball (XPHB)" })).toBeVisible();
+
+    await user.type(await search(), "Lantern of the Moon{Enter}", { skipClick: true });
+    const name = editor().getByRole("textbox", { name: "Spell name" });
+    expect(name).toHaveValue("Lantern of the Moon");
+    await typeInto(user, editor().getByRole("textbox", { name: "Spell source" }), "HB2");
+    await user.click(editor().getByRole("button", { name: "Done" }));
+    expect(fields.getByRole("button", { name: "Remove spell Lantern of the Moon (HB2)" })).toBeVisible();
+
+    // The shared validator's limit holds the form open; without a source the name stands alone.
+    await user.type(await search(), "Moonbeam Song{Enter}", { skipClick: true });
+    const source = editor().getByRole("textbox", { name: "Spell source" });
+    await typeInto(user, source, "x".repeat(33));
+    await user.click(editor().getByRole("button", { name: "Done" }));
+    expect(editor().getByRole("alert")).toHaveTextContent(/source can be at most 32 characters/);
+    await user.clear(source);
+    await user.click(editor().getByRole("button", { name: "Done" }));
+    expect(fields.getByRole("button", { name: "Remove spell Moonbeam Song" })).toBeVisible();
+
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0]).toEqual({
+      method: "PUT",
+      id: staff.id,
+      body: {
+        name: staff.name, source: "homebrew", rarity: "none", requiresAttunement: false, aliases: [],
+        details: { spells: [{ name: "Fireball", source: "XPHB" }, { name: "Lantern of the Moon", source: "HB2" }, { name: "Moonbeam Song" }] },
+      },
+    });
+  });
+
+  test("04-item-sheet-edit-R7: an unfinished custom spell keeps its name, source and message through both breakpoints and Resume", async () => {
+    installMatchMedia(1280, { pointer: "coarse" });
+    const user = userEvent.setup();
+    const catalog = serveCatalog([...CATALOG, staff]);
+    serveFireballs();
+    renderAs(gm, `/compendium?item=${staff.id}`);
+    const fields = await startEditing(staff.name);
+    const expectForm = (form: ReturnType<typeof within>, source: string) => {
+      expect(form.getByRole("textbox", { name: "Spell name" })).toHaveValue("Review Pending Spell");
+      expect(form.getByRole("textbox", { name: "Spell source" })).toHaveValue(source);
+      expect(form.getByRole("alert")).toHaveTextContent(/source can be at most 32 characters/);
+    };
+
+    await user.click(fields.getByRole("button", { name: "+ spell" }));
+    const search = popover("Edit spell").getByRole("combobox", { name: "Spell to add" });
+    await waitFor(() => expect(search).toHaveFocus());
+    await user.type(search, "Review Pending{Enter}", { skipClick: true });
+    await typeInto(user, popover("Edit spell").getByRole("textbox", { name: "Spell name" }), " Spell");
+    await typeInto(user, popover("Edit spell").getByRole("textbox", { name: "Spell source" }), "x".repeat(33));
+    await user.click(popover("Edit spell").getByRole("button", { name: "Done" }));
+    expectForm(popover("Edit spell"), "x".repeat(33));
+
+    setViewportWidth(700);
+    const reader = within(await screen.findByRole("dialog", { name: staff.name }));
+    expectForm(within(reader.getByRole("group", { name: "Edit spell" })), "x".repeat(33));
+
+    setViewportWidth(1280);
+    expectForm(within(await screen.findByRole("dialog", { name: "Edit spell" })), "x".repeat(33));
+
+    await go("/compendium?item=6");
+    expect(await card("Bag of Holding")).toBeVisible();
+    await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
+    const resumed = within(await screen.findByRole("dialog", { name: "Edit spell" }));
+    expectForm(resumed, "x".repeat(33));
+    await retype(user, resumed.getByRole("textbox", { name: "Spell source" }), "HB3");
+    await user.click(resumed.getByRole("button", { name: "Done" }));
+    expect(sheet().getByRole("button", { name: "Remove spell Review Pending Spell (HB3)" })).toBeVisible();
+
+    // Done ends the custom step: the next + spell starts from an empty search.
+    await user.click(sheet().getByRole("button", { name: "+ spell" }));
+    expect(popover("Edit spell").getByRole("combobox", { name: "Spell to add" })).toHaveValue("");
+    await user.keyboard("{Escape}");
+
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0].body).toMatchObject({ details: { spells: [{ name: "Review Pending Spell", source: "HB3" }] } });
+  });
+
+  test("04-item-sheet-edit-R11: + spell keeps an unfinished query through breakpoints and Back, then clears it on Escape and completed choices", async () => {
+    installMatchMedia(1280, { pointer: "coarse" });
+    // Chrome has layout: let the reader's focus management see the description control, which
+    // must not steal focus from the spell search that restored when the dialog mounted.
+    const visible = vi.spyOn(HTMLElement.prototype, "offsetParent", "get").mockImplementation(function (this: HTMLElement) {
+      return this.parentElement;
+    });
+    const user = userEvent.setup();
+    const catalog = serveCatalog([...CATALOG, staff]);
+    serveFireballs();
+    renderAs(gm, `/compendium?item=${staff.id}`);
+    await startEditing(staff.name);
+    const openSearch = async () => {
+      await user.click(sheet().getByRole("button", { name: "+ spell" }));
+      const input = await screen.findByRole("combobox", { name: "Spell to add" });
+      await waitFor(() => expect(input).toHaveFocus());
+      return input;
+    };
+
+    await user.type(await openSearch(), "Review Before Resize", { skipClick: true });
+    setViewportWidth(700);
+    await act(async () => {
+      await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+    });
+    expect(await screen.findByRole("combobox", { name: "Spell to add" })).toHaveValue("Review Before Resize");
+    setViewportWidth(1280);
+    expect(await screen.findByRole("combobox", { name: "Spell to add" })).toHaveValue("Review Before Resize");
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("combobox", { name: "Spell to add" })).not.toBeInTheDocument();
+    expect(sheet().getByRole("button", { name: "+ spell" })).toHaveFocus();
+    expect(await openSearch()).toHaveValue("");
+
+    await user.type(screen.getByRole("combobox", { name: "Spell to add" }), "Fireball", { skipClick: true });
+    await user.click(within(await screen.findByRole("listbox", { name: "Spell to add" })).getByRole("option", { name: "Fireball (XPHB)" }));
+    expect(sheet().getByRole("button", { name: "Remove spell Fireball (XPHB)" })).toBeVisible();
+    expect(await openSearch()).toHaveValue("");
+    await user.type(screen.getByRole("combobox", { name: "Spell to add" }), "Review Resumable", { skipClick: true });
+
+    await go(-1);
+    expect(await card(staff.name)).toBeVisible();
+    expect(screen.queryByRole("combobox", { name: "Spell to add" })).not.toBeInTheDocument();
+    await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
+    expect(await screen.findByRole("combobox", { name: "Spell to add" })).toHaveValue("Review Resumable");
+
+    await user.keyboard("{Enter}");
+    let editor = popover("Edit spell");
+    expect(editor.getByRole("textbox", { name: "Spell name" })).toHaveValue("Review Resumable");
+    await user.type(editor.getByRole("textbox", { name: "Spell source" }), "HB4");
+    await user.click(editor.getByRole("button", { name: "Done" }));
+    expect(sheet().getByRole("button", { name: "Remove spell Review Resumable (HB4)" })).toBeVisible();
+
+    await user.type(await openSearch(), "Moonbeam Song{Enter}", { skipClick: true });
+    editor = popover("Edit spell");
+    expect(editor.getByRole("textbox", { name: "Spell name" })).toHaveValue("Moonbeam Song");
+    await user.click(editor.getByRole("button", { name: "Done" }));
+    expect(sheet().getByRole("button", { name: "Remove spell Moonbeam Song" })).toBeVisible();
+
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0].body).toMatchObject({
+      details: {
+        spells: [
+          { name: "Fireball", source: "XPHB" },
+          { name: "Review Resumable", source: "HB4" },
+          { name: "Moonbeam Song" },
+        ],
+      },
+    });
+    visible.mockRestore();
+  });
+
+  test("04-item-sheet-edit-R8: the narrow Source, Also called and + spell editors expand without invalid nesting", async () => {
+    const errors = vi.spyOn(console, "error");
+    const user = userEvent.setup();
+    serveCatalog([...CATALOG, staff]);
+    serveFireballs();
+    const fields = await editStaff(700);
+
+    await user.click(fields.getByRole("button", { name: "Edit Source, homebrew" }));
+    expect(within(fields.getByRole("group", { name: "Edit Source, homebrew" })).getByRole("textbox", { name: "Source" })).toHaveValue("homebrew");
+    await user.click(fields.getByRole("button", { name: "+ Also called" }));
+    expect(fields.getByRole("group", { name: "Edit Also called" })).toBeVisible();
+    await user.click(fields.getByRole("button", { name: "+ spell" }));
+    const search = within(fields.getByRole("group", { name: "Edit spell" })).getByRole("combobox", { name: "Spell to add" });
+    await waitFor(() => expect(search).toHaveFocus());
+    await user.type(search, "Fire", { skipClick: true });
+    expect(await screen.findByRole("option", { name: "Fireball (PHB)" })).toBeVisible();
+
+    const nesting = errors.mock.calls.filter(call => /cannot (be a descendant|be a child|contain a nested)/.test(call.map(String).join(" ")));
+    errors.mockRestore();
+    expect(nesting).toEqual([]);
   });
 });
 
 describe("Choosing a base item (05-R1)", () => {
   const silvered = item(8, "Silvered Longsword", { source: "homebrew", origin: "homebrew", category: "melee weapon", base: link(longswordPhb) });
-  const pickerResults = (dialog: HTMLElement) => within(dialog).findByRole("list", { name: "Matching items" });
+  const pickerResults = () => screen.findByRole("list", { name: "Matching items" });
   const resultNames = (list: HTMLElement) => within(list).getAllByRole("button").map(button => button.textContent);
 
   test("a new homebrew item takes a base from the concrete items that are not generated specifics", async () => {
@@ -920,23 +1602,22 @@ describe("Choosing a base item (05-R1)", () => {
     await itemList();
 
     await user.click(screen.getByRole("button", { name: "New item" }));
-    const dialog = await screen.findByRole("dialog", { name: "New item" });
-    expect(within(dialog).getByText(/No base item\./)).toBeVisible();
-    await user.click(within(dialog).getByRole("button", { name: "Choose a base item" }));
-    await user.type(within(dialog).getByRole("searchbox", { name: "Search the item catalog" }), "longsword");
+    await user.click(await sheet().findByRole("button", { name: "+ Base item" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search the item catalog" }), "longsword");
 
     // Both Longsword printings, but neither +1 Longsword specific.
-    const results = await pickerResults(dialog);
+    const results = await pickerResults();
     await waitFor(() => expect(resultNames(results)).toEqual(["LongswordPHB", "LongswordXPHB"]));
     const search = catalog.listRequests.at(-1)!;
     expect([search.get("q"), search.getAll("kinds"), search.get("specifics")]).toEqual(["longsword", ["concrete"], "false"]);
     await user.click(within(results).getByRole("button", { name: /XPHB/ }));
-    expect(within(dialog).getByText(/Base item: Longsword \(XPHB\)/)).toBeVisible();
-    expect(within(dialog).getByRole("button", { name: "Change base item" })).toHaveFocus();
+    const base = sheet().getByRole("button", { name: "Edit Base item, Longsword (XPHB)" });
+    await waitFor(() => expect(base).toHaveFocus());
 
-    await user.type(within(dialog).getByLabelText("Name"), "Moonblade");
-    await user.click(within(dialog).getByRole("button", { name: "Create item" }));
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    await typeInto(user, sheet().getByRole("textbox", { name: "Name" }), "Moonblade");
+    await user.keyboard("{Enter}");
+    await user.click(saveButton());
+    await waitFor(() => expect(currentUrl()).toBe("/compendium?item=100"));
     expect(catalog.writes[0]).toMatchObject({ method: "POST", body: { name: "Moonblade", baseItemId: longswordXphb.id } });
   });
 
@@ -945,24 +1626,23 @@ describe("Choosing a base item (05-R1)", () => {
     const catalog = serveCatalog([...CATALOG, silvered]);
     renderAs(gm, `/compendium?item=${silvered.id}`);
 
-    const dialog = await openItemAction(await card("Silvered Longsword"), "Edit", "Edit Silvered Longsword");
-    expect(within(dialog).getByText(/Base item: Longsword \(PHB\)/)).toBeVisible();
-    const change = within(dialog).getByRole("button", { name: "Change base item" });
+    const fields = await startEditing("Silvered Longsword");
+    const change = fields.getByRole("button", { name: "Edit Base item, Longsword (PHB)" });
     await user.click(change);
-    await user.type(within(dialog).getByRole("searchbox", { name: "Search the item catalog" }), "longsword");
-    const results = await pickerResults(dialog);
+    await user.type(screen.getByRole("searchbox", { name: "Search the item catalog" }), "longsword");
+    const results = await pickerResults();
     await waitFor(() => expect(resultNames(results)).toEqual(["LongswordPHB", "LongswordXPHB"]));
 
     act(() => within(results).getAllByRole("button")[1].focus());
     await user.keyboard("{Escape}");
-    expect(within(dialog).queryByRole("group", { name: "Choose a base item" })).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Edit Silvered Longsword" })).toBeVisible();
+    expect(screen.queryByRole("group", { name: "Choose a base item" })).not.toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Editing" })).toBeVisible();
     expect(change).toHaveFocus();
 
     await user.click(change);
-    await user.type(within(dialog).getByRole("searchbox", { name: "Search the item catalog" }), "longsword");
-    await user.click(within(await pickerResults(dialog)).getByRole("button", { name: /XPHB/ }));
-    await user.click(within(dialog).getByRole("button", { name: "Save item" }));
+    await user.type(screen.getByRole("searchbox", { name: "Search the item catalog" }), "longsword");
+    await user.click(within(await pickerResults()).getByRole("button", { name: /XPHB/ }));
+    await user.click(saveButton());
 
     await waitFor(() => expect(catalog.writes).toHaveLength(1));
     expect(catalog.writes[0]).toMatchObject({ method: "PUT", id: silvered.id, body: { baseItemId: longswordXphb.id } });
@@ -1224,5 +1904,243 @@ describe("Item references in text", () => {
     await waitFor(() => expect(catalog.detailRequests).toEqual([bagOfHolding.id, longswordPhb.id, longswordPhb.id]));
     expect(within(spell).queryByRole("button", { name: "bag" })).not.toBeInTheDocument();
     expect(spell).toHaveTextContent("You seal a bag.");
+  });
+});
+
+// Step 07: typing `{` in a rich-text source field opens a reference menu under it. One letter picks
+// Spell or Item, then the text after it searches; a pick replaces the typed run with a canonical tag.
+describe("The { reference menu in an item description", () => {
+  const fireballs = () =>
+    server.use(http.get("/api/dnd5e/spells", () => json({ spells: [
+      { id: 41, name: "Fireball", source: "PHB", level: 3, school: "evocation", ritual: false, concentration: false,
+        castingTime: "1 action", castingUnit: "action", components: { v: true, s: true, m: false }, classes: [], damageTypes: [], saves: [], aliases: [] },
+      { id: 42, name: "Fireball", source: "XPHB", level: 3, school: "evocation", ritual: false, concentration: false,
+        castingTime: "1 action", castingUnit: "action", components: { v: true, s: true, m: false }, classes: [], damageTypes: [], saves: [], aliases: [] },
+    ] })));
+  const menu = () => screen.queryByRole("listbox", { name: "References" });
+  const options = () => within(screen.getByRole("listbox", { name: "References" })).getAllByRole("option").map(option => option.textContent);
+  const openDescription = async () => {
+    renderAs(gm, `/compendium?item=${secretBlade.id}`);
+    const fields = await startEditing("Secret Blade");
+    return { fields, description: fields.getByRole("textbox", { name: "Description" }) as HTMLTextAreaElement };
+  };
+
+  test.each(["fine", "coarse"] as const)("typing picks a spell and an item, and Save sends both tags (%s pointer)", async pointer => {
+    installMatchMedia(1280, { pointer });
+    const user = userEvent.setup();
+    const catalog = serveCatalog(CATALOG);
+    fireballs();
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "Casts {{");
+    expect(description).not.toHaveAttribute("role");
+    expect(description).not.toHaveAttribute("aria-expanded");
+    expect(description).toHaveAttribute("aria-autocomplete", "list");
+    expect(options()).toEqual(["Spell", "Item"]);
+    await user.keyboard("s fireb");
+    await screen.findByRole("option", { name: "Fireball (PHB)" });
+    // "fireb" names no spell exactly, so it is also offered as written (a homebrew name), last.
+    expect(options()).toEqual(["Fireball (PHB)", "Fireball (XPHB)", "fireb (not in the spell index)"]);
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(description).toHaveValue("Casts {@spell Fireball|XPHB}");
+    expect(description.selectionStart).toBe(description.value.length);
+    expect(menu()).not.toBeInTheDocument();
+
+    // Tab locks the type and picks too; a specific's row names its base printing.
+    await user.keyboard(" from {{i{Tab}long");
+    await screen.findByRole("option", { name: "Longsword (XPHB)" });
+    expect(options()).toEqual(["+1 Longsword (DMG)Longsword (PHB)", "+1 Longsword (DMG)Longsword (XPHB)", "Longsword (PHB)", "Longsword (XPHB)"]);
+    await user.keyboard("{ArrowUp}{Tab}");
+    expect(description).toHaveValue("Casts {@spell Fireball|XPHB} from {@item Longsword|XPHB}");
+    expect(description).toHaveFocus();
+
+    act(() => description.blur());
+    await user.click(saveButton());
+    await waitFor(() => expect(catalog.writes).toHaveLength(1));
+    expect(catalog.writes[0].body).toMatchObject({ details: { description: "Casts {@spell Fireball|XPHB} from {@item Longsword|XPHB}" } });
+  });
+
+  test("Escape closes the menu and leaves the text; the next Escape reverts the field", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "Hums {{s fi");
+    expect(menu()).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(menu()).not.toBeInTheDocument();
+    expect(description).toHaveValue("Hums {s fi");
+    expect(description).not.toHaveAttribute("aria-expanded");
+    await user.keyboard("{Escape}");
+    expect(description).toHaveValue("");
+    expect(screen.getByRole("toolbar", { name: "Editing" })).toBeInTheDocument();
+  });
+
+  test.each([1280, 700])("a composing Escape leaves dirty menu text and the reader open (%s px)", async width => {
+    installMatchMedia(width);
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    renderAs(gm, `/compendium?item=${secretBlade.id}`);
+    if (width <= 800) await chooseItemAction(await screen.findByRole("dialog", { name: "Secret Blade" }), "Edit");
+    else await startEditing("Secret Blade");
+    const description = sheet().getByRole("textbox", { name: "Description" }) as HTMLTextAreaElement;
+
+    await typeInto(user, description, "Hums {{s fi");
+    const before = description.value;
+    expect(menu()).toBeInTheDocument();
+    expect(fireEvent.keyDown(description, { key: "Escape", code: "Escape", isComposing: true })).toBe(true);
+    expect(description).toHaveValue(before);
+    expect(menu()).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Editing" })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Secret Blade" }) !== null).toBe(width <= 800);
+  });
+
+  test("an unclosed run with no options keeps an empty menu open and takes Enter, Tab and Up/Down", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "Line one{Enter}two {{x");
+    expect(menu()).toBeInTheDocument();
+    expect(within(menu()!).queryAllByRole("option")).toHaveLength(0);
+    expect(description).toHaveAttribute("aria-controls", menu()!.id);
+    await user.keyboard("{Enter}{Tab}{ArrowDown}{ArrowUp}");
+    expect(description).toHaveValue("Line one\ntwo {x");
+    expect(description).toHaveFocus();
+    expect(menu()).toBeInTheDocument();
+    expect(description.selectionStart).toBe(description.value.length);
+  });
+
+  test("Enter inserts a newline when the menu is closed", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "Line one{Enter}two");
+    expect(menu()).not.toBeInTheDocument();
+    expect(description).toHaveValue("Line one\ntwo");
+  });
+
+  test("Shift+Tab acts as Tab while the menu is open, and moves focus back once it is closed", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "{{s");
+    expect(options()).toEqual(["Spell"]);
+    await user.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(description).toHaveValue("{s ");
+    expect(description).toHaveFocus();
+    expect(description.selectionStart).toBe(3);
+
+    await user.keyboard("{Escape}");
+    expect(menu()).not.toBeInTheDocument();
+    await user.keyboard("{Shift>}{Tab}{/Shift}");
+    expect(description).not.toHaveFocus();
+  });
+
+  test("moving the caret into a complete tag does not open the menu; back into an unclosed run does", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "A {{@spell Light} and {{s li");
+    expect(menu()).toBeInTheDocument();
+    act(() => description.setSelectionRange(5, 5));
+    await user.keyboard("{ArrowRight}");
+    expect(menu()).not.toBeInTheDocument();
+    await user.keyboard("{End}");
+    expect(menu()).toBeInTheDocument();
+  });
+
+  test("a click on a row picks it without committing; the text applies when it is left", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    fireballs();
+    const { fields, description } = await openDescription();
+
+    await typeInto(user, description, "{{s fire");
+    const row = await screen.findByRole("option", { name: "Fireball (XPHB)" });
+    // The press is cancelled, so a browser keeps focus (and the unapplied text) in the textarea.
+    // Pressed directly: user-event's press would land on jsdom's zero-size panel separator.
+    expect(fireEvent.mouseDown(row)).toBe(false);
+    fireEvent.click(row);
+    expect(description).toHaveValue("{@spell Fireball|XPHB}");
+    expect(description).toHaveFocus();
+    expect(toolbar().getByText("Editing")).toBeVisible();
+    expect(toolbar().queryByText(/change/)).not.toBeInTheDocument();
+
+    act(() => fields.getByRole("textbox", { name: "Name" }).focus());
+    expect(toolbar().getByText("Editing · 1 change")).toBeVisible();
+  });
+
+  test("a spell name the index does not know is inserted as written; an item has no such pick", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    fireballs();
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "{{s Moonbeam Glow");
+    await screen.findByRole("option", { name: "Moonbeam Glow (not in the spell index)" });
+    await user.keyboard("{Enter}");
+    expect(description).toHaveValue("{@spell Moonbeam Glow}");
+
+    await user.keyboard(" {{i moonbeam");
+    expect(await screen.findByRole("option", { name: "No items match." })).toHaveAttribute("aria-disabled", "true");
+    await user.keyboard("{Enter}");
+    expect(description).toHaveValue("{@spell Moonbeam Glow} {i moonbeam");
+  });
+
+  test("on a coarse pointer, { opens the menu with focus kept in the text, and Space chooses the highlighted type", async () => {
+    installMatchMedia(1280, { pointer: "coarse" });
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    const { description } = await openDescription();
+
+    // Closed: the popup relationship is stable, the listbox exists but is hidden, nothing is active.
+    const closedList = description.parentElement!.querySelector<HTMLElement>('[role="listbox"]')!;
+    expect(description).toHaveAttribute("aria-haspopup", "listbox");
+    expect(description).toHaveAttribute("aria-controls", closedList.id);
+    expect(closedList).not.toBeVisible();
+    expect(description).not.toHaveAttribute("aria-activedescendant");
+    const status = within(description.parentElement!).getByRole("status", { name: "Reference menu status" });
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent("");
+
+    await typeInto(user, description, "{{");
+    expect(description).toHaveValue("{");
+    expect(description).toHaveFocus();
+    expect(description).toHaveAttribute("aria-haspopup", "listbox");
+    expect(description).toHaveAttribute("aria-controls", screen.getByRole("listbox", { name: "References" }).id);
+    expect(screen.getByRole("listbox", { name: "References" }).id).toBe(closedList.id);
+    expect(status).toHaveTextContent("Reference menu open. Spell");
+    expect(options()).toEqual(["Spell", "Item"]);
+    await user.keyboard("{ArrowDown}");
+    const references = within(screen.getByRole("listbox", { name: "References" }));
+    expect(description).toHaveAttribute("aria-activedescendant", references.getByRole("option", { name: "Item" }).id);
+    expect(references.getByRole("option", { name: "Item" })).toHaveAttribute("aria-selected", "true");
+    await user.keyboard(" ");
+    expect(description).toHaveValue("{item ");
+    expect(options()).toEqual(["Type an item name"]);
+  });
+
+  test("an unclosed run kept through selecting another item and Resume reopens the menu when the caret is back in it", async () => {
+    const user = userEvent.setup();
+    serveCatalog(CATALOG);
+    fireballs();
+    const { description } = await openDescription();
+
+    await typeInto(user, description, "Hums {{s fire");
+    pressRow(within(await itemList()).getByRole("option", { name: /^Bag of Holding/ }));
+    expect(await card("Bag of Holding")).toBeVisible();
+    await user.click(within(screen.getByRole("region", { name: "Unsaved changes" })).getByRole("button", { name: "Resume" }));
+
+    await screen.findByRole("toolbar", { name: "Editing" });
+    const resumed = sheet().getByRole("textbox", { name: "Description" });
+    expect(resumed).toHaveValue("Hums {s fire");
+    expect(menu()).not.toBeInTheDocument();
+    act(() => resumed.focus());
+    await user.keyboard("{End}");
+    expect(await screen.findByRole("option", { name: "Fireball (XPHB)" })).toBeVisible();
   });
 });

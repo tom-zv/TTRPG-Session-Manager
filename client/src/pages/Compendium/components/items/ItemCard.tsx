@@ -13,6 +13,17 @@ import {
   formatItemValue,
   formatItemWeight,
 } from "./itemFormat.js";
+import { useItemEdit } from "./editor/ItemEditContext.js";
+import {
+  ItemAliasesField,
+  ItemBaseRow,
+  ItemDescriptionField,
+  ItemNameField,
+  ItemSourceField,
+  ItemSpellsField,
+  ItemStatsField,
+  ItemSubtitleField,
+} from "./editor/ItemSheetFields.js";
 import browserStyles from "../browser/Browser.module.css";
 import styles from "./Items.module.css";
 
@@ -25,6 +36,8 @@ type ItemCardProps = {
   headerAction?: React.ReactNode;
   /** Shown under the header, e.g. a failed visibility change. */
   notice?: React.ReactNode;
+  /** Edit mode: puts the title in the editor's toolbar row. */
+  renderEditHeading?: (title: React.ReactNode) => React.ReactNode;
 };
 
 const RELATION_TITLES: Record<ItemMemberRelation, string> = {
@@ -35,9 +48,48 @@ const RELATION_TITLES: Record<ItemMemberRelation, string> = {
 
 const recharges: Record<string, string> = { dawn: "at dawn", dusk: "at dusk", midnight: "at midnight", restLong: "after a long rest", restShort: "after a short rest" };
 
-/** An item's page: identity and source first, then the rules data that applies, then related items. */
-export const ItemCard: React.FC<ItemCardProps> = ({ item, viewer, onSelect, headerAction, notice }) => {
+type StatLine = { key: string; label: string; text: string };
+
+/** The stats that apply, as the sheet reads them. Keys are the editor's stat keys (`model/fields.ts`). */
+const statLines = (item: Item): StatLine[] => {
   const { details } = item;
+  const lines: StatLine[] = [];
+  const add = (key: string, label: string, text: string) => lines.push({ key, label, text });
+  if (item.valueCp !== undefined) add("valueCp", "Value", formatItemValue(item.valueCp));
+  if (item.weightLb !== undefined) add("weightLb", "Weight", formatItemWeight(item.weightLb));
+  if (details.damage) {
+    add("damage", "Damage", [
+      details.damage.dice,
+      details.damage.type,
+      details.damage.versatileDice && `(versatile ${details.damage.versatileDice})`,
+    ].filter(Boolean).join(" "));
+  }
+  if (details.weaponCategory) add("weaponCategory", "Weapon", `${capitalize(details.weaponCategory)} weapon`);
+  if (details.range) add("range", "Range", `${details.range} ft.`);
+  if (details.armorClass !== undefined) add("armorClass", "Armor Class", String(details.armorClass));
+  if (details.strength !== undefined) add("strength", "Strength", `Str ${details.strength}`);
+  if (details.stealthDisadvantage) add("stealth", "Stealth", "Disadvantage");
+  if (details.bonusWeapon) add("bonusWeapon", "Attack and damage", details.bonusWeapon);
+  if (details.bonusAc) add("bonusAc", "AC bonus", details.bonusAc);
+  if (details.charges !== undefined) add("charges", "Charges", String(details.charges));
+  if (details.recharge) {
+    add("recharge", "Recharge", [details.rechargeAmount, recharges[details.recharge] ?? details.recharge].filter(Boolean).join(" "));
+  }
+  if (details.properties?.length) add("properties", "Properties", details.properties.join(", "));
+  if (details.mastery?.length) add("mastery", "Mastery", details.mastery.join(", "));
+  return lines;
+};
+
+/**
+ * An item's page: identity and source first, then the rules data that applies, then related items.
+ *
+ * Inside an `ItemEditor` the same page is the edit surface, rendered from the draft: in the `live`
+ * presentation its values are inputs, in `targets` each opens its editor (`editor/ItemSheetFields`).
+ */
+export const ItemCard: React.FC<ItemCardProps> = ({ item, viewer, onSelect, headerAction, notice, renderEditHeading }) => {
+  const { details } = item;
+  const edit = useItemEdit();
+  const editing = edit !== null;
   const headingId = `item-heading-${item.id}`;
   const attunement = formatAttunement(item);
   const renderItem = useItemLinks([details.description]);
@@ -45,56 +97,59 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, viewer, onSelect, head
     <button type="button" className={styles.itemLink} onClick={() => onSelect(link.id)}>{formatItemLink(link)}</button>
   );
 
-  const stats: Array<[string, React.ReactNode]> = [];
-  if (item.valueCp !== undefined) stats.push(["Value", formatItemValue(item.valueCp)]);
-  if (item.weightLb !== undefined) stats.push(["Weight", formatItemWeight(item.weightLb)]);
-  if (details.damage) {
-    stats.push(["Damage", [
-      details.damage.dice,
-      details.damage.type,
-      details.damage.versatileDice && `(versatile ${details.damage.versatileDice})`,
-    ].filter(Boolean).join(" ")]);
-  }
-  if (details.weaponCategory) stats.push(["Weapon", `${capitalize(details.weaponCategory)} weapon`]);
-  if (details.range) stats.push(["Range", `${details.range} ft.`]);
-  if (details.armorClass !== undefined) stats.push(["Armor Class", String(details.armorClass)]);
-  if (details.strength !== undefined) stats.push(["Strength", `Str ${details.strength}`]);
-  if (details.stealthDisadvantage) stats.push(["Stealth", "Disadvantage"]);
-  if (details.bonusWeapon) stats.push(["Attack and damage", details.bonusWeapon]);
-  if (details.bonusAc) stats.push(["AC bonus", details.bonusAc]);
-  if (details.charges !== undefined) stats.push(["Charges", String(details.charges)]);
-  if (details.recharge) {
-    stats.push(["Recharge", [details.rechargeAmount, recharges[details.recharge] ?? details.recharge].filter(Boolean).join(" ")]);
-  }
-  if (details.properties?.length) stats.push(["Properties", details.properties.join(", ")]);
-  if (details.mastery?.length) stats.push(["Mastery", details.mastery.join(", ")]);
+  const stats = statLines(item);
+  const subtitle = [
+    formatItemType(item),
+    details.wondrous && item.category !== "wondrous item" ? ", wondrous" : "",
+    attunement ? ` (${attunement.charAt(0).toLowerCase()}${attunement.slice(1)})` : "",
+  ].join("");
+  const source = `${item.source}${item.page !== undefined ? `, page ${item.page}` : ""}`;
+  // A block while editing: a narrow editor expands inside the line, which a paragraph cannot hold.
+  const SourceLine = editing ? "div" : "p";
+  const title = (
+    <h2 id={headingId} className={styles.name}>{editing ? <ItemNameField name={item.name} /> : item.name}</h2>
+  );
 
   return (
     <article className={styles.itemCard} aria-labelledby={headingId}>
+      {renderEditHeading?.(title)}
       <header className={styles.header}>
         {headerAction && <div className={styles.headerAction}>{headerAction}</div>}
-        <h2 id={headingId} className={styles.name}>{item.name}</h2>
-        <p className={styles.subtitle}>
-          {formatItemType(item)}
-          {details.wondrous && item.category !== "wondrous item" && ", wondrous"}
-          {attunement && ` (${attunement.charAt(0).toLowerCase()}${attunement.slice(1)})`}
-        </p>
-        <p className={styles.source}>
-          {item.source}
-          {item.page !== undefined && `, page ${item.page}`}
+        {!renderEditHeading && title}
+        {editing ? <div className={styles.subtitle}><ItemSubtitleField text={subtitle} /></div> : <p className={styles.subtitle}>{subtitle}</p>}
+        <SourceLine className={styles.source}>
+          {editing ? <ItemSourceField text={source} /> : source}
           {item.origin === "homebrew" && item.source.toLowerCase() !== "homebrew" && " · homebrew"}
           {item.gm?.locallyEdited && item.origin === "imported" && " · edited"}
-        </p>
+        </SourceLine>
         {item.gm && (item.gm.hidden || item.gm.hiddenByFamily) && (
           <p className={styles.visibility} role="status">
             {item.gm.hidden ? "Hidden from players." : "Hidden from players with its family."}
           </p>
         )}
-        {item.aliases.length > 0 && <p className={styles.aliases}>Also called {item.aliases.join(", ")}</p>}
+        {editing ? <ItemAliasesField /> : item.aliases.length > 0 && <p className={styles.aliases}>Also called {item.aliases.join(", ")}</p>}
       </header>
       {notice}
+      {/* Settled for this editor: a family's page is its own; its specifics keep their own text. */}
+      {editing && item.kind === "family" && (
+        <p className={styles.notice} role="note">
+          Editing a magic variant changes its own page only. Specific items made from it keep their current text.
+        </p>
+      )}
 
-      {(item.family || item.base) && (
+      {editing ? (
+        (item.family || item.kind === "concrete" || item.base) && (
+          <dl className={styles.relations}>
+            {item.family && (
+              <div>
+                <dt>Variant of</dt>
+                <dd>{formatItemLink(item.family)}</dd>
+              </div>
+            )}
+            <ItemBaseRow />
+          </dl>
+        )
+      ) : (item.family || item.base) && (
         <dl className={styles.relations}>
           {item.family && (
             <div>
@@ -111,22 +166,22 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, viewer, onSelect, head
         </dl>
       )}
 
-      {stats.length > 0 && (
+      {editing ? <ItemStatsField lines={stats} /> : stats.length > 0 && (
         <dl className={styles.stats}>
-          {stats.map(([label, value]) => (
-            <div key={label}>
+          {stats.map(({ key, label, text }) => (
+            <div key={key}>
               <dt>{label}</dt>
-              <dd>{value}</dd>
+              <dd>{text}</dd>
             </div>
           ))}
         </dl>
       )}
 
-      {details.description && (
+      {editing ? <ItemDescriptionField /> : details.description && (
         <RichText text={details.description} renderSpell={renderSpellLink} renderItem={renderItem} className={styles.description} />
       )}
 
-      {details.spells && details.spells.length > 0 && (
+      {editing ? <ItemSpellsField /> : details.spells && details.spells.length > 0 && (
         <section className={styles.section} aria-label="Spells">
           <h3>Spells</h3>
           <p>
@@ -142,7 +197,8 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, viewer, onSelect, head
         </section>
       )}
 
-      <ItemMembers item={item} viewer={viewer} onSelect={onSelect} />
+      {/* A new item has no members yet. */}
+      {item.id > 0 && <ItemMembers item={item} viewer={viewer} onSelect={onSelect} />}
     </article>
   );
 };
