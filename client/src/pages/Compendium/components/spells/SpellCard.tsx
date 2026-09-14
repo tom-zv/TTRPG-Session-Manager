@@ -9,6 +9,19 @@ import {
 import { RichText, type SpellTokenRenderer } from "../RichText/RichText.js";
 import { useItemLinks } from "../items/ItemLink.js";
 import { capitalize } from "./spellFilters.js";
+import { useSpellEdit } from "./editor/SpellEditContext.js";
+import {
+  SpellCastingTimeField,
+  SpellComponentsField,
+  SpellDescriptionField,
+  SpellDurationField,
+  SpellHeaderField,
+  SpellHigherLevelsField,
+  SpellNameField,
+  SpellRangeField,
+  SpellSourceField,
+  SpellTagRows,
+} from "./editor/SpellSheetFields.js";
 import styles from "./SpellCard.module.css";
 
 type SpellCardProps = {
@@ -24,6 +37,10 @@ type SpellCardProps = {
   /** Small control in the header's corner, e.g. the GM's options menu. */
   headerAction?: React.ReactNode;
   headingId?: string;
+  /** Shown under the header, e.g. the rename warning while editing. */
+  notice?: React.ReactNode;
+  /** Edit mode: puts the title in the editor's toolbar row. */
+  renderEditHeading?: (title: React.ReactNode) => React.ReactNode;
 };
 
 export const SpellCard: React.FC<SpellCardProps> = ({
@@ -35,30 +52,38 @@ export const SpellCard: React.FC<SpellCardProps> = ({
   footer,
   headerAction,
   headingId,
+  notice,
+  renderEditHeading,
 }) => {
   const compact = variant === "compact";
+  // A compact card is a preview, which never edits.
+  const editing = useSpellEdit() !== null && !compact && spell !== undefined;
   const HeadingTag = compact ? "h3" : "h2";
   // A compact card is a preview: its item mentions stay plain text, so previews never nest.
-  const renderItem = useItemLinks([spell?.description, spell?.higherLevels], { enabled: !compact });
+  const renderItem = useItemLinks([spell?.description, spell?.higherLevels], { enabled: !compact && !editing });
+  const levelSchool = `${formatSpellLevelSchool(summary.level, summary.school)}${summary.ritual ? " (ritual)" : ""}`;
+  const source = `${summary.source}${spell?.page !== undefined ? `, page ${spell.page}` : ""}`;
+  const higherLevelsHeading = summary.level === 0 ? "Cantrip Upgrade" : "Using a Higher-Level Spell Slot";
+  const title = <HeadingTag id={headingId} className={styles.name}>{editing ? <SpellNameField name={summary.name} /> : summary.name}</HeadingTag>;
+  // Blocks while editing: a narrow editor expands inside the line, which a paragraph cannot hold.
+  const Line = editing ? "div" : "p";
 
   return (
     <article className={`${styles.spellCard} ${compact ? styles.compact : ""}`} aria-labelledby={headingId}>
+      {editing && renderEditHeading?.(title)}
       <header className={styles.header}>
         {headerAction && <div className={styles.headerAction}>{headerAction}</div>}
-        <HeadingTag id={headingId} className={styles.name}>{summary.name}</HeadingTag>
-        <p className={styles.subtitle}>
-          {formatSpellLevelSchool(summary.level, summary.school)}
-          {summary.ritual && " (ritual)"}
-        </p>
+        {!(editing && renderEditHeading) && title}
+        <Line className={styles.subtitle}>{editing ? <SpellHeaderField text={levelSchool} /> : levelSchool}</Line>
         {!compact && (
-          <p className={styles.source}>
-            {summary.source}
-            {spell?.page !== undefined && `, page ${spell.page}`}
+          <Line className={styles.source}>
+            {editing ? <SpellSourceField text={source} /> : source}
             {/* Spells made in the app are always "edited"; flag only imported spells that were changed. */}
             {spell?.locallyEdited && summary.source !== HOMEBREW_SPELL_SOURCE && " · edited"}
-          </p>
+          </Line>
         )}
       </header>
+      {notice}
 
       {error ? (
         <p className={styles.error} role="alert">{error}</p>
@@ -66,6 +91,35 @@ export const SpellCard: React.FC<SpellCardProps> = ({
         <div className={styles.skeleton} aria-busy="true" aria-label="Loading spell">
           <span /><span /><span />
         </div>
+      ) : editing ? (
+        <>
+          <dl className={styles.stats}>
+            <div>
+              <dt>Casting Time</dt>
+              <dd>
+                <SpellCastingTimeField
+                  label={[spell.castingTime, spell.castingTrigger].filter(Boolean).join(", ")}
+                  text={<>{spell.castingTime}{spell.castingTrigger && <span className={styles.muted}>, {spell.castingTrigger}</span>}</>}
+                />
+              </dd>
+            </div>
+            <div>
+              <dt>Range</dt>
+              <dd><SpellRangeField text={spell.range} /></dd>
+            </div>
+            <div>
+              <dt>Components</dt>
+              <dd><SpellComponentsField text={formatSpellComponents(spell.components, spell.material)} /></dd>
+            </div>
+            <div>
+              <dt>Duration</dt>
+              <dd><SpellDurationField text={spell.duration} /></dd>
+            </div>
+          </dl>
+          <SpellDescriptionField />
+          <SpellHigherLevelsField heading={higherLevelsHeading} />
+          <SpellTagRows />
+        </>
       ) : (
         <>
           <dl className={styles.stats}>
@@ -94,7 +148,7 @@ export const SpellCard: React.FC<SpellCardProps> = ({
 
           {spell.higherLevels && (
             <section className={styles.higherLevels}>
-              <h4>{spell.level === 0 ? "Cantrip Upgrade" : "Using a Higher-Level Spell Slot"}</h4>
+              <h4>{higherLevelsHeading}</h4>
               <RichText text={spell.higherLevels} renderSpell={renderSpell} renderItem={renderItem} />
             </section>
           )}

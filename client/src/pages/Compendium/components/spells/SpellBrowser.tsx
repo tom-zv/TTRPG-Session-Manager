@@ -1,16 +1,27 @@
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { FiMoreHorizontal } from "react-icons/fi";
 import type { Spell, SpellSummary } from "shared/domain/dnd5e/spell.js";
-import Dialog from "src/components/Dialog/Dialog.js";
 import { useAuth } from "src/app/contexts/AuthContext.js";
+import type { ItemViewer } from "../../api/query/itemKeys.js";
 import { useDeleteSpell, useSpell, useSpellCasters, useSpellIndex } from "../../api/query/useSpellQueries.js";
+import type { EditLocation } from "../../hooks/useCompendiumUrl.js";
 import { useSpellResolver } from "../../hooks/useSpellResolver.js";
 import { BrowserLayout, useBrowserDetail } from "../browser/BrowserLayout.js";
 import type { SpellTokenRenderer } from "../RichText/RichText.js";
+import { UnsavedBar, isWorthKeeping, useUnloadWarning } from "../sheetEditor/DraftSlot.js";
+import { createEditorBuffer, type EditorBuffer } from "../sheetEditor/SheetEditContext.js";
 import { SpellCard } from "./SpellCard.js";
 import { SpellFilters } from "./SpellFilters.js";
 import { SpellList } from "./SpellList.js";
-import { SpellForm, type SpellFormMode } from "./SpellForm/SpellForm.js";
+import {
+  SpellEditor,
+  createSpellDraftState,
+  newSpellShell,
+  type SpellDraftState,
+  type SpellEditorHandle,
+  type SpellSaveProgress,
+} from "./editor/SpellEditor.js";
+import { blankSpellDraft, spellToDraft } from "./editor/model/spellDraft.js";
 import {
   EMPTY_SPELL_FILTERS,
   collectSpellFilterOptions,
@@ -29,9 +40,36 @@ type SpellBrowserProps = {
   selectedId: number | null;
   /** Select a spell, or clear the selection with null. */
   onSelect: (id: number | null) => void;
+  /** The spell in edit mode, from the URL (?spell=<id>&edit=1, ?spell=new&from=<id>); GMs only. */
+  editing: EditLocation | null;
+  /** Open edit mode as a new history entry. */
+  onEdit: (edit: EditLocation) => void;
+  /** Leave edit mode, selecting the saved spell, keeping the selection (undefined) or clearing it (null). */
+  onEditEnd: (selected?: number | null) => void;
 };
 
-export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId, onSelect }) => {
+/**
+ * The one draft the browser keeps: it survives moving to another spell (the unsaved bar offers it
+ * back), the reader remounting and the tab being hidden. `serial` remounts the editor per draft.
+ */
+type SpellDraftSlot = {
+  serial: number;
+  edit: EditLocation;
+  /** The account that started it; another sign-in drops it. */
+  owner: string;
+  /** The stored spell under the draft, or a homebrew shell (id 0) for a new one. */
+  record: Spell;
+  state: SpellDraftState;
+  save: SpellSaveProgress;
+  buffer: EditorBuffer;
+};
+
+const sameEdit = (left: EditLocation, right: EditLocation) =>
+  left.target === right.target && (left.target !== "new" || left.from === right.from);
+
+const slotName = (slot: SpellDraftSlot) => slot.state.draft.name.trim() || (slot.edit.target === "new" ? "a new spell" : slot.record.name);
+
+export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId, onSelect, editing: requested, onEdit, onEditEnd }) => {
   // Load the index the first time the page is shown, then keep it.
   const [hasBeenActive, setHasBeenActive] = useState(isActive);
   if (isActive && !hasBeenActive) setHasBeenActive(true);
@@ -39,10 +77,83 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId
   const { data: spells, isLoading, error } = useSpellIndex({ enabled: hasBeenActive });
   const { currentUser } = useAuth();
   const isGm = Boolean(currentUser?.isGm);
-  const [formMode, setFormMode] = useState<SpellFormMode | null>(null);
+  const viewer = useMemo<ItemViewer | undefined>(
+    () => (currentUser ? { userId: currentUser.id, isGm: currentUser.isGm } : undefined),
+    [currentUser],
+  );
+  const owner = viewer ? `${viewer.userId}:${viewer.isGm}` : "";
   const [filters, setFilters] = useState<SpellFilterState>(EMPTY_SPELL_FILTERS);
   const [sort, setSort] = useState<SpellSort>("name");
-  const detailState = useBrowserDetail();
+
+  // Only a GM edits; a player's edit URL reads as the spell itself.
+  const editing = isGm ? requested : null;
+  const showingNew = editing?.target === "new";
+  // The draft slot, created from the URL's edit location once its spell has loaded (the sheet never
+  // edits a skeleton), and kept while it is worth keeping; otherwise dropped when edit mode ends.
+  const [slot, setSlot] = useState<SpellDraftSlot | null>(null);
+  const [serial, setSerial] = useState(0);
+  const { data: editSpell } = useSpell(editing && editing.target !== "new" ? editing.target : null);
+  const { data: fromSpell, error: fromError } = useSpell(showingNew ? editing.from : null);
+  const slotShown = slot !== null && slot.owner === owner && editing !== null && sameEdit(slot.edit, editing);
+  if (slot && slot.owner !== owner) {
+    // A draft belongs to the account that started it.
+    setSlot(null);
+  } else if (!slotShown) {
+    if (slot && !isWorthKeeping(slot)) {
+      setSlot(null);
+    } else if (!slot && editing) {
+      const record = editing.target === "new" ? (editing.from === null || fromSpell ? newSpellShell() : null) : editSpell ?? null;
+      if (record) {
+        setSerial(serial + 1);
+        setSlot({
+          serial,
+          edit: editing,
+          owner,
+          record,
+          state: createSpellDraftState(editing.target === "new"
+            ? (fromSpell ? spellToDraft(fromSpell, { duplicate: true }) : blankSpellDraft())
+            : spellToDraft(record)),
+          save: { pending: false, error: null },
+          buffer: createEditorBuffer(),
+        });
+      }
+    }
+  }
+  const mounted = useRef(false);
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+  const slotRef = useRef(slot);
+  useEffect(() => {
+    slotRef.current = slot;
+  }, [slot]);
+  const editingRef = useRef(editing);
+  useEffect(() => {
+    editingRef.current = editing;
+  }, [editing]);
+  useUnloadWarning(slot !== null, () => slotRef.current !== null && isWorthKeeping(slotRef.current));
+  const updateDraft = useCallback((serial: number, state: SpellDraftState) =>
+    setSlot(current => current?.serial === serial ? { ...current, state } : current), []);
+  const updateSave = useCallback((serial: number, save: SpellSaveProgress) =>
+    setSlot(current => current?.serial === serial ? { ...current, save } : current), []);
+  const finishSave = useCallback((serial: number, saved: Spell) => {
+    const origin = slotRef.current;
+    // A save that lands after the draft is gone (unmounted, or another account signed in) changes nothing here.
+    if (!mounted.current || !origin || origin.serial !== serial) return;
+    setSlot(current => current?.serial === serial ? null : current);
+    // After a create the URL names the new spell, in place of ?spell=new.
+    if (editingRef.current && sameEdit(origin.edit, editingRef.current)) onEditEnd(saved.id);
+  }, [onEditEnd]);
+
+  const shownSlot = slotShown ? slot : null;
+  const keptSlot = slot && !slotShown && slot.owner === owner && isWorthKeeping(slot) ? slot : null;
+  // On narrow screens the editor is always in the open reader; closing the reader ends edit mode.
+  const detailState = useBrowserDetail({
+    selectedId: showingNew ? `new:${editing.from ?? ""}` : selectedId,
+    keepOpen: shownSlot !== null,
+  });
+  const editorRef = useRef<SpellEditorHandle>(null);
 
   const deferredFilters = useDeferredValue(filters);
   const visibleSpells = useMemo(
@@ -53,51 +164,15 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId
   const selectedSummary = spells?.find(spell => spell.id === selectedId);
 
   const newSpellButton = isGm && (
-    <button type="button" className={browserStyles.primaryButton} onClick={() => setFormMode({ kind: "create" })}>
+    <button type="button" className={browserStyles.primaryButton} onClick={() => onEdit({ target: "new", from: null })}>
       New spell
     </button>
   );
 
-  const formDialog = (
-    <Dialog
-      isOpen={formMode !== null}
-      onClose={() => setFormMode(null)}
-      title={
-        formMode?.kind === "edit" ? `Edit ${formMode.spell.name}`
-          : formMode?.kind === "duplicate" ? `Duplicate ${formMode.spell.name}`
-            : "New spell"
-      }
-      className="form-dialog"
-    >
-      {formMode && (
-        <SpellForm
-          // Remount for each spell so the draft starts from it.
-          key={formMode.kind === "create" ? "create" : `${formMode.kind}-${formMode.spell.id}`}
-          mode={formMode}
-          onCancel={() => setFormMode(null)}
-          onSaved={saved => {
-            setFormMode(null);
-            onSelect(saved.id);
-          }}
-        />
-      )}
-    </Dialog>
-  );
-
-  const gmActions: SpellDetailActions | undefined = isGm
-    ? {
-        onEdit: spell => setFormMode({ kind: "edit", spell }),
-        onDuplicate: spell => setFormMode({ kind: "duplicate", spell }),
-        onDeleted: () => {
-          detailState.close();
-          onSelect(null);
-        },
-      }
-    : undefined;
-
   if (isLoading || !hasBeenActive) return <p className={browserStyles.status}>Loading spells…</p>;
   if (error) return <p className={`${browserStyles.status} ${browserStyles.statusError}`} role="alert">{error.message}</p>;
-  if (!spells || spells.length === 0) {
+  const emptyCatalog = !spells || spells.length === 0;
+  if (emptyCatalog && !editing && !keptSlot) {
     return (
       <div className={browserStyles.status}>
         <p>No spells have been imported yet.</p>
@@ -105,49 +180,113 @@ export const SpellBrowser: React.FC<SpellBrowserProps> = ({ isActive, selectedId
           Import them on the server with <code>npm run import:5etools:spells</code>.
         </p>
         {newSpellButton}
-        {formDialog}
       </div>
     );
   }
 
+  let detail: React.ReactNode;
+  if (shownSlot) {
+    detail = (
+      <SpellEditor
+        ref={editorRef}
+        key={shownSlot.serial}
+        record={shownSlot.record}
+        state={shownSlot.state}
+        onChange={state => updateDraft(shownSlot.serial, state)}
+        saveProgress={shownSlot.save}
+        onSaveProgress={progress => updateSave(shownSlot.serial, progress)}
+        buffer={shownSlot.buffer}
+        viewer={viewer}
+        onCancel={() => {
+          setSlot(null);
+          onEditEnd();
+        }}
+        onSaved={saved => finishSave(shownSlot.serial, saved)}
+      />
+    );
+  } else if (editing && keptSlot) {
+    // Another spell's changes are kept aside; edit mode here starts once they are resumed or discarded.
+    detail = (
+      <>
+        <p className={browserStyles.status}>
+          Save or discard the unsaved changes to {slotName(keptSlot)} before {showingNew ? "starting another spell" : "editing this one"}.
+        </p>
+        {!showingNew && <SpellDetail summary={selectedSummary} selectedId={selectedId} onSelect={onSelect} />}
+      </>
+    );
+  } else if (showingNew) {
+    detail = fromError
+      ? <p className={`${browserStyles.status} ${browserStyles.statusError}`} role="alert">{fromError.message}</p>
+      : <p className={browserStyles.status}>Preparing a new spell…</p>;
+  } else {
+    detail = (
+      <SpellDetail
+        summary={selectedSummary}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        actions={isGm ? {
+          onEdit: spell => onEdit({ target: spell.id, from: null }),
+          onDuplicate: spell => onEdit({ target: "new", from: spell.id }),
+          onDeleted: () => {
+            detailState.close();
+            onSelect(null);
+          },
+        } : undefined}
+      />
+    );
+  }
+
   return (
-    <>
-      <BrowserLayout
-        detailState={detailState}
-        toolbar={
-          <SpellFilters
-            filters={filters}
-            onChange={setFilters}
-            sort={sort}
-            onSortChange={setSort}
-            options={filterOptions}
-            resultCount={visibleSpells.length}
-            total={spells.length}
-            actions={newSpellButton}
-          />
-        }
-        list={
-          visibleSpells.length === 0 ? (
+    <BrowserLayout
+      // Closing the narrow reader leaves edit mode; a draft with changes stays in the unsaved bar.
+      detailState={{
+        ...detailState,
+        close: () => {
+          if (shownSlot && editorRef.current?.settle() === false) return;
+          if (editing) onEditEnd(showingNew ? null : undefined);
+          detailState.close();
+        },
+      }}
+      toolbar={emptyCatalog ? undefined : (
+        <SpellFilters
+          filters={filters}
+          onChange={setFilters}
+          sort={sort}
+          onSortChange={setSort}
+          options={filterOptions}
+          resultCount={visibleSpells.length}
+          total={spells.length}
+          actions={newSpellButton}
+        />
+      )}
+      list={
+        <>
+          {keptSlot && (
+            <UnsavedBar name={slotName(keptSlot)} onResume={() => onEdit(keptSlot.edit)} onDiscard={() => setSlot(null)} />
+          )}
+          {emptyCatalog ? (
+            <p className={browserStyles.status}>No spells have been imported yet.</p>
+          ) : visibleSpells.length === 0 ? (
             <p className={browserStyles.status}>No spells match.</p>
           ) : (
             <SpellList
               spells={visibleSpells}
               selectedId={selectedId}
               onSelect={(id, via) => {
+                if (shownSlot && editorRef.current?.settle() === false) return;
                 onSelect(id);
                 detailState.onRowSelected(id, via);
               }}
               onActivate={detailState.open}
             />
-          )
-        }
-        detail={<SpellDetail summary={selectedSummary} selectedId={selectedId} onSelect={onSelect} actions={gmActions} />}
-        detailLabel="Spell details"
-        dialogTitle={selectedSummary?.name ?? "Spell"}
-        hasSelection={selectedSummary !== undefined}
-      />
-      {formDialog}
-    </>
+          )}
+        </>
+      }
+      detail={detail}
+      detailLabel="Spell details"
+      dialogTitle={shownSlot && showingNew ? "New spell" : selectedSummary?.name ?? "Spell"}
+      hasSelection={selectedSummary !== undefined || showingNew}
+    />
   );
 };
 

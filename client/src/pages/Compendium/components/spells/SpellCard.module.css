@@ -1,14 +1,16 @@
 .spellCard {
+  --sheet-gap: 1rem;
+  --sheet-title-gap: 0.15rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--sheet-gap);
   color: var(--text-secondary);
 }
 
 .header {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: var(--sheet-title-gap);
 }
 
 .name {
@@ -144,4 +146,40 @@
   position: absolute;
   top: 0;
   right: 0;
+}
+
+/* Edit mode only: a line per tag list, with the fields the sheet does not show otherwise. */
+.tagRows {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.tagRows > div {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.tagRows dt {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+}
+
+.tagRows dd {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.warning {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--accent-warning, #ff9800);
+  background: rgba(255, 152, 0, 0.08);
+  font-size: 0.85rem;
+  color: var(--text-primary);
 }

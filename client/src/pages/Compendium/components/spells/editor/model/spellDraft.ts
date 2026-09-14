@@ -7,7 +7,7 @@ import {
   type SpellSchool,
 } from "shared/domain/dnd5e/spell.js";
 
-// Form state: text for every input, converted to a SpellInput on submit.
+// The spell sheet's draft: text for every typed value, converted to a SpellInput on save.
 export interface SpellDraft {
   name: string;
   source: string;
@@ -116,7 +116,8 @@ export const isConcentrationDuration = (duration: string): boolean => /^\s*conce
 const optionalText = (value: string) => (value.trim() ? value.trim() : undefined);
 const optionalNumber = (value: string) => (value.trim() === "" ? undefined : Number(value));
 
-// Numbers that do not parse are passed through as NaN, so validateSpellInput reports them.
+// Numbers that do not parse are passed through as NaN, so validateSpellInput reports them. Casting
+// unit, range in feet and concentration are derived from the text here, on every save.
 export function draftToInput(draft: SpellDraft): SpellInput {
   const costGp = optionalNumber(draft.materialCostGp);
   return {
