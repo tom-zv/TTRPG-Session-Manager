@@ -37,7 +37,7 @@ export const COMPENDIUM_PATH = "/compendium";
 // (BrowserDetailSlot). On narrow screens there is only the column, and details open in a dialog.
 export const Compendium: React.FC = () => {
   const isActive = useLocation().pathname === COMPENDIUM_PATH;
-  const { section, selection, entityEdit, showSection, select, editEntity, endEntityEdit } = useCompendiumUrl(isActive);
+  const { section, selection, edits, showSection, select, editRecord, endEdit } = useCompendiumUrl(isActive);
   const { currentUser, isLoading: authLoading } = useAuth();
   const viewer = useMemo<ItemViewer | null>(
     () => (currentUser ? { userId: currentUser.id, isGm: currentUser.isGm } : null),
@@ -73,8 +73,12 @@ export const Compendium: React.FC = () => {
                 <ItemReferenceVisit.Provider value={visits.spells}>
                   <SpellBrowser
                     isActive={isActive && section === "spells"}
-                    selectedId={selection.spells}
+                    // A new spell's draft is not a selection; the previous one returns when it closes.
+                    selectedId={edits.spells?.target === "new" ? null : selection.spells}
                     onSelect={id => select("spells", id)}
+                    editing={edits.spells}
+                    onEdit={edit => editRecord("spells", edit)}
+                    onEditEnd={selected => endEdit("spells", selected)}
                   />
                 </ItemReferenceVisit.Provider>
               </BrowserDetailSlot.Provider>
@@ -98,11 +102,11 @@ export const Compendium: React.FC = () => {
                       viewer={viewer}
                       isActive={entitiesActive}
                       // A new entity's draft is not a selection; the previous one returns when it closes.
-                      selectedId={entityEdit?.target === "new" ? null : selection.entities}
+                      selectedId={edits.entities?.target === "new" ? null : selection.entities}
                       onSelect={id => select("entities", id)}
-                      editing={entityEdit}
-                      onEdit={editEntity}
-                      onEditEnd={endEntityEdit}
+                      editing={edits.entities}
+                      onEdit={edit => editRecord("entities", edit)}
+                      onEditEnd={selected => endEdit("entities", selected)}
                     />
                   ) : (
                     <MyCharactersBrowser
@@ -133,8 +137,12 @@ export const Compendium: React.FC = () => {
                       key={ITEM_KEYS.viewerSegment(viewer)}
                       viewer={viewer}
                       isActive={isActive && section === "items"}
-                      selectedId={selection.items}
+                      // A new item's draft is not a selection; the previous one returns when it closes.
+                      selectedId={edits.items?.target === "new" ? null : selection.items}
                       onSelect={id => select("items", id)}
+                      editing={edits.items}
+                      onEdit={edit => editRecord("items", edit)}
+                      onEditEnd={selected => endEdit("items", selected)}
                     />
                   )}
                 </ItemReferenceVisit.Provider>

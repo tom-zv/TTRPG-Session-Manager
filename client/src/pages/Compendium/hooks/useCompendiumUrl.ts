@@ -4,25 +4,26 @@ import { useSearchParams } from "react-router-dom";
 export type CompendiumSection = "spells" | "entities" | "items";
 
 /**
- * An entity open in edit mode: an existing template (`?entity=<id>&edit=1`), or a new one that is
- * not saved yet (`?entity=new`), optionally duplicated from another template (`&from=<id>`).
+ * A record open in edit mode: an existing one (`?entity=<id>&edit=1`), or a new one that is not
+ * saved yet (`?entity=new`), optionally duplicated from another (`&from=<id>`). Items and spells use
+ * the same forms with `item` and `spell`.
  */
-export type EntityEditLocation = { target: number | "new"; from: number | null };
+export type EditLocation = { target: number | "new"; from: number | null };
 
-type CompendiumLocation = { section: CompendiumSection; id: number | null; entityEdit?: EntityEditLocation };
+type CompendiumLocation = { section: CompendiumSection; id: number | null; edit?: EditLocation };
 
 type CompendiumState = {
   section: CompendiumSection;
   /** Each tab's last selection, kept while the other tab or another page is shown. */
   selection: Record<CompendiumSection, number | null>;
-  /** The entity in edit mode, kept like a selection. A new entity keeps the previous selection for Cancel. */
-  entityEdit: EntityEditLocation | null;
+  /** Each section's record in edit mode, kept like a selection. A new one keeps the previous selection for Cancel. */
+  edits: Record<CompendiumSection, EditLocation | null>;
 };
 
 const SECTION_PARAM = "section";
 const EDIT_PARAM = "edit";
 const FROM_PARAM = "from";
-const NEW_ENTITY = "new";
+const NEW_RECORD = "new";
 const ID_PARAMS: Record<CompendiumSection, string> = { spells: "spell", entities: "entity", items: "item" };
 const OWNED_PARAMS = [SECTION_PARAM, ID_PARAMS.spells, ID_PARAMS.entities, ID_PARAMS.items, EDIT_PARAM, FROM_PARAM];
 const SECTIONS: readonly string[] = ["spells", "entities", "items"];
@@ -30,7 +31,7 @@ const SECTIONS: readonly string[] = ["spells", "entities", "items"];
 const INITIAL_STATE: CompendiumState = {
   section: "spells",
   selection: { spells: null, entities: null, items: null },
-  entityEdit: null,
+  edits: { entities: null, items: null, spells: null },
 };
 
 const parseId = (value: string | null): number | null => {
@@ -39,34 +40,40 @@ const parseId = (value: string | null): number | null => {
   return Number.isSafeInteger(id) ? id : null;
 };
 
+// A section's record from the URL: "new" (a draft), an ID, optionally in edit mode, or null.
+function readRecord(params: URLSearchParams, section: CompendiumSection): CompendiumLocation | null {
+  if (params.get(ID_PARAMS[section]) === NEW_RECORD) {
+    return { section, id: null, edit: { target: "new", from: parseId(params.get(FROM_PARAM)) } };
+  }
+  const id = parseId(params.get(ID_PARAMS[section]));
+  if (id === null) return null;
+  const editing = params.get(EDIT_PARAM) === "1";
+  return { section, id, ...(editing ? { edit: { target: id, from: null } } : {}) };
+}
+
 // What the URL asks for, or null when it names nothing (a bare /compendium): then remembered state applies.
-// A valid entity ID (or "new") wins over a spell ID, and a spell ID over an item ID; an ID implies its section.
+// A valid entity ID (or "new") wins over a spell ID (or "new"), and a spell over an item; an ID implies its section.
 function readLocation(params: URLSearchParams): CompendiumLocation | null {
-  if (params.get(ID_PARAMS.entities) === NEW_ENTITY) {
-    return { section: "entities", id: null, entityEdit: { target: "new", from: parseId(params.get(FROM_PARAM)) } };
-  }
-  const entityId = parseId(params.get(ID_PARAMS.entities));
-  if (entityId !== null) {
-    const editing = params.get(EDIT_PARAM) === "1";
-    return { section: "entities", id: entityId, ...(editing ? { entityEdit: { target: entityId, from: null } } : {}) };
-  }
-  const spellId = parseId(params.get(ID_PARAMS.spells));
-  if (spellId !== null) return { section: "spells", id: spellId };
-  const itemId = parseId(params.get(ID_PARAMS.items));
-  if (itemId !== null) return { section: "items", id: itemId };
+  const entity = readRecord(params, "entities");
+  if (entity) return entity;
+  const spell = readRecord(params, "spells");
+  if (spell) return spell;
+  const item = readRecord(params, "items");
+  if (item) return item;
   const section = params.get(SECTION_PARAM);
   if (section !== null && SECTIONS.includes(section)) return { section: section as CompendiumSection, id: null };
   return null;
 }
 
-// One canonical form per location: ?spell=42, ?entity=17, ?entity=17&edit=1, ?entity=new(&from=17),
-// ?item=5, or ?section=<tab> without a selection. Parameters the Compendium does not own are kept.
+// One canonical form per location: ?entity=17, ?entity=17&edit=1, ?entity=new(&from=17), the same
+// for ?spell= and ?item=, or ?section=<tab> without a selection. Parameters
+// the Compendium does not own are kept.
 function writeLocation(params: URLSearchParams, location: CompendiumLocation): URLSearchParams {
   const next = new URLSearchParams(params);
   OWNED_PARAMS.forEach(name => next.delete(name));
-  const edit = location.section === "entities" ? location.entityEdit : undefined;
-  if (edit?.target === NEW_ENTITY) {
-    next.set(ID_PARAMS.entities, NEW_ENTITY);
+  const { edit } = location;
+  if (edit?.target === NEW_RECORD) {
+    next.set(ID_PARAMS[location.section], NEW_RECORD);
     if (edit.from !== null) next.set(FROM_PARAM, String(edit.from));
   } else if (location.id === null) {
     next.set(SECTION_PARAM, location.section);
@@ -88,22 +95,19 @@ export function compendiumLinkSearch(params: URLSearchParams, section: Compendiu
 const ownedParamsKey = (params: URLSearchParams) =>
   JSON.stringify(OWNED_PARAMS.map(name => params.getAll(name)));
 
-const currentLocation = (state: CompendiumState): CompendiumLocation => ({
-  section: state.section,
-  id: state.selection[state.section],
-  ...(state.entityEdit ? { entityEdit: state.entityEdit } : {}),
-});
+const currentLocation = (state: CompendiumState): CompendiumLocation => {
+  const edit = state.edits[state.section];
+  return { section: state.section, id: state.selection[state.section], ...(edit ? { edit } : {}) };
+};
 
 const adopt = (state: CompendiumState, location: CompendiumLocation): CompendiumState => {
-  if (location.section !== "entities") {
-    return { ...state, section: location.section, selection: { ...state.selection, [location.section]: location.id } };
-  }
-  // A new entity is not a selection: the previous one stays for when the draft closes.
-  const id = location.entityEdit?.target === NEW_ENTITY ? state.selection.entities : location.id;
+  const { section } = location;
+  // A new record is not a selection: the previous one stays for when the draft closes.
+  const id = location.edit?.target === NEW_RECORD ? state.selection[section] : location.id;
   return {
-    section: "entities",
-    selection: { ...state.selection, entities: id },
-    entityEdit: location.entityEdit ?? null,
+    section,
+    selection: { ...state.selection, [section]: id },
+    edits: { ...state.edits, [section]: location.edit ?? null },
   };
 };
 
@@ -151,37 +155,38 @@ export function useCompendiumUrl(isActive: boolean) {
 
   /**
    * Select in one tab (null clears). The URL follows only for the visible tab. Selecting another
-   * entity leaves edit mode; the editor keeps an unsaved draft aside.
+   * record leaves edit mode; the editor keeps an unsaved draft aside.
    */
   const select = (section: CompendiumSection, id: number | null) => {
-    setState(previous => ({
-      ...previous,
-      selection: { ...previous.selection, [section]: id },
-      entityEdit: section === "entities" && previous.entityEdit?.target !== id ? null : previous.entityEdit,
-    }));
+    setState(previous => {
+      if (previous.edits[section]?.target === id) {
+        return { ...previous, selection: { ...previous.selection, [section]: id } };
+      }
+      return { ...previous, selection: { ...previous.selection, [section]: id }, edits: { ...previous.edits, [section]: null } };
+    });
   };
 
-  /** Open an entity in edit mode (or a new one) as a new history entry, so Back leaves it. */
-  const editEntity = (edit: EntityEditLocation) => {
+  /** Open a record in edit mode (or a new one) as a new history entry, so Back leaves it. */
+  const editRecord = (section: CompendiumSection, edit: EditLocation) => {
     push({
       ...state,
-      section: "entities",
-      selection: edit.target === NEW_ENTITY ? state.selection : { ...state.selection, entities: edit.target },
-      entityEdit: edit,
+      section,
+      selection: edit.target === NEW_RECORD ? state.selection : { ...state.selection, [section]: edit.target },
+      edits: { ...state.edits, [section]: edit },
     });
   };
 
   /**
-   * Leave edit mode in place (the URL entry is replaced): after a save, with the saved template
+   * Leave edit mode in place (the URL entry is replaced): after a save, with the saved record
    * selected, or after Cancel, with the selection as it was (`undefined`) or cleared (null).
    */
-  const endEntityEdit = (selected?: number | null) => {
+  const endEdit = (section: CompendiumSection, selected?: number | null) => {
     setState(previous => ({
       ...previous,
-      selection: selected === undefined ? previous.selection : { ...previous.selection, entities: selected },
-      entityEdit: null,
+      selection: selected === undefined ? previous.selection : { ...previous.selection, [section]: selected },
+      edits: { ...previous.edits, [section]: null },
     }));
   };
 
-  return { section: state.section, selection: state.selection, entityEdit: state.entityEdit, showSection, select, editEntity, endEntityEdit };
+  return { section: state.section, selection: state.selection, edits: state.edits, showSection, select, editRecord, endEdit };
 }

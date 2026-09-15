@@ -217,7 +217,10 @@ export const formatSpellFrequencyGroup = ({ frequency, count, each }: SpellFrequ
   }
 };
 
-export const buildEntitySections = (entity: DnD5eEntityDetails): EntityCardSection[] => {
+/** What the entry sections are built from: an entity, or an editor's draft of its lists. */
+export type EntitySectionSource = Pick<DnD5eEntityDetails, "traits" | "actions" | "spellcasting" | "legendaryHeader" | "legendaryActionCount">;
+
+export const buildEntitySections = (entity: EntitySectionSource): EntityCardSection[] => {
   const groups = new Map<string, EntityCardEntry[]>();
   const firstSeen = new Map<string, number>();
   let seenIndex = 0;
