@@ -29,7 +29,6 @@ import {
   RECHARGE_FIELD,
   SOURCE_FIELD,
   VERSATILE_FIELD,
-  WONDROUS_FIELD,
   categoryField,
   spellAddition,
   statByKey,
@@ -67,7 +66,7 @@ export const ItemNameField: React.FC<{ name: string }> = ({ name }) => {
     : <EditTarget id="name" kind="inline" label={`Name, ${name}`} editor={<SpecInlineEditor spec={NAME_FIELD} />}>{name}</EditTarget>;
 };
 
-/** "Wondrous item, rare, wondrous (requires attunement by a wizard)": each part is its own field. */
+/** The subtitle edits the item's category, rarity, and attunement. */
 export const ItemSubtitleField: React.FC<{ text: string }> = ({ text }) => {
   const edit = useActiveItemEdit();
   const liveAt = useItemLiveRegion();
@@ -79,7 +78,7 @@ export const ItemSubtitleField: React.FC<{ text: string }> = ({ text }) => {
       <EditTarget
         id="subtitle"
         label={`Type, ${text}`}
-        editor={<SpecsEditor specs={[category, RARITY_FIELD, WONDROUS_FIELD, ATTUNEMENT_FIELD, ATTUNEMENT_NOTE_FIELD]} />}
+        editor={<SpecsEditor specs={[category, RARITY_FIELD, ATTUNEMENT_FIELD, ATTUNEMENT_NOTE_FIELD]} />}
       >
         {text}
       </EditTarget>
@@ -91,8 +90,6 @@ export const ItemSubtitleField: React.FC<{ text: string }> = ({ text }) => {
       <LiveSpecField spec={category} />
       {", "}
       <LiveSpecField spec={RARITY_FIELD} />
-      {", "}
-      <LiveSpecField spec={WONDROUS_FIELD} />
       {" ("}
       {/* The note shows while attunement is required, or while it holds text that needs it (stored
           before the rule, or rejected by the server), so an issue on it reaches the value. */}
@@ -360,7 +357,7 @@ export const ItemStatsField: React.FC<{ lines: readonly StatLine[] }> = ({ lines
   );
 };
 
-/** The description's source, in place, with the `{` reference menu (both presentations). */
+/** The description as the sheet shows it; a click opens its source in place, with the `{` reference menu. */
 export const ItemDescriptionField: React.FC = () => (
   <LiveSourceText
     id={DESCRIPTION_FIELD.id}
@@ -368,6 +365,7 @@ export const ItemDescriptionField: React.FC = () => (
     read={DESCRIPTION_FIELD.read}
     parse={DESCRIPTION_FIELD.parse}
     placeholder="Description. Type { to link a spell or item."
+    className={styles.description}
   />
 );
 

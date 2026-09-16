@@ -71,17 +71,6 @@ export const RARITY_FIELD: ItemField = {
   parse: (text, draft) => checked(draft, { rarity: text as ItemRarity }, "rarity"),
 };
 
-/** A yes/no flag as a choice. "No" keeps a flag that was never set absent, as stored. */
-const flagField = (id: string, label: string, key: "wondrous" | "stealthDisadvantage", path: string, yes: string, no: string): ItemField => ({
-  id,
-  label,
-  options: [{ value: "no", label: no }, { value: "yes", label: yes }],
-  read: draft => (draft[key] ? "yes" : "no"),
-  parse: (text, draft) => checked(draft, { [key]: text === "yes" ? true : draft[key] === undefined ? undefined : false }, path),
-});
-
-export const WONDROUS_FIELD = flagField("wondrous", "Wondrous", "wondrous", "details.wondrous", "wondrous", "not wondrous");
-
 const isOptional = (note: string) => note.trim().toLowerCase() === OPTIONAL_ITEM_ATTUNEMENT.toLowerCase();
 
 /** None, required (with an optional note such as "by a wizard"), or optional attunement. */

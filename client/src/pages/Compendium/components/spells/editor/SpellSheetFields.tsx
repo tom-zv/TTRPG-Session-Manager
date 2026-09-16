@@ -182,7 +182,7 @@ export const SpellComponentsField: React.FC<{ text: string }> = ({ text }) => {
   );
 };
 
-/** The description's source, in place, with the `{` reference menu (both presentations). */
+/** The description as the sheet shows it; a click opens its source in place, with the `{` reference menu. */
 export const SpellDescriptionField: React.FC = () => (
   <LiveSourceText
     id={DESCRIPTION_FIELD.id}
@@ -190,6 +190,7 @@ export const SpellDescriptionField: React.FC = () => (
     read={DESCRIPTION_FIELD.read}
     parse={DESCRIPTION_FIELD.parse}
     placeholder="Description. Type { to link a spell or item."
+    className={styles.description}
   />
 );
 

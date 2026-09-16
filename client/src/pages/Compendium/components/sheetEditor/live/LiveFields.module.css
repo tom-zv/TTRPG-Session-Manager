@@ -256,57 +256,104 @@
   font-style: italic;
 }
 
-/* Rich text in edit mode: its source in a textarea that grows with the text (both presentations). */
+/*
+ * Rich text in edit mode (both presentations). Closed, it is the text as view mode shows it, with a
+ * faint tint; open, a borderless input of its source in the same font and line height, growing
+ * with the text. Neither adds a box, so opening moves nothing but the text itself.
+ */
 .source {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  position: relative;
+  display: block;
 }
 
-/* The textarea and its reference menu, which hangs under it as an overlay. */
-.sourceField {
-  position: relative;
+/* Run-in text after an entry's name: its overlays hang from the entry's line, which is positioned. */
+.sourceInline {
+  position: static;
+  display: inline;
+}
+
+/* Like a live field's faint underline, dotted for text that opens into its source. Decorations and
+   backgrounds never change layout. */
+.sourcePreview {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  text-decoration: underline dotted color-mix(in srgb, var(--accent-primary) 60%, transparent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  cursor: text;
+}
+
+.sourcePreview:hover {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+}
+
+.sourcePlaceholder {
+  color: var(--text-tertiary);
+  font-style: italic;
 }
 
 .sourceText {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-height: 4.5rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm, 4px);
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  box-shadow: inset 0 -2px 0 var(--accent-primary);
+  color: inherit;
   font: inherit;
+  letter-spacing: inherit;
   line-height: inherit;
   resize: none;
   overflow: hidden;
+  outline: none;
 }
 
-.sourceText:focus {
-  border-color: var(--accent-primary);
-  outline: none;
-  box-shadow: 0 0 0 1px var(--accent-primary);
+/* A block of text keeps view mode's rich text line height (`RichText.module.css`). */
+.source:not(.sourceInline) .sourceText {
+  line-height: 1.55;
+}
+
+/* Its first line continues the name's line; the indent is set to where that line's text ends
+   (`--source-indent`). The box spans that whole line, so the tint and underline are drawn from the
+   indent on, not over the name: the first line from the indent, the lines below in full, and the
+   underline from `--source-underline-start` (the indent while the text is one line). */
+.sourceInline .sourceText {
+  --source-tint: color-mix(in srgb, var(--accent-primary) 10%, transparent);
+  margin-top: -1lh;
+  text-indent: var(--source-indent, 0px);
+  background:
+    linear-gradient(var(--accent-primary), var(--accent-primary)) var(--source-underline-start, 0px) 100% / 100% 2px no-repeat,
+    linear-gradient(var(--source-tint), var(--source-tint)) var(--source-indent, 0px) 0 / 100% 1lh no-repeat,
+    linear-gradient(var(--source-tint), var(--source-tint)) 0 1lh / 100% calc(100% - 1lh) no-repeat;
+  box-shadow: none;
+}
+
+.sourceInline[data-invalid] .sourceText {
+  background:
+    linear-gradient(var(--error-color, #e06c75), var(--error-color, #e06c75)) var(--source-underline-start, 0px) 100% / 100% 2px no-repeat,
+    linear-gradient(var(--source-tint), var(--source-tint)) var(--source-indent, 0px) 0 / 100% 1lh no-repeat,
+    linear-gradient(var(--source-tint), var(--source-tint)) 0 1lh / 100% calc(100% - 1lh) no-repeat;
+  box-shadow: none;
+}
+
+.sourceText::placeholder {
+  color: var(--text-tertiary);
+  font-style: italic;
+  opacity: 1;
 }
 
 .source[data-invalid] .sourceText {
-  border-color: var(--error-color, #e06c75);
-}
-
-/*
- * The message slot follows the insert buttons on their line and is there whether or not it holds a
- * message, so showing one moves nothing and covers neither button. Where the line is too narrow for
- * it, the slot takes a line of its own below the buttons, in valid and invalid text alike.
- */
-.sourceMessage {
-  position: relative;
-  min-height: 1.75rem;
+  box-shadow: inset 0 -2px 0 var(--error-color, #e06c75);
 }
 
 .sourceError {
   position: absolute;
-  top: 0;
+  top: calc(100% + 3px);
   left: 0;
   z-index: 6;
   max-width: 100%;
@@ -317,10 +364,13 @@
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 1.3;
   pointer-events: none;
 }
 
-/* The `{` reference menu: the textarea's full width, over the sheet, rows of a fixed height. */
+/* The `{` reference menu: the field's full width, over the sheet, rows of a fixed height. */
 .referenceMenu {
   position: absolute;
   top: calc(100% + 2px);

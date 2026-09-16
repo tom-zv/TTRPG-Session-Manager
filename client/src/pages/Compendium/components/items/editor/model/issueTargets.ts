@@ -19,7 +19,6 @@ const PATH_FIELDS: Record<string, string> = {
   weightLb: "weightLb",
   baseItemId: "base",
   "details.description": "description",
-  "details.wondrous": "wondrous",
   "details.weaponCategory": "weaponCategory",
   "details.damage": "damageDice",
   "details.damage.dice": "damageDice",
@@ -51,7 +50,6 @@ const CHIP_LISTS = new Set(["spells"]);
 const FIELD_REGIONS: Record<string, string> = {
   category: "subtitle",
   rarity: "subtitle",
-  wondrous: "subtitle",
   attunement: "subtitle",
   attunementNote: "subtitle",
   page: "source",
@@ -86,7 +84,7 @@ export const issueTargetId = (path: string): string | null => {
 const FIELD_PLACES: Record<string, string> = {
   name: "Name", source: "Source", page: "Page", category: "Category", rarity: "Rarity", attunement: "Attunement",
   attunementNote: "Attunement note", valueCp: "Value", weightLb: "Weight", base: "Base item", description: "Description",
-  wondrous: "Wondrous", weaponCategory: "Weapon category", damageDice: "Damage dice", damageType: "Damage type",
+  weaponCategory: "Weapon category", damageDice: "Damage dice", damageType: "Damage type",
   versatileDice: "Versatile damage", range: "Range", armorClass: "Armor Class", strength: "Strength", stealth: "Stealth",
   bonusWeapon: "Attack and damage", bonusAc: "AC bonus", charges: "Charges", recharge: "Recharge",
   rechargeAmount: "Recharge amount", aliases: "Also called", properties: "Properties", mastery: "Mastery", spells: "Spells",
