@@ -123,20 +123,12 @@
   font-size: 0.85rem;
 }
 
-/* A trait or action in edit mode: the name's line (name, then the entry options), then its text. */
+/* A trait or action: one line as view mode draws it (margins of the card's `.section p`). The row
+   is positioned for the tools and for the text's overlays (menu, message). */
 .entryRow {
-  display: grid;
-  grid-template-areas: "head tools" "text text";
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  column-gap: 0.4rem;
-  row-gap: 0.2rem;
+  position: relative;
+  margin: 0.25rem 0 0.5rem;
   border-radius: 3px;
-}
-
-.entryText {
-  grid-area: text;
-  min-width: 0;
 }
 
 .entryRow:global(.drop-target.active) {
@@ -145,12 +137,14 @@
 }
 
 .entryHead {
-  grid-area: head;
   min-width: 0;
   margin: 0;
 }
 
+/* Above the open text input, which is pulled up over the name's line: the name stays clickable. */
 .entryName {
+  position: relative;
+  z-index: 1;
   min-width: 0;
 }
 
@@ -160,23 +154,77 @@
   font-weight: 400;
 }
 
-/* Kept in edit mode whether or not it is hovered or focused; its menu is an overlay. */
+/* The grip sits in the margin left of the entry (the pane's padding, or the gap before a column's
+   rule), on the name's line, so it never covers text. Shown while the row is hovered or holds
+   focus or an open menu; always tabbable. Showing it moves nothing. */
 .entryTools {
-  grid-area: tools;
-  display: inline-flex;
+  position: absolute;
+  top: 0;
+  right: 100%;
+  z-index: 2;
+  display: flex;
   align-items: center;
-  gap: 0.1rem;
+  height: 1lh;
+  margin-right: 0.15rem;
+  opacity: 0;
 }
 
-.dragHandle {
-  padding: 0 0.2rem;
+.entryRow:is(:hover, :focus-within) .entryTools,
+.entryTools:has([aria-expanded="true"]) {
+  opacity: 1;
+}
+
+.grip {
+  display: grid;
+  place-items: center;
+  width: 0.8rem;
+  height: 1.2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
   color: var(--text-tertiary);
+  font-size: 0.85rem;
+  line-height: 1;
   cursor: grab;
   user-select: none;
 }
 
+.grip:hover,
+.grip[aria-expanded="true"] {
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  color: var(--accent-primary);
+}
+
+.grip:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 1px;
+  color: var(--accent-primary);
+}
+
+.entryRow[draggable="true"] {
+  cursor: grabbing;
+}
+
+/* Without hover the grip stays shown, at the end of the name's line in a column of its own. */
+@media (hover: none) {
+  .entryRow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    column-gap: 0.4rem;
+  }
+
+  .entryTools {
+    position: static;
+    height: auto;
+    margin: 0;
+    opacity: 1;
+  }
+}
+
 @media (pointer: coarse) {
-  .entryTools button[aria-haspopup="menu"],
+  .grip,
   .entryTools [role="menuitem"] {
     min-width: 44px;
     min-height: 44px;

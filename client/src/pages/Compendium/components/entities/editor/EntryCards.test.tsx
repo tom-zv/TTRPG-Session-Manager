@@ -465,6 +465,36 @@ describe("traits and actions in edit mode", () => {
     expect(data.actions!.map(action => [action.name, action.actionType])).toEqual([["Claw", "action"], ["Tail", "legendary"]]);
   });
 
+  test("on a focused entry grip, Alt+Up and Alt+Down move the entry with focus kept on its grip, and Delete removes it", async () => {
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, drake);
+    const names = () =>
+      within(sectionNamed(sheet, "Actions")).getAllByRole("button", { name: /^Edit Name of .*, Actions$/ }).map(button => button.textContent);
+    const grip = (entry: string) => sheet.getByRole("button", { name: `Entry options for ${entry}` });
+
+    act(() => grip("Claw").focus());
+    expect(grip("Claw")).toHaveAccessibleDescription(/Alt\+Up or Alt\+Down moves it, Delete removes it/);
+    // The last entry cannot move down: nothing changes and no menu opens.
+    await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
+    expect(names()).toEqual(["Bite", "Claw"]);
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+    await user.keyboard("{Alt>}{ArrowUp}{/Alt}");
+    expect(names()).toEqual(["Claw", "Bite"]);
+    expect(grip("Claw")).toHaveFocus();
+    await user.keyboard("{Alt>}{ArrowDown}{/Alt}");
+    expect(names()).toEqual(["Bite", "Claw"]);
+    expect(grip("Claw")).toHaveFocus();
+
+    await user.keyboard("{Delete}");
+    expect(sheet.queryByRole("button", { name: "Edit Name of Claw, Actions" })).not.toBeInTheDocument();
+    expect(screen.getByText("Deleted Claw. Undo restores it.")).toHaveAttribute("role", "status");
+    expect(sheet.getByRole("button", { name: "+ Add action" })).toHaveFocus();
+
+    const data = await save(user, puts);
+    expect(data.actions!.map(action => action.name)).toEqual(["Bite", "Tail"]);
+  });
+
   test("typing { in a trait's text picks a spell reference and saves its canonical tag", async () => {
     installMatchMedia(1280);
     const user = userEvent.setup();

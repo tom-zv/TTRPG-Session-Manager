@@ -48,6 +48,13 @@
   transform-origin: top right;
 }
 
+/* Opening from a trigger at the start of a line, the menu hangs to its right. */
+.menu[data-align="start"] {
+  right: auto;
+  left: 0;
+  transform-origin: top left;
+}
+
 @keyframes menuFade {
   from {
     opacity: 0;

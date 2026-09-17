@@ -310,11 +310,18 @@
   columns: 18rem 3;
   column-gap: 2rem;
   column-rule: 1px solid var(--border-color);
+  /* The browser never breaks the body itself: columns start only where `sheetColumns.ts` marks a
+     block, so a heading never ends a column and edits do not rebalance it. */
+  column-fill: auto;
 }
 
-/* Editing keeps one column, so the layout does not shift while a value is typed. */
-.sheetEditing .sheetBody {
-  columns: auto;
+.sheetBody [data-column-break] {
+  break-before: column;
+}
+
+/* A section that starts a column lines up with the column tops, like the first one. */
+.sheetBody > section[data-column-break] > h4 {
+  margin-top: 0;
 }
 
 .sheetBody h4 {

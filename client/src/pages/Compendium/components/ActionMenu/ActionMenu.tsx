@@ -23,6 +23,21 @@ type ActionMenuProps = {
   icon?: React.ReactNode;
   /** The trigger button, for a caller that has to focus it again after an action. */
   triggerRef?: RefObject<HTMLButtonElement | null>;
+  /** Replaces the trigger's round icon-button look. */
+  triggerClassName?: string;
+  /** The menu's edge that lines up with the trigger's; "end" (right) by default. */
+  align?: "start" | "end";
+  /** Id of text that describes the trigger, e.g. its keyboard shortcuts. */
+  describedBy?: string;
+  /** Keys on the closed trigger, before it opens the menu; e.g. shortcuts for the items. */
+  onTriggerKeyDown?: (event: React.KeyboardEvent<HTMLButtonElement>) => void;
+  onTriggerPointerDown?: (event: React.PointerEvent<HTMLButtonElement>) => void;
+  /**
+   * Whether a primary press keeps focus where it is until the click (so `beforeOpen` settles an
+   * editor on activation). By default it does whenever there is a `beforeOpen`. Keeping focus
+   * cancels the press, which also keeps it from starting a drag.
+   */
+  keepFocusOnPress?: () => boolean;
 };
 
 /**
@@ -31,7 +46,9 @@ type ActionMenuProps = {
  * Arrow keys, Home and End move between the items. An item with its own items ("Move to
  * section ▸") shows them in the same place, after a Back item; Escape or Left Arrow goes back.
  */
-export const ActionMenu: React.FC<ActionMenuProps> = ({ label, items, beforeOpen, icon, triggerRef: givenTriggerRef }) => {
+export const ActionMenu: React.FC<ActionMenuProps> = ({
+  label, items, beforeOpen, icon, triggerRef: givenTriggerRef, triggerClassName, align = "end", describedBy, onTriggerKeyDown, onTriggerPointerDown, keepFocusOnPress,
+}) => {
   const menuId = useId();
   const [open, setOpen] = useState(false);
   // The submenu shown in place of the items, by its parent's index.
@@ -139,15 +156,20 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({ label, items, beforeOpen
       <button
         ref={triggerRef}
         type="button"
-        className={styles.trigger}
+        className={triggerClassName ?? styles.trigger}
         aria-label={label}
+        aria-describedby={describedBy}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
+        onPointerDown={onTriggerPointerDown}
+        onKeyDown={event => {
+          if (!open) onTriggerKeyDown?.(event);
+        }}
         onMouseDown={event => {
           // Moving focus can settle an editor and move the trigger before the click lands.
           // Keep focus through the press so beforeOpen can settle it on click.
-          if (!open && beforeOpen && event.button === 0) event.preventDefault();
+          if (!open && event.button === 0 && (keepFocusOnPress ? keepFocusOnPress() : beforeOpen !== undefined)) event.preventDefault();
         }}
         onClick={() => {
           if (!open && beforeOpen?.() === false) return;
@@ -165,6 +187,7 @@ export const ActionMenu: React.FC<ActionMenuProps> = ({ label, items, beforeOpen
           aria-label={parent ? parent.label.replace(/\s*▸$/, "") : label}
           tabIndex={-1}
           className={styles.menu}
+          data-align={align}
           onKeyDown={handleMenuKeyDown}
         >
           {parent && (

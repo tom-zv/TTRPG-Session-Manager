@@ -1,4 +1,4 @@
-import React, { useId, useMemo, useState } from "react";
+import React, { useId, useMemo, useRef, useState } from "react";
 import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
 import { EntityEntrySections } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCardSections.js";
 import {
@@ -54,6 +54,7 @@ import { TagListEditor } from "./editor/editors/TagListEditor.js";
 import { TokenEditor } from "./editor/editors/TokenEditor.js";
 import { getProficiencyBonusForCr } from "./editor/model/calculations.js";
 import { SourceBadge } from "./SourceBadge.js";
+import { useSheetColumns } from "./sheetColumns.js";
 import styles from "./Entities.module.css";
 
 const ROLE_LABELS: Record<DnD5eEntityDetails["role"], string> = { pc: "Player character", npc: "NPC", creature: "Creature" };
@@ -152,7 +153,7 @@ export const EntitySheet: React.FC<{
   );
 
   return (
-    <article className={`${styles.sheet} ${editing ? styles.sheetEditing : ""}`} aria-labelledby={headingId}>
+    <article className={styles.sheet} aria-labelledby={headingId}>
       {renderEditHeading?.(title)}
       <header className={styles.sheetHeader}>
         <div className={styles.sheetTitle}>
@@ -230,28 +231,38 @@ export const EntitySheet: React.FC<{
       {hasSpellcasting && <SpellLookupStatus />}
       {/* Editing always shows the body, so "+ Add section" is there on an empty sheet. */}
       {editing ? (
-        <div className={styles.sheetBody}>
+        <SheetBody frozen>
           <EditableEntrySections entity={entity} />
-        </div>
+        </SheetBody>
       ) : (showAllSections ? sections.length > 0 : hasSpellcasting) && (
-        <div className={styles.sheetBody}>
+        <SheetBody>
           <EntityEntrySections entity={entity} kinds={showAllSections ? undefined : SPELLCASTING_ONLY} />
-        </div>
+        </SheetBody>
       )}
 
       {!editing && isPc && hasFeatures && (
         <details className={styles.sheetMore} onToggle={event => setFeaturesOpen(event.currentTarget.open)}>
           <summary>Traits and actions</summary>
           {featuresOpen && (
-            <div className={styles.sheetBody}>
+            <SheetBody>
               <EntityEntrySections entity={entity} kinds={WITHOUT_SPELLCASTING} />
-            </div>
+            </SheetBody>
           )}
         </details>
       )}
       {children}
     </article>
   );
+};
+
+/**
+ * Traits, actions and spellcasting in columns placed by `useSheetColumns`. While editing
+ * (`frozen`) the columns stay put as fields open and text grows.
+ */
+const SheetBody: React.FC<{ frozen?: boolean; children: React.ReactNode }> = ({ frozen = false, children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useSheetColumns(ref, frozen);
+  return <div ref={ref} className={styles.sheetBody}>{children}</div>;
 };
 
 const InfoLines: React.FC<{ lines: EntityInfoLine[] }> = ({ lines }) => (

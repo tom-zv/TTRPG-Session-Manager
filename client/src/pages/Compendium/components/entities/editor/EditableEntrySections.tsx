@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MdMoreHoriz } from "react-icons/md";
+import React, { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
 import {
   ItemLinks,
@@ -279,34 +278,45 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
     else remove(key, false);
   };
 
-  const menuFor = (key: number, section: LayoutSection, index: number, count: number, kind: "trait" | "action", isAdded: boolean): ActionMenuItem[] => [
-    { label: "Move up", disabled: isAdded || index === 0, onSelect: () => relocate(key, section.key, index - 1) },
-    { label: "Move down", disabled: isAdded || index >= count - 1, onSelect: () => relocate(key, section.key, index + 1) },
-    {
-      label: "Move to section ▸",
-      disabled: isAdded,
-      items: sectionChoices(layout, kind).map(choice => ({
-        label: choice.title,
-        disabled: choice.key === section.key,
-        onSelect: () => relocate(key, choice.key),
-      })),
-    },
-    {
-      label: "Delete",
-      onSelect: () => {
-        if (!edit.claim()) return;
-        if (!isAdded) {
-          remove(key, true);
-          return;
-        }
-        const keys = bufferKeys(key);
-        edit.buffer?.forgetLive(keys.name);
-        edit.buffer?.forgetLive(keys.text);
-        setAdded(null);
-        edit.closeTo(`entries.add.${section.key}`);
-      },
-    },
-  ];
+  /**
+   * What an entry's grip offers: its menu, and the same moves and deletion as grip shortcuts
+   * (absent where the menu item is disabled).
+   */
+  const actionsFor = (key: number, section: LayoutSection, index: number, count: number, kind: "trait" | "action", isAdded: boolean): EntryActions => {
+    const moveUp = isAdded || index === 0 ? undefined : () => relocate(key, section.key, index - 1);
+    const moveDown = isAdded || index >= count - 1 ? undefined : () => relocate(key, section.key, index + 1);
+    const remove_ = () => {
+      if (!edit.claim()) return;
+      if (!isAdded) {
+        remove(key, true);
+        return;
+      }
+      const keys = bufferKeys(key);
+      edit.buffer?.forgetLive(keys.name);
+      edit.buffer?.forgetLive(keys.text);
+      setAdded(null);
+      edit.closeTo(`entries.add.${section.key}`);
+    };
+    return {
+      moveUp,
+      moveDown,
+      remove: remove_,
+      items: [
+        { label: "Move up", disabled: !moveUp, onSelect: moveUp },
+        { label: "Move down", disabled: !moveDown, onSelect: moveDown },
+        {
+          label: "Move to section ▸",
+          disabled: isAdded,
+          items: sectionChoices(layout, kind).map(choice => ({
+            label: choice.title,
+            disabled: choice.key === section.key,
+            onSelect: () => relocate(key, choice.key),
+          })),
+        },
+        { label: "Delete", onSelect: remove_ },
+      ],
+    };
+  };
 
   // A new card remounts for each "+ Add", so it never keeps the fields of the previous one.
   const renderCard = (cardHost: EntryCardHost<LayoutItem>, key: string) =>
@@ -333,7 +343,7 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
                 place={place}
                 added={isAdded ? addedHere ?? undefined : undefined}
                 menuLabel={`Entry options for ${row.name.trim() || (isAdded ? "new entry" : "unnamed entry")}`}
-                menuItems={menuFor(key, section, index, texts.length, kind, isAdded)}
+                actions={actionsFor(key, section, index, texts.length, kind, isAdded)}
                 onLeftBlank={() => dropBlank(key)}
                 onDropped={source => relocate(source, section.key, index)}
               />
@@ -441,6 +451,25 @@ const useTakesFocus = (id: string) => {
   return ref;
 };
 
+/**
+ * A press on a grip keeps focus where it is when settling it could move the grip before the click:
+ * an open editor, or a field focused in another entry. Such a press opens the menu, not a drag.
+ */
+const holdsFocusElsewhere = (row: HTMLElement | null, activeId: string | null): boolean => {
+  if (activeId !== null) return true;
+  const focused = document.activeElement;
+  return focused instanceof HTMLElement && focused.matches("input, textarea, select") && !row?.contains(focused);
+};
+
+/** An entry's grip: its menu items, and the moves and deletion its shortcuts run. */
+type EntryActions = {
+  items: ActionMenuItem[];
+  /** Absent where the entry cannot move that way (first, last, or not in the draft yet). */
+  moveUp?: () => void;
+  moveDown?: () => void;
+  remove: () => void;
+};
+
 const endsSentence = (name: string) => /[.!?]$/.test(name.trim());
 
 type EntryRowProps = {
@@ -454,7 +483,7 @@ type EntryRowProps = {
   /** Set while the entry is not in the draft yet. */
   added?: AddedEntry;
   menuLabel: string;
-  menuItems: ActionMenuItem[];
+  actions: EntryActions;
   /** Focus left the entry while its name and text were blank. */
   onLeftBlank: () => void;
   /** Another text entry, by its key, was dropped on this one. */
@@ -463,11 +492,14 @@ type EntryRowProps = {
 
 /**
  * A trait or action in edit mode, laid out as the sheet shows it: the bold run-in name as a field
- * sized by its text, the text as its source textarea, and the "⋯" entry options, last in Tab order
- * and drawn at the end of the name's line, whose place is always kept. On touch and narrow screens the name opens its inline
- * editor (an added entry keeps its name a field until focus leaves it); the text is the same.
+ * sized by its text, then the text, which opens into its source in place. Its ⠿ grip comes last in
+ * Tab order and sits in the margin left of the entry, never over its text: dragging it moves the
+ * entry, a click opens its options, and while it has focus Alt+Up / Alt+Down move the entry and
+ * Delete removes it. On touch the grip takes a column of its own. On touch and narrow screens the
+ * name opens its inline editor (an added entry keeps its name a field until focus leaves it); the
+ * text is the same.
  */
-const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menuLabel, menuItems, onLeftBlank, onDropped }) => {
+const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menuLabel, actions, onLeftBlank, onDropped }) => {
   const edit = useActiveEdit();
   const liveAt = useLiveRegion();
   const rowRef = useRef<HTMLDivElement>(null);
@@ -507,17 +539,41 @@ const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menu
     getItemName: () => row.name,
   });
 
+  // A press on the grip makes the row draggable for that press, so the whole row is what moves
+  // (a button is not a drag source in every browser).
+  const gripHelpId = useId();
+  const [dragArmed, setDragArmed] = useState(false);
+  useEffect(() => {
+    if (!dragArmed) return undefined;
+    const disarm = () => setDragArmed(false);
+    window.addEventListener("pointerup", disarm);
+    window.addEventListener("pointercancel", disarm);
+    return () => {
+      window.removeEventListener("pointerup", disarm);
+      window.removeEventListener("pointercancel", disarm);
+    };
+  }, [dragArmed]);
+
   const name = row.name.trim();
   return (
     <div
       ref={rowRef}
       {...dropAreaProps}
       className={`${styles.entryRow} ${dropAreaProps.className}`}
+      draggable={dragArmed || undefined}
+      onDragStart={event => {
+        if (event.target === rowRef.current) handleDragStart(event, [{ index: rowKey }]);
+      }}
+      onDragEnd={event => {
+        setDragArmed(false);
+        handleDragEnd(event);
+      }}
       onBlur={event => {
         if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) setLeft(count => count + 1);
       }}
     >
-      <p className={`${cardStyles.entry} ${styles.entryHead}`}>
+      {/* One line as view mode draws it: the bold run-in name, then the text continuing its line. */}
+      <div className={`${cardStyles.entry} ${styles.entryHead}`}>
         <strong className={`${cardStyles.entryName} ${styles.entryName}`}>
           {nameLive ? (
             <span onBlur={() => setHolding(false)}>
@@ -536,9 +592,7 @@ const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menu
             </EditTarget>
           )}
           {name && !endsSentence(name) && "."}
-        </strong>
-      </p>
-      <div className={styles.entryText}>
+        </strong>{" "}
         <LiveSourceText
           id={fields.text.id}
           bufferKey={keys.text}
@@ -546,30 +600,40 @@ const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menu
           read={fields.text.read}
           parse={fields.text.parse}
           placeholder="Text. Type { to link a spell or item."
+          inline
+          className={cardStyles.entryText}
         />
       </div>
-      {/* After the text, so Tab goes name, text, options; drawn at the end of the name's line. */}
-      {/* Always there, so hover and focus move nothing; focusing it settles any open editor. */}
+      {/* After the text, so Tab goes name, text, grip. Drawn in the margin left of the entry. */}
+      {/* Focusing it settles any open editor. */}
       <span className={styles.entryTools} onFocus={() => void edit.claim()}>
-        {!added && (
-          <span
-            className={styles.dragHandle}
-            draggable
-            title="Drag onto another entry to move it there"
-            aria-hidden="true"
-            onDragStart={event => handleDragStart(event, [{ index: rowKey }])}
-            onDragEnd={handleDragEnd}
-          >
-            ⠿
-          </span>
-        )}
         <ActionMenu
           label={menuLabel}
-          items={menuItems}
+          items={actions.items}
           beforeOpen={() => edit.claim()}
-          icon={<MdMoreHoriz aria-hidden="true" />}
+          icon={<span aria-hidden="true">⠿</span>}
           triggerRef={menuRef}
+          triggerClassName={styles.grip}
+          align="start"
+          describedBy={gripHelpId}
+          keepFocusOnPress={() => holdsFocusElsewhere(rowRef.current, edit.activeId)}
+          onTriggerPointerDown={event => {
+            if (event.button === 0 && !added && !holdsFocusElsewhere(rowRef.current, edit.activeId)) setDragArmed(true);
+          }}
+          onTriggerKeyDown={event => {
+            const plain = !event.ctrlKey && !event.metaKey && !event.shiftKey;
+            const run = (action: (() => void) | undefined) => {
+              event.preventDefault();
+              action?.();
+            };
+            if (plain && event.altKey && event.key === "ArrowUp") run(actions.moveUp);
+            else if (plain && event.altKey && event.key === "ArrowDown") run(actions.moveDown);
+            else if (plain && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) run(actions.remove);
+          }}
         />
+        <span id={gripHelpId} hidden>
+          {added ? "Delete removes it." : "Drag to move it. Alt+Up or Alt+Down moves it, Delete removes it."}
+        </span>
       </span>
     </div>
   );
@@ -617,7 +681,8 @@ const EntrySlot: React.FC<EntrySlotProps> = ({ id, item, label, sectionKey, posi
 
 const AddButton: React.FC<{ id: string; label: string; onClick: () => void }> = ({ id, label, onClick }) => {
   const ref = useTakesFocus(id);
-  return <button ref={ref} type="button" className={editStyles.placeholder} onClick={onClick}>+ {label}</button>;
+  // Stays in the column of the entry above it (`sheetColumns.ts`).
+  return <button ref={ref} type="button" className={editStyles.placeholder} data-column-keep onClick={onClick}>+ {label}</button>;
 };
 
 /** The legendary section's count and introduction, edited where they are shown. */
