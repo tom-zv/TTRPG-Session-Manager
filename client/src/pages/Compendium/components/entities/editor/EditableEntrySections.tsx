@@ -1,24 +1,18 @@
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
-import type { DnD5eEntityDetails } from "shared/domain/encounters/dnd5e/entity.js";
-import {
-  ItemLinks,
-  SpellcastingEntry,
-  SpellLinks,
-} from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCardSections.js";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import type { DnD5eEntityDetails, EntitySpellcasting } from "shared/domain/encounters/dnd5e/entity.js";
+import { ItemLinks, SpellLinks } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCardSections.js";
 import { getSectionTitle, normalizeEntrySection } from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.utils.js";
 import cardStyles from "src/pages/EncounterManager/components/dnd5e/Shared/DnD5eEntityCard/DnD5eEntityCard.module.css";
-import { useDragSource } from "src/hooks/useDragSource.js";
-import { useDropTarget } from "src/hooks/useDropTarget.js";
-import { ActionMenu, type ActionMenuItem } from "../../ActionMenu/ActionMenu.js";
 import { EditTarget } from "../../sheetEditor/EditTarget.js";
-import { ENTRY_DRAG_TYPE, type EntryCardHost, type EntryDropHandler } from "../../sheetEditor/EntryCardFrame.js";
-import { LiveInput, LiveSpecField, useLiveTarget } from "../../sheetEditor/live/LiveField.js";
+import { commitParse } from "../../sheetEditor/fieldSpec.js";
+import { LiveInput, LiveSpecField } from "../../sheetEditor/live/LiveField.js";
 import { LiveSourceText } from "../../sheetEditor/live/LiveSourceText.js";
 import { useActiveEdit, useLiveRegion } from "./EntityEditContext.js";
+import { EntryGrip, useEntryDrag, type EntryActions } from "./editors/EntryGrip.js";
 import { EntryNameEditor, LegendaryCountEditor } from "./editors/InlineEditors.js";
 import { entryFieldSpec, entryFields, LEGENDARY_COUNT_FIELD, type AddedEntry, type TextEntryRow } from "./model/fields.js";
 import { LegendaryHeaderEditor } from "./editors/LegendaryHeaderEditor.js";
-import { SpellcastingCard } from "./editors/SpellcastingCard.js";
+import { SpellcastingBlock } from "./editors/SpellcastingBlock.js";
 import { entryKey } from "./model/entryKeys.js";
 import {
   compareSections,
@@ -29,27 +23,23 @@ import {
   moveItem,
   readLayout,
   removeItem,
-  replaceItem,
   sectionChoices,
-  writeItem,
   writeLayout,
   type LayoutAt,
-  type LayoutItem,
   type LayoutSection,
   type LayoutWrite,
 } from "./model/entryLayout.js";
 import { AUTO_SPELLCASTING } from "./model/inference.js";
+import { setListHidden } from "./model/spellcastingFields.js";
 import { RichText } from "../../RichText/RichText.js";
 import { getAddableSections } from "./model/sectionCatalog.js";
 import editStyles from "../../sheetEditor/SheetEditor.module.css";
 import styles from "./editors/EntryCards.module.css";
 
-/** The editor id of the card for a spellcasting block that is not in the draft yet. */
-const NEW_ENTRY_ID = "entries.new";
 /** The issue id prefix of the fields of a trait or action that is not in the draft yet. */
 const ADDED_ID = "entries.added";
 const ADD_SECTION_ID = "entries.addSection";
-/** Text entries are dragged by their key, spellcasting cards by their position, so the two never mix. */
+/** Text entries are dragged by their key, so they drop only on other text entries. */
 const TEXT_ENTRY_DRAG_TYPE = "sheet-text-entry";
 
 /** What "+ Add …" says in each standard section. */
@@ -66,9 +56,7 @@ const ENTRY_NOUNS: Record<string, string> = {
   villain: "villain action",
 };
 
-/** A new spellcasting block whose card is open; it joins the draft when the card saves with something in it. */
-type Pending = { sectionKey: string; item: LayoutItem; returnId: string; serial: number };
-
+type LayoutItem = LayoutSection["items"][number];
 const isText = (item: LayoutItem) => item.kind !== "spellcasting";
 const listOf = (item: LayoutItem) => (item.kind === "trait" ? "traits" : item.kind === "action" ? "actions" : "spellcasting");
 const isBlank = (row: TextEntryRow) => !row.name.trim() && !row.description.trim();
@@ -84,19 +72,16 @@ const locateKey = (layout: readonly LayoutSection[], key: number): LayoutAt | nu
 };
 
 /**
- * The sheet's traits, actions, legendary text and spellcasting while editing. A trait or action is
- * edited in place: its name is a field and its text the source textarea, with an "Entry options"
- * menu to move or delete it. A spellcasting block renders as in view mode, with links as plain
- * text, and opens as a card when clicked. Every section can add an entry, and "+ Add section" adds
- * the first entry of a section that is not there yet.
+ * The sheet's traits, actions, legendary text and spellcasting while editing, all edited in place.
+ * A trait or action's name is a field and its text the source textarea; a spellcasting block's
+ * name, text, ability line and spell lists are edited where they are shown
+ * (`SpellcastingBlock`). Each entry has an "Entry options" grip to move or delete it. Every
+ * section can add an entry, and "+ Add section" adds the first entry of a section that is not
+ * there yet.
  */
 export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = ({ entity }) => {
   const edit = useActiveEdit();
   const layout = useMemo(() => readLayout(entity, edit.modes.spellcasting), [entity, edit.modes.spellcasting]);
-  // A new block's card reopens after a reader remount from the draft slot's buffer.
-  const [pending, setPending] = useState<Pending | null>(() => {
-    return edit.activeId === NEW_ENTRY_ID ? (edit.buffer?.restoreNewEntry() as Pending | null | undefined) ?? null : null;
-  });
   // An added trait or action comes back after a remount (Resume, a breakpoint) while text typed into it is kept.
   const [added, setAdded] = useState<AddedEntry | null>(() => {
     const kept = (edit.buffer?.restoreAddedRow() as AddedEntry | null | undefined) ?? null;
@@ -105,11 +90,6 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
     return edit.buffer?.restoreLive(keys.name) || edit.buffer?.restoreLive(keys.text) ? kept : null;
   });
   const [status, setStatus] = useState("");
-  const [channel] = useState(createCardChannel);
-  const openPending = pending && edit.activeId === NEW_ENTRY_ID ? pending : null;
-  useEffect(() => {
-    if (edit.activeId === NEW_ENTRY_ID) edit.buffer?.keepNewEntry(openPending);
-  });
 
   // Once its name or text applied, the added entry is in the draft, where it keeps its key.
   const addedKey = added ? entryKey(added.row) : null;
@@ -122,94 +102,34 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
 
   // A new entry's section joins the list where the sheet would show it.
   const sections = useMemo(() => {
-    const newSection = openPending?.sectionKey ?? shownAdded?.sectionKey;
+    const newSection = shownAdded?.sectionKey;
     if (newSection === undefined || layout.some(section => section.key === newSection)) return layout;
     const shell: LayoutSection = { key: newSection, title: getSectionTitle(newSection), items: [] };
     return [...layout, shell].sort((left, right) => compareSections(left.key, right.key));
-  }, [layout, openPending, shownAdded]);
+  }, [layout, shownAdded]);
 
-  const commitWrite = (write: LayoutWrite) => {
-    const problem = edit.commit(write.patch, write.modes);
-    if (!problem) channel.setMoved(write.moved);
-    return problem;
-  };
+  const commitWrite = (write: LayoutWrite) => edit.commit(write.patch, write.modes);
 
-  // Spellcasting cards ----------------------------------------------------------------------------
+  // Spellcasting blocks ---------------------------------------------------------------------------
 
-  const save = (at: LayoutAt | null, sectionKey: string, item: LayoutItem | null, move?: { to?: number; section?: string }) => {
-    const before = at ? layout[at.section].items[at.item] : null;
-    const fromId = before?.origin ? entryId(before.origin) : undefined;
-    if (item === null) {
-      if (!at || !before) return {};
-      const next = removeItem(layout, at);
-      const problem = commitWrite(writeLayout(layout, next, new Set([listOf(before)]), undefined, fromId));
-      return { problem, id: problem ? undefined : focusAfterRemoval(next[at.section], entity) };
-    }
-    const staysPut = move?.to === undefined && (move?.section === undefined || move.section === sectionKey);
-    if (before?.origin && staysPut) {
-      // An untouched card changes nothing; an edited one replaces its own row only.
-      if (item === before) return { id: fromId };
-      return { problem: commitWrite(writeItem(entity, edit.modes.spellcasting, { ...item, origin: before.origin })), id: fromId };
-    }
-    let next = at ? replaceItem(layout, at, item) : insertItem(layout, sectionKey, item);
-    let current = item;
-    if (move?.section !== undefined && move.section !== sectionKey) {
-      next = removeItem(next, locateItem(next, item)!);
-      current = itemForSection(item, move.section);
-      next = insertItem(next, move.section, current);
-    } else if (move?.to !== undefined) {
-      const moved = moveItem(next, locateItem(next, item)!, move.to);
-      if (!moved) return { problem: "This entry cannot move there." };
-      next = moved;
-    }
-    const write = writeLayout(layout, next, new Set([listOf(before ?? item), listOf(current)]), current, fromId);
+  /**
+   * Adds a block named "Spellcasting" at the end of the section's blocks, one draft change, and
+   * puts focus in its name (on targets, its name's editor opens) to type over it.
+   */
+  const startSpellcasting = (sectionKey: string) => {
+    if (!edit.claim()) return;
+    const value: EntitySpellcasting = { name: "Spellcasting", descriptions: [] };
+    const item = itemForSection({ kind: "spellcasting", value, modes: AUTO_SPELLCASTING }, sectionKey);
+    const write = writeLayout(layout, insertItem(layout, sectionKey, item), new Set(["spellcasting"]), item);
     const problem = commitWrite(write);
-    return { problem, id: write.tracked };
-  };
-
-  /** Opens a block's card, by the id the block has once the open card has saved. */
-  const openEntry = (id: string) => {
-    channel.setMoved(null);
-    edit.open(() => {
-      const moved = channel.takeMoved();
-      return moved?.has(id) ? moved.get(id) ?? null : id;
-    });
-  };
-
-  const host = (
-    id: string,
-    item: LayoutItem,
-    section: LayoutSection,
-    at: LayoutAt | null,
-    returnId: string,
-  ): EntryCardHost<LayoutItem> => {
-    // Blocks come after the section's text entries; positions count among the blocks.
-    const blocks = section.items.filter(candidate => !isText(candidate));
-    const offset = section.items.length - blocks.length;
-    return {
-      id,
-      label: `${item.value.name.trim() || (at ? "unnamed entry" : "new entry")}, ${section.title}`,
-      item,
-      isNew: at === null,
-      sectionKey: section.key,
-      group: "spellcasting",
-      position: at ? { index: at.item - offset, count: blocks.length } : { index: 0, count: 1 },
-      sectionChoices: sectionChoices(layout, item.kind),
-      save: (value, move) => save(at, section.key, value, move?.to !== undefined && at ? { to: move.to + offset } : move),
-      returnId,
-      initialFocus: () => channel.initialFocusFor(id),
-      setInitialFocus: channel.setInitialFocus,
-      registerDrop: channel.registerDrop,
-      announce: setStatus,
-    };
-  };
-
-  const startSpellcasting = (sectionKey: string, returnId: string) => {
-    // The open editor saves first; an invalid one stays open, and no new card starts.
-    if (!edit.open(NEW_ENTRY_ID)) return;
-    const item = itemForSection({ kind: "spellcasting", value: { name: "", descriptions: [] }, modes: AUTO_SPELLCASTING }, sectionKey);
-    setPending(previous => ({ sectionKey, item, returnId, serial: (previous?.serial ?? 0) + 1 }));
+    if (problem) {
+      setStatus(problem);
+      return;
+    }
     setStatus("");
+    if (!write.tracked) return;
+    if (edit.presentation === "live") edit.requestLiveFocus(`${write.tracked}.name`);
+    else edit.open(`${write.tracked}.name`);
   };
 
   // Traits and actions ----------------------------------------------------------------------------
@@ -282,9 +202,22 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
    * What an entry's grip offers: its menu, and the same moves and deletion as grip shortcuts
    * (absent where the menu item is disabled).
    */
-  const actionsFor = (key: number, section: LayoutSection, index: number, count: number, kind: "trait" | "action", isAdded: boolean): EntryActions => {
-    const moveUp = isAdded || index === 0 ? undefined : () => relocate(key, section.key, index - 1);
-    const moveDown = isAdded || index >= count - 1 ? undefined : () => relocate(key, section.key, index + 1);
+  const actionsFor = (
+    key: number,
+    section: LayoutSection,
+    { index, count, offset = 0, kind, isAdded = false, extra = [] }: {
+      /** Position among the entries of its group in the section (text entries, or blocks after them at `offset`). */
+      index: number;
+      count: number;
+      offset?: number;
+      kind: LayoutItem["kind"];
+      isAdded?: boolean;
+      /** Items of this kind of entry, listed before Delete. */
+      extra?: EntryActions["items"];
+    },
+  ): EntryActions => {
+    const moveUp = isAdded || index === 0 ? undefined : () => relocate(key, section.key, offset + index - 1);
+    const moveDown = isAdded || index >= count - 1 ? undefined : () => relocate(key, section.key, offset + index + 1);
     const remove_ = () => {
       if (!edit.claim()) return;
       if (!isAdded) {
@@ -313,21 +246,28 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
             onSelect: () => relocate(key, choice.key),
           })),
         },
+        ...extra,
         { label: "Delete", onSelect: remove_ },
       ],
     };
   };
 
-  // A new card remounts for each "+ Add", so it never keeps the fields of the previous one.
-  const renderCard = (cardHost: EntryCardHost<LayoutItem>, key: string) =>
-    cardHost.item.kind === "spellcasting" ? <SpellcastingCard key={key} host={cardHost} item={cardHost.item} /> : null;
+  /** A block's "Hide spell list" / "Show spell list": one draft change, focus back on its grip. */
+  const listVisibility = (key: number, id: string, hidden: boolean): EntryActions["items"][number] => ({
+    label: hidden ? "Show spell list" : "Hide spell list",
+    onSelect: () => {
+      if (!edit.claim()) return;
+      const problem = commitParse(edit, setListHidden(edit.draft, edit.modes, key, !hidden));
+      setStatus(problem ?? "");
+      if (!problem) edit.requestLiveFocus(`${id}.menu`);
+    },
+  });
 
   return (
     <SpellLinks.Provider value={undefined}>
       <ItemLinks.Provider value={undefined}>
-        {sections.map((section, sectionIndex) => {
+        {sections.map(section => {
           const addId = `entries.add.${section.key}`;
-          const pendingHere = openPending?.sectionKey === section.key ? openPending : null;
           const addedHere = shownAdded?.sectionKey === section.key ? shownAdded : null;
           const texts = section.items.filter(isText);
           const kind = section.key === "trait" ? "trait" : "action";
@@ -343,12 +283,23 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
                 place={place}
                 added={isAdded ? addedHere ?? undefined : undefined}
                 menuLabel={`Entry options for ${row.name.trim() || (isAdded ? "new entry" : "unnamed entry")}`}
-                actions={actionsFor(key, section, index, texts.length, kind, isAdded)}
+                actions={actionsFor(key, section, { index, count: texts.length, kind, isAdded })}
                 onLeftBlank={() => dropBlank(key)}
                 onDropped={source => relocate(source, section.key, index)}
               />
             );
           };
+          // "+ Add" follows what it adds: a trait or action comes before the section's spellcasting
+          // blocks, which the sheet always lists last; "+ Add spellcasting" follows the blocks.
+          const addButton = (
+            <AddButton
+              id={addId}
+              label={`Add ${ENTRY_NOUNS[section.key] ?? `${section.title.toLowerCase()} entry`}`}
+              onClick={() => (section.key === "spellcasting"
+                ? startSpellcasting(section.key)
+                : startText(section.key, section.items.find(candidate => candidate.kind === "action")?.value.actionType ?? section.key))}
+            />
+          );
           return (
             <section key={section.key} className={cardStyles.entrySection}>
               <h4 className={cardStyles.sectionTitle}>{section.title}</h4>
@@ -359,33 +310,33 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
                   ...texts.map((item, index) => textRow(item.value as TextEntryRow, entryId(item.origin!), index, false)),
                   ...(addedHere ? [textRow(addedHere.row, ADDED_ID, texts.length, true)] : []),
                 ]}
-                {section.items.map((item, index) => {
-                  if (isText(item)) return null;
+                {section.key !== "spellcasting" && addButton}
+                {section.items.filter(item => !isText(item)).map((item, index, blocks) => {
+                  if (item.kind !== "spellcasting") return null;
                   const id = entryId(item.origin!);
-                  const at = { section: sectionIndex, item: index };
-                  return edit.activeId === id
-                    ? renderCard(host(id, item, section, at, addId), `${id}#${entryKey(item.value)}`)
-                    : (
-                      <EntrySlot
-                        key={id}
-                        id={id}
-                        item={item}
-                        label={`${item.value.name.trim() || "unnamed entry"}, ${section.title}`}
-                        sectionKey={section.key}
-                        position={index - texts.length}
-                        onOpen={openEntry}
-                        onDrop={channel.dropOn}
-                      />
-                    );
+                  const key = entryKey(item.value);
+                  const name = item.value.name.trim() || "unnamed entry";
+                  return (
+                    <SpellcastingBlock
+                      key={`block-${key}`}
+                      rowKey={key}
+                      id={id}
+                      block={item.value}
+                      place={`${name}, ${section.title}`}
+                      menuLabel={`Entry options for ${name}`}
+                      actions={actionsFor(key, section, {
+                        index,
+                        count: blocks.length,
+                        offset: texts.length,
+                        kind: "spellcasting",
+                        extra: [listVisibility(key, id, Boolean(item.value.hideSpellList))],
+                      })}
+                      onDropped={source => relocate(source, section.key, texts.length + index)}
+                      announce={setStatus}
+                    />
+                  );
                 })}
-                {pendingHere && renderCard(host(NEW_ENTRY_ID, pendingHere.item, section, null, pendingHere.returnId), `new-${pendingHere.serial}`)}
-                <AddButton
-                  id={addId}
-                  label={`Add ${ENTRY_NOUNS[section.key] ?? `${section.title.toLowerCase()} entry`}`}
-                  onClick={() => (section.key === "spellcasting"
-                    ? startSpellcasting(section.key, addId)
-                    : startText(section.key, section.items.find(candidate => candidate.kind === "action")?.value.actionType ?? section.key))}
-                />
+                {section.key === "spellcasting" && addButton}
               </div>
             </section>
           );
@@ -393,7 +344,7 @@ export const EditableEntrySections: React.FC<{ entity: DnD5eEntityDetails }> = (
         <AddSectionMenu
           sections={sections}
           onChoose={(sectionKey, kind, actionType) => (kind === "spellcasting"
-            ? startSpellcasting(sectionKey, ADD_SECTION_ID)
+            ? startSpellcasting(sectionKey)
             : startText(sectionKey, actionType ?? sectionKey))}
         />
         <p role="status" className={styles.status}>{edit.activeId === null ? status : ""}</p>
@@ -411,37 +362,7 @@ const focusAfterRemoval = (section: LayoutSection, entity: DnD5eEntityDetails): 
   return kept ? `entries.add.${section.key}` : ADD_SECTION_ID;
 };
 
-/**
- * What passes between the sections and an open spellcasting card outside rendering: the control a
- * card reopened by a move focuses, the open card's drop handler, and where the entries went in the
- * last entry commit (a block clicked while another card was open may have a new id once that card
- * saves). Created once per sections.
- */
-const createCardChannel = () => {
-  let initialFocus: { id: string; control: string } | null = null;
-  let drop: EntryDropHandler | null = null;
-  let moved: LayoutWrite["moved"] | null = null;
-  return {
-    setMoved: (next: LayoutWrite["moved"] | null) => {
-      moved = next;
-    },
-    takeMoved: (): LayoutWrite["moved"] | null => {
-      const last = moved;
-      moved = null;
-      return last;
-    },
-    initialFocusFor: (id: string): string | null => (initialFocus?.id === id ? initialFocus.control : null),
-    setInitialFocus: (id: string | null, control?: string) => {
-      initialFocus = id && control ? { id, control } : null;
-    },
-    registerDrop: (handler: EntryDropHandler | null) => {
-      drop = handler;
-    },
-    dropOn: (target: Parameters<EntryDropHandler>[0]) => drop?.(target),
-  };
-};
-
-/** Focus comes back to this target when a card that closed, or a removal, asked for it. */
+/** Focus comes back to this target when an editor that closed, or a removal, asked for it. */
 const useTakesFocus = (id: string) => {
   const edit = useActiveEdit();
   const ref = useRef<HTMLButtonElement>(null);
@@ -449,25 +370,6 @@ const useTakesFocus = (id: string) => {
     if (edit.takeFocus(id)) ref.current?.focus();
   });
   return ref;
-};
-
-/**
- * A press on a grip keeps focus where it is when settling it could move the grip before the click:
- * an open editor, or a field focused in another entry. Such a press opens the menu, not a drag.
- */
-const holdsFocusElsewhere = (row: HTMLElement | null, activeId: string | null): boolean => {
-  if (activeId !== null) return true;
-  const focused = document.activeElement;
-  return focused instanceof HTMLElement && focused.matches("input, textarea, select") && !row?.contains(focused);
-};
-
-/** An entry's grip: its menu items, and the moves and deletion its shortcuts run. */
-type EntryActions = {
-  items: ActionMenuItem[];
-  /** Absent where the entry cannot move that way (first, last, or not in the draft yet). */
-  moveUp?: () => void;
-  moveDown?: () => void;
-  remove: () => void;
 };
 
 const endsSentence = (name: string) => /[.!?]$/.test(name.trim());
@@ -502,9 +404,7 @@ type EntryRowProps = {
 const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menuLabel, actions, onLeftBlank, onDropped }) => {
   const edit = useActiveEdit();
   const liveAt = useLiveRegion();
-  const rowRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLButtonElement>(null);
-  useLiveTarget([`${id}.menu`], menuRef);
+  const { rowRef, rowProps, arm } = useEntryDrag({ type: TEXT_ENTRY_DRAG_TYPE, rowKey, name: row.name, onDropped });
   const fields = entryFields({ key: rowKey, id, place, added });
   const keys = bufferKeys(rowKey);
   // On targets an added entry's name is typed in place, like a live field, until focus leaves it.
@@ -525,49 +425,11 @@ const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [left]);
 
-  const { dropAreaProps } = useDropTarget<{ index: number }>({
-    acceptedTypes: [TEXT_ENTRY_DRAG_TYPE],
-    onItemsDropped: async items => {
-      const source = items[0]?.index;
-      if (source !== undefined && source !== rowKey) onDropped(source);
-    },
-  });
-  const { handleDragStart, handleDragEnd } = useDragSource<{ index: number }>({
-    contentType: TEXT_ENTRY_DRAG_TYPE,
-    mode: "reorder",
-    getItemId: item => item.index,
-    getItemName: () => row.name,
-  });
-
-  // A press on the grip makes the row draggable for that press, so the whole row is what moves
-  // (a button is not a drag source in every browser).
-  const gripHelpId = useId();
-  const [dragArmed, setDragArmed] = useState(false);
-  useEffect(() => {
-    if (!dragArmed) return undefined;
-    const disarm = () => setDragArmed(false);
-    window.addEventListener("pointerup", disarm);
-    window.addEventListener("pointercancel", disarm);
-    return () => {
-      window.removeEventListener("pointerup", disarm);
-      window.removeEventListener("pointercancel", disarm);
-    };
-  }, [dragArmed]);
-
   const name = row.name.trim();
   return (
     <div
-      ref={rowRef}
-      {...dropAreaProps}
-      className={`${styles.entryRow} ${dropAreaProps.className}`}
-      draggable={dragArmed || undefined}
-      onDragStart={event => {
-        if (event.target === rowRef.current) handleDragStart(event, [{ index: rowKey }]);
-      }}
-      onDragEnd={event => {
-        setDragArmed(false);
-        handleDragEnd(event);
-      }}
+      {...rowProps}
+      className={`${styles.entryRow} ${rowProps.className}`}
       onBlur={event => {
         if (!(event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget))) setLeft(count => count + 1);
       }}
@@ -604,77 +466,8 @@ const EntryRow: React.FC<EntryRowProps> = ({ rowKey, id, row, place, added, menu
           className={cardStyles.entryText}
         />
       </div>
-      {/* After the text, so Tab goes name, text, grip. Drawn in the margin left of the entry. */}
-      {/* Focusing it settles any open editor. */}
-      <span className={styles.entryTools} onFocus={() => void edit.claim()}>
-        <ActionMenu
-          label={menuLabel}
-          items={actions.items}
-          beforeOpen={() => edit.claim()}
-          icon={<span aria-hidden="true">⠿</span>}
-          triggerRef={menuRef}
-          triggerClassName={styles.grip}
-          align="start"
-          describedBy={gripHelpId}
-          keepFocusOnPress={() => holdsFocusElsewhere(rowRef.current, edit.activeId)}
-          onTriggerPointerDown={event => {
-            if (event.button === 0 && !added && !holdsFocusElsewhere(rowRef.current, edit.activeId)) setDragArmed(true);
-          }}
-          onTriggerKeyDown={event => {
-            const plain = !event.ctrlKey && !event.metaKey && !event.shiftKey;
-            const run = (action: (() => void) | undefined) => {
-              event.preventDefault();
-              action?.();
-            };
-            if (plain && event.altKey && event.key === "ArrowUp") run(actions.moveUp);
-            else if (plain && event.altKey && event.key === "ArrowDown") run(actions.moveDown);
-            else if (plain && !event.altKey && (event.key === "Delete" || event.key === "Backspace")) run(actions.remove);
-          }}
-        />
-        <span id={gripHelpId} hidden>
-          {added ? "Delete removes it." : "Drag to move it. Alt+Up or Alt+Down moves it, Delete removes it."}
-        </span>
-      </span>
-    </div>
-  );
-};
-
-type EntrySlotProps = {
-  id: string;
-  item: LayoutItem;
-  label: string;
-  sectionKey: string;
-  /** Position among the section's spellcasting blocks, where a dropped card lands. */
-  position: number;
-  onOpen: (id: string) => void;
-  onDrop: EntryDropHandler;
-};
-
-/** A spellcasting block as the sheet shows it; its name is the button that opens its card, and so is a click on its text. */
-const EntrySlot: React.FC<EntrySlotProps> = ({ id, item, label, sectionKey, position, onOpen, onDrop }) => {
-  const triggerRef = useTakesFocus(id);
-  const { dropAreaProps } = useDropTarget<{ index: number }>({
-    acceptedTypes: [ENTRY_DRAG_TYPE],
-    onItemsDropped: async () => onDrop({ sectionKey, group: "spellcasting", position }),
-  });
-  const renderName = (formatted: string) => (
-    <button ref={triggerRef} type="button" className={editStyles.target} aria-label={`Edit ${label}`} aria-expanded={false} onClick={() => onOpen(id)}>
-      {formatted}
-    </button>
-  );
-  if (item.kind !== "spellcasting") return null;
-
-  return (
-    // The name is the keyboard target; a click anywhere on the text is the same for a pointer.
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-    <div
-      {...dropAreaProps}
-      className={`${styles.slot} ${dropAreaProps.className}`}
-      onClick={event => {
-        if (!(event.target instanceof Element) || !event.target.closest("button, a, input, textarea, select")) onOpen(id);
-      }}
-    >
-      <SpellcastingEntry spellcasting={item.value} renderName={renderName} />
+      {/* After the text, so Tab goes name, text, grip. An added entry cannot be dragged yet. */}
+      <EntryGrip id={id} label={menuLabel} actions={actions} rowRef={rowRef} arm={added ? undefined : arm} />
     </div>
   );
 };
@@ -682,7 +475,7 @@ const EntrySlot: React.FC<EntrySlotProps> = ({ id, item, label, sectionKey, posi
 const AddButton: React.FC<{ id: string; label: string; onClick: () => void }> = ({ id, label, onClick }) => {
   const ref = useTakesFocus(id);
   // Stays in the column of the entry above it (`sheetColumns.ts`).
-  return <button ref={ref} type="button" className={editStyles.placeholder} data-column-keep onClick={onClick}>+ {label}</button>;
+  return <button ref={ref} type="button" className={`${editStyles.placeholder} ${styles.addEntry}`} data-column-keep onClick={onClick}>+ {label}</button>;
 };
 
 /** The legendary section's count and introduction, edited where they are shown. */

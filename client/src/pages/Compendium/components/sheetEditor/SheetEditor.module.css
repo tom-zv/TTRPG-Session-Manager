@@ -11,28 +11,79 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.2rem 0.8rem;
+  gap: 0.2rem 0.75rem;
   margin-bottom: calc(var(--sheet-title-gap, 0.2rem) - var(--sheet-gap, 0.9rem));
   background: color-mix(in srgb, var(--bg-secondary) 45%, var(--bg-primary));
 }
 
+/* The status then the buttons, filling the row after the title (or a row of its own when narrow). */
 .toolbar {
   display: flex;
+  flex: 1 1 18rem;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.15rem;
   /* A sheet's own toolbar item (an options menu) may be taller than the title; it overlaps instead of
      making the heading row taller than the title it replaces. */
   margin-block: -0.2rem;
+  min-width: 0;
   max-width: 100%;
   font-size: 0.78rem;
   color: var(--text-secondary);
 }
 
-.toolbar > span {
-  margin-inline-end: 0.3rem;
+/* "Editing · 2 changes": a dot (amber while unsaved), then the text. It takes the spare width and
+   truncates, so a longer count or the unapplied notice never moves a button. Its basis is 0, so it
+   never makes the toolbar wrap either. */
+.status {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+  margin: 0 0.4rem 0 0;
+  overflow: hidden;
+  color: var(--text-tertiary);
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
+}
+
+.status::before {
+  content: "";
+  flex: none;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--accent-secondary);
+}
+
+.status[data-dirty]::before {
+  background: var(--accent-warning);
+}
+
+.statusText,
+.unapplied {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unapplied {
+  color: var(--error-color, #e06c75);
+}
+
+.unapplied::before {
+  content: "· ";
+  color: var(--text-tertiary);
+}
+
+/* Separates the history buttons from Cancel and Save. */
+.toolbarDivider {
+  flex: none;
+  width: 1px;
+  height: 1rem;
+  margin-inline: 0.3rem;
+  background: var(--border-color);
 }
 
 .toolbar button {
@@ -75,22 +126,6 @@
     min-width: 44px;
     min-height: 44px;
   }
-}
-
-.unapplied {
-  display: inline-grid;
-  margin: 0;
-  color: var(--error-color, #e06c75);
-  font-size: 0.8rem;
-}
-
-/* The notice and its sizer share one cell, so the reserved room fits every count. */
-.unapplied > span {
-  grid-area: 1 / 1;
-}
-
-.unappliedSizer {
-  visibility: hidden;
 }
 
 .error {
@@ -236,21 +271,78 @@
   cursor: pointer;
 }
 
-.confirm > p {
-  margin: 0;
-  flex: 1 1 16rem;
-}
-
+/* A question under the toolbar's right end (`ConfirmPrompt`), over the sheet: quiet, small, and
+   with the safe choice as the plain button. */
 .confirm {
+  position: absolute;
+  top: calc(100% + 0.3rem);
+  right: 0;
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 0.5rem;
-  margin: 0 0 0.75rem;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--accent-primary);
+  width: max-content;
+  max-width: min(22rem, 100%);
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm, 4px);
   background: var(--bg-secondary);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 35%);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.confirm > p {
+  margin: 0;
+}
+
+.confirmActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+
+.confirmActions button {
+  min-height: 1.75rem;
+  padding: 0.15rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm, 4px);
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.confirmActions button:focus-visible {
+  outline: 2px solid var(--focus-ring, var(--accent-primary));
+  outline-offset: 1px;
+}
+
+.confirmActions .confirmKeep {
+  border-color: var(--border-color);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.confirmActions .confirmKeep:hover:enabled {
+  background: var(--bg-hover);
+}
+
+.confirmActions .confirmDanger {
+  background: transparent;
+  color: var(--danger);
+}
+
+.confirmActions .confirmDanger:hover:enabled {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+
+.confirmActions .confirmDanger:disabled {
+  opacity: 0.5;
+}
+
+@media (pointer: coarse) {
+  .confirmActions button {
+    min-height: 44px;
+  }
 }
 
 .error:empty {

@@ -113,17 +113,50 @@ type SheetEditorToolbarProps = {
   } | null;
   /** "Keep editing" in the discard confirm, which takes focus when it opens. */
   keepRef: RefObject<HTMLButtonElement | null>;
+  /** A record type's own question, shown where the discard confirm is (a `ConfirmPrompt`). */
+  prompt?: React.ReactNode;
   /** The record type's own toolbar items, before Undo. */
   children?: React.ReactNode;
 };
 
+type ConfirmPromptProps = {
+  /** The group's accessible name, the question in short. */
+  label: string;
+  message: string;
+  /** The consequential choice (discard, overwrite), drawn as a quiet red text button. */
+  confirmLabel: string;
+  onConfirm: () => void;
+  confirmDisabled?: boolean;
+  /** The safe choice, which takes focus when the prompt opens. */
+  keepLabel: string;
+  onKeep: () => void;
+  keepRef?: RefObject<HTMLButtonElement | null>;
+};
+
 /**
- * The edit mode's toolbar (changes, issues, Undo and Redo, Cancel, Save), then the discard confirm,
- * the save alert and the issues list.
+ * A question the edit heading asks (discard the changes? edit the original?): a small panel under
+ * the toolbar's right end, over the sheet, so it moves nothing and stays in view with the sticky
+ * heading. Escape (the sheet's keys) or the safe choice dismisses it.
+ */
+export const ConfirmPrompt: React.FC<ConfirmPromptProps> = ({
+  label, message, confirmLabel, onConfirm, confirmDisabled = false, keepLabel, onKeep, keepRef,
+}) => (
+  <div className={styles.confirm} role="group" aria-label={label}>
+    <p>{message}</p>
+    <div className={styles.confirmActions}>
+      <button type="button" className={styles.confirmDanger} disabled={confirmDisabled} onClick={onConfirm}>{confirmLabel}</button>
+      <button ref={keepRef} type="button" className={styles.confirmKeep} onClick={onKeep}>{keepLabel}</button>
+    </div>
+  </div>
+);
+
+/**
+ * The edit mode's heading: the title, the status (changes, unapplied text) and the toolbar (issues,
+ * Undo and Redo, Cancel, Save), with any confirm under it; then the save alert and the issues list.
  */
 export const SheetEditorToolbar: React.FC<SheetEditorToolbarProps> = ({
   title, heading, dirty, changes, issues, issuesOpen, onToggleIssues, onOpenIssue, alert, saving, unapplied = 0, canSave, canUndo, canRedo,
-  onStep, undoRef, redoRef, onCancel, cancelRef, onSave, confirmDiscard, keepRef, children,
+  onStep, undoRef, redoRef, onCancel, cancelRef, onSave, confirmDiscard, keepRef, prompt, children,
 }) => {
   const issuesId = useId();
   return (
@@ -131,11 +164,16 @@ export const SheetEditorToolbar: React.FC<SheetEditorToolbarProps> = ({
       <div className={styles.editHeading}>
         {title}
         <div className={styles.toolbar} role="toolbar" aria-label="Editing">
-          <span>
-            {heading}
-            {/* After a partial save, Undo can return to the loaded values, which are no longer stored. */}
-            {dirty ? (changes > 0 ? ` · ${changes} ${changes === 1 ? "change" : "changes"}` : " · unsaved changes") : ""}
-          </span>
+          {/* Right after the title. It takes the row's spare width, so the notice appearing (or a
+              long count) truncates here and never moves a button. */}
+          <p className={styles.status} data-dirty={dirty || undefined}>
+            <span className={styles.statusText}>
+              {heading}
+              {/* After a partial save, Undo can return to the loaded values, which are no longer stored. */}
+              {dirty ? (changes > 0 ? ` · ${changes} ${changes === 1 ? "change" : "changes"}` : " · unsaved changes") : ""}
+            </span>
+            {unapplied > 0 && <span className={styles.unapplied}>{unapplied} {unapplied === 1 ? "field holds" : "fields hold"} unapplied text</span>}
+          </p>
           {issues.length > 0 && (
             <button
               type="button"
@@ -148,13 +186,9 @@ export const SheetEditorToolbar: React.FC<SheetEditorToolbarProps> = ({
             </button>
           )}
           {children}
-          <p className={styles.unapplied}>
-            {/* The longest the notice reads, hidden: it sizes the reserved room. */}
-            <span className={styles.unappliedSizer} aria-hidden="true">99 fields hold unapplied text</span>
-            {unapplied > 0 && <span>{unapplied} {unapplied === 1 ? "field holds" : "fields hold"} unapplied text</span>}
-          </p>
           <button ref={undoRef} type="button" disabled={saving || !canUndo} onClick={() => onStep("undo")} aria-keyshortcuts="Control+Z" aria-label="Undo" title="Undo (Ctrl/⌘ Z)"><FiRotateCcw aria-hidden="true" /></button>
           <button ref={redoRef} type="button" disabled={saving || !canRedo} onClick={() => onStep("redo")} aria-keyshortcuts="Control+Shift+Z" aria-label="Redo" title="Redo (Ctrl/⌘ Shift Z)"><FiRotateCw aria-hidden="true" /></button>
+          <span className={styles.toolbarDivider} aria-hidden="true" />
           <button ref={cancelRef} type="button" disabled={saving} onClick={onCancel}>Cancel</button>
           <button
             type="button"
@@ -172,14 +206,19 @@ export const SheetEditorToolbar: React.FC<SheetEditorToolbarProps> = ({
             {saving ? "Saving…" : "Save"}
           </button>
         </div>
+        {confirmDiscard && (
+          <ConfirmPrompt
+            label="Discard unsaved changes?"
+            message={`Discard the unsaved changes to ${confirmDiscard.name}?`}
+            confirmLabel="Discard changes"
+            onConfirm={confirmDiscard.onDiscard}
+            keepLabel="Keep editing"
+            onKeep={confirmDiscard.onKeep}
+            keepRef={keepRef}
+          />
+        )}
+        {prompt}
       </div>
-      {confirmDiscard && (
-        <div className={styles.confirm} role="group" aria-label="Discard unsaved changes?">
-          <p>Discard the unsaved changes to {confirmDiscard.name}?</p>
-          <button type="button" onClick={confirmDiscard.onDiscard}>Discard changes</button>
-          <button ref={keepRef} type="button" onClick={confirmDiscard.onKeep}>Keep editing</button>
-        </div>
-      )}
       {alert && <p role="alert" className={styles.error}>{alert}</p>}
       {issuesOpen && issues.length > 0 && (
         <ul id={issuesId} className={styles.issues} aria-label="Issues">

@@ -151,6 +151,8 @@ const sectionNamed = (sheet: ReturnType<typeof within>, title: string) =>
 // jsdom's zero-size panes make react-resizable-panels cancel clicks; press rows with mousedown.
 const pressRow = (name: string) => act(() => void fireEvent.mouseDown(screen.getByRole("option", { name: new RegExp(`^${name}`) })));
 const toolbar = () => within(screen.getByRole("toolbar", { name: "Editing" }));
+/** The mage's one spell list, as its label's button and editor are named. */
+const LEVEL_1_LIST = "Edit Spell list 1st level (4 slots), Spellcasting, Spellcasting";
 /** Focus leaves the entries for the Armor Class (a live field, or its target on touch). */
 const leaveEntries = (sheet: ReturnType<typeof within>) =>
   act(() => (sheet.queryByRole("textbox", { name: "Armor Class" }) ?? sheet.getByRole("button", { name: /^Edit Armor Class/ })).focus());
@@ -304,26 +306,26 @@ describe("traits and actions in edit mode", () => {
     expect(data.traits).toContainEqual(expect.objectContaining({ name: "Ambush", description: "Strikes from behind." }));
   });
 
-  test("08-R3: an invalid spellcasting card keeps its focus and blocks an entry menu until corrected", async () => {
+  test("08-R3: an invalid spell list editor keeps its focus and blocks an entry menu until corrected", async () => {
     installMatchMedia(1280);
     const user = userEvent.setup();
     serveCatalog();
     const sheet = await startEditing(user, mage);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    const name = card.getByRole("textbox", { name: "Name" });
-    await user.clear(name);
+    await user.click(sheet.getByRole("button", { name: LEVEL_1_LIST }));
+    const editor = screen.getByRole("dialog", { name: LEVEL_1_LIST });
+    const slots = within(editor).getByRole("textbox", { name: "Slots" });
+    await fill(user, slots, "many");
     const options = sheet.getByRole("button", { name: "Entry options for Rend" });
 
     await user.click(options);
-    expect(await card.findByRole("alert")).toHaveTextContent("Name: This can't be empty.");
-    expect(name).toHaveFocus();
+    expect(await within(editor).findByRole("alert")).toHaveTextContent("Slots are a whole number from 0.");
+    expect(editor).toContainElement(document.activeElement as HTMLElement);
     expect(screen.queryByRole("menu", { name: "Entry options for Rend" })).not.toBeInTheDocument();
 
-    await fill(user, name, "Innate Spellcasting");
+    await fill(user, slots, "3");
     await user.click(options);
-    expect(sheet.queryByRole("form", { name: "Edit Spellcasting, Spellcasting" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /^Edit Spell list/ })).not.toBeInTheDocument();
     expect(screen.getByRole("menu", { name: "Entry options for Rend" })).toBeVisible();
   });
 
@@ -358,26 +360,26 @@ describe("traits and actions in edit mode", () => {
     expect(data.actions?.[0]).toMatchObject({ name: "Snap" });
   });
 
-  test("08-R5: one mouse click on entry options settles a valid spellcasting card on activation", async () => {
+  test("08-R5: one mouse click on entry options settles a valid spell list editor on activation", async () => {
     installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, mage);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" });
-    const name = within(card).getByRole("textbox", { name: "Name" });
-    await fill(user, name, "Innate Spellcasting");
+    await user.click(sheet.getByRole("button", { name: LEVEL_1_LIST }));
+    const editor = screen.getByRole("dialog", { name: LEVEL_1_LIST });
+    const slots = within(editor).getByRole("textbox", { name: "Slots" });
+    await fill(user, slots, "3");
     const options = sheet.getByRole("button", { name: "Entry options for Rend" });
 
     // The resizable pane cancels the pointer sequence in jsdom. Apply the browser's
     // default focus change manually if the mouse press is not canceled by the trigger.
     if (fireEvent.mouseDown(options, { button: 0 })) act(() => options.focus());
-    expect(name).toHaveFocus();
-    expect(card).toBeVisible();
+    expect(slots).toHaveFocus();
+    expect(editor).toBeVisible();
     fireEvent.mouseUp(options, { button: 0 });
     fireEvent.click(options);
-    expect(card).not.toBeInTheDocument();
+    expect(editor).not.toBeInTheDocument();
     const menu = sheet.getByRole("menu", { name: "Entry options for Rend" });
     expect(within(menu).getByRole("menuitem", { name: "Move up" })).toHaveFocus();
     await user.keyboard("{Escape}");
@@ -387,7 +389,7 @@ describe("traits and actions in edit mode", () => {
     await user.keyboard("{Escape}");
 
     const data = await save(user, puts);
-    expect(data.spellcasting?.[0]).toMatchObject({ name: "Innate Spellcasting" });
+    expect(data.spellcasting?.[0].levels?.[0]).toMatchObject({ level: 1, slots: 3 });
   });
 
   test("on touch an added entry's name is typed in place, then becomes its edit button like every other name", async () => {
@@ -574,53 +576,186 @@ describe("traits and actions in edit mode", () => {
   });
 });
 
-describe("spellcasting cards and the legendary section in edit mode", () => {
-  test("a spell picked from the autocomplete saves with its source", async () => {
+describe("spellcasting blocks and the legendary section in edit mode", () => {
+  test("a block's name, text and ability are edited in place; a blank line in the text starts a paragraph", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, mage);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    await fill(user, card.getByRole("combobox", { name: "Add a spell to spell list 1" }), "fireb");
-    // Two printings match; the second is the 2024 one.
-    const options = within(await card.findByRole("listbox", { name: "Add a spell to spell list 1" })).getAllByRole("option");
+    await fill(user, sheet.getByRole("textbox", { name: "Name of Spellcasting, Spellcasting" }), "Arcane Spellcasting{Enter}");
+    await fill(user, sheet.getByRole("textbox", { name: "Text of Arcane Spellcasting, Spellcasting" }), "The mage casts spells.{Enter}{Enter}It prepares them each day.");
+    leaveEntries(sheet);
+    expect(sheet.getByRole("textbox", { name: "Paragraph 2 of Arcane Spellcasting, Spellcasting" })).toHaveValue("It prepares them each day.");
+    await fill(user, sheet.getByRole("combobox", { name: "Spellcasting ability of Arcane Spellcasting, Spellcasting" }), "Wisdom{Enter}");
+    // WIS 10 (+0) and PB +3: the automatic values follow the new ability.
+    expect(sheet.getByRole("combobox", { name: "Save DC of Arcane Spellcasting, Spellcasting, automatic" })).toHaveValue("11");
+    expect(sheet.getByRole("combobox", { name: "Spell attack of Arcane Spellcasting, Spellcasting, automatic" })).toHaveValue("+3");
+
+    const data = await save(user, puts);
+    expect(data.spellcasting![0]).toMatchObject({
+      name: "Arcane Spellcasting",
+      ability: "wis",
+      saveDc: 11,
+      spellAttackBonus: 3,
+      descriptions: ["The mage casts spells.", "It prepares them each day."],
+    });
+  });
+
+  test("a typed save DC stays through an ability score change; its list offers Automatic, which follows again", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, mage);
+
+    await fill(user, sheet.getByRole("combobox", { name: "Save DC of Spellcasting, Spellcasting, automatic" }), "16{Enter}");
+    const dc = sheet.getByRole("combobox", { name: "Save DC of Spellcasting, Spellcasting" });
+    await fill(user, sheet.getByRole("textbox", { name: "Intelligence score" }), "18{Enter}");
+    expect(dc).toHaveValue("16");
+    expect(sheet.getByRole("combobox", { name: "Spell attack of Spellcasting, Spellcasting, automatic" })).toHaveValue("+7");
+
+    act(() => dc.focus());
+    await user.keyboard("{ArrowDown}");
+    const automatic = within(screen.getByRole("listbox", { name: "Save DC of Spellcasting, Spellcasting" })).getByRole("option");
+    expect(automatic).toHaveTextContent("Automatic (15)");
+    await user.keyboard("{Enter}");
+    expect(sheet.getByRole("combobox", { name: "Save DC of Spellcasting, Spellcasting, automatic" })).toHaveValue("15");
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(sheet.getByRole("combobox", { name: "Save DC of Spellcasting, Spellcasting" })).toHaveValue("16");
+    await user.click(screen.getByRole("button", { name: "Redo" }));
+
+    const data = await save(user, puts);
+    expect(data.spellcasting![0]).toMatchObject({ saveDc: 15, spellAttackBonus: 7 });
+  });
+
+  test("05-R4: on touch the ability line opens one editor; automatic values follow Undo and Redo, a typed DC stays", async () => {
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, mage);
+    const metaName = "Edit Spellcasting ability, save DC and spell attack of Spellcasting, Spellcasting";
+    const meta = () => sheet.getByRole("button", { name: metaName });
+    expect(meta()).toHaveTextContent("Spellcasting Ability Intelligence; Save DC 14; Spell Attack +6");
+
+    await user.click(sheet.getByRole("button", { name: "Edit Intelligence score, 16" }));
+    await user.keyboard("18{Enter}");
+    expect(meta()).toHaveTextContent("Save DC 15; Spell Attack +7");
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(meta()).toHaveTextContent("Save DC 14; Spell Attack +6");
+    await user.click(screen.getByRole("button", { name: "Redo" }));
+    expect(meta()).toHaveTextContent("Save DC 15; Spell Attack +7");
+
+    await user.click(meta());
+    const editor = within(screen.getByRole("dialog", { name: metaName }));
+    const dc = within(editor.getByRole("group", { name: "Save DC" }));
+    expect(dc.getByRole("checkbox", { name: "Automatic" })).toBeChecked();
+    expect(within(editor.getByRole("group", { name: "Spell attack" })).getByRole("checkbox", { name: "Automatic" })).toBeChecked();
+    await user.click(dc.getByRole("checkbox", { name: "Automatic" }));
+    await fill(user, dc.getByRole("textbox", { name: "Save DC" }), "16");
+    await user.click(editor.getByRole("button", { name: "Done" }));
+
+    // INT 20 works out DC 16 too, but the typed DC stays typed, and stays put at INT 22.
+    await user.click(sheet.getByRole("button", { name: "Edit Intelligence score, 18" }));
+    await user.keyboard("20{Enter}");
+    expect(meta()).toHaveTextContent("Save DC 16; Spell Attack +8");
+    await user.click(meta());
+    const reopened = within(screen.getByRole("dialog", { name: metaName }));
+    expect(within(reopened.getByRole("group", { name: "Save DC" })).getByRole("checkbox", { name: "Automatic" })).not.toBeChecked();
+    await user.click(reopened.getByRole("button", { name: "Cancel" }));
+    await user.click(sheet.getByRole("button", { name: "Edit Intelligence score, 20" }));
+    await user.keyboard("22{Enter}");
+    expect(meta()).toHaveTextContent("Save DC 16; Spell Attack +9");
+
+    const data = await save(user, puts);
+    expect(data.spellcasting![0]).toMatchObject({ saveDc: 16, spellAttackBonus: 9 });
+  });
+
+  test("+ spell adds the printing picked from the index; two printings have their own remove buttons; removing one is one change", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, mage);
+    const where = "the 1st level (4 slots) list of Spellcasting, Spellcasting";
+    const search = sheet.getByRole("combobox", { name: `Add a spell to ${where}` });
+
+    await fill(user, search, "fireb");
+    const options = within(await screen.findByRole("listbox", { name: `Add a spell to ${where}` })).getAllByRole("option");
     expect(options.map(option => option.textContent)).toEqual(["Fireball (PHB)", "Fireball (XPHB)"]);
     await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
-    expect(card.getByRole("list", { name: "Spells in spell list 1" })).toHaveTextContent("Fireball (XPHB)");
-    await fill(user, card.getByRole("textbox", { name: "Note for Fireball" }), "level 5 version");
-    await user.click(card.getByRole("button", { name: "Done" }));
+    expect(search).toHaveFocus();
+    expect(search).toHaveValue("");
+    await fill(user, search, "fireb");
+    await screen.findByRole("listbox", { name: `Add a spell to ${where}` });
+    await user.keyboard("{ArrowDown}{Enter}");
+
+    await user.click(sheet.getByRole("button", { name: `Remove Fireball (PHB) from ${where}` }));
+    await user.click(sheet.getByRole("button", { name: `Remove Magic Missile from ${where}` }));
+    // The next spell takes the removed one's place, and its button keeps focus.
+    expect(sheet.getByRole("button", { name: `Remove Fireball from ${where}` })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(sheet.getByRole("button", { name: `Remove Magic Missile from ${where}` })).toBeVisible();
 
     const data = await save(user, puts);
-    expect(data.spellcasting![0].levels![0].spells).toEqual([
-      { name: "Magic Missile", source: "XPHB" },
-      { name: "Fireball", source: "XPHB", note: "level 5 version" },
-    ]);
+    expect(data.spellcasting![0].levels![0].spells).toEqual([{ name: "Magic Missile", source: "XPHB" }, { name: "Fireball", source: "XPHB" }]);
   });
 
-  test("the spellcasting card saves pact magic levels and a typed save DC", async () => {
+  test("+ Spell list adds a line and opens its editor; a line's kind, uses, level and pact magic save; deleting a line is one change", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, mage);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    // Mage: INT 16 (+3) and CR 6 (PB +3) make DC 14 and +6, so both start automatic.
-    expect(within(card.getByRole("group", { name: "Spell attack" })).getByRole("textbox", { name: "Spell attack" })).toHaveValue("+6");
-    const level = within(card.getByRole("group", { name: "Spell list 1" }));
-    await fill(user, level.getByRole("textbox", { name: "Level" }), "3");
+    await user.click(sheet.getByRole("button", { name: "+ Spell list" }));
+    // The mage has 1st level slots, so the new line is the next free level.
+    const added = screen.getByRole("dialog", { name: "Edit Spell list 2nd level, Spellcasting, Spellcasting" });
+    const kind = within(added).getByRole("combobox", { name: "Spell list" });
+    expect(kind).toHaveFocus();
+    await user.selectOptions(kind, "Per day");
+    await fill(user, within(added).getByRole("textbox", { name: "Uses" }), "2");
+    await user.click(within(added).getByRole("checkbox", { name: "Each spell" }));
+    await user.click(within(added).getByRole("button", { name: "Done" }));
+    await fill(user, sheet.getByRole("combobox", { name: "Add a spell to the 2/day each list of Spellcasting, Spellcasting" }), "Fire Bolt{Enter}");
+
+    await user.click(sheet.getByRole("button", { name: LEVEL_1_LIST }));
+    const level = within(screen.getByRole("dialog", { name: LEVEL_1_LIST }));
+    await user.selectOptions(level.getByRole("combobox", { name: "Level" }), "3rd level");
     await fill(user, level.getByRole("textbox", { name: "Pact magic from level" }), "1");
-    const dc = within(card.getByRole("group", { name: "Save DC" }));
-    expect(dc.getByRole("textbox", { name: "Save DC" })).toHaveValue("14");
-    await user.click(dc.getByRole("checkbox", { name: "Automatic" }));
-    await fill(user, dc.getByRole("textbox", { name: "Save DC" }), "15");
-    await user.click(card.getByRole("button", { name: "Done" }));
+    await user.click(level.getByRole("button", { name: "Done" }));
+    const pact = "the 1st–3rd level (4 slots) list of Spellcasting, Spellcasting";
+    expect(sheet.getByRole("button", { name: `Remove Magic Missile from ${pact}` })).toBeVisible();
+
+    await user.click(sheet.getByRole("button", { name: "Delete the 2/day each list of Spellcasting, Spellcasting" }));
+    expect(sheet.queryByRole("button", { name: /^Edit Spell list 2\/day each/ })).not.toBeInTheDocument();
+    expect(sheet.getByRole("button", { name: "+ Spell list" })).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Undo" }));
 
     const data = await save(user, puts);
-    expect(data.spellcasting![0]).toMatchObject({ saveDc: 15, spellAttackBonus: 6, levels: [{ level: 3, lowerLevel: 1, slots: 4 }] });
+    expect(data.spellcasting![0]).toMatchObject({
+      levels: [{ level: 3, lowerLevel: 1, slots: 4 }],
+      frequencyGroups: [{ frequency: "daily", count: 2, each: true, spells: [{ name: "Fire Bolt", source: "XPHB" }] }],
+    });
   });
 
-  test("links inside edited text are plain text, and a click there opens the card", async () => {
+  test("a block's options hide its spell list and move it to another section, after that section's \"+ Add\", focus staying on its options", async () => {
+    const user = userEvent.setup();
+    const puts = serveCatalog();
+    const sheet = await startEditing(user, mage);
+
+    await chooseOption(user, "Spellcasting", "Hide spell list");
+    expect(screen.getByRole("button", { name: "Entry options for Spellcasting" })).toHaveFocus();
+    await chooseOption(user, "Spellcasting", "Move to section ▸", "Actions");
+    expect(sheet.queryByRole("heading", { name: "Spellcasting" })).not.toBeInTheDocument();
+    const actions = within(sectionNamed(sheet, "Actions"));
+    expect(actions.getByRole("button", { name: "Entry options for Spellcasting" })).toHaveFocus();
+    // "+ Add action" adds before the block, so it is listed after the actions and before the block.
+    const addAction = actions.getByRole("button", { name: "+ Add action" });
+    expect(actions.getByRole("button", { name: "Entry options for Rend" }).compareDocumentPosition(addAction) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(addAction.compareDocumentPosition(actions.getByRole("button", { name: "Entry options for Spellcasting" })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const data = await save(user, puts);
+    expect(data.spellcasting![0]).toMatchObject({ displayAs: "action", hideSpellList: true });
+  });
+
+  test("links inside edited text are plain text", async () => {
     const user = userEvent.setup();
     serveCatalog();
     localStorage.setItem("test-user-id", String(gm.id));
@@ -636,7 +771,39 @@ describe("spellcasting cards and the legendary section in edit mode", () => {
     expect(sheet.queryByRole("button", { name: "Magic Missile" })).not.toBeInTheDocument();
     await user.click(sheet.getByText("Magic Missile"));
     expect(screen.queryByRole("dialog", { name: "Magic Missile" })).not.toBeInTheDocument();
-    expect(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" })).toBeVisible();
+  });
+
+  test.each([
+    ["live", "fine"],
+    ["targets", "coarse"],
+  ] as const)("a server issue on a spell list's slots opens that list's editor at its slots (%s)", async (_presentation, pointer) => {
+    installMatchMedia(1280, { pointer });
+    const user = userEvent.setup();
+    const puts = serveCatalog({ rejectPut: [{ path: "spellcasting.0.levels.0.slots", message: "The server rejects these slots." }] });
+    const sheet = await startEditing(user, mage);
+
+    if (pointer === "coarse") {
+      await user.click(sheet.getByRole("button", { name: "Edit Armor Class, 12" }));
+      await user.keyboard("13{Enter}");
+    } else {
+      await fill(user, sheet.getByRole("textbox", { name: "Armor Class" }), "13{Enter}");
+    }
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    const editor = within(await screen.findByRole("dialog", { name: LEVEL_1_LIST }));
+    await waitFor(() => expect(editor.getByRole("textbox", { name: "Slots" })).toHaveFocus());
+  });
+
+  test("a server issue on a save DC focuses its field on a live sheet", async () => {
+    installMatchMedia(1280);
+    const user = userEvent.setup();
+    const puts = serveCatalog({ rejectPut: [{ path: "spellcasting.0.saveDc", message: "The server rejects this DC." }] });
+    const sheet = await startEditing(user, mage);
+
+    await fill(user, sheet.getByRole("textbox", { name: "Armor Class" }), "13{Enter}");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    await waitFor(() => expect(sheet.getByRole("combobox", { name: "Save DC of Spellcasting, Spellcasting, automatic" })).toHaveFocus());
   });
 
   test("the legendary count is edited inside the legendary section", async () => {
@@ -655,90 +822,45 @@ describe("spellcasting cards and the legendary section in edit mode", () => {
     expect(data).toMatchObject({ legendaryActionCount: 2, legendaryHeader: ["The drake can take 2 legendary actions."] });
   });
 
-  test("05-R3: a spell name over 64 characters keeps the card open and sends nothing; 64 saves", async () => {
+  test("05-R3: a spell name over 64 characters is refused with a message and adds nothing; 64 saves", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, mage);
+    const search = sheet.getByRole("combobox", { name: "Add a spell to the 1st level (4 slots) list of Spellcasting, Spellcasting" });
 
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    const search = card.getByRole("combobox", { name: "Add a spell to spell list 1" });
     await fill(user, search, `${"x".repeat(65)}{Enter}`);
-    await user.click(card.getByRole("button", { name: "Done" }));
-    expect(card.getByRole("alert")).toHaveTextContent("Spell list 1, spell 2: Name: At most 64 characters.");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(card.getByRole("alert")).toBeVisible();
-    expect(puts).toHaveLength(0);
+    expect(sheet.getByRole("alert")).toHaveTextContent("Spell name: At most 64 characters.");
+    expect(sheet.queryByRole("button", { name: /^Remove x+ from/ })).not.toBeInTheDocument();
 
-    await user.click(card.getByRole("button", { name: `Remove ${"x".repeat(65)}` }));
     await fill(user, search, `${"y".repeat(64)}{Enter}`);
-    await user.click(card.getByRole("button", { name: "Done" }));
     const data = await save(user, puts);
     expect(data.spellcasting![0].levels![0].spells).toEqual([{ name: "Magic Missile", source: "XPHB" }, { name: "y".repeat(64) }]);
   });
 
-  test("05-R3: an automatic save DC past 127 keeps the card open, and a typed one saves", async () => {
+  test("05-R3: an ability whose automatic save DC passes 127 is refused, and with a typed DC it applies", async () => {
+    installMatchMedia(1280);
     const user = userEvent.setup();
     const puts = serveCatalog();
     const sheet = await startEditing(user, titan);
 
     await user.click(sheet.getByRole("button", { name: "+ Add section" }));
     await user.click(sheet.getByRole("button", { name: "Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit new entry, Spellcasting" }));
-    await user.keyboard("Innate Spellcasting");
-    await user.selectOptions(card.getByRole("combobox", { name: "Spellcasting ability" }), "Intelligence");
-    await user.click(card.getByRole("button", { name: "Done" }));
-    expect(card.getByRole("alert")).toHaveTextContent("Save DC: the automatic value would be 130");
-    await user.click(screen.getByRole("button", { name: "Save" }));
-    expect(puts).toHaveLength(0);
+    const name = sheet.getByRole("textbox", { name: "Name of Spellcasting, Spellcasting" });
+    expect(name).toHaveFocus();
+    await fill(user, name, "Innate Spellcasting{Enter}");
+    const ability = sheet.getByRole("combobox", { name: "Spellcasting ability of Innate Spellcasting, Spellcasting" });
+    // A name's first letters choose it; the field's list offers the six by name.
+    await fill(user, ability, "Intel{Enter}");
+    expect(sheet.getByRole("alert")).toHaveTextContent("The automatic save DC of Innate Spellcasting would be 130");
+    expect(ability).toHaveAttribute("aria-invalid", "true");
+    expect(screen.queryByRole("button", { name: "Save" })).toBeDisabled();
 
-    const dc = within(card.getByRole("group", { name: "Save DC" }));
-    await user.click(dc.getByRole("checkbox", { name: "Automatic" }));
-    await fill(user, dc.getByRole("textbox", { name: "Save DC" }), "20");
-    await user.click(card.getByRole("button", { name: "Done" }));
+    await fill(user, sheet.getByRole("combobox", { name: "Save DC of Innate Spellcasting, Spellcasting, automatic" }), "20{Enter}");
+    await fill(user, ability, "Intelligence{Enter}");
+    expect(ability).toHaveValue("Intelligence");
     const data = await save(user, puts);
     expect(data.spellcasting).toEqual([expect.objectContaining({ name: "Innate Spellcasting", ability: "int", saveDc: 20, spellAttackBonus: 122 })]);
-  });
-
-  test("05-R4: automatic DC and attack follow an ability change through Undo and Redo; a typed DC stays", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, mage);
-    const meta = () => sheet.getByText(/^Spellcasting Ability Intelligence/);
-    expect(meta()).toHaveTextContent("Save DC 14; Spell Attack +6");
-
-    await user.click(sheet.getByRole("button", { name: "Edit Intelligence score, 16" }));
-    await user.keyboard("18{Enter}");
-    expect(meta()).toHaveTextContent("Save DC 15; Spell Attack +7");
-    await user.click(screen.getByRole("button", { name: "Undo" }));
-    expect(meta()).toHaveTextContent("Save DC 14; Spell Attack +6");
-    await user.click(screen.getByRole("button", { name: "Redo" }));
-    expect(meta()).toHaveTextContent("Save DC 15; Spell Attack +7");
-
-    // Reopened, both are still automatic; type the DC, then raise INT again.
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    const dc = within(card.getByRole("group", { name: "Save DC" }));
-    expect(dc.getByRole("checkbox", { name: "Automatic" })).toBeChecked();
-    expect(within(card.getByRole("group", { name: "Spell attack" })).getByRole("checkbox", { name: "Automatic" })).toBeChecked();
-    await user.click(dc.getByRole("checkbox", { name: "Automatic" }));
-    await fill(user, dc.getByRole("textbox", { name: "Save DC" }), "16");
-    await user.click(card.getByRole("button", { name: "Done" }));
-
-    // INT 20 works out DC 16 too, but the typed DC stays typed, and stays put at INT 22.
-    await user.click(sheet.getByRole("button", { name: "Edit Intelligence score, 18" }));
-    await user.keyboard("20{Enter}");
-    expect(meta()).toHaveTextContent("Save DC 16; Spell Attack +8");
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const reopened = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    expect(within(reopened.getByRole("group", { name: "Save DC" })).getByRole("checkbox", { name: "Automatic" })).not.toBeChecked();
-    await user.click(reopened.getByRole("button", { name: "Cancel" }));
-    await user.click(sheet.getByRole("button", { name: "Edit Intelligence score, 20" }));
-    await user.keyboard("22{Enter}");
-    expect(meta()).toHaveTextContent("Save DC 16; Spell Attack +9");
-
-    const data = await save(user, puts);
-    expect(data.spellcasting![0]).toMatchObject({ saveDc: 16, spellAttackBonus: 9 });
   });
 
   test("05-R5: the legendary introduction shows reference text, not tags, and its editor shows the tags", async () => {
@@ -761,38 +883,10 @@ describe("spellcasting cards and the legendary section in edit mode", () => {
     serveCatalog();
     const sheet = await startEditing(user, mage);
 
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    await user.click(within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" })).getByRole("button", { name: "Delete" }));
+    await chooseOption(user, "Spellcasting", "Delete");
     expect(sheet.queryByRole("heading", { name: "Spellcasting" })).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Mage" })).toBeVisible();
     expect(sheet.getByRole("button", { name: "+ Add section" })).toHaveFocus();
-  });
-
-  test("05-R6: two printings of a spell have their own note and remove controls", async () => {
-    const user = userEvent.setup();
-    const puts = serveCatalog();
-    const sheet = await startEditing(user, mage);
-
-    await user.click(sheet.getByRole("button", { name: "Edit Spellcasting, Spellcasting" }));
-    const card = within(sheet.getByRole("form", { name: "Edit Spellcasting, Spellcasting" }));
-    const search = card.getByRole("combobox", { name: "Add a spell to spell list 1" });
-    await fill(user, search, "fireb");
-    await card.findByRole("listbox", { name: "Add a spell to spell list 1" });
-    await user.keyboard("{ArrowDown}{Enter}");
-    await fill(user, search, "fireb");
-    await card.findByRole("listbox", { name: "Add a spell to spell list 1" });
-    await user.keyboard("{ArrowDown}{ArrowDown}{Enter}");
-
-    await fill(user, card.getByRole("textbox", { name: "Note for Fireball (XPHB)" }), "2024");
-    await user.click(card.getByRole("button", { name: "Remove Fireball (PHB)" }));
-    expect(card.getByRole("textbox", { name: "Note for Fireball" })).toHaveValue("2024");
-    await user.click(card.getByRole("button", { name: "Done" }));
-
-    const data = await save(user, puts);
-    expect(data.spellcasting![0].levels![0].spells).toEqual([
-      { name: "Magic Missile", source: "XPHB" },
-      { name: "Fireball", source: "XPHB", note: "2024" },
-    ]);
   });
 
   test("05-R3: a CR change that would push an automatic spell attack past +127 is refused", async () => {

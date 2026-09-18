@@ -129,6 +129,23 @@
   font-size: 0.85rem;
 }
 
+/* Edit mode without a token: "+ Token image" in the token's place and size. */
+.tokenSlot {
+  flex: none;
+}
+
+.tokenSlot > button {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  padding: 0.4rem;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .sheetToken {
   flex: none;
   width: 4.5rem;

@@ -157,7 +157,11 @@
   min-width: 100%;
 }
 
+/* An inline list sits inside sheet text, whose own list rules (a stat block's `ul` indent and `li`
+   margins) would otherwise reach it; these selectors outrank them. */
 .comboInline .comboDropdown {
+  margin: 2px 0 0;
+  padding: 0.25rem 0;
   white-space: normal;
   overflow-wrap: anywhere;
   right: auto;
@@ -222,6 +226,10 @@
   max-height: 14rem;
   overflow-y: auto;
   grid-column: 1 / -1;
+}
+
+.comboInline .comboOption {
+  margin: 0;
 }
 
 .comboOption {

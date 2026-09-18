@@ -23,3 +23,8 @@ export const textProblem = (raw: string, max?: number, required = false): string
   if (max !== undefined && [...trimmed].length > max) return `At most ${max} characters.`;
   return undefined;
 };
+
+const encoder = new TextEncoder();
+
+/** A description the write contract stores in a TEXT column: at most `maxBytes` UTF-8 bytes once trimmed. */
+export const descriptionTooLong = (text: string, maxBytes: number): boolean => encoder.encode(text.trim()).length > maxBytes;

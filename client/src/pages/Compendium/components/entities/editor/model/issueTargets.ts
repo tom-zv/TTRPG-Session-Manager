@@ -36,18 +36,37 @@ const ENTRY_LISTS = new Set(["traits", "actions", "spellcasting"]);
 const isIndex = (segment: string | undefined): segment is string => segment !== undefined && /^\d+$/.test(segment);
 
 /**
+ * Where a spellcasting path is fixed, on targets (`live` false) or a live sheet. Its name, each
+ * paragraph of its text and each spell are the same control in both presentations; a spell list's
+ * label opens its editor in both; the ability, save DC and attack are live fields, or one editor
+ * on targets (`spellcasting.0.meta`). Anything else about a block (its place, its spell count)
+ * goes to its name.
+ */
+const spellcastingTarget = (path: string, live: boolean): string | null => {
+  const [, block, field, index, part, spell] = path.split(".");
+  if (!isIndex(block)) return null;
+  const id = `spellcasting.${block}`;
+  if (field === "descriptions" && isIndex(index)) return `${id}.descriptions.${index}`;
+  if (field === "ability" || field === "saveDc" || field === "spellAttackBonus") return live ? `${id}.${field}` : `${id}.meta`;
+  if ((field === "levels" || field === "frequencyGroups") && isIndex(index)) {
+    return part === "spells" && isIndex(spell) ? `${id}.${field}.${index}.spells.${spell}` : `${id}.${field}.${index}`;
+  }
+  return `${id}.name`;
+};
+
+/**
  * The editor that fixes a validator path. Paths follow the shared validator: `ac`,
  * `abilityScores.str`, `actions.3.name`, `spellcasting.0.levels.2.slots`. A trait's or action's
  * issue is on its name or its text (`actions.3.description`); any other part of it (its order, its
- * section) goes to the name. A spellcasting block opens its card (`spellcasting.0`). Settings and
- * unknown paths have no editor.
+ * section) goes to the name. Spellcasting paths: see `spellcastingTarget`. Settings and unknown
+ * paths have no editor.
  */
 export const issueTargetId = (path: string): string | null => {
   const [field, second, third] = path.split(".");
   if (field === "traits" || field === "actions") {
     return isIndex(second) ? `${field}.${second}.${third === "description" ? "description" : "name"}` : null;
   }
-  if (ENTRY_LISTS.has(field)) return isIndex(second) ? `${field}.${second}` : null;
+  if (field === "spellcasting") return spellcastingTarget(path, false);
   if (field === "abilityScores") return second && second in ABILITY_FULL_NAMES ? `abilityScores.${second}` : null;
   return FIELD_TARGETS[field] ?? (OWN_TARGETS.has(field) ? field : null);
 };
@@ -64,14 +83,16 @@ const OWN_LIVE_FIELDS = new Set([
 
 /**
  * The live field that fixes a path, on a live sheet: the exact field (`hpFormula`, `alignment`,
- * `speeds.fly`, `languages.1`, `actions.3.description`). A jump falls back to the line's add
- * control or first field when that one is absent (see `useOpenEditor`'s `focusLive`). Spellcasting
- * blocks, the token image and the legendary introduction open their editors, as on targets.
+ * `speeds.fly`, `languages.1`, `actions.3.description`, `spellcasting.0.saveDc`). A jump falls back
+ * to the line's add control or first field when that one is absent (see `useOpenEditor`'s
+ * `focusLive`). Spell list labels, the token image and the legendary introduction open their
+ * editors, as on targets.
  */
 export const liveIssueTargetId = (path: string): string | null => {
   const [field, second] = path.split(".");
   if (KEYED_LIVE_FIELDS.has(field)) return second ? `${field}.${second}` : field;
   if (OWN_LIVE_FIELDS.has(field)) return field;
+  if (field === "spellcasting") return spellcastingTarget(path, true);
   return issueTargetId(path);
 };
 
@@ -92,12 +113,28 @@ const describePath = (path: string, draft: EntityDraft): string => {
   return FIELD_PLACES[field] ?? (path || "Entity");
 };
 
-/** An entry's text, which is the same source textarea in both presentations. */
-export const isEntryTextId = (id: string): boolean => /^(traits|actions)\.\d+\.description$/.test(id);
+/**
+ * A control drawn the same in both presentations, which a jump focuses directly: an entry's text
+ * (the source textarea), a spellcasting paragraph, or a spell's remove button.
+ */
+export const isSharedFieldId = (id: string): boolean =>
+  /^(traits|actions)\.\d+\.description$/.test(id)
+  || /^spellcasting\.\d+\.(descriptions\.\d+|(levels|frequencyGroups)\.\d+\.spells\.\d+)$/.test(id);
+
+/** A spell list's label: a popover editor in both presentations, so a jump opens it. */
+export const isSpellListId = (id: string): boolean => /^spellcasting\.\d+\.(levels|frequencyGroups)\.\d+$/.test(id);
 
 const PLACEMENTS: Record<SheetPresentation, IssuePlacement<EntityDraft>> = {
   targets: { issueTargetId, issueFocusId: path => path, describePath },
-  live: { issueTargetId: liveIssueTargetId, describePath },
+  // A spell list's editor opens on a live sheet too, and focuses the exact field the path names.
+  live: {
+    issueTargetId: liveIssueTargetId,
+    issueFocusId: path => {
+      const target = liveIssueTargetId(path);
+      return target && isSpellListId(target) ? path : target;
+    },
+    describePath,
+  },
 };
 
 /** Issues placed for the presentation the sheet is in: a live field, or the target whose editor fixes it. */

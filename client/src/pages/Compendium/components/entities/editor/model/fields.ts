@@ -10,8 +10,7 @@ import {
 import { fail, type FieldParse, type FieldSpec, type TokenListSpec } from "../../../sheetEditor/fieldSpec.js";
 import { parseWhole } from "../../../sheetEditor/InlineField.js";
 import { clearable, keepAbsent } from "../../../sheetEditor/PopoverForm.js";
-import { descriptionTooLong } from "../../../sheetEditor/EntryCardFrame.js";
-import { MAX_ABILITY_SCORE, MAX_LEGENDARY_COUNT, MAX_PASSIVE_PERCEPTION, MAX_WHOLE, textProblem } from "../editors/fieldLimits.js";
+import { descriptionTooLong, MAX_ABILITY_SCORE, MAX_LEGENDARY_COUNT, MAX_PASSIVE_PERCEPTION, MAX_WHOLE, textProblem } from "../editors/fieldLimits.js";
 import { getProficiencyBonusForCr, getRecordDefaultValue, type RecordEntryMode } from "./calculations.js";
 import type { EntityDraft } from "./defaults.js";
 import { carryEntryKey, entryKey } from "./entryKeys.js";

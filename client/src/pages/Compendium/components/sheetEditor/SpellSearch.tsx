@@ -23,6 +23,13 @@ type SpellSearchProps = {
   onEscape?: () => void;
   /** Focus the input when it appears, because the GM just asked for it. */
   focusOnMount?: boolean;
+  /** Drawn as a sheet value (`ComboboxInput`'s inline look), with the caller's input class. */
+  inline?: boolean;
+  inputClassName?: string;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
+  placeholder?: string;
+  /** The wrapper's class; `display: contents` lets the input join its caller's layout (a sheet value's grid). */
+  rootClassName?: string;
 };
 
 /**
@@ -31,6 +38,7 @@ type SpellSearchProps = {
  */
 export const SpellSearch: React.FC<SpellSearchProps> = ({
   label, query: keptQuery, onQueryChange, onPick, allowUnknown = false, onUnknown, onEscape, focusOnMount = false,
+  inline = false, inputClassName, inputRef, placeholder = "Search spells", rootClassName,
 }) => {
   const [localQuery, setLocalQuery] = useState("");
   const text = keptQuery ?? localQuery;
@@ -55,6 +63,7 @@ export const SpellSearch: React.FC<SpellSearchProps> = ({
     // With no suggestions shown, Escape closes the search; the combobox would only close its empty list.
     <span
       ref={rootRef}
+      className={rootClassName}
       onKeyDownCapture={event => {
         if (event.key !== "Escape" || !onEscape || options.length > 0) return;
         event.preventDefault();
@@ -66,7 +75,10 @@ export const SpellSearch: React.FC<SpellSearchProps> = ({
       aria-label={label}
       value={text}
       options={options}
-      placeholder="Search spells"
+      inline={inline}
+      inputClassName={inputClassName}
+      inputRef={inputRef}
+      placeholder={placeholder}
       onChange={value => {
         const chosen = matches.find(spell => optionValue(spell.name, spell.source) === value);
         if (chosen) pick({ name: chosen.name, source: chosen.source });

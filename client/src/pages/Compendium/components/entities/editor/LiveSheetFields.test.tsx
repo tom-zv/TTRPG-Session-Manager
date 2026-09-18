@@ -51,7 +51,9 @@ const toSummary = (entity: DnD5eEntityDetails): DnD5eEntitySummary => ({
 const goblin = template(14, "Goblin");
 const mara = template(13, "Mara", { role: "npc", cr: "2" });
 const skyGoblin = template(15, "Sky Goblin", { speeds: { walk: 30, fly: 60 } });
-const seer = template(16, "Seer", { spellcasting: [{ name: "Innate Spellcasting", descriptions: ["The seer casts spells."] }] });
+const seer = template(16, "Seer", {
+  spellcasting: [{ name: "Innate Spellcasting", descriptions: ["The seer casts spells."], frequencyGroups: [{ frequency: "will", spells: [{ name: "Light" }] }] }],
+});
 // A stored note with a line break, and a condition the write contract allows but the presets do not list.
 const STORED_FIRE = { damageType: "fire", conditionNote: "from nonmagical\nattacks" };
 const warded = template(17, "Warded Goblin", {
@@ -508,33 +510,38 @@ describe("live presentation: tokens, issues and the open editor", () => {
     expect(issues.getByRole("button", { name: "HP formula: Formula rejected." })).toBeVisible();
   });
 
-  test("02-entity-live-fields-R5: an invalid entry card keeps focus and its error, and no live field or marker applies until it is fixed", async () => {
+  test("02-entity-live-fields-R5: an invalid spell list editor keeps focus and its error, and no live field or marker applies until it is fixed", async () => {
     const user = userEvent.setup();
     const puts = serveCatalog();
     renderSheet(seer.templateId);
     const sheet = await startEditing(user, "Seer");
-    await user.click(sheet.getByRole("button", { name: "Edit Innate Spellcasting, Spellcasting" }));
-    const card = () => within(sheet.getByRole("form", { name: "Edit Innate Spellcasting, Spellcasting" }));
-    await user.clear(card().getByRole("textbox", { name: "Name" }));
+    const editorName = "Edit Spell list At will, Innate Spellcasting, Spellcasting";
+    await user.click(sheet.getByRole("button", { name: editorName }));
+    const editor = () => screen.getByRole("dialog", { name: editorName });
+    await user.selectOptions(within(editor()).getByRole("combobox", { name: "Spell list" }), "Per day");
+    await typeInto(user, within(editor()).getByRole("textbox", { name: "Uses" }), "x");
 
     const ac = sheet.getByRole("textbox", { name: "Armor Class" });
     act(() => ac.focus());
-    expect(card().getByRole("alert")).toHaveTextContent("Name: This can't be empty.");
-    expect(card().getByRole("textbox", { name: "Name" })).toHaveFocus();
+    expect(within(editor()).getByRole("alert")).toHaveTextContent("The count is a whole number from 1.");
+    expect(editor()).toContainElement(document.activeElement as HTMLElement);
 
     await user.click(sheet.getByRole("button", { name: /^Dexterity save, / }));
     expect(sheet.getByRole("button", { name: /^Dexterity save, / })).toHaveAccessibleName("Dexterity save, not proficient. Change to proficient");
-    expect(card().getByRole("textbox", { name: "Name" })).toHaveFocus();
+    expect(editor()).toContainElement(document.activeElement as HTMLElement);
     expect(toolbar().queryByText(/changes/)).not.toBeInTheDocument();
 
-    // Fixed, the card settles when a live field takes focus, and the field's edit applies.
-    await typeInto(user, card().getByRole("textbox", { name: "Name" }), "Divination");
+    // Fixed, the editor settles when a live field takes focus, and the field's edit applies.
+    await retype(user, within(editor()).getByRole("textbox", { name: "Uses" }), "2");
     await retype(user, ac, "21");
     await user.keyboard("{Enter}");
-    expect(sheet.queryByRole("form", { name: /Spellcasting$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: /^Edit Spell list/ })).not.toBeInTheDocument();
     await user.click(toolbar().getByRole("button", { name: "Save" }));
     await waitFor(() => expect(puts).toHaveLength(1));
-    expect(puts[0]?.data).toMatchObject({ ac: 21, spellcasting: [expect.objectContaining({ name: "Divination" })] });
+    expect(puts[0]?.data).toMatchObject({
+      ac: 21,
+      spellcasting: [expect.objectContaining({ frequencyGroups: [{ frequency: "daily", count: 2, spells: [{ name: "Light" }] }] })],
+    });
   });
 
   test("02-entity-live-fields-R6: editing colliding defense displays keeps each stored row's name and note", async () => {

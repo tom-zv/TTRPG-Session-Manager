@@ -17,7 +17,7 @@ import { useMediaQuery } from "src/hooks/useMediaQuery.js";
 import type { ItemViewer } from "../../../api/query/itemKeys.js";
 import { NARROW_BROWSER_QUERY } from "../../browser/BrowserLayout.js";
 import { SheetEditContext, type EditorBuffer } from "../../sheetEditor/SheetEditContext.js";
-import { SheetEditorToolbar, handleSheetEditorKeyDown, useSheetHistory } from "../../sheetEditor/SheetEditorToolbar.js";
+import { ConfirmPrompt, SheetEditorToolbar, handleSheetEditorKeyDown, useSheetHistory } from "../../sheetEditor/SheetEditorToolbar.js";
 import { firstIssueJump, type IssueJump, type PlacedIssue } from "../../sheetEditor/issues.js";
 import { useOpenEditor } from "../../sheetEditor/useOpenEditor.js";
 import { usePresentation, type SheetPresentation } from "../../sheetEditor/usePresentation.js";
@@ -32,9 +32,8 @@ import {
 } from "./hooks/useEntityDraft.js";
 import type { EntityDraft } from "./model/defaults.js";
 import { getAutoPassivePerception } from "./model/inference.js";
-import { isEntryTextId, placeIssues } from "./model/issueTargets.js";
+import { isSharedFieldId, isSpellListId, placeIssues } from "./model/issueTargets.js";
 import { changedSettings } from "./model/settingsPatch.js";
-import sheetStyles from "../../sheetEditor/SheetEditor.module.css";
 import styles from "./EntityEditor.module.css";
 
 type EntityEditorProps = {
@@ -108,10 +107,10 @@ const autoSpellcastingProblem = (current: EntityDraftState, next: EntityDraftSta
     if (!modes || block === current.draft.spellcasting?.[index]) continue;
     const name = block.name.trim() || "spellcasting";
     if (modes.saveDc === "auto" && block.saveDc !== undefined && (block.saveDc < 0 || block.saveDc > maxByte)) {
-      return `The automatic save DC of ${name} would be ${block.saveDc}; it must be from 0 to ${maxByte}. Type a value in its card instead.`;
+      return `The automatic save DC of ${name} would be ${block.saveDc}; it must be from 0 to ${maxByte}. Type a save DC instead.`;
     }
     if (modes.spellAttackBonus === "auto" && block.spellAttackBonus !== undefined && (block.spellAttackBonus < minByte || block.spellAttackBonus > maxByte)) {
-      return `The automatic spell attack of ${name} would be ${block.spellAttackBonus}; it must be from ${minByte} to +${maxByte}. Type a value in its card instead.`;
+      return `The automatic spell attack of ${name} would be ${block.spellAttackBonus}; it must be from ${minByte} to +${maxByte}. Type a spell attack instead.`;
     }
   }
   return undefined;
@@ -257,12 +256,16 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
 
   /**
    * An issue's jump in the current presentation: on a live sheet the field itself takes focus (its
-   * line's add control or first field when it is absent); otherwise, and for spellcasting cards
-   * and pickers, the editor opens. An entry's text is the same textarea in both presentations.
+   * line's add control or first field when it is absent); otherwise, and for spell list labels and
+   * pickers, the editor opens. An entry's text, a spellcasting paragraph and a spell are the same
+   * control in both presentations.
    */
   const jump = useCallback((targetId: string, focusId: string | null = targetId) => {
     const exactId = focusId ?? targetId;
-    if (presentation === "live" ? focusLive(exactId) : isEntryTextId(targetId) && focusLive(targetId, true)) return;
+    const focused = isSpellListId(targetId)
+      ? false
+      : presentation === "live" ? focusLive(exactId) : isSharedFieldId(targetId) && focusLive(targetId, true);
+    if (focused) return;
     jumpToEditor(targetId, exactId);
   }, [presentation, focusLive, jumpToEditor]);
   useEffect(() => {
@@ -437,22 +440,27 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
                   ? { name: write.name || name, onDiscard: onCancel, onKeep: dismissConfirm }
                   : null}
                 keepRef={confirmRef}
+                prompt={confirming === "overwrite" && (
+                  <ConfirmPrompt
+                    label={`Edit the imported ${name}?`}
+                    message={`Re-imports will skip ${name}, and the encounters that use it will change.`}
+                    confirmLabel="Edit the original"
+                    confirmDisabled={saving}
+                    onConfirm={() => {
+                      if (!setMode("overwrite")) return;
+                      setConfirming(null);
+                      window.requestAnimationFrame(() => copyInsteadRef.current?.focus());
+                    }}
+                    keepLabel="Keep saving a copy"
+                    onKeep={dismissConfirm}
+                    keepRef={confirmRef}
+                  />
+                )}
               />
-              {confirming === "overwrite" && (
-                <div className={sheetStyles.confirm} role="group" aria-label={`Edit the imported ${name}?`}>
-                  <p>Re-imports will skip {name}, and the encounters that use it will change.</p>
-                  <button type="button" disabled={saving} onClick={() => {
-                    if (!setMode("overwrite")) return;
-                    setConfirming(null);
-                    window.requestAnimationFrame(() => copyInsteadRef.current?.focus());
-                  }}>Edit the original</button>
-                  <button ref={confirmRef} type="button" onClick={dismissConfirm}>Keep saving a copy</button>
-                </div>
-              )}
             </>
           )}
           saveDestination={imported && (
-            <span className={styles.destination} role="note">
+            <span className={styles.destination} role="note" data-mode={state.mode}>
               <span className={styles.visuallyHidden}>
                 {state.mode === "overwrite"
                   ? `Saving changes the imported ${name} (${entity.source}) itself. Re-imports will skip it.`
@@ -460,12 +468,12 @@ export const EntityEditor = forwardRef<EntityEditorHandle, EntityEditorProps>(fu
               </span>
               {state.mode === "overwrite" ? (
                 <>
-                  Editing original
+                  <span aria-hidden="true">Saves over the original</span>
                   <button ref={copyInsteadRef} type="button" disabled={saving} aria-label="Save as a copy instead" onClick={() => setMode("copy")}>Save as a copy</button>
                 </>
               ) : (
                 <>
-                  Homebrew copy
+                  <span aria-hidden="true">Saves as a homebrew copy</span>
                   <button ref={overwriteRef} type="button" disabled={saving} aria-label="Edit the original instead" onClick={() => setConfirming("overwrite")}>Edit the original</button>
                 </>
               )}

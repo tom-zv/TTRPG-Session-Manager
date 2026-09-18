@@ -9,6 +9,7 @@ import {
   type RecordEntryMode,
 } from "./calculations.js";
 import type { EntityDraft } from "./defaults.js";
+import { carryEntryKey } from "./entryKeys.js";
 import { SAVE_OPTIONS, SKILL_OPTIONS } from "./options.js";
 
 export type ProficiencyField = "saves" | "skills";
@@ -96,7 +97,8 @@ export const refreshSpellcastingValues = (
     const mode = modes[index];
     if (!mode) return block;
     const auto = getAutoSpellcastingValues(draft, block);
-    const next = { ...block };
+    // The refreshed block keeps its key, so its fields (and text typed into them) stay mounted.
+    const next = carryEntryKey(block, { ...block });
     if (mode.saveDc === "auto") next.saveDc = auto.saveDc;
     if (mode.spellAttackBonus === "auto") next.spellAttackBonus = auto.spellAttackBonus;
     if (next.saveDc === undefined) delete next.saveDc;

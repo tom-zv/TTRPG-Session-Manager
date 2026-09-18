@@ -12,12 +12,10 @@ export type EditorBuffer = {
   activeId: string | null;
   /** Input that differs from what the editor opened with, by `useEditorState` key. */
   values: Record<string, unknown>;
-  /** A new entry whose card is open; it is not in the draft until the card saves. */
-  newEntry: unknown;
   /**
-   * A row added on the sheet that is not in the draft yet (an entity trait being typed). Unlike
-   * `newEntry` it is not an editor, so it outlives editor changes; the sheet drops it once it lands
-   * in the draft or is left blank.
+   * A row added on the sheet that is not in the draft yet (an entity trait being typed). It is not
+   * an editor, so it outlives editor changes; the sheet drops it once it lands in the draft or is
+   * left blank.
    */
   addedRow: unknown;
   /**
@@ -43,7 +41,7 @@ export type LiveText = {
   parse: (text: string, draft: unknown, modes: unknown) => FieldParse<unknown, unknown>;
 };
 
-export const createEditorBuffer = (): EditorBuffer => ({ activeId: null, values: {}, newEntry: null, addedRow: null, live: {} });
+export const createEditorBuffer = (): EditorBuffer => ({ activeId: null, values: {}, addedRow: null, live: {} });
 
 /** Whether the open editor or a live field holds input the draft has not seen yet. */
 export const hasOpenInput = (buffer: EditorBuffer): boolean =>
@@ -62,9 +60,6 @@ export type EditorBufferApi = {
   restore: (key: string) => { value: unknown } | undefined;
   keep: (key: string, value: unknown) => void;
   forget: (key: string) => void;
-  /** The new entry whose card was open, for the sheet's entry sections. */
-  restoreNewEntry: () => unknown;
-  keepNewEntry: (entry: unknown) => void;
   /** The added row that is not in the draft yet; see `EditorBuffer.addedRow`. */
   restoreAddedRow: () => unknown;
   keepAddedRow: (row: unknown) => void;

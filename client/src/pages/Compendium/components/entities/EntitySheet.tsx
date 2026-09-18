@@ -162,10 +162,10 @@ export const EntitySheet: React.FC<{
             {liveAt("subtitle") ? <LiveSubtitle /> : <EditTarget id="subtitle" label={`Type, ${summary}`} editor={<SubtitleEditor />}>{summary}</EditTarget>}
             <span className={styles.sheetRole}> · {liveAt("subtitle") ? <LiveRole /> : isFeaturedNpc(entity) ? "Featured NPC" : ROLE_LABELS[entity.role]}</span>
             <SourceBadge entity={entity} />
-            {saveDestination}
-            {editing && !entity.imageUrl && <>{" "}<EditTarget id="imageUrl" label="Token image" placeholder editor={<TokenEditor />} /></>}
             {inParty && <span className={styles.partyBadge}>Party</span>}
           </Subtitle>
+          {/* Where a save goes, on a line of its own under the subtitle (edit mode only). */}
+          {saveDestination}
           <dl className={styles.vitals}>
             {stats.map(stat => (
               <div key={stat.label}>
@@ -175,10 +175,15 @@ export const EntitySheet: React.FC<{
             ))}
           </dl>
         </div>
-        {entity.imageUrl && (
+        {entity.imageUrl ? (
           <EditTarget id="imageUrl" label="Token image" editor={<TokenEditor />}>
             <img className={styles.sheetToken} src={entity.imageUrl} alt={`${entity.name} token`} loading="lazy" />
           </EditTarget>
+        ) : editing && (
+          // An empty token's place: a dashed circle the size of a token.
+          <div className={styles.tokenSlot}>
+            <EditTarget id="imageUrl" label="Token image" placeholder editor={<TokenEditor />} />
+          </div>
         )}
         {headerAction && <div className={styles.sheetActions}>{headerAction}</div>}
       </header>

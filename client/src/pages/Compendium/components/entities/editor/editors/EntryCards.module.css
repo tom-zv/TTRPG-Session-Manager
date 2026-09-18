@@ -1,18 +1,4 @@
-/* Entry and spellcasting cards in the entity sheet's edit mode: their fields and the sections around them. */
-
-.slot {
-  border-radius: 3px;
-  cursor: pointer;
-}
-
-.slot:hover {
-  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
-}
-
-.slot:global(.drop-target.active) {
-  outline: 2px dashed var(--accent-primary);
-  outline-offset: 2px;
-}
+/* The entity sheet's entries in edit mode, their popover editors and the sections around them. */
 
 .row {
   display: flex;
@@ -56,36 +42,6 @@
   margin: 0;
   color: var(--text-tertiary);
   font-size: 0.8rem;
-}
-
-.fieldset .chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.chip {
-  display: inline-flex;
-  flex-wrap: wrap;
-  max-width: 100%;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.15rem 0.35rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm, 4px);
-  font-size: 0.85rem;
-}
-
-.chip span {
-  overflow-wrap: anywhere;
-}
-
-.chip input {
-  width: 7rem;
-  min-height: 1.6rem;
 }
 
 .legendary {
@@ -228,5 +184,189 @@
   .entryTools [role="menuitem"] {
     min-width: 44px;
     min-height: 44px;
+  }
+}
+
+/* A section's "+ Add": a spellcasting block listed after it keeps a block's distance from it. */
+.addEntry + .blockRow {
+  margin-top: 0.6rem;
+}
+
+/* A spellcasting block. Its row has no margin of its own: the block keeps view mode's margins. */
+.blockRow {
+  margin: 0;
+}
+
+/* View mode's name line is a `.section p`; this div keeps that paragraph's margins. */
+.blockRow .blockHead {
+  margin: 0.25rem 0 0.5rem;
+}
+
+/* A later paragraph of the block's text, with view mode's paragraph margins. */
+.paragraphField {
+  display: block;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.blockRow .metaLine {
+  margin: 0.25rem 0 0.5rem;
+}
+
+/* Says an automatic save DC or attack follows the ability; edit mode only. */
+.autoTag {
+  margin-inline-start: 0.2rem;
+  color: var(--text-tertiary);
+  font-size: 0.75em;
+  font-style: italic;
+}
+
+/* A list hidden in view mode stays editable, dimmed. */
+.blockLists[data-hidden] .listLine {
+  opacity: 0.6;
+}
+
+.addList {
+  justify-self: start;
+  margin-top: 0.15rem;
+}
+
+/* One spell list. Positioned for its delete button and its message. */
+.listLine {
+  position: relative;
+}
+
+/* The line's delete button sits in the margin left of the line, as an entry's grip does, shown
+   while the line is hovered or holds focus. Showing it moves nothing. */
+.lineTools {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  display: flex;
+  align-items: center;
+  height: 1lh;
+  margin-right: 0.15rem;
+  opacity: 0;
+}
+
+.listLine:is(:hover, :focus-within) .lineTools {
+  opacity: 1;
+}
+
+.lineRemove,
+.spellRemove {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-tertiary);
+  cursor: pointer;
+}
+
+.lineRemove {
+  width: 1rem;
+  height: 1rem;
+  font-size: 0.8rem;
+}
+
+.lineRemove:hover,
+.lineRemove:focus-visible,
+.spellRemove:hover,
+.spellRemove:focus-visible {
+  background: var(--bg-tertiary);
+  color: var(--error-color, #e06c75);
+  outline: none;
+}
+
+.lineRemove:focus-visible,
+.spellRemove:focus-visible {
+  box-shadow: 0 0 0 2px var(--focus-ring, var(--accent-primary));
+}
+
+/* A spell: its remove button floats over the name's top-right corner while the spell is hovered or
+   focused, so it never moves the line. */
+.spell {
+  position: relative;
+  border-radius: 2px;
+}
+
+.spell:is(:hover, :focus-within) {
+  background: color-mix(in srgb, var(--accent-primary) 8%, transparent);
+}
+
+.spellRemove {
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  z-index: 3;
+  width: 0.9rem;
+  height: 0.9rem;
+  background: var(--bg-secondary);
+  font-size: 0.65rem;
+  opacity: 0;
+}
+
+.spell:is(:hover, :focus-within) .spellRemove {
+  opacity: 1;
+}
+
+/* "+": as small as the add affordances allow, on the line's last row of text. */
+.addSpell {
+  min-width: 0;
+  margin-inline: 0.3rem 0;
+  padding-inline: 0.3em;
+  vertical-align: baseline;
+}
+
+.addSpell > [aria-hidden="true"],
+.addSpell input:placeholder-shown {
+  text-align: center;
+}
+
+/* Lets a wrapper's child take its parent's layout (the spell search's input in a value's grid). */
+.contents {
+  display: contents;
+}
+
+/* Without hover the line's delete button stays shown after "+ spell", and each spell's button
+   stays shown over its corner. */
+@media (hover: none) {
+  .lineTools {
+    position: static;
+    display: inline-flex;
+    height: auto;
+    margin: 0 0 0 0.35rem;
+    vertical-align: middle;
+    opacity: 1;
+  }
+
+  /* Over the corner it would cover the line above; inline after the name it covers nothing. */
+  .spellRemove {
+    position: relative;
+    top: auto;
+    right: auto;
+    display: inline-grid;
+    margin-inline-start: 0.15rem;
+    vertical-align: middle;
+    background: transparent;
+    opacity: 1;
+  }
+}
+
+/* A 44 px hit area around the small buttons, drawn outside them so the line does not grow. */
+@media (pointer: coarse) {
+  .lineRemove::after,
+  .spellRemove::after {
+    content: "";
+    position: absolute;
+    inset: 50% auto auto 50%;
+    width: 44px;
+    height: 44px;
+    transform: translate(-50%, -50%);
+  }
+
+  .lineRemove {
+    position: relative;
   }
 }

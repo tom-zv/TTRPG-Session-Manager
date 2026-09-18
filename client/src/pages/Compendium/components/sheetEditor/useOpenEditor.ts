@@ -79,7 +79,6 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
     setEditorJump(null);
     bufferRef.current.activeId = id;
     bufferRef.current.values = {};
-    bufferRef.current.newEntry = null;
     setActiveIdState(id);
   }, []);
   // Live text reaches the buffer from the fields' effects; only which fields hold text, and how
@@ -96,10 +95,6 @@ export const useOpenEditor = ({ buffer, saving, presentation }: OpenEditorOption
     },
     forget: key => {
       delete bufferRef.current.values[key];
-    },
-    restoreNewEntry: () => bufferRef.current.newEntry,
-    keepNewEntry: entry => {
-      bufferRef.current.newEntry = entry;
     },
     restoreAddedRow: () => bufferRef.current.addedRow,
     keepAddedRow: row => {
