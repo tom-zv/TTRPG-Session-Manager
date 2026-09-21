@@ -131,7 +131,7 @@ function serveCatalog(items: Item[], options: {
         .filter(stored => kinds.length === 0 || kinds.includes(stored.item.kind))
         .sort((a, b) => a.item.name.localeCompare(b.item.name) || a.item.source.localeCompare(b.item.source) || a.item.id - b.item.id);
       const offset = Number(params.get("offset") ?? 0);
-      const limit = Number(params.get("limit") ?? 50);
+      const limit = params.has("limit") ? Number(params.get("limit")) : null;
       const unique = <Value,>(values: Value[]) => [...new Set(values)];
       const facets: ItemFacets = {
         kinds: unique(scoped.map(stored => stored.item.kind)),
@@ -141,7 +141,7 @@ function serveCatalog(items: Item[], options: {
         sources: unique(scoped.map(stored => stored.item.source)).sort(),
       };
       const result: ItemListResult = {
-        items: matching.slice(offset, offset + limit).map(stored => summaryOf(stored, viewerIsGm(), familyOf(stored))),
+        items: matching.slice(offset, limit === null ? undefined : offset + limit).map(stored => summaryOf(stored, viewerIsGm(), familyOf(stored))),
         total: matching.length,
         offset,
         limit,
@@ -407,19 +407,16 @@ describe("Browsing items", () => {
     await waitFor(() => expect(within(list).getAllByRole("option")).toHaveLength(5));
   });
 
-  test("a long catalog loads one page at a time", async () => {
-    const user = userEvent.setup();
-    const many = Array.from({ length: 60 }, (_, index) => item(200 + index, `Trinket ${String(index).padStart(2, "0")}`));
+  test("a long catalog is listed in full from one request", async () => {
+    const many = Array.from({ length: 120 }, (_, index) => item(200 + index, `Trinket ${String(index).padStart(3, "0")}`));
     const catalog = serveCatalog(many);
     renderAs(player, "/compendium?section=items");
     const list = await itemList();
 
-    await waitFor(() => expect(within(list).getAllByRole("option")).toHaveLength(50));
-    expect(screen.getByText("50 of 60 items")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Load more items" }));
-    await waitFor(() => expect(within(list).getAllByRole("option")).toHaveLength(60));
-    expect(catalog.listRequests.at(-1)?.get("offset")).toBe("50");
-    expect(screen.queryByRole("button", { name: "Load more items" })).not.toBeInTheDocument();
+    await waitFor(() => expect(within(list).getAllByRole("option")).toHaveLength(120));
+    expect(screen.getByText("120 items")).toBeVisible();
+    expect(catalog.listRequests).toHaveLength(1);
+    expect(catalog.listRequests[0].has("limit")).toBe(false);
   });
 
   test("a family's page lists its specifics; choosing one opens that exact printing, which links back", async () => {

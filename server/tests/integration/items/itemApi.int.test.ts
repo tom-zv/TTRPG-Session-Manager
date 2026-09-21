@@ -134,7 +134,7 @@ describe('item index', () => {
       pages.push(...page.items);
     }
     expect(pages.map(item => item.id)).toEqual(all.items.map(item => item.id));
-    expect((await list(player.token)).limit).toBe(50);
+    expect(await list(player.token)).toMatchObject({ limit: null, items: { length: 19 } });
   });
 
   test('a page or filter outside the bounds is rejected', async () => {

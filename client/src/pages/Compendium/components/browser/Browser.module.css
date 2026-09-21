@@ -241,6 +241,10 @@
 }
 
 .row {
+  /* Lists hold thousands of rows: skip layout and paint for the ones out of view. The size is a
+     two-line row's, until the browser has measured the real one. */
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 3rem;
   display: flex;
   flex-direction: column;
   gap: 0.1rem;

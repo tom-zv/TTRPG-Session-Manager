@@ -11,7 +11,7 @@ export const ITEM_KEYS = {
   all: ["compendium", "dnd5e", "items"] as const,
   viewer: (viewer: ItemViewer) => [...ITEM_KEYS.all, viewerKey(viewer)] as const,
   indexes: (viewer: ItemViewer) => [...ITEM_KEYS.viewer(viewer), "index"] as const,
-  /** Filters without paging; pages live inside the infinite query. */
+  /** The browser's whole list for one set of filters. */
   index: (viewer: ItemViewer, params: Omit<ItemListParams, "offset" | "limit">) =>
     [...ITEM_KEYS.indexes(viewer), params] as const,
   detail: (viewer: ItemViewer, id: number) => [...ITEM_KEYS.viewer(viewer), "detail", id] as const,

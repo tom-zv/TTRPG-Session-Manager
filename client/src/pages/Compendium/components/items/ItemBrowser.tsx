@@ -121,7 +121,7 @@ const renderItemRow = (item: ItemSummary) => (
 );
 
 /**
- * The item catalog. The server filters, sorts and pages the list; browsing shows named items,
+ * The item catalog. The server filters and sorts the list; browsing shows named items,
  * base gear, groups and magic variants, and a search or the specifics filter adds the specific
  * items generated from variants. GMs also create, edit, duplicate, hide and delete items.
  */
@@ -303,10 +303,8 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({
     setOverlay(null);
   }
 
-  const pages = index.data?.pages ?? [];
-  const items = pages.flatMap(page => page.items);
-  const first = pages[0];
-  const total = first?.total ?? 0;
+  const items = index.data?.items ?? [];
+  const total = index.data?.total ?? 0;
   const filtered = Object.keys(indexFilters).length > 0 || filters.search !== "";
   const emptyCatalog = index.isSuccess && !index.isPlaceholderData && total === 0 && !filtered;
 
@@ -410,9 +408,9 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({
           <ItemFilters
             filters={filters}
             onChange={setFilters}
-            facets={first?.facets}
+            facets={index.data?.facets}
             searchRef={searchRef}
-            resultLabel={first ? (items.length < total ? `${items.length} of ${total} items` : `${total} items`) : ""}
+            resultLabel={index.data ? `${total} items` : ""}
             actions={!emptyCatalog && newItemButton}
           />
         }
@@ -457,18 +455,6 @@ const ItemCatalog: React.FC<ItemCatalogProps> = ({
                 }}
                 onActivate={detailState.open}
               />
-            )}
-            {index.hasNextPage && (
-              <div className={styles.loadMore}>
-                <button
-                  type="button"
-                  className={browserStyles.secondaryButton}
-                  disabled={index.isFetchingNextPage}
-                  onClick={() => void index.fetchNextPage()}
-                >
-                  {index.isFetchingNextPage ? "Loading…" : "Load more items"}
-                </button>
-              </div>
             )}
           </>
         }
@@ -515,7 +501,7 @@ type ItemDetailProps = {
   visibilityNotice?: (item: Item) => React.ReactNode;
 };
 
-// Loaded by ID, not from the list: a link or a member may name an item the current page does not show.
+// Loaded by ID, not from the list: a link or a member may name an item the filtered list does not show.
 const ItemDetail: React.FC<ItemDetailProps> = ({ mutationScope, selectedId, onSelect, actions, visibilityAction, visibilityNotice }) => {
   const { viewer } = mutationScope;
   const { data: item, error, isLoading } = useItem(viewer, selectedId);

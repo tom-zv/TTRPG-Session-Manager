@@ -9,7 +9,7 @@ export type ItemMutationScope = {
   isCurrent: () => boolean;
 };
 
-type IndexData = InfiniteData<ItemListResult, number>;
+type IndexData = ItemListResult;
 type MembersData = InfiniteData<ItemMembersResult | null, number>;
 
 export const itemToSummary = (item: Item): ItemSummary => ({
@@ -32,14 +32,14 @@ export const itemToSummary = (item: Item): ItemSummary => ({
 
 const mapIndexes = (queryClient: QueryClient, viewer: ItemViewer, map: (page: ItemListResult) => ItemListResult) =>
   queryClient.setQueriesData<IndexData>({ queryKey: ITEM_KEYS.indexes(viewer) }, old =>
-    old ? { ...old, pages: old.pages.map(map) } : old);
+    old ? map(old) : old);
 
 const mapMembers = (queryClient: QueryClient, viewer: ItemViewer, map: (page: ItemMembersResult) => ItemMembersResult) =>
   queryClient.setQueriesData<MembersData>({ queryKey: ITEM_KEYS.memberLists(viewer) }, old =>
     old ? { ...old, pages: old.pages.map(page => (page ? map(page) : page)) } : old);
 
 /**
- * Lists are server pages (filtered, sorted and counted there), so a saved item cannot be placed in
+ * Lists are filtered, sorted and counted on the server, so a saved item cannot be placed in
  * them here. Older reads are cancelled, the rows already listed show the saved values at once, and
  * the lists are then refetched for their order, totals and filter choices. Lists that were never
  * loaded stay absent rather than being seeded with one item.

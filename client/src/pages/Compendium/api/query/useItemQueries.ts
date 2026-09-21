@@ -30,17 +30,12 @@ const PAGE_SIZE = ITEM_LIST_LIMITS.defaultLimit;
 
 export type ItemIndexFilters = Omit<ItemListParams, "offset" | "limit">;
 
-/** The browser's list, one server page at a time. A filter change keeps the previous list until the new one arrives. */
+/** The browser's list: every match in one read. A filter change keeps the previous list until the new one arrives. */
 export function useItemIndex(viewer: ItemViewer, filters: ItemIndexFilters) {
-  return useInfiniteQuery({
+  return useQuery({
     placeholderData: keepPreviousData,
     queryKey: ITEM_KEYS.index(viewer, filters),
-    queryFn: ({ pageParam, signal }) => ItemApi.list({ ...filters, offset: pageParam, limit: PAGE_SIZE }, signal),
-    initialPageParam: 0,
-    getNextPageParam: last => {
-      const next = last.offset + last.items.length;
-      return last.items.length > 0 && next < last.total ? next : undefined;
-    },
+    queryFn: ({ signal }) => ItemApi.list(filters, signal),
     staleTime: Infinity,
   });
 }

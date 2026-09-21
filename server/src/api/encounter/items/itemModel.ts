@@ -1,5 +1,6 @@
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from "mysql2/promise";
 import {
+  ITEM_ID_MAX,
   itemAliasKey,
   type ItemCategory,
   type ItemKind,
@@ -96,7 +97,7 @@ export interface ItemListFilter extends ItemListScope {
   sources?: string[];
   attunement?: boolean;
   offset: number;
-  limit: number;
+  limit?: number;
 }
 
 const likeContains = (q: string) => `%${q.replace(/[\\%_]/g, match => `\\${match}`)}%`;
@@ -143,7 +144,8 @@ export async function fetchItemPage(
   );
   const [rows] = await db.query<RowDataPacket[]>(
     `SELECT ${SUMMARY_COLUMNS} ${fromItems(viewer)} WHERE ${where} ${ORDER} LIMIT ? OFFSET ?`,
-    [...values, filter.limit, filter.offset]
+    // MySQL takes OFFSET only with a LIMIT; the largest id also bounds the row count.
+    [...values, filter.limit ?? ITEM_ID_MAX, filter.offset]
   );
   return { rows: await withAliases(db, rows.map(mapSummaryRow)), total: Number(count.total) };
 }

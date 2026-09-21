@@ -158,6 +158,7 @@ export const ITEM_LIST_LIMITS = { defaultLimit: 50, maxLimit: 100, query: 128 } 
  * GET /api/dnd5e/items. Generated specifics are left out unless `specifics` is true or `q` is given,
  * so the default browse lists named items, base gear, groups and families; `specifics: false`
  * leaves them out even from a search. Results sort by name, then source, then id.
+ * Without `limit` every match from `offset` is returned; the item picker pages with it.
  * Enumerated filters use repeated keys or comma-separated values (`rarities=rare,very rare`).
  * Each `sources` parameter carries one URL-encoded literal source, including any commas
  * (`sources=Coast%2C%20Vol%201&sources=PHB`). A flag is `true` or `false`.
@@ -188,7 +189,7 @@ export interface ItemListResult {
   items: ItemSummary[];
   total: number;
   offset: number;
-  limit: number;
+  limit: number | null;       // null: no limit was asked for
   facets: ItemFacets;
 }
 

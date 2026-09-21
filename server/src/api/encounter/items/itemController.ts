@@ -99,11 +99,16 @@ class QueryReader {
     return value;
   }
 
+  offset(): number {
+    return this.whole("offset", 0, 0, ITEM_ID_MAX);
+  }
+
+  limit(): number {
+    return this.whole("limit", ITEM_LIST_LIMITS.defaultLimit, 1, ITEM_LIST_LIMITS.maxLimit);
+  }
+
   page(): ItemPage {
-    return {
-      offset: this.whole("offset", 0, 0, ITEM_ID_MAX),
-      limit: this.whole("limit", ITEM_LIST_LIMITS.defaultLimit, 1, ITEM_LIST_LIMITS.maxLimit),
-    };
+    return { offset: this.offset(), limit: this.limit() };
   }
 
   done(): void {
@@ -126,7 +131,8 @@ function readListFilter(req: Request): ItemListFilter {
     rarities: reader.oneOf("rarities", ITEM_RARITIES),
     sources: reader.names("sources", ITEM_LIMITS.source, ITEM_LIMITS.list),
     attunement: reader.flag("attunement"),
-    ...reader.page(),
+    offset: reader.offset(),
+    limit: req.query.limit === undefined ? undefined : reader.limit(),
   };
   reader.done();
   return filter;

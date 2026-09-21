@@ -46,7 +46,7 @@ export interface ItemListPage {
   rows: ItemSummaryDB[];
   total: number;
   offset: number;
-  limit: number;
+  limit: number | null;
   facets: ItemFacets;
 }
 
@@ -62,7 +62,7 @@ async function listItems(filter: ItemListFilter, viewer: ItemViewer): Promise<It
     rows,
     total,
     offset: filter.offset,
-    limit: filter.limit,
+    limit: filter.limit ?? null,
     facets: {
       kinds: inOrder(ITEM_KINDS, collect("kind")),
       categories: inOrder(ITEM_CATEGORIES, collect("category") as Set<(typeof ITEM_CATEGORIES)[number]>),
