@@ -143,7 +143,7 @@ test("spell attack bonus is read from {@hit} without doubling 'to hit'", () => {
   assert.deepEqual(dragon.descriptions, [
     "The dragon casts one of the following spells, using Charisma as the spellcasting ability:",
   ]);
-  assert.equal(render5eToolsText("{@atkr m} {@hit 9}, reach 5 ft."), "Melee Attack: +9, reach 5 ft.");
+  assert.equal(render5eToolsText("{@atkr m} {@hit 9}, reach 5 ft."), "Melee Attack Roll: +9, reach 5 ft.");
 });
 
 test("slot-based levels, pact magic and rituals (2014 format)", () => {

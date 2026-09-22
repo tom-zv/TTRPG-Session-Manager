@@ -13,6 +13,17 @@ export const DESCRIPTION_TEXT_OPTIONS: RenderOptions = { keepTags: ["spell", "it
 // of healing}" is the DMG printing. A spell without a source stays unqualified (resolveSpell decides).
 const DEFAULT_TAG_SOURCES: Readonly<Record<string, string>> = { item: "DMG" };
 
+// The pipe part holding a tag's display text, where it is not the third.
+const DISPLAY_PARTS: Readonly<Record<string, number>> = {
+  card: 3, // name|set|source|display
+  deity: 3, // name|pantheon|source|display
+  quickref: 4, // name|source|chapter|section|display
+  classfeature: 5, // name|class|classSource|level|source|display
+  subclassfeature: 7, // name|class|classSource|subclass|subclassSource|level|source|display
+};
+
+const ORDINALS = ["First", "Second", "Third", "Fourth", "Fifth", "Sixth"];
+
 export function render5eToolsText(value: string, options: RenderOptions = {}): string {
   return value
     .replace(/\{@h\}/gi, "Hit: ")
@@ -81,8 +92,13 @@ function renderTag(tag: string, body: string): string {
     case "hit":
       // The source text supplies any "to hit" wording ("{@hit 9}, reach 5 ft." / "{@hit 9} to hit with spell attacks").
       return body.startsWith("+") || body.startsWith("-") ? body : `+${body}`;
+    case "hityourspellattack":
+      // {@hitYourSpellAttack} or {@hitYourSpellAttack display}, for summons that use the caster's bonus
+      return pipePart(body, 0) || "your spell attack modifier";
     case "dc":
       return `DC ${body}`;
+    case "dcyourspellsave":
+      return pipePart(body, 0) || "your spell save DC";
     case "damage":
     case "dice":
       return pipePart(body, 0);
@@ -93,35 +109,73 @@ function renderTag(tag: string, body: string): string {
     case "chance":
       // {@chance 25|||Random reading!|Regular reading}
       return `${pipePart(body, 0)} percent`;
+    case "skillcheck":
+      return renderSkillCheckTag(body);
+    case "adventure":
     case "book":
     case "filter":
-      // {@book display|source|chapter|section}, {@filter display|page|filters...}
+      // {@book display|source|chapter|section}, {@adventure ...} alike, {@filter display|page|filters...}
       return pipePart(body, 0);
+    case "atk":
+      return renderAttackTag(body, "Attack:");
     case "atkr":
-      return renderAttackTag(body);
+      return renderAttackTag(body, "Attack Roll:");
+    case "hom":
+      return "Hit or Miss: ";
+    case "acttrigger":
+      return "Trigger:";
+    case "actresponse":
+      // {@actResponse d} runs straight into the saving throw that follows it
+      return body.includes("d") ? "Response\u2014" : "Response:";
     case "actsave":
       return `${ABILITY_NAMES[body.trim().toLowerCase()] ?? body} Saving Throw:`;
     case "actsavefail":
-      return body ? `Failure ${body}:` : "Failure:";
+      // {@actSaveFail 2} -> "Second Failure:"
+      return body ? `${ORDINALS[Number(body) - 1] ?? body} Failure:` : "Failure:";
+    case "actsavefailby":
+      return `Failure by ${pipePart(body, 0)} or More:`;
     case "actsavesuccess":
       return "Success:";
     case "actsavesuccessorfail":
-      return "Success or Failure:";
+      return "Failure or Success:";
     default:
-      // {@tag name|source|display}
-      return pipePart(body, 2) || pipePart(body, 0);
+      // Mostly {@tag name|source|display}; DISPLAY_PARTS lists the tags with more parts before the display text.
+      return pipePart(body, DISPLAY_PARTS[tag.toLowerCase()] ?? 2) || pipePart(body, 0);
   }
 }
 
-function renderAttackTag(body: string): string {
-  const normalized = body.toLowerCase();
-  const melee = normalized.includes("m");
-  const ranged = normalized.includes("r");
+const ATTACK_RANGES: Readonly<Record<string, string>> = { m: "Melee", r: "Ranged", g: "Magical", a: "Area" };
+const ATTACK_KINDS: Readonly<Record<string, string>> = { w: "Weapon", s: "Spell", p: "Power" };
 
-  if (melee && ranged) return "Melee or Ranged Attack:";
-  if (melee) return "Melee Attack:";
-  if (ranged) return "Ranged Attack:";
-  return "Attack:";
+// Attack tags as 5etools renders them: "mw" -> "Melee Weapon Attack:", "ms,rs" -> "Melee or Ranged Spell
+// Attack:". A letter shared by several groups is kept only in the last.
+function renderAttackTag(body: string, suffix: "Attack:" | "Attack Roll:"): string {
+  const groups = body.toLowerCase().split(",").map(group => group.trim()).filter(Boolean).map(group => [...group]);
+  const seen = new Set(groups.at(-1));
+  for (let i = groups.length - 2; i >= 0; i--) {
+    groups[i] = (groups[i] ?? []).filter(letter => {
+      const unseen = !seen.has(letter);
+      seen.add(letter);
+      return unseen;
+    });
+  }
+
+  const words = groups.map(letters => {
+    const range = Object.keys(ATTACK_RANGES).find(key => letters.includes(key));
+    const kind = Object.keys(ATTACK_KINDS).find(key => letters.includes(key));
+    return [range && ATTACK_RANGES[range], kind && ATTACK_KINDS[kind]].filter(Boolean).join(" ");
+  });
+  const label = words.filter(Boolean).join(" or ");
+  return label ? `${label} ${suffix}` : suffix;
+}
+
+// {@skillCheck animal_handling 5} or {@skillCheck animal_handling 5|display}: shows the modifier, "+5".
+function renderSkillCheckTag(body: string): string {
+  const display = pipePart(body, 1);
+  if (display) return display;
+  const modifier = pipePart(body, 0).split(" ").slice(1).join(" ");
+  const value = Number(modifier);
+  return modifier && !Number.isNaN(value) ? `${value < 0 ? "" : "+"}${value}` : modifier;
 }
 
 function pipePart(value: string, index: number): string {
