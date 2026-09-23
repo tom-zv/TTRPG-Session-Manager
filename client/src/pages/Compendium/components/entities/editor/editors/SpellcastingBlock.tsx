@@ -200,24 +200,31 @@ const SpellcastingMeta: React.FC<MetaProps> = ({ id, block, fields, bufferKey, l
   const auto = getAutoSpellcastingValues(edit.draft, block);
   return (
     <div className={`${cardStyles.spellcastingMeta} ${styles.metaLine}`}>
-      Spellcasting Ability{" "}
-      <LiveInput
-        id={fields.ability.id}
-        bufferKey={bufferKey("ability")}
-        label={fields.ability.label}
-        read={fields.ability.read}
-        parse={fields.ability.parse}
-        placeholder="—"
-        suggestions={fields.ability.suggestions}
-      />
-      ; Save DC{" "}
-      <AutoNumber field={fields.saveDc} bufferKey={bufferKey("saveDc")} autoText={auto.saveDc === undefined ? undefined : String(auto.saveDc)} />
-      ; Spell Attack{" "}
-      <AutoNumber
-        field={fields.spellAttackBonus}
-        bufferKey={bufferKey("spellAttackBonus")}
-        autoText={auto.spellAttackBonus === undefined ? undefined : formatSignedNumber(auto.spellAttackBonus)}
-      />
+      {/* A part that has no value dims until the line is hovered or one of its fields has focus. */}
+      <span className={styles.metaPart} data-empty={!block.ability || undefined}>
+        Spellcasting Ability{" "}
+        <LiveInput
+          id={fields.ability.id}
+          bufferKey={bufferKey("ability")}
+          label={fields.ability.label}
+          read={fields.ability.read}
+          parse={fields.ability.parse}
+          placeholder="—"
+          suggestions={fields.ability.suggestions}
+        />
+      </span>
+      <span className={styles.metaPart} data-empty={block.saveDc === undefined || undefined}>
+        ; Save DC{" "}
+        <AutoNumber field={fields.saveDc} bufferKey={bufferKey("saveDc")} autoText={auto.saveDc === undefined ? undefined : String(auto.saveDc)} />
+      </span>
+      <span className={styles.metaPart} data-empty={block.spellAttackBonus === undefined || undefined}>
+        ; Spell Attack{" "}
+        <AutoNumber
+          field={fields.spellAttackBonus}
+          bufferKey={bufferKey("spellAttackBonus")}
+          autoText={auto.spellAttackBonus === undefined ? undefined : formatSignedNumber(auto.spellAttackBonus)}
+        />
+      </span>
     </div>
   );
 };

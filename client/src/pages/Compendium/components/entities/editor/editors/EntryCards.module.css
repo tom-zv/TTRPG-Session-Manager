@@ -212,6 +212,18 @@
   margin: 0.25rem 0 0.5rem;
 }
 
+/* A part of the ability line with no value ("Save DC —") is dimmed until the line is hovered or
+   one of its fields has focus. Opacity moves nothing. */
+.metaPart[data-empty] {
+  opacity: 0.4;
+  transition: opacity 0.12s;
+}
+
+.metaLine:hover .metaPart[data-empty],
+.metaPart[data-empty]:focus-within {
+  opacity: 1;
+}
+
 /* Says an automatic save DC or attack follows the ability; edit mode only. */
 .autoTag {
   margin-inline-start: 0.2rem;
