@@ -13,8 +13,13 @@
   cursor: help;
 }
 
+/* The app's `button:hover` fills with the accent, which is this link's own colour (the text would
+   vanish) and scales it; a link only changes its underline. */
 .trigger:hover,
+.trigger:active,
 .trigger[aria-expanded="true"] {
+  background: none;
+  transform: none;
   text-decoration-style: solid;
   text-decoration-color: currentColor;
 }
