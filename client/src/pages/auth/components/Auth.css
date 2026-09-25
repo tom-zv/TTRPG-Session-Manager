@@ -30,18 +30,6 @@
   margin-bottom: 0;
 }
 
-.form-group-checkbox {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-md);
-}
-
-.form-group-checkbox input {
-  width: auto;
-  margin: 0;
-}
-
 .auth-button {
   margin-top: var(--spacing-sm);
 }

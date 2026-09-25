@@ -53,13 +53,15 @@ export const registerUser = async (
   next: NextFunction
 ) => {
   try {
-    const { username, password, email, isGM } = req.body;
+    const { username, password, email } = req.body ?? {};
 
-    if (!username || !password || !email || typeof isGM !== "boolean") {
+    if (typeof username !== "string" || !username ||
+        typeof password !== "string" || !password ||
+        typeof email !== "string" || !email) {
       throw new ValidationError("Missing required fields");
     }
 
-    const createdUser = await authService.registerUser({ username, password, email, isGM });
+    const createdUser = await authService.registerUser({ username, password, email, isGM: false });
 
     const userDTO = userToDto(createdUser);
 

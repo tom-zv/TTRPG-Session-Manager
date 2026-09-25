@@ -1,8 +1,7 @@
 export type UserRegistrationDTO = {
     username: string,
     password: string,
-    email?: string,
-    isGM: boolean,
+    email: string,
 }
 
 /** What a GM sees when picking a user, for example to assign a character to a player. */
