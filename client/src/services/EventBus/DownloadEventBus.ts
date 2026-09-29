@@ -7,7 +7,10 @@ import {
   DownloadProgressDTO,
 } from "shared/DTO/downloadEvents.js";
 import { SocketEvent } from "shared/sockets/types.js";
-import { AudioEventTypes, getDownloadSocket } from "../SocketService/index.js";
+import type { Socket } from "socket.io-client";
+import { AudioEventTypes, DOWNLOAD_NAMESPACE, disconnectSocket, getDownloadSocket } from "../SocketService/index.js";
+
+const DOWNLOAD_EVENTS = [AudioEventTypes.FILE_DOWNLOAD_STATUS, AudioEventTypes.FILE_METADATA_FETCHED];
 
 // Union type of all possible download event payloads
 export type AnyDownloadPayload =
@@ -28,26 +31,28 @@ type Subscriber = {
   downloadType?: "audio" | "image" | "document";
 };
 
+/** The first Sound Manager subscriber opens the socket. GM logout closes it. */
 class DownloadEventBus {
-  private socket = getDownloadSocket();
+  private socket: Socket | null = null;
   private subscribers: Subscriber[] = [];
 
-  constructor() {
-    this.registerSocketEvents([
-      AudioEventTypes.FILE_DOWNLOAD_STATUS,
-      AudioEventTypes.FILE_METADATA_FETCHED,
-    ]);
+  private readonly forward = (event: SocketEvent<DownloadEventType, AnyDownloadPayload>): void => {
+    this.publish(event);
+  };
+
+  private ensureSocket(): void {
+    if (this.socket) return;
+    this.socket = getDownloadSocket();
+    for (const eventType of DOWNLOAD_EVENTS) this.socket.on(eventType, this.forward);
   }
 
-  private registerSocketEvents(eventTypes: string[]): void {
-    eventTypes.forEach((eventType) => {
-      this.socket.on(
-        eventType,
-        (event: SocketEvent<DownloadEventType, AnyDownloadPayload>) => {
-          this.publish(event);
-        }
-      );
-    });
+  /** Close the socket and drop every subscriber. */
+  public stop(): void {
+    this.subscribers = [];
+    if (!this.socket) return;
+    for (const eventType of DOWNLOAD_EVENTS) this.socket.off(eventType, this.forward);
+    this.socket = null;
+    disconnectSocket(DOWNLOAD_NAMESPACE);
   }
 
   /**
@@ -94,6 +99,7 @@ class DownloadEventBus {
       downloadType: options?.downloadType,
     };
 
+    this.ensureSocket();
     this.subscribers.push(subscriber);
 
     // Return unsubscribe function

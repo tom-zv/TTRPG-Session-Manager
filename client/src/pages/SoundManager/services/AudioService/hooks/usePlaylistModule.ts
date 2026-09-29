@@ -10,7 +10,7 @@ import { AudioEventTypes, on, off } from '../events.js';
 import { getVolume } from '../volumeStore.js';
 
 // Create a singleton instance of PlaylistModule
-const playlistModule = new PlaylistModule();
+export const playlistModule = new PlaylistModule();
 
 type PlaylistSnapshot = {
   currentPlaylistId: number | null;

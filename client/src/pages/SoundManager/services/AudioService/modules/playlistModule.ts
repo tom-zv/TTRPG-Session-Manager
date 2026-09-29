@@ -2,7 +2,7 @@ import { Howl, HowlOptions } from "howler";
 import { getCollectionFromCache } from "../queryClient.js";
 import { AudioEventTypes, emit } from "../events.js";
 import { AudioFile } from "../../../types/AudioItem.js";
-import { resolveAudioUrl } from "../utils/pathResolvers.js";
+import { resolveAudioSource } from "../utils/pathResolvers.js";
 import { getVolume, setVolume } from "../volumeStore.js";
 
 export class PlaylistModule {
@@ -20,6 +20,9 @@ export class PlaylistModule {
   
   // Add this property to track error timeouts
   private errorTimeoutId: number | null = null;
+
+  /** Only the current track load may start playback or advance the playlist. */
+  private trackLoad = 0;
 
   // Play track if the playing flag is set
   private syncTrackPlayback(): void {
@@ -55,24 +58,24 @@ export class PlaylistModule {
       playing: true,
     };
 
-    await this.loadTrack();
+    if (!await this.loadTrack()) return;
     this.syncTrackPlayback();
 
     this.emitPlaylistChangeEvents();
   }
 
-  private async loadTrack(): Promise<void> {
+  private async loadTrack(): Promise<boolean> {
     this.clearErrorTimeouts(); // Clear any pending timeouts when loading a new track
     
     const collection = getCollectionFromCache(
       "playlist",
       this.currentPlaylist.collectionId
     );
-    if (!collection || !collection.items?.length) return;
+    if (!collection || !collection.items?.length) return false;
 
     const tracks = collection.items as AudioFile[];
     const track = tracks[this.currentPlaylist.currentIndex];
-    if (!track) return;
+    if (!track) return false;
 
     // Stop and unload any existing track
     if (this.currentPlaylist.howl) {
@@ -81,13 +84,15 @@ export class PlaylistModule {
       this.currentPlaylist.howl = null;
     }
 
-    const audioSrc = track.path || await resolveAudioUrl(track.url);
+    const load = ++this.trackLoad;
+    const audioSrc = await resolveAudioSource(track);
+    if (load !== this.trackLoad) return false;
 
     if (!audioSrc) {
       console.error(`Could not resolve audio source for track: ${track.name || track.id} (URL: ${track.url}, Path: ${track.path}). Skipping.`);
       
-      setTimeout(() => this.nextTrack(), 100);
-      return;
+      this.errorTimeoutId = window.setTimeout(() => this.nextTrack(), 100);
+      return false;
     }
 
     // Define Howl options
@@ -96,7 +101,7 @@ export class PlaylistModule {
       volume: getVolume("playlist"),
       html5: !!track.url, 
       onend: () => {
-        this.nextTrack();
+        if (load === this.trackLoad) void this.nextTrack();
       },
       onload: () => {
         // When track is loaded, notify about the track change again to update duration
@@ -111,7 +116,7 @@ export class PlaylistModule {
         this.errorTimeoutId = setTimeout(() => {
           this.errorTimeoutId = null;
           // Check if we're still playing before moving to next track
-          if (this.currentPlaylist.playing) {
+          if (load === this.trackLoad && this.currentPlaylist.playing) {
             this.nextTrack();
           }
         }, 1500) as unknown as number;
@@ -125,7 +130,7 @@ export class PlaylistModule {
         this.errorTimeoutId = setTimeout(() => {
           this.errorTimeoutId = null;
           // Check if we're still playing before moving to next track
-          if (this.currentPlaylist.playing) {
+          if (load === this.trackLoad && this.currentPlaylist.playing) {
             this.nextTrack();
           }
         }, 1500) as unknown as number;
@@ -139,6 +144,7 @@ export class PlaylistModule {
 
     const newHowl = new Howl(howlOptions);
     this.currentPlaylist.howl = newHowl;
+    return true;
   }
 
   pausePlaylist(): void {
@@ -184,7 +190,7 @@ export class PlaylistModule {
     this.currentPlaylist.currentIndex =
       (this.currentPlaylist.currentIndex + 1) % collection.items.length;
 
-    await this.loadTrack();
+    if (!await this.loadTrack()) return;
     this.syncTrackPlayback();
 
     this.emitTrackChangeEvent();
@@ -209,7 +215,7 @@ export class PlaylistModule {
       (this.currentPlaylist.currentIndex - 1 + collection.items.length) %
       collection.items.length;
 
-    await this.loadTrack();
+    if (!await this.loadTrack()) return;
     this.syncTrackPlayback();
 
     this.emitTrackChangeEvent();
@@ -258,7 +264,7 @@ export class PlaylistModule {
     } else {
       if (index !== this.currentPlaylist.currentIndex) {
         this.currentPlaylist.currentIndex = index;
-        await this.loadTrack();
+        if (!await this.loadTrack()) return false;
         this.currentPlaylist.playing = true;
         this.syncTrackPlayback();
         this.emitTrackChangeEvent();
@@ -310,6 +316,20 @@ export class PlaylistModule {
       return this.currentPlaylist.howl.duration();
     }
     return 0;
+  }
+
+  /** The GM session ended: stop and unload the track and forget the playlist. */
+  reset(): void {
+    this.trackLoad += 1;
+    this.clearErrorTimeouts();
+    if (this.currentPlaylist.howl) {
+      this.currentPlaylist.howl.stop();
+      this.currentPlaylist.howl.unload();
+    }
+    this.currentPlaylist = { collectionId: 0, currentIndex: 0, howl: null, playing: false };
+    emit(AudioEventTypes.PLAYLIST_CHANGE, { id: null, currentIndex: 0 });
+    this.emitTrackChangeEvent();
+    emit(AudioEventTypes.PLAYLIST_STATE_CHANGE, false);
   }
 
   // Method to update the master volume

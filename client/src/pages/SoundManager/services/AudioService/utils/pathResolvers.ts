@@ -1,5 +1,11 @@
 import { getYTAudioURL } from '../../../api/AudioApi.js';
 
+/** Stored paths are relative to the public directory and must resolve from the site root. */
+export async function resolveAudioSource(file: { path?: string | null; url?: string | null }): Promise<string> {
+  if (file.path) return `/${file.path.replace(/\\/g, "/").replace(/^\/+/, "")}`;
+  return resolveAudioUrl(file.url);
+}
+
 /**
  * Resolve a URL, handling special cases.
  */

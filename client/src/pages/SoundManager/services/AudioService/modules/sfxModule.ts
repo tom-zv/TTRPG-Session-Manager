@@ -1,12 +1,11 @@
 import { Howl } from "howler";
 import { AudioEventTypes, emit } from "../events.js";
 import { AudioFile, AudioMacro, isAudioFile } from "../../../types/AudioItem.js";
-import { resolveAudioUrl } from "../utils/pathResolvers.js";
+import { resolveAudioSource } from "../utils/pathResolvers.js";
 import { getVolume, setVolume } from "../volumeStore.js";
 
 type SfxMacroState = {
   volume: number;
-  fileIds: number[];
   timeoutIds: NodeJS.Timeout[];
   howls: Howl[];
 };
@@ -15,15 +14,22 @@ export class SfxModule {
   private currentFiles: Map<number, { fileId: number; howl: Howl; volume: number }> = new Map();
   private currentMacros: Map<number, SfxMacroState> = new Map();
 
+  /** Moves on `reset`, so a source resolved for the ended session is never played. */
+  private epoch = 0;
+
   // Play a single SFX file
   async playFile(file: AudioFile): Promise<void> {
-    const audioSrc = file.path|| await resolveAudioUrl(file.url) || "";
+    const epoch = this.epoch;
+    const audioSrc = await resolveAudioSource(file);
+    if (epoch !== this.epoch) return;
 
+    this.stopFile(file.id);
     const howl = new Howl({
       src: [audioSrc],
       volume: getVolume("sfx") * (file.volume ?? 1),
       html5: file.url ? true : false,
       onend: () => {
+        if (this.currentFiles.get(file.id)?.howl !== howl) return;
         this.currentFiles.delete(file.id);
         emit(
           AudioEventTypes.SFX_FILE_CHANGE,
@@ -75,17 +81,17 @@ export class SfxModule {
   async playMacro(macro: AudioMacro): Promise<void> {
     if (!macro || !macro.items) return;
 
-    const timeoutIds: NodeJS.Timeout[] = [];
-    const howls: Howl[] = [];
-    const fileIds: number[] = [];
+    this.stopMacro(macro.id);
+    const running: SfxMacroState = { volume: macro.volume ?? 1, timeoutIds: [], howls: [] };
+    // Register before resolving a source so logout can stop even a partially loaded macro.
+    this.currentMacros.set(macro.id, running);
 
     for (const sound of macro.items) {
       if (!isAudioFile(sound)) continue;
 
-      fileIds.push(sound.id);
+      const audioSrc = await resolveAudioSource(sound);
+      if (this.currentMacros.get(macro.id) !== running) return;
 
-      const audioSrc = sound.path || await resolveAudioUrl(sound.url) || "";
-      
       if (!audioSrc) {
         console.warn(`Could not resolve audio source for ${sound.name || sound.id} in macro ${macro.name}`);
         continue; // Skip this sound if source is invalid
@@ -97,21 +103,14 @@ export class SfxModule {
         html5: sound.url ? true : false,
       });
 
-      howls.push(howl);
+      running.howls.push(howl);
 
       const timeoutId = setTimeout(() => {
         howl.play();
       }, sound.delay || 0);
 
-      timeoutIds.push(timeoutId);
+      running.timeoutIds.push(timeoutId);
     }
-
-    this.currentMacros.set(macro.id, {
-      volume: macro.volume ?? 1,
-      fileIds,
-      timeoutIds,
-      howls,
-    });
 
     emit(AudioEventTypes.SFX_MACRO_CHANGE, Array.from(this.currentMacros.keys()));
   }
@@ -177,6 +176,13 @@ export class SfxModule {
     // this.currentFiles.forEach(sound => {
     //   sound.howl.volume(volume * (sound.volume || 1));
     // });
+  }
+
+  /** The GM session ended: stop and unload every file and macro, pending macro steps included. */
+  reset(): void {
+    this.epoch += 1;
+    [...this.currentMacros.keys()].forEach((id) => this.stopMacro(id));
+    [...this.currentFiles.keys()].forEach((id) => this.stopFile(id));
   }
 
   // State getters

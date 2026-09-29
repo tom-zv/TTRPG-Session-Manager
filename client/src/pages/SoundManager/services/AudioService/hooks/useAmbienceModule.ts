@@ -10,7 +10,7 @@ import {
 import { useUpdateFileVolume } from "src/pages/SoundManager/api/collections/mutations/useCollectionItemMutations.js";
 import { useDebounce } from "src/hooks/useDebounce.js";
 
-const ambienceModule = new AmbienceModule();
+export const ambienceModule = new AmbienceModule();
 
 type AmbienceSnapshot = {
   playingCollectionId: number | undefined;

@@ -2,7 +2,7 @@ import { Howl } from "howler";
 import { getCollectionFromCache } from "../queryClient.js";
 import { AudioEventTypes, emit } from "../events.js";
 import { AudioFile, isAudioFile } from "../../../types/AudioItem.js";
-import { resolveAudioUrl } from "../utils/pathResolvers.js";
+import { resolveAudioSource } from "../utils/pathResolvers.js";
 import { getVolume, setVolume } from '../volumeStore.js';
 
 export class AmbienceModule {
@@ -18,11 +18,14 @@ export class AmbienceModule {
     }
   > = new Map();
 
+  private fadingSounds = new Set<Howl>();
+
   async activateAmbienceFile(collectionId: number, file: AudioFile): Promise<void> {
     // Check if the collection is currently playing
-    if (this.currentAmbienceCollection?.collectionId === collectionId) {
+    const collection = this.currentAmbienceCollection;
+    if (collection?.collectionId === collectionId) {
       if (isAudioFile(file)) {
-        await this.playAmbienceSound(file);
+        await this.playAmbienceSound(file, collection);
       }
     }
   }
@@ -38,10 +41,11 @@ export class AmbienceModule {
 
   // Internal method to actually play an ambience sound
   private async playAmbienceSound(
-    file: AudioFile
+    file: AudioFile,
+    collection: { collectionId: number }
   ): Promise<number | undefined> {
-    const audioSrc =
-      file.path || await resolveAudioUrl(file.url);
+    const audioSrc = await resolveAudioSource(file);
+    if (collection !== this.currentAmbienceCollection || this.currentAmbientFiles.has(file.id)) return undefined;
 
     if (!audioSrc) {
       console.warn(
@@ -81,8 +85,10 @@ export class AmbienceModule {
     if (sound) {
       this.currentAmbientFiles.delete(id);
 
+      this.fadingSounds.add(sound.howl);
       sound.howl.fade(sound.volume, 0, 1000);
       sound.howl.once("fade", () => {
+        if (!this.fadingSounds.delete(sound.howl)) return;
         sound.howl.stop();
         sound.howl.unload();
       });
@@ -100,22 +106,26 @@ export class AmbienceModule {
   async playAmbienceCollection(collectionId: number): Promise<void> {
     // First stop any currently playing ambience sounds
     this.stopAmbienceCollection();
-    const collection = getCollectionFromCache("ambience", collectionId);
-    if (!collection || !collection.items) return;
+    const cachedCollection = getCollectionFromCache("ambience", collectionId);
+    if (!cachedCollection || !cachedCollection.items) return;
 
-    this.currentAmbienceCollection = {
+    const operation = {
       collectionId: collectionId,
     };
+    this.currentAmbienceCollection = operation;
 
     // Play all active ambience items from the collection
-    for (const item of collection.items) {
+    for (const item of cachedCollection.items) {
+      if (this.currentAmbienceCollection !== operation) return;
       if (isAudioFile(item) && item.active) {
-        await this.playAmbienceSound(item);
+        await this.playAmbienceSound(item, operation);
       }
     }
 
     // Emit event that ambience collection has changed
-    emit(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, collection.id);
+    if (this.currentAmbienceCollection === operation) {
+      emit(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, operation.collectionId);
+    }
   }
 
   stopAmbienceCollection(): void {
@@ -126,6 +136,23 @@ export class AmbienceModule {
     this.currentAmbienceCollection = null;
 
     // Emit event that ambience collection has been stopped
+    emit(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, null);
+  }
+
+  /** The GM session ended: stop and unload every sound at once (no fade) and forget the collection. */
+  reset(): void {
+    for (const howl of this.fadingSounds) {
+      this.fadingSounds.delete(howl);
+      howl.stop();
+      howl.unload();
+    }
+    this.currentAmbientFiles.forEach(({ howl }) => {
+      howl.stop();
+      howl.unload();
+    });
+    this.currentAmbientFiles.clear();
+    this.currentAmbienceCollection = null;
+    emit(AudioEventTypes.AMBIENCE_FILE_CHANGE, []);
     emit(AudioEventTypes.AMBIENCE_COLLECTION_CHANGE, null);
   }
 
