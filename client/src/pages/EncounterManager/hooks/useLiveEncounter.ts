@@ -12,7 +12,7 @@ export type { LiveEncounterConfig } from "./useGenericLiveEncounter.js";
 /**
  * System specific encounter session hook
  */
-export const useLiveEncounter = (system: SystemType, encounterId: number) => {
+export const useLiveEncounter = (system: SystemType, campaignId: number, encounterId: number) => {
   switch (system) {
     case "dnd5e":
       return useGenericLiveEncounter<
@@ -21,7 +21,7 @@ export const useLiveEncounter = (system: SystemType, encounterId: number) => {
         DnD5eEncounterState,
         DnD5eEncounterEvent,
         DnD5eEncounterActions
-      >(encounterId, {
+      >(encounterId, campaignId, {
         system: "dnd5e",
         queryKeys: ENCOUNTER_KEYS,
         useComposedEncounter: useComposedDnD5eEncounter,

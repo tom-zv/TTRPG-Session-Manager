@@ -8,8 +8,9 @@ export function useCreateDnD5eEncounter() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (newEncounter: CreatePayload<DnD5eEncounterDetails>) => 
-      DnD5eEncounterApi.createEncounter(newEncounter),
+    // The campaign is explicit: the one the form was opened for, never whichever is selected later.
+    mutationFn: ({ campaignId, encounter }: { campaignId: number; encounter: CreatePayload<DnD5eEncounterDetails> }) =>
+      DnD5eEncounterApi.createEncounter(campaignId, encounter),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ENCOUNTER_KEYS.summaries(),

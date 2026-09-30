@@ -5,16 +5,18 @@ import { userAuth, requireGm } from "src/middleware/userAuth.js";
 const router = express.Router({ mergeParams: true });
 
 // Base route - /api/:system/encounters
-// Every route needs a signed-in user; changes need a GM.
+// Every route needs a signed-in user; changes need a GM. Every encounter belongs to one campaign.
+// Reads name the campaign and need access to it (any GM, or a member); an encounter of another
+// campaign answers 404 like a missing one.
 router.use(userAuth());
 
-// POST /encounters - Insert a new encounter
+// POST /encounters - Insert a new encounter (body: { campaignId, data })
 router.post("/", requireGm, encounterController.insertEncounter);
 
-// GET /encounters/summaries - Get summaries of all encounters
+// GET /encounters/summaries?campaignId= - Summaries of one campaign's encounters
 router.get("/summaries", encounterController.getAllEncounterSummaries)
 
-// GET /encounters/:id/details - Get encounter details
+// GET /encounters/:id/details?campaignId= - One encounter of that campaign
 router.get("/:id/details", encounterController.getEncounterDetails);
 
 // PUT /encounters/:id - Update an encounter

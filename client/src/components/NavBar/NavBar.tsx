@@ -1,39 +1,37 @@
-import React from 'react';
 import { NavLink } from 'react-router-dom';
 import './NavBar.css';
 import UserMenu from './UserMenu.js';
+import CampaignSwitcher from './CampaignSwitcher.js';
 
-const NavBar: React.FC = () => {
+const NavBar = ({ isGm }: { isGm: boolean }) => {
+  // The Encounter tab opens the selected campaign; the section resolves that campaign itself.
+  const tabs = isGm
+    ? [
+      { path: '/sound-manager', label: 'Sound Manager' },
+      { path: '/encounter-manager', label: 'Encounter Manager' },
+      { path: '/campaigns', label: 'Campaigns' },
+      { path: '/compendium', label: 'Compendium' },
+      { path: '/notes', label: 'Notes' },
+    ]
+    : [
+      { path: '/encounter-manager', label: 'Encounter' },
+      { path: '/compendium', label: 'Compendium' },
+    ];
+
   return (
     <nav className="nav-bar">
       <div className="nav-container">
-        {/* <div className="nav-brand"> */}
-          {/* <NavLink to="/" end>TTRPG Session Manager</NavLink> */}
-        {/* </div> */}
         <ul className="nav-tabs">
-          <li>
-            <NavLink to="/sound-manager" className={({isActive}) => isActive ? 'active' : ''}>
-              Sound Manager
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/encounter-manager" className={({isActive}) => isActive ? 'active' : ''}>
-              Encounter Manager
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/compendium" className={({isActive}) => isActive ? 'active' : ''}>
-              Compendium
-            </NavLink>
-          </li>
-          <li>
-            <NavLink to="/notes" className={({isActive}) => isActive ? 'active' : ''}>
-              Notes
-            </NavLink>
-          </li>
+          {tabs.map(tab => (
+            <li key={tab.path}>
+              <NavLink to={tab.path}>{tab.label}</NavLink>
+            </li>
+          ))}
         </ul>
-
-        <UserMenu/>
+        <div className="nav-actions">
+          <CampaignSwitcher />
+          <UserMenu/>
+        </div>
       </div>
     </nav>
   );

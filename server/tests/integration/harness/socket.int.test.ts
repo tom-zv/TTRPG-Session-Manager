@@ -1,16 +1,19 @@
 import { expect, test } from 'vitest';
 import type { EncounterJoinAck } from 'shared/sockets/encounters/types.js';
 import encounterService from '../../../src/api/encounter/encounters/encounterService.js';
-import { createPlayer } from '../../support/factories.js';
+import { createCampaign, createGm, createPlayer } from '../../support/factories.js';
 import { emitWithAck, startSocketServer } from '../../support/socket.js';
 
 test('a valid session joins an encounter with its state; an invalid token is refused', async () => {
   const { user, token } = await createPlayer();
+  const { user: gm } = await createGm();
+  const campaign = await createCampaign(gm, { members: [user] });
   const encounterId = await encounterService.insertEncounter('dnd5e', {
     system_id: await encounterService.getSystemId('dnd5e'),
+    campaign_id: campaign.id,
     name: 'Socket proving encounter',
     gm_notes: [],
-  }, user.id);
+  }, gm);
   const server = await startSocketServer();
   const socket = await server.connect('/encounter', token);
   expect(socket.connected).toBe(true);

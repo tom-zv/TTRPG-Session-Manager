@@ -5,24 +5,19 @@ export function usePageTransition() {
   const location = useLocation();
   
   useEffect(() => {
-    // Remove active class from all pages
-    document.querySelectorAll('.app-page').forEach(page => {
-      page.classList.remove('active');
-    });
-    
-    // Set active class based on current path
     let pageId;
-    
     if (location.pathname === '/') {
       pageId = 'home-page';
     } else {
-      // Extract the route name without the leading slash
-      pageId = `${location.pathname.substring(1)}-page`;
+      // The section is the first path segment: /encounter-manager/3/12 shows the encounter page.
+      pageId = `${location.pathname.split('/')[1]}-page`;
     }
-    
-    const activePage = document.getElementById(pageId);
-    if (activePage) {
-      activePage.classList.add('active');
-    }
+
+    document.querySelectorAll<HTMLElement>('.app-page').forEach((page) => {
+      const active = page.id === pageId;
+      page.classList.toggle('active', active);
+      page.inert = !active;
+      page.setAttribute('aria-hidden', String(!active));
+    });
   }, [location]);
 }

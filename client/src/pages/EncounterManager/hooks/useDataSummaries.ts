@@ -7,7 +7,8 @@ import {
 import { AnySystemEntitySummary } from "shared/domain/encounters/coreEntity.js";
 
 export const useDataSummaries = (
-  system: SystemType
+  system: SystemType,
+  campaignId: number | null
 ): {
   entitySummaries: AnySystemEntitySummary[];
   encounterSummaries: AnySystemEncounterSummary[];
@@ -15,7 +16,7 @@ export const useDataSummaries = (
   // Fetch summaries based on the selected system
   // dnd5e
   const { data: dnd5eEntitySummaries } = useDnD5eEntitySummaries({enabled: system === "dnd5e",});
-  const { data: dnd5eEncounterSummaries } = useDnD5eEncounterSummaries({enabled: system === "dnd5e",});
+  const { data: dnd5eEncounterSummaries } = useDnD5eEncounterSummaries(campaignId, {enabled: system === "dnd5e",});
   
   switch (system) {
     case "dnd5e":

@@ -1,9 +1,13 @@
 import { expect, test } from 'vitest';
 import { getEncounterDetailsById, getSystemId, insertEncounter } from '../../../src/api/encounter/encounters/encounterModel.js';
+import { createCampaign, createGm } from '../../support/factories.js';
 
 test('a model write can be read back with its metadata and JSON notes intact', async () => {
+  const { user: gm } = await createGm();
+  const campaign = await createCampaign(gm);
   const data = {
     system_id: await getSystemId('dnd5e'),
+    campaign_id: campaign.id,
     name: "The dragon's lair",
     description: 'An integration encounter',
     location: 'Mountain',
@@ -16,6 +20,7 @@ test('a model write can be read back with its metadata and JSON notes intact', a
   expect(encounter).toMatchObject({
     id,
     system: 'dnd5e',
+    campaign_id: campaign.id,
     status: 'planned',
     name: data.name,
     description: data.description,

@@ -3,6 +3,7 @@ import { AuthRequest } from "src/middleware/userAuth.js";
 import { notifyEncounterDeleted } from "src/socket/namespaces/encounters/encounterDeleted.js";
 import encounterService from "./encounterService.js";
 import { ValidationError } from "../../HttpErrors.js";
+import { parseId } from "src/api/campaigns/campaignController.js";
 import { isSupportedSystem, SystemType } from "shared/domain/encounters/coreEncounter.js";
 import {
   dnd5eEncounterDbToDomainDetails,
@@ -15,17 +16,19 @@ async function insertEncounter(
   res: Response,
   next: NextFunction
 ) {
-  // Expected body: { data: CreatePayload<DnD5eEncounterDetails> }
-  // Which is: Omit<DnD5eEncounterDetails, 'id' | 'createdAt'>
-  const { data } = req.body;
+  // Expected body: { campaignId: number, data: CreatePayload<DnD5eEncounterDetails> }
+  // Which is: Omit<DnD5eEncounterDetails, 'id' | 'createdAt' | 'campaignId'>
+  const { data, campaignId: rawCampaignId } = req.body ?? {};
   const { system } = req.params as { system?: string };
 
   try {
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
+    // The campaign is always explicit: the client sends the one it has selected.
+    const campaignId = parseId(rawCampaignId, "campaign ID");
     // Validate required fields
-    if (!data.name) {
+    if (!data?.name) {
       throw new ValidationError("Encounter name is required");
     }
 
@@ -35,13 +38,13 @@ async function insertEncounter(
     let formattedData;
     switch (system) {
       case "dnd5e":
-        formattedData = dnd5eEncounterToInsertDb(data, systemId);
+        formattedData = dnd5eEncounterToInsertDb(data, systemId, campaignId);
         break;
       default:
         throw new ValidationError("Unsupported system.");
     }
 
-    const insertId = await encounterService.insertEncounter(system, formattedData, (req as AuthRequest).userSession!.userDb.id);
+    const insertId = await encounterService.insertEncounter(system, formattedData, (req as AuthRequest).userSession!.userDb);
     res.status(201).json({ insertId });
     
   } catch (error) {
@@ -57,19 +60,17 @@ async function getEncounterDetails(
   const { id, system } = req.params as { id: string; system?: string };
 
   try {
-    if (!id) {
-      throw new ValidationError("Encounter ID is required");
-    }
-
     if (!isSupportedSystem(system)) {
       throw new ValidationError("Unsupported system.");
     }
+    const encounterId = parseId(id, "encounter ID");
+    const campaignId = parseId(req.query.campaignId, "campaign ID");
 
-    const encounterDetails = await encounterService.getEncounterDetailsById(Number(id));
-
-    if (!encounterDetails) {
-      throw new ValidationError(`Encounter with ID ${id} not found`);
-    }
+    const encounterDetails = await encounterService.getCampaignEncounterDetails(
+      (req as AuthRequest).userSession!.userDb,
+      campaignId,
+      encounterId,
+    );
 
     res.status(200).json({ encounterDetails });
     
@@ -90,11 +91,14 @@ async function getAllEncounterSummaries(
       throw new ValidationError("Unsupported system.");
     }
 
+    const campaignId = parseId(req.query.campaignId, "campaign ID");
+    const user = (req as AuthRequest).userSession!.userDb;
+
     let encounterSummaries;
     
     switch (system) {
       case "dnd5e": {
-        const encounterRecords = await encounterService.getAllEncountersBySystem(system);
+        const encounterRecords = await encounterService.getCampaignEncountersBySystem(user, campaignId, system);
         encounterSummaries = encounterRecords.map((encounter) => dnd5eEncounterDbToDomainDetails(encounter));
         break;
       }

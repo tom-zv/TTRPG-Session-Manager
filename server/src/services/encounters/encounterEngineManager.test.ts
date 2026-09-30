@@ -19,6 +19,7 @@ function modelStorage() {
   const metadata = vi.spyOn(encounterModel, "getEncounterDetailsById").mockResolvedValue({
     id: encounterId,
     system: "dnd5e",
+    campaign_id: 1,
     name: "Test encounter",
     description: "",
     status: "active",

@@ -8,10 +8,12 @@ import { CreatePayload } from "src/pages/EncounterManager/types.js";
 
 type CreateEncounterFormProps = {
     system: SystemType;
+    /** The campaign the encounter is created in, fixed while the form is open. */
+    campaignId: number;
     onCancel: () => void
 }
 
-const CreateEncounterForm: React.FC<CreateEncounterFormProps> = ({system, onCancel}) => {
+const CreateEncounterForm: React.FC<CreateEncounterFormProps> = ({system, campaignId, onCancel}) => {
 
   const [name, setName] = useState<string>("");
   const [difficulty, setDifficulty] = useState<string>("medium");
@@ -34,7 +36,7 @@ const CreateEncounterForm: React.FC<CreateEncounterFormProps> = ({system, onCanc
           };
   
           try {
-            await createMutation.mutateAsync(payload);
+            await createMutation.mutateAsync({ campaignId, encounter: payload });
             onCancel();
           } catch (e) {
             console.error(e);

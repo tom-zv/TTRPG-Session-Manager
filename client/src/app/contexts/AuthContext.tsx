@@ -22,7 +22,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if user is already logged in when app loads
+    let active = true;
     const checkUserSession = async () => {
       if (!sessionToken) {
         setIsLoading(false);
@@ -31,23 +31,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       try {
         const userSession = await getCurrentUser(sessionToken);
+        if (!active) return;
         if (userSession) {
           setCurrentUser(userSession.user);
         } else {
-          // Clear invalid token
+          setCurrentUser(null);
           setSessionToken(null);
           localStorage.removeItem('sessionToken');
         }
       } catch (error) {
+        if (!active) return;
         console.error('Failed to verify session:', error);
+        setCurrentUser(null);
         setSessionToken(null);
         localStorage.removeItem('sessionToken');
       } finally {
-        setIsLoading(false);
+        if (active) setIsLoading(false);
       }
     };
 
-    checkUserSession();
+    void checkUserSession();
+    return () => { active = false; };
   }, [sessionToken]);
 
   const handleLogin = async (credentials: LoginDTO) => {
@@ -65,15 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleLogout = async () => {
     if (!sessionToken) return;
 
-    setIsLoading(true);
-    try {
-      await logout(sessionToken);
-    } finally {
-      setCurrentUser(null);
-      setSessionToken(null);
-      localStorage.removeItem('sessionToken');
-      setIsLoading(false);
-    }
+    // Release this tab's GM workspace even if the logout request is slow.
+    setCurrentUser(null);
+    setSessionToken(null);
+    localStorage.removeItem('sessionToken');
+    await logout(sessionToken);
   };
 
   const refreshUser = async () => {

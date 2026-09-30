@@ -8,8 +8,15 @@ import dnd5eEncounterService from "./dnd5e/dnd5eEncounterService.js";
 import encounterEngineManager from "src/services/encounters/encounterEngineManager.js";
 import encounterRequestQueue from "src/services/encounters/encounterRequestQueue.js";
 import { NotFoundError } from "src/api/HttpErrors.js";
+import campaignService from "src/api/campaigns/campaignService.js";
+import type { UserDB } from "src/api/users/types.js";
 
-async function insertEncounter(system: SystemType, data: EncounterInsertData, creatorId: number): Promise<number> {
+export const ENCOUNTER_NOT_FOUND = "Encounter not found";
+
+/** Create an encounter in `data.campaign_id`, which must exist. */
+async function insertEncounter(system: SystemType, data: EncounterInsertData, creator: Pick<UserDB, "id" | "is_gm">): Promise<number> {
+  await campaignService.assertCampaignAccess(creator, data.campaign_id);
+  const creatorId = creator.id;
   const preferences = await userModel.getPreferences(creatorId);
   const insertId = await encounterModel.insertEncounter(data);
 
@@ -28,17 +35,31 @@ async function insertEncounter(system: SystemType, data: EncounterInsertData, cr
   return insertId;
 }
 
-async function getAllEncountersBySystem(system: SystemType): Promise<EncounterDB[]> {
-  return encounterModel.getAllEncountersBySystem(system);
+/** One campaign's encounters, for a user who can reach that campaign. */
+async function getCampaignEncountersBySystem(
+  user: Pick<UserDB, "id" | "is_gm">,
+  campaignId: number,
+  system: SystemType
+): Promise<EncounterDB[]> {
+  await campaignService.assertCampaignAccess(user, campaignId);
+  return encounterModel.getCampaignEncountersBySystem(campaignId, system);
 }
 
-async function getEncounterDetailsById(
+/**
+ * A direct read of one encounter, scoped to the campaign the caller has selected. An encounter of
+ * another campaign answers like a missing one, so a stale or edited URL never shows it as part of
+ * the selected campaign.
+ */
+async function getCampaignEncounterDetails(
+  user: Pick<UserDB, "id" | "is_gm">,
+  campaignId: number,
   encounterId: number
-): Promise<AnySystemEncounterDetails | null> {
+): Promise<AnySystemEncounterDetails> {
+  await campaignService.assertCampaignAccess(user, campaignId);
   const encounterDb = await encounterModel.getEncounterDetailsById(encounterId);
 
-  if (!encounterDb) {
-    return null;
+  if (!encounterDb || encounterDb.campaign_id !== campaignId) {
+    throw new NotFoundError(ENCOUNTER_NOT_FOUND);
   }
 
   switch (encounterDb.system) {
@@ -89,8 +110,8 @@ async function getSystemId(systemName: SystemType): Promise<number> {
 
 export default {
   insertEncounter,
-  getAllEncountersBySystem,
-  getEncounterDetailsById,
+  getCampaignEncountersBySystem,
+  getCampaignEncounterDetails,
   updateEncounter,
   deleteEncounter,
   getSystemId,

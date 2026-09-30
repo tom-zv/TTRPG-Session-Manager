@@ -8,6 +8,7 @@ export type gm_note =  {
 export type EncounterDB = {
     id: number,
     system: SystemType,
+    campaign_id: number,
     name: string,
     description: string,
     status: 'planned' | 'active' | 'completed',
@@ -21,6 +22,7 @@ export type EncounterDB = {
 
 export type EncounterInsertData = {
     system_id: number;
+    campaign_id: number;
     name: string;
     description?: string | null;
     location?: string | null;
@@ -28,4 +30,5 @@ export type EncounterInsertData = {
     gm_notes: gm_note[];
 }; 
 
-export type encounterUpdateDataDB = Partial<EncounterDB>;
+/** Metadata a GM may change; the campaign and system are fixed at creation. */
+export type encounterUpdateDataDB = Partial<Omit<EncounterDB, 'id' | 'system' | 'campaign_id' | 'created_at' | 'entity_count'>>;

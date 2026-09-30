@@ -5,6 +5,7 @@ import
   {AnySystemEncounterSummary, isSupportedSystem, supportedSystems, SystemType} from 'shared/domain/encounters/coreEncounter.js';
 import Dialog from 'src/components/Dialog/Dialog.js';
 import CreateEncounterForm from '../dnd5e/EncounterEditor/CreateEncounter/CreateEncounterForm.js';
+import type { CampaignDTO } from 'shared/DTO/campaigns/types.js';
 
 // const systemOptions = supportedSystems.map((value) => ({
 //   value,
@@ -23,6 +24,8 @@ function formatDate(iso: string) {
 
 interface EncounterListViewProps {
   system: SystemType;
+  /** The campaign whose encounters are listed and in which new ones are created. */
+  campaign: CampaignDTO;
   setSystem: (sys: SystemType) => void;
   /** Open an encounter. What can be done there follows its phase and the user's role. */
   onOpen: (encounterId: number) => void;
@@ -30,7 +33,7 @@ interface EncounterListViewProps {
   isGm: boolean;
 }
 
-export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, setSystem, onOpen, encounterSummaries, isGm }) => {
+export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, campaign, setSystem, onOpen, encounterSummaries, isGm }) => {
   
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState<string>('');
@@ -66,6 +69,7 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
 
   return (
     <div className="page-container">
+      <h2 className={styles.campaignHeading}>{campaign.name}</h2>
   <div className={styles.encounterToolbar}>
         <select
           value={system}
@@ -167,10 +171,11 @@ export const EncounterListView: React.FC<EncounterListViewProps> = ({ system, se
       <Dialog
         isOpen={isCreateEncounterDialogOpen}
         onClose={() => setIsCreateEncounterDialogOpen(false)}
-        title="Create New Encounter"
+        title={`New encounter in ${campaign.name}`}
       >
         <CreateEncounterForm
           system={system}
+          campaignId={campaign.id}
           onCancel={() => setIsCreateEncounterDialogOpen(false)}
         />
       </Dialog>

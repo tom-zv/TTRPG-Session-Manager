@@ -25,6 +25,8 @@ import { EntityPicker } from "../Shared/EntityPicker/EntityPicker.js";
 
 type LiveEncounterProps = {
   system: SystemType;
+  /** The campaign the encounter was opened in; its details are read from that campaign. */
+  campaignId: number;
   encounterId: number;
   isGm: boolean;
   onExit: () => void;
@@ -32,6 +34,7 @@ type LiveEncounterProps = {
 
 export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   system,
+  campaignId,
   encounterId,
   isGm,
   onExit,
@@ -46,7 +49,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     encounterEnded,
     lastOperation,
     actions,
-  } = useLiveEncounter(system, encounterId);
+  } = useLiveEncounter(system, campaignId, encounterId);
 
   const phase = encounter?.phase;
   const isRunning = phase === "running";

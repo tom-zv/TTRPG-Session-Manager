@@ -14,7 +14,7 @@ import {
  * Fetches and combines: encounter details, encounter state, and entity details + state
  * 
  */
-export function useComposedDnD5eEncounter(encounterId: number) {
+export function useComposedDnD5eEncounter(encounterId: number, campaignId: number) {
   // The state is written by the encounter session; it is absent until the session has joined.
   const { data } = useDnD5eEncounterState(encounterId);
   const encounterState = data?.encounterState;
@@ -22,7 +22,7 @@ export function useComposedDnD5eEncounter(encounterId: number) {
     data: encounterSummaries,
     isError: summariesError,
     isLoading: summariesLoading,
-  } = useDnD5eEncounterSummaries();
+  } = useDnD5eEncounterSummaries(campaignId);
   
   // Extract entity IDs from state
   const entityIds = useMemo(() => {

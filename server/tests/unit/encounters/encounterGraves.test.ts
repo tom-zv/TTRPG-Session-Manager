@@ -18,6 +18,7 @@ import { dnd5ePool, corePool } from "../../../src/db.js";
 import dnd5eEntityModel from "../../../src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
 import userModel from "../../../src/api/users/userModel.js";
 import encounterModel from "../../../src/api/encounter/encounters/encounterModel.js";
+import campaignModel from "../../../src/api/campaigns/campaignModel.js";
 import encounterService from "../../../src/api/encounter/encounters/encounterService.js";
 import snapshotModel from "../../../src/api/encounter/encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
 import encounterEngineManager from "../../../src/services/encounters/encounterEngineManager.js";
@@ -100,10 +101,11 @@ test("an entity template in use by an encounter cannot be deleted", async () => 
 
 test("new encounters copy DM defaults into independent snapshots", async () => {
   vi.spyOn(userModel, "getPreferences").mockImplementation(async () => ({ encounterDefaults: { dnd5e: { automation: { zeroHpTransfer: "auto" } } } }));
+  vi.spyOn(campaignModel, "getCampaignById").mockImplementation(async (id) => ({ id, name: "Table", description: null, created_by: null, created_at: "" }));
   vi.spyOn(encounterModel, "insertEncounter").mockImplementation(async () => 12);
   let created: DnD5eEncounterState | undefined;
   vi.spyOn(snapshotModel, "createEncounterSnapshot").mockImplementation(async (_id: number, snapshot: DnD5eEncounterState) => { created = structuredClone(snapshot); });
-  await encounterService.insertEncounter("dnd5e", { system_id: 1, name: "Test" } as Parameters<typeof encounterService.insertEncounter>[1], gm.id);
+  await encounterService.insertEncounter("dnd5e", { system_id: 1, campaign_id: 3, name: "Test" } as Parameters<typeof encounterService.insertEncounter>[1], gm);
   assert.equal(created?.settings.automation.zeroHpTransfer, "auto");
 });
 

@@ -2,6 +2,7 @@ CREATE TABLE
   IF NOT EXISTS core.encounters (
     id INT AUTO_INCREMENT PRIMARY KEY,
     system_id INT NOT NULL,
+    campaign_id INT NOT NULL,
     name VARCHAR(128) NOT NULL,
     description TEXT,
     status ENUM ('planned', 'active', 'completed') DEFAULT 'planned',
@@ -14,7 +15,8 @@ CREATE TABLE
       }
     ]',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_encounters_system FOREIGN KEY (system_id) REFERENCES systems (id)
+    CONSTRAINT fk_encounters_system FOREIGN KEY (system_id) REFERENCES systems (id),
+    CONSTRAINT fk_encounters_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns (id) ON DELETE RESTRICT
   );
 
 CREATE TABLE

@@ -18,9 +18,10 @@ export async function insertEncounter(
   data: EncounterInsertData
 ): Promise<number> {
   const query =
-    "INSERT INTO encounters (system_id, name, description, location, difficulty, gm_notes) VALUES (?, ?, ?, ?, ?, ?)";
+    "INSERT INTO encounters (system_id, campaign_id, name, description, location, difficulty, gm_notes) VALUES (?, ?, ?, ?, ?, ?, ?)";
   const values: ExecuteValues[] = [
     data.system_id,
+    data.campaign_id,
     data.name,
     data.description ?? null,
     data.location ?? null,
@@ -33,24 +34,25 @@ export async function insertEncounter(
   return result.insertId;
 }
 
-export async function getAllEncountersBySystem(systemName: SystemType): Promise<EncounterDB[]> {
+/** One campaign's encounters of a game system, newest first. */
+export async function getCampaignEncountersBySystem(campaignId: number, systemName: SystemType): Promise<EncounterDB[]> {
   const query = `
-    SELECT e.id, s.name as \`system\`, e.name, e.description, e.status, e.location, 
+    SELECT e.id, s.name as \`system\`, e.campaign_id, e.name, e.description, e.status, e.location,
         e.difficulty, e.gm_notes, e.created_at,
         (SELECT COALESCE(SUM(ee.copies), 0) FROM core.encounter_entities ee WHERE ee.encounter_id = e.id) AS entity_count
     FROM core.encounters e
     JOIN core.systems s ON s.id = e.system_id
-    WHERE s.name = ?
-    ORDER BY e.created_at DESC
+    WHERE e.campaign_id = ? AND s.name = ?
+    ORDER BY e.created_at DESC, e.id DESC
   `;
 
-  const [rows] = await corePool.execute<EncounterDB[] & QueryResult>(query, [systemName]);
+  const [rows] = await corePool.execute<EncounterDB[] & QueryResult>(query, [campaignId, systemName]);
   return rows;
 }
 export async function getEncounterDetailsById(
   id: number
 ): Promise<EncounterDB | null> {
-  const query = `SELECT e.id, s.name as \`system\`, e.name, e.description, e.status, e.location, 
+  const query = `SELECT e.id, s.name as \`system\`, e.campaign_id, e.name, e.description, e.status, e.location,
                     e.difficulty, e.gm_notes, e.created_at
                  FROM core.encounters e
                  JOIN core.systems s ON s.id = e.system_id
@@ -142,7 +144,7 @@ export default {
   replaceEncounterEntities,
   getEncounterIdsUsingEntity,
   insertEncounter,
-  getAllEncountersBySystem,
+  getCampaignEncountersBySystem,
   getEncounterDetailsById,
   updateEncounter,
   deleteEncounter,

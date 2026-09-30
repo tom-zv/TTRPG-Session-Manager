@@ -34,6 +34,7 @@ export function dnd5eEncounterDbToDomainDetails(
   return {
     id: encounterDb.id,
     system: 'dnd5e',
+    campaignId: encounterDb.campaign_id,
     name: encounterDb.name,
     description: encounterDb.description ?? "",
     status: encounterDb.status,
@@ -47,11 +48,13 @@ export function dnd5eEncounterDbToDomainDetails(
 }
 
 export function dnd5eEncounterToInsertDb(
-  encounter: EncounterUpsertSource,
-  systemId: number
+  encounter: Omit<EncounterUpsertSource, 'campaignId'>,
+  systemId: number,
+  campaignId: number
 ): EncounterInsertData {
   return {
     system_id: systemId,
+    campaign_id: campaignId,
     name: encounter.name,
     description: encounter.description ?? null,
     location: encounter.location ?? null,

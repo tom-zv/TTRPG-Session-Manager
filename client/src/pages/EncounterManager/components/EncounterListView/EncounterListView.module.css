@@ -96,3 +96,8 @@
   opacity: 0.7;
   color: var(--text-tertiary);
 }
+
+.campaignHeading {
+  margin: 0 0 var(--spacing-sm);
+  font-size: 1.2rem;
+}

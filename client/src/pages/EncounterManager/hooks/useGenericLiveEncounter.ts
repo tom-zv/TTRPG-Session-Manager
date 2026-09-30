@@ -30,7 +30,7 @@ export interface LiveEncounterConfig<
   /** Bring the cached entity templates of this state up to date; all of them, or just one. */
   refreshTemplates?: (queryClient: QueryClient, encounterState: TState, templateId?: number) => Promise<void>;
   queryKeys: QueryKeyProvider;
-  useComposedEncounter: (encounterId: number) => {
+  useComposedEncounter: (encounterId: number, campaignId: number) => {
     encounter: TEncounter | null;
     isLoading: boolean;
   };
@@ -56,6 +56,7 @@ export function useGenericLiveEncounter<
   TActions extends EncounterActions<TState, TEvent>
 >(
   encounterId: number,
+  campaignId: number,
   config: LiveEncounterConfig<T, TEncounter, TState, TEvent, TActions>
 ) {
   const queryClient = useQueryClient();
@@ -66,7 +67,7 @@ export function useGenericLiveEncounter<
     refreshTemplates,
   } = config;
 
-  const { encounter, isLoading } = useComposedEncounter(encounterId);
+  const { encounter, isLoading } = useComposedEncounter(encounterId, campaignId);
   // Connection problems (join failed, sync failed) stay until the session recovers.
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   // A rejected action says nothing about the connection, so it is reported separately and fades.

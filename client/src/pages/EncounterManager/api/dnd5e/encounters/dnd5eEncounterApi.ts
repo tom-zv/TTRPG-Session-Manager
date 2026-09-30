@@ -13,8 +13,13 @@ export class DnD5eEncounterApi {
   /**
    * Get encounter summaries (encounter details + entity summaries)
    */
-  static async getEncounterSummaries(): Promise<DnD5eEncounterSummary[]> {
-    return EncounterApi.getEncounterSummaries("dnd5e");
+  static async getEncounterSummaries(campaignId: number, signal?: AbortSignal): Promise<DnD5eEncounterSummary[]> {
+    return EncounterApi.getEncounterSummaries("dnd5e", campaignId, signal);
+  }
+
+  /** One encounter, read within the campaign it is opened from. */
+  static async getEncounterDetails(campaignId: number, id: number, signal?: AbortSignal): Promise<DnD5eEncounterDetails> {
+    return EncounterApi.getEncounterDetails("dnd5e", campaignId, id, signal);
   }
 
 
@@ -22,9 +27,10 @@ export class DnD5eEncounterApi {
    * Create a new encounter
    */
   static async createEncounter(
+    campaignId: number,
     encounterData: CreatePayload<DnD5eEncounterDetails>
   ): Promise<number> {
-    return EncounterApi.createEncounter("dnd5e", encounterData);
+    return EncounterApi.createEncounter("dnd5e", campaignId, encounterData);
   }
 
   /**

@@ -4,6 +4,7 @@ import cors from 'cors';
 import { serverConfig } from './config/server-config.js';
 import authRoutes from './api/auth/authRoutes.js';
 import userRoutes from './api/users/userRoutes.js';
+import campaignRoutes from './api/campaigns/campaignRoutes.js';
 import audioRoutes from './api/audio/audioRoutes.js';
 import entityRoutes from './api/encounter/entities/entityRoutes.js';
 import spellRoutes from './api/encounter/spells/spellRoutes.js';
@@ -78,6 +79,7 @@ export function createApp() {
   // ---------
   app.use('/api/auth', authRoutes);
   app.use('/api/users', userRoutes);
+  app.use('/api/campaigns', campaignRoutes);
   app.use('/api/audio', audioRoutes);
   app.use('/api/dnd5e/spells', spellRoutes);
   app.use('/api/dnd5e/items', itemRoutes);

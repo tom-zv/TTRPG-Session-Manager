@@ -31,6 +31,8 @@ export function getSupportedSystems(): SystemType[] {
 export type CoreEncounter = {
   id: number;
   system: SystemType;
+  /** The campaign the encounter was created in. Fixed for the encounter's life. */
+  campaignId: number;
   name: string;
   description: string;
   status: "planned" | "active" | "completed";
