@@ -2,6 +2,7 @@ import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { EncounterError, EncounterErrorCode } from "shared/sockets/encounters/errors.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
 import { SocketAck } from "shared/sockets/types.js";
+import { CampaignSocketEvents, CurrentEncounterChanged } from "shared/sockets/campaigns/types.js";
 import { Namespace, Socket } from "socket.io";
 
 export type AckCallback = (ack: SocketAck) => void;
@@ -22,6 +23,15 @@ export const getEncounterPlayersRoom = (encounterId: number): string => `encount
 
 export const getEncounterPlayerRoom = (encounterId: number, userId: number): string =>
   `encounter:${encounterId}:players:${userId}`;
+
+/** Sockets watching a campaign for changes of its current encounter. */
+export const getCampaignRoom = (campaignId: number): string => `campaign:${campaignId}`;
+
+/** A change signal only; receivers re-read the stored selection. Emit after the change committed. */
+export const emitCurrentEncounterChanged = (namespace: Namespace, campaignId: number): void => {
+  const payload: CurrentEncounterChanged = { campaignId };
+  namespace.to(getCampaignRoom(campaignId)).emit(CampaignSocketEvents.CURRENT_ENCOUNTER_CHANGED, payload);
+};
 
 export const emitEncounterError = (
   socket: Socket,

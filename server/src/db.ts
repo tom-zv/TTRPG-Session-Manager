@@ -1,9 +1,32 @@
-import mysql from 'mysql2/promise';
+import mysql, { type Pool, type PoolConnection } from 'mysql2/promise';
 import { dbConfig} from './config/server-config.js';
 
 export const audioPool = mysql.createPool({...dbConfig, database: 'audio'});
 export const corePool = mysql.createPool({...dbConfig, database: 'core'});
 export const dnd5ePool = mysql.createPool({...dbConfig, database: 'dnd5e'});
+
+/** A pool or a connection inside a transaction. Models that may join a transaction accept one. */
+export type SqlExecutor = Pick<Pool | PoolConnection, 'execute'>;
+
+/**
+ * Run `task` on one connection of `pool` inside a transaction: committed when it resolves, rolled
+ * back when it throws. Every schema is on the same server, so qualified names of other schemas
+ * join the same transaction.
+ */
+export async function withTransaction<T>(pool: Pool, task: (connection: PoolConnection) => Promise<T>): Promise<T> {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await task(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
 
 // Function to get a connection from a specific pool
 export const getConnection = async (database = 'audio') => {

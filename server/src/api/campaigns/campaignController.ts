@@ -4,6 +4,8 @@ import { AuthRequest } from "src/middleware/userAuth.js";
 import { campaignMemberToDto, campaignToDto } from "src/utils/format-transformers/campaign-transformer.js";
 import { ValidationError } from "../HttpErrors.js";
 import campaignService from "./campaignService.js";
+import encounterService from "../encounter/encounters/encounterService.js";
+import type { CurrentEncounterResponse } from "shared/DTO/campaigns/types.js";
 import { CampaignUpdateDB } from "./types.js";
 
 export function parseId(value: unknown, label: string): number {
@@ -65,6 +67,15 @@ async function updateCampaign(req: Request, res: Response, next: NextFunction) {
   } catch (error) { next(error); }
 }
 
+async function getCurrentEncounter(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = (req as AuthRequest).userSession!.userDb;
+    const encounter = await encounterService.getCurrentEncounter(user, parseId(req.params.id, "campaign ID"));
+    const body: CurrentEncounterResponse = { encounter };
+    res.json(body);
+  } catch (error) { next(error); }
+}
+
 async function listMembers(req: Request, res: Response, next: NextFunction) {
   try {
     const members = await campaignService.listMembers(parseId(req.params.id, "campaign ID"));
@@ -93,6 +104,7 @@ export default {
   listCampaigns,
   createCampaign,
   updateCampaign,
+  getCurrentEncounter,
   listMembers,
   addMember,
   removeMember,

@@ -223,6 +223,45 @@ test("Phase changes mirror active, completed and planned status, while ordinary 
   expect(engine.snapshots.map(({ version }) => version)).toEqual([1, 2, 3, 4, 5, 6]);
 });
 
+test("Only starting combat selects the campaign's current encounter and only a reset after a start clears it; ending keeps it and a repeated start reports nothing.", async () => {
+  const engine = new RecordingEncounterEngine(encounterState(undefined, { phase: "setup" }));
+  const commit = (event: DnD5eEncounterEvent) => engine.commit(encounterRequest([event]), gm);
+
+  expect((await commit(damage(0, 1))).currentEncounterChangedIn).toBeNull();
+  const start = encounterRequest([phaseEvent("startCombat")]);
+  expect((await engine.commit(start, gm)).currentEncounterChangedIn).toBe(1);
+  expect((await engine.commit(start, gm)).currentEncounterChangedIn).toBeNull();
+  expect((await commit(phaseEvent("nextTurn"))).currentEncounterChangedIn).toBeNull();
+  expect((await commit(phaseEvent("endCombat"))).currentEncounterChangedIn).toBeNull();
+  expect((await commit(phaseEvent("resetEncounter"))).currentEncounterChangedIn).toBe(1);
+  // A reset during setup changes no phase and asks nothing of the selection.
+  expect((await commit(phaseEvent("resetEncounter"))).currentEncounterChangedIn).toBeNull();
+  expect((await commit(phaseEvent("startCombat"))).currentEncounterChangedIn).toBe(1);
+  expect((await commit(phaseEvent("resetEncounter"))).currentEncounterChangedIn).toBe(1);
+
+  expect(engine.selections).toEqual(["select", "clearIfCurrent", "select", "clearIfCurrent"]);
+  expect(engine.transactions).toEqual(["committed", "committed", "committed", "committed"]);
+});
+
+test("A failed selection write fails the start: the encounter stays in setup with its version, nothing is stored and the same request succeeds once on retry.", async () => {
+  const engine = new RecordingEncounterEngine(encounterState(undefined, { phase: "setup", version: 3 }));
+  const start = encounterRequest([phaseEvent("startCombat")]);
+  engine.selectionSaveError = new Error("selection write failed");
+
+  await expect(engine.commit(start, gm)).rejects.toThrow("selection write failed");
+  expect(engine.snapshot()).toMatchObject({ phase: "setup", version: 3 });
+  expect(engine.snapshots).toEqual([]);
+  expect(engine.statuses).toEqual([]);
+  expect(engine.transactions).toEqual(["rolledBack"]);
+
+  engine.selectionSaveError = undefined;
+  const committed = await engine.commit(start, gm);
+  expect(committed).toMatchObject({ operation: { version: 4 }, currentEncounterChangedIn: 1 });
+  expect(engine.snapshot().phase).toBe("running");
+  expect(engine.statuses).toEqual(["active"]);
+  expect(engine.selections).toEqual(["select"]);
+});
+
 test("A status mirror failure still returns the committed operation and dedupes its retry.", async () => {
   const log = vi.spyOn(console, "error").mockImplementation(() => {});
   const engine = new RecordingEncounterEngine(encounterState(undefined, { phase: "setup" }));

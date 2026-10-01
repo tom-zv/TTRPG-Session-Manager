@@ -5,9 +5,9 @@ import { createCampaign, createGm, createPlayer } from '../../support/factories.
 import { emitWithAck, startSocketServer } from '../../support/socket.js';
 
 test('a valid session joins an encounter with its state; an invalid token is refused', async () => {
-  const { user, token } = await createPlayer();
-  const { user: gm } = await createGm();
-  const campaign = await createCampaign(gm, { members: [user] });
+  const { user: player } = await createPlayer();
+  const { user: gm, token } = await createGm();
+  const campaign = await createCampaign(gm, { members: [player] });
   const encounterId = await encounterService.insertEncounter('dnd5e', {
     system_id: await encounterService.getSystemId('dnd5e'),
     campaign_id: campaign.id,

@@ -11,9 +11,16 @@ import encounterRateLimiter from "./encounterRateLimiter.js";
 import {
   emitEncounterError,
   EncounterRoomData,
+  getCampaignRoom,
   joinEncounterRooms,
   leaveEncounterRooms,
 } from "./encounterTransport.js";
+import encounterModel from "src/api/encounter/encounters/encounterModel.js";
+import currentEncounterModel from "src/api/campaigns/currentEncounterModel.js";
+import campaignService from "src/api/campaigns/campaignService.js";
+import { NotFoundError } from "src/api/HttpErrors.js";
+import { CampaignSocketEvents, CampaignWatchRequest } from "shared/sockets/campaigns/types.js";
+import type { UserDB } from "src/api/users/types.js";
 
 type FailureAck = (ack: { success: false; error: string }) => void;
 
@@ -69,6 +76,63 @@ const requireEncounterId = (data: EncounterRoomData | undefined): number => {
   return encounterId;
 };
 
+const notFound = () => new EncounterHandlerError(EncounterErrorCode.ENCOUNTER_NOT_FOUND, "Encounter not found");
+
+/**
+ * Who may join an encounter's room: a GM any encounter, a player only the current encounter of a
+ * campaign they belong to (prep stays private until the GM starts it). Membership and the selection
+ * are read on every join, so a roster change or a new start applies to the next one. Anything else
+ * answers like a missing encounter.
+ */
+const assertMayJoin = async (user: Pick<UserDB, "id" | "is_gm">, encounterId: number): Promise<void> => {
+  const encounter = await encounterModel.getEncounterDetailsById(encounterId);
+  if (!encounter) throw notFound();
+  try {
+    await campaignService.assertCampaignAccess(user, encounter.campaign_id);
+  } catch (error) {
+    if (error instanceof NotFoundError) throw notFound();
+    throw error;
+  }
+  if (!user.is_gm && (await currentEncounterModel.getCurrentEncounterId(encounter.campaign_id)) !== encounterId) {
+    throw notFound();
+  }
+};
+
+/**
+ * Each socket has at most one pending join. A newer join, or a leave of the pending encounter,
+ * supersedes it, so a slow join of an old board can never move the socket out of a newer one, and
+ * its failure is never reported as the newer session's.
+ */
+type PendingJoin = { encounterId: number; generation: number };
+const pendingJoins = new WeakMap<Socket, PendingJoin>();
+let joinGeneration = 0;
+
+class JoinSupersededError extends Error {
+  constructor() {
+    super("Join superseded");
+  }
+}
+
+const isCurrentJoin = (socket: Socket, pending: PendingJoin): boolean => pendingJoins.get(socket) === pending;
+
+/** Campaign watches follow the same rule: only the newest watch of a socket may join its room. */
+const watchGenerations = new WeakMap<Socket, number>();
+let watchGeneration = 0;
+
+const requireCampaignId = (data: CampaignWatchRequest | undefined): number => {
+  const campaignId = data?.campaignId;
+  if (typeof campaignId !== "number" || !Number.isInteger(campaignId) || campaignId <= 0) {
+    throw new EncounterHandlerError(EncounterErrorCode.INVALID_REQUEST, "Missing campaignId");
+  }
+  return campaignId;
+};
+
+const leaveCampaignRooms = (socket: Socket): void => {
+  for (const room of socket.rooms) {
+    if (/^campaign:\d+$/.test(room)) void socket.leave(room);
+  }
+};
+
 const leaveTrackedEncounter = (socket: Socket, encounterId: number, userId: number): void => {
   leaveEncounterRooms(socket, encounterId, Boolean(socket.data.user?.is_gm), userId);
 
@@ -103,15 +167,34 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
     console.log("JOIN", data);
     const callback = toCallback<EncounterJoinAck>(ackCallback);
 
+    let pending: PendingJoin | undefined;
     try {
       const userId = requireAuthenticatedUserId(socket);
       const encounterId = requireEncounterId(data);
+      const joining: PendingJoin = { encounterId, generation: ++joinGeneration };
+      pending = joining;
+      pendingJoins.set(socket, joining);
+
+      // Refuses early, so that a join without access never loads an engine.
+      await assertMayJoin(socket.data.user, encounterId);
 
       const encounterState = await encounterRequestQueue.enqueue(encounterId, async () => {
         const engine = await encounterEngineManager.getOrLoadEngine(encounterId);
 
-        if (socket.disconnected) {
-          throw new EncounterHandlerError(EncounterErrorCode.REQUEST_FAILED, "Socket disconnected");
+        try {
+          // Admission: a reset queued ahead of this join, or a start elsewhere, may have changed
+          // the selection since the first check. No await may follow before the room is joined.
+          if (isCurrentJoin(socket, joining)) await assertMayJoin(socket.data.user, encounterId);
+          if (socket.disconnected) {
+            throw new EncounterHandlerError(EncounterErrorCode.REQUEST_FAILED, "Socket disconnected");
+          }
+          if (!isCurrentJoin(socket, joining)) throw new JoinSupersededError();
+        } catch (error) {
+          // Loading cleared the idle timeout; restart it when this join leaves the engine unused.
+          if (encounterConnectionManager.getUserCount(encounterId) === 0) {
+            encounterEngineManager.startInactivityTimeout(encounterId);
+          }
+          throw error;
         }
 
         const currentEncounterId = encounterConnectionManager.getEncounterIdBySocketId(socket.id);
@@ -129,7 +212,15 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
       console.log(`User ${socket.data.user?.username} joined encounter ${encounterId}`);
       callback?.({ success: true, encounterState });
     } catch (error) {
+      // Only the abandoned join's own caller hears about it; the socket's newer session must not.
+      if (pending && !isCurrentJoin(socket, pending)) {
+        const message = error instanceof Error ? error.message : "Failed to join encounter";
+        callback?.({ success: false, error: message });
+        return;
+      }
       handleLifecycleError(socket, callback, error, "Failed to join encounter");
+    } finally {
+      if (pending && isCurrentJoin(socket, pending)) pendingJoins.delete(socket);
     }
   });
 
@@ -142,7 +233,15 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
       const trackedEncounterId = encounterConnectionManager.getEncounterIdBySocketId(socket.id);
       const requestedEncounterId =
         typeof data?.encounterId === "number" ? data.encounterId : null;
-      const encounterId = trackedEncounterId ?? requestedEncounterId;
+      // Leaving an encounter also abandons a join of it that is still pending.
+      const pendingJoin = pendingJoins.get(socket);
+      if (pendingJoin && (requestedEncounterId === null || pendingJoin.encounterId === requestedEncounterId)) {
+        pendingJoins.delete(socket);
+      }
+      // A leave of another encounter than the tracked one (a late leave of an old board) is a no-op.
+      const encounterId = requestedEncounterId === null || requestedEncounterId === trackedEncounterId
+        ? trackedEncounterId
+        : null;
 
       if (encounterId === null) {
         callback?.({ success: true });
@@ -154,5 +253,44 @@ export const registerEncounterLifecycleHandlers = (socket: Socket): void => {
     } catch (error) {
       handleLifecycleError(socket, callback, error, "Failed to leave encounter");
     }
+  });
+
+  // A player's client watches its selected campaign for changes of the current encounter. One
+  // watch per socket: a new watch replaces the previous one. Access is checked on every watch.
+  socket.on(CampaignSocketEvents.WATCH, async (data: CampaignWatchRequest | undefined, ackCallback?: unknown) => {
+    const callback = toCallback<SocketAck>(ackCallback);
+    const generation = ++watchGeneration;
+    watchGenerations.set(socket, generation);
+
+    try {
+      requireAuthenticatedUserId(socket);
+      const campaignId = requireCampaignId(data);
+      try {
+        await campaignService.assertCampaignAccess(socket.data.user, campaignId);
+      } catch (error) {
+        if (error instanceof NotFoundError) {
+          throw new EncounterHandlerError(EncounterErrorCode.NOT_AUTHORIZED, error.message);
+        }
+        throw error;
+      }
+      if (watchGenerations.get(socket) !== generation) {
+        throw new EncounterHandlerError(EncounterErrorCode.REQUEST_FAILED, "Watch superseded");
+      }
+      leaveCampaignRooms(socket);
+      await socket.join(getCampaignRoom(campaignId));
+      callback?.({ success: true });
+    } catch (error) {
+      // Answered through the acknowledgement only: a failed watch says nothing about the board.
+      callback?.({ success: false, error: error instanceof Error ? error.message : "Failed to watch campaign" });
+    }
+  });
+
+  socket.on(CampaignSocketEvents.UNWATCH, (data: CampaignWatchRequest | undefined, ackCallback?: unknown) => {
+    const callback = toCallback<SocketAck>(ackCallback);
+    watchGenerations.set(socket, ++watchGeneration);
+    const campaignId = data?.campaignId;
+    if (typeof campaignId === "number") void socket.leave(getCampaignRoom(campaignId));
+    else leaveCampaignRooms(socket);
+    callback?.({ success: true });
   });
 };

@@ -17,6 +17,10 @@ router.post("/", requireGm, trimBodyStrings, campaignController.createCampaign);
 // PATCH /campaigns/:id - Edit (body: UpdateCampaignDTO); { campaign }
 router.patch("/:id", requireGm, trimBodyStrings, campaignController.updateCampaign);
 
+// GET /campaigns/:id/current-encounter - What the campaign's players are shown; { encounter | null }.
+// Any user who can reach the campaign (a GM, or a member).
+router.get("/:id/current-encounter", campaignController.getCurrentEncounter);
+
 // GET /campaigns/:id/members - The roster; { members }
 router.get("/:id/members", requireGm, campaignController.listMembers);
 

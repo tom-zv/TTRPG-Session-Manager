@@ -4,6 +4,7 @@ import dnd5eEncounterSnapshotsModel from "src/api/encounter/encounters/dnd5e/dnd
 import { normalizeDnD5eEncounterState } from "shared/domain/encounters/dnd5e/normalizeEncounterState.js";
 import { CombatProfileLoader, DnD5eRequestHandler } from "./dnd5eRequestHandler.js";
 import { getCombatProfiles, saveCarriedHp } from "src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
+import type { SqlExecutor } from "src/db.js";
 
 /** A player character's HP as it leaves an encounter. */
 export type CarriedHp = { templateId: number; maxHp: number; currentHp: number };
@@ -16,8 +17,8 @@ export class DnD5eEncounterEngine extends BaseEncounterEngine<DnD5eEncounterStat
         );
     }
 
-    protected async persistSnapshot(state: DnD5eEncounterState): Promise<void> {
-        await dnd5eEncounterSnapshotsModel.saveSnapshot(state.id, state);
+    protected async persistSnapshot(state: DnD5eEncounterState, transaction?: SqlExecutor): Promise<void> {
+        await dnd5eEncounterSnapshotsModel.saveSnapshot(state.id, state, transaction);
     }
 
     protected entityCopies(state: DnD5eEncounterState): Map<number, number> {

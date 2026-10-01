@@ -19,6 +19,7 @@ import dnd5eEntityModel from "../../../src/api/encounter/entities/dnd5e/dnd5eEnt
 import userModel from "../../../src/api/users/userModel.js";
 import encounterModel from "../../../src/api/encounter/encounters/encounterModel.js";
 import campaignModel from "../../../src/api/campaigns/campaignModel.js";
+import currentEncounterModel from "../../../src/api/campaigns/currentEncounterModel.js";
 import encounterService from "../../../src/api/encounter/encounters/encounterService.js";
 import snapshotModel from "../../../src/api/encounter/encounters/dnd5e/dnd5eEncounterSnapshotsModel.js";
 import encounterEngineManager from "../../../src/services/encounters/encounterEngineManager.js";
@@ -234,6 +235,12 @@ test("joining loads the engine on demand and returns the current state; a missin
     if (id !== 12) throw new EncounterNotFoundError(id);
     return engine;
   });
+  // The join boundary itself (membership, current encounter) is proven against SQL in
+  // server/tests/integration/encounters/currentEncounter.int.test.ts; here the player is admitted.
+  vi.spyOn(encounterModel, "getEncounterDetailsById").mockImplementation(async (id: number) =>
+    id === 12 ? { id, system: "dnd5e", campaign_id: 1, name: "", description: "", status: "active", location: "", difficulty: "", gm_notes: [], created_at: "" } : null);
+  vi.spyOn(campaignModel, "isMember").mockResolvedValue(true);
+  vi.spyOn(currentEncounterModel, "getCurrentEncounterId").mockResolvedValue(12);
   const rooms: string[] = [];
   const emitted: EncounterError[] = [];
   const socket = Object.assign(new EventEmitter(), {

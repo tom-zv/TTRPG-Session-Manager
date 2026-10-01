@@ -8,10 +8,33 @@ import { EncounterRequest } from "shared/sockets/encounters/types.js";
 import { EncounterOperation } from "shared/sockets/encounters/types.js";
 import { IRequestHandler } from "./requestHandler.js";
 import encounterModel from "src/api/encounter/encounters/encounterModel.js";
+import currentEncounterModel from "src/api/campaigns/currentEncounterModel.js";
 import { UserDB } from "src/api/users/types.js";
+import { corePool, type SqlExecutor, withTransaction } from "src/db.js";
+
+/**
+ * A committed operation and the campaign whose current encounter it changed: a start selects the
+ * encounter, a reset of the current encounter clears it. Null for every other operation, for a
+ * reset of an encounter that is no longer current, and for a repeated request ID.
+ */
+export type EncounterCommit = {
+    operation: EncounterOperation;
+    currentEncounterChangedIn: number | null;
+};
+
+/** How an operation changes its campaign's current encounter. */
+type SelectionChange = "select" | "clearIfCurrent" | null;
+
+const selectionChange = (previous: BaseEncounterState["phase"], next: BaseEncounterState["phase"]): SelectionChange => {
+    if (previous === "setup" && next === "running") return "select";
+    if (previous !== "setup" && next === "setup") return "clearIfCurrent";
+    return null;
+};
 
 export interface IEncounterEngine<TState extends AnySystemEncounterState = AnySystemEncounterState> {
+    /** `commit`, returning only the operation. */
     dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation>;
+    commit(request: EncounterRequest, user: UserDB): Promise<EncounterCommit>;
     snapshot(): TState;
     cleanup(): Promise<void>;
 }
@@ -31,9 +54,13 @@ export abstract class BaseEncounterEngine<
     }
     
     async dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation> {
+        return (await this.commit(request, user)).operation;
+    }
+
+    async commit(request: EncounterRequest, user: UserDB): Promise<EncounterCommit> {
         const existingOperation = this.operationsByRequestId.get(request.requestId);
         if (existingOperation) {
-            return existingOperation;
+            return { operation: existingOperation, currentEncounterChangedIn: null };
         }
 
         const draft = structuredClone(this.state);
@@ -51,10 +78,7 @@ export abstract class BaseEncounterEngine<
 
         // Every operation is stored before it takes effect: a failed write leaves the engine
         // unchanged, and a restart never loses an acknowledged change.
-        await this.persistSnapshot(draft);
-        if (!sameCopies(this.entityCopies(this.state), this.entityCopies(draft))) {
-            await this.persistMembership(draft);
-        }
+        const currentEncounterChangedIn = await this.persistOperation(this.state, draft);
         const previous = this.state;
         this.state = draft;
         this.rememberOperation(request.requestId, operation);
@@ -70,7 +94,30 @@ export abstract class BaseEncounterEngine<
             console.error(`Follow-up work failed for encounter ${draft.id}`, error);
         }
 
-        return operation;
+        return { operation, currentEncounterChangedIn };
+    }
+
+    /**
+     * Store the new state. A start or reset also changes the campaign's current encounter: the
+     * snapshot, the membership and the selection then commit in one transaction, so a failed start
+     * leaves the encounter in setup and the players on what they were shown before.
+     */
+    private async persistOperation(previous: TState, draft: TState): Promise<number | null> {
+        const change = selectionChange(previous.phase, draft.phase);
+        const store = async (transaction?: SqlExecutor) => {
+            await this.persistSnapshot(draft, transaction);
+            if (!sameCopies(this.entityCopies(previous), this.entityCopies(draft))) {
+                await this.persistMembership(draft, transaction);
+            }
+        };
+        if (change === null) {
+            await store();
+            return null;
+        }
+        return this.inTransaction(async (transaction) => {
+            await store(transaction);
+            return this.persistSelection(change, draft.id, transaction);
+        });
     }
     
     snapshot(): TState {
@@ -97,14 +144,31 @@ export abstract class BaseEncounterEngine<
         this.operationsByRequestId.set(requestId, operation);
     }
 
-    protected abstract persistSnapshot(state: TState): Promise<void>;
+    /** `transaction`: given when the snapshot must commit together with other changes. */
+    protected abstract persistSnapshot(state: TState, transaction?: SqlExecutor): Promise<void>;
 
     /** How many copies of each entity (by entity ID) the state contains. */
     protected abstract entityCopies(state: TState): Map<number, number>;
 
     /** Keep core.encounter_entities in step with the state's membership. */
-    protected async persistMembership(state: TState): Promise<void> {
-        await encounterModel.replaceEncounterEntities(state.id, this.entityCopies(state));
+    protected async persistMembership(state: TState, transaction?: SqlExecutor): Promise<void> {
+        await encounterModel.replaceEncounterEntities(state.id, this.entityCopies(state), transaction);
+    }
+
+    /** One transaction on the core pool; the system schemas are on the same server. */
+    protected inTransaction<T>(task: (transaction: SqlExecutor) => Promise<T>): Promise<T> {
+        return withTransaction(corePool, task);
+    }
+
+    /** Returns the campaign whose selection changed, or null. */
+    protected async persistSelection(
+        change: Exclude<SelectionChange, null>,
+        encounterId: number,
+        transaction: SqlExecutor,
+    ): Promise<number | null> {
+        return change === "select"
+            ? currentEncounterModel.setCurrentEncounter(transaction, encounterId)
+            : currentEncounterModel.clearIfCurrent(transaction, encounterId);
     }
 
     /** System-specific follow-up after an operation is stored, for example carrying values over. */

@@ -169,9 +169,9 @@ async function deleteEncounter(
       throw new ValidationError("Encounter ID is required");
     }
     
-    const result = await encounterService.deleteEncounter(Number(id));
-    notifyEncounterDeleted(Number(id));
-    res.status(200).json({ success: result });
+    const { campaignId } = await encounterService.deleteEncounter(Number(id));
+    notifyEncounterDeleted(Number(id), campaignId);
+    res.status(200).json({ success: true });
     
   } catch (error) {
     next(error);

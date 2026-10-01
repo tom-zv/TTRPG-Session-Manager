@@ -7,7 +7,7 @@ import encounterEngineManager from "src/services/encounters/encounterEngineManag
 import { validateRequest, validateUser } from "./encounterRequestValidator.js";
 import { EncounterHandlerError } from "./encounterHandlerError.js";
 import encounterRateLimiter from "./encounterRateLimiter.js";
-import { emitEncounterError, emitEncounterOperation, toAck } from "./encounterTransport.js";
+import { emitCurrentEncounterChanged, emitEncounterError, emitEncounterOperation, toAck } from "./encounterTransport.js";
 import { EncounterAuthorizationError } from "src/services/encounters/EncounterAuthorizationError.js";
 import { EncounterNotFoundError } from "src/services/encounters/encounterSystems.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
@@ -55,12 +55,14 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
         );
       }
 
-      const operation = await encounterRequestQueue.enqueue(request.encounterId, async () => {
+      const { operation, currentEncounterChangedIn } = await encounterRequestQueue.enqueue(request.encounterId, async () => {
         const encounterEngine = await encounterEngineManager.getOrLoadEngine(request.encounterId);
-        return await encounterEngine.dispatch(request, socket.data.user);
+        return await encounterEngine.commit(request, socket.data.user);
       });
 
       emitEncounterOperation(namespace, operation);
+      // After the commit and after the operation, so a watcher that re-reads finds the new board.
+      if (currentEncounterChangedIn !== null) emitCurrentEncounterChanged(namespace, currentEncounterChangedIn);
       callback?.({ success: true });
     } catch (error) {
       if (error instanceof EncounterHandlerError) {

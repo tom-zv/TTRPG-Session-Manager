@@ -1,4 +1,4 @@
-import { corePool } from "src/db.js";
+import { corePool, withTransaction, type SqlExecutor } from "src/db.js";
 import { ExecuteValues, QueryResult, ResultSetHeader, RowDataPacket } from "mysql2";
 import { EncounterDB, encounterUpdateDataDB, EncounterInsertData } from "./types.js";
 import type { SystemType } from "shared/domain/encounters/coreEncounter.js";
@@ -109,25 +109,21 @@ export async function deleteEncounter(id: number): Promise<boolean> {
  */
 export async function replaceEncounterEntities(
   encounterId: number,
-  copiesByEntityId: Map<number, number>
+  copiesByEntityId: Map<number, number>,
+  transaction?: SqlExecutor
 ): Promise<void> {
-  const connection = await corePool.getConnection();
-  try {
-    await connection.beginTransaction();
-    await connection.execute("DELETE FROM core.encounter_entities WHERE encounter_id = ?", [encounterId]);
+  const replace = async (executor: SqlExecutor) => {
+    await executor.execute("DELETE FROM core.encounter_entities WHERE encounter_id = ?", [encounterId]);
     for (const [entityId, copies] of copiesByEntityId) {
-      await connection.execute(
+      await executor.execute(
         "INSERT INTO core.encounter_entities (encounter_id, entity_id, copies) VALUES (?, ?, ?)",
         [encounterId, entityId, copies]
       );
     }
-    await connection.commit();
-  } catch (error) {
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-  }
+  };
+  // Inside the caller's transaction when given one; otherwise in a transaction of its own.
+  if (transaction) await replace(transaction);
+  else await withTransaction(corePool, replace);
 }
 
 /** Encounters that contain at least one copy of this entity. */

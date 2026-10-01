@@ -10,6 +10,9 @@ import encounterRequestQueue from "src/services/encounters/encounterRequestQueue
 import { NotFoundError } from "src/api/HttpErrors.js";
 import campaignService from "src/api/campaigns/campaignService.js";
 import type { UserDB } from "src/api/users/types.js";
+import currentEncounterModel from "src/api/campaigns/currentEncounterModel.js";
+import type { CurrentEncounterDTO } from "shared/DTO/campaigns/types.js";
+import { currentEncounterToDto } from "src/utils/format-transformers/campaign-transformer.js";
 
 export const ENCOUNTER_NOT_FOUND = "Encounter not found";
 
@@ -89,20 +92,37 @@ async function updateEncounter(
   return updatedEncounterDb;
 }
 
-async function deleteEncounter(id: number): Promise<boolean> {
+/**
+ * Delete an encounter; returns its campaign. Deleting the campaign's current encounter clears the
+ * selection through the cascade on `core.campaign_current_encounters`; any other one leaves it.
+ */
+async function deleteEncounter(id: number): Promise<{ campaignId: number }> {
   // Queued behind any request in progress, so a running engine cannot store state for a deleted row.
   return encounterRequestQueue.enqueue(id, async () => {
-    const result = await encounterModel.deleteEncounter(id);
-
-    if (!result) {
+    const encounter = await encounterModel.getEncounterDetailsById(id);
+    if (!encounter || !(await encounterModel.deleteEncounter(id))) {
       throw new NotFoundError(`Encounter with ID ${id} not found`);
     }
 
     encounterEngineManager.discardEngine(id);
-    return result;
+    return { campaignId: encounter.campaign_id };
   });
 }
 
+/**
+ * The encounter a campaign's players are shown, for a user who can reach that campaign. GM notes
+ * are never part of it.
+ */
+async function getCurrentEncounter(
+  user: Pick<UserDB, "id" | "is_gm">,
+  campaignId: number
+): Promise<CurrentEncounterDTO | null> {
+  await campaignService.assertCampaignAccess(user, campaignId);
+  const encounterId = await currentEncounterModel.getCurrentEncounterId(campaignId);
+  if (encounterId === null) return null;
+  const encounterDb = await encounterModel.getEncounterDetailsById(encounterId);
+  return encounterDb ? currentEncounterToDto(encounterDb) : null;
+}
 
 async function getSystemId(systemName: SystemType): Promise<number> {
   return encounterModel.getSystemId(systemName);
@@ -114,5 +134,6 @@ export default {
   getCampaignEncounterDetails,
   updateEncounter,
   deleteEncounter,
+  getCurrentEncounter,
   getSystemId,
 };
