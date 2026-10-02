@@ -21,14 +21,13 @@ test("Hidden entities are visible only to the GM, even when a player controls th
   }
 });
 
-test("GMs, controllers and viewers of PCs see exact HP, while uncontrolled NPCs and creatures follow every monster HP visibility mode.", () => {
+test("GMs and every player viewing a PC see exact HP, while NPCs and creatures follow every monster HP visibility mode, also for the player controlling them.", () => {
   for (const mode of ['exact', 'status', 'hidden'] as const) {
     const settings = resolveEncounterSettings({ visibility: { monsterHp: mode } });
     for (const role of ['pc', 'npc', 'creature']) {
       const entity = { role, controllerUserIds: [2] };
       expect(hpDisplayFor({ userId: 1, isGm: true }, entity, settings)).toBe('exact');
-      expect(hpDisplayFor({ userId: 2, isGm: false }, entity, settings)).toBe('exact');
-      for (const userId of [3, undefined]) expect(hpDisplayFor({ userId, isGm: false }, entity, settings)).toBe(role === 'pc' ? 'exact' : mode);
+      for (const userId of [2, 3, undefined]) expect(hpDisplayFor({ userId, isGm: false }, entity, settings)).toBe(role === 'pc' ? 'exact' : mode);
     }
   }
 });

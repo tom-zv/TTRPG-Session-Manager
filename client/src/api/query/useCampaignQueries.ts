@@ -4,6 +4,7 @@ import { useAuth } from "src/app/contexts/AuthContext.js";
 import {
   addCampaignMember,
   createCampaign,
+  getCurrentEncounter,
   listCampaignMembers,
   listCampaigns,
   removeCampaignMember,
@@ -28,6 +29,21 @@ export function useCampaignMembers(campaignId: number) {
     queryKey: CAMPAIGN_KEYS.members(userId ?? 0, campaignId),
     queryFn: ({ signal }) => listCampaignMembers(campaignId, signal),
     enabled: userId !== undefined,
+    refetchOnMount: "always",
+  });
+}
+
+/**
+ * The encounter the campaign's players are shown. The stored selection is the only answer: change
+ * signals and reconnects invalidate this key (`useCurrentEncounterWatch`) and never carry a value.
+ * Keyed by account and campaign, so an answer for one campaign is never drawn for another.
+ */
+export function useCurrentEncounter(campaignId: number | null) {
+  const userId = useAuth().currentUser?.id;
+  return useQuery({
+    queryKey: CAMPAIGN_KEYS.currentEncounter(userId ?? 0, campaignId ?? 0),
+    queryFn: ({ signal }) => getCurrentEncounter(campaignId!, signal),
+    enabled: userId !== undefined && campaignId !== null,
     refetchOnMount: "always",
   });
 }

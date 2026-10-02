@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { 
   DnD5eEncounter, 
+  DnD5eEncounterDetails,
 } from "shared/domain/encounters/dnd5e/encounter.js";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { 
@@ -12,9 +13,11 @@ import {
 /**
  * Compose DnD5e encounter from caches
  * Fetches and combines: encounter details, encounter state, and entity details + state
- * 
+ *
+ * `details`, when given, are used instead of the campaign's encounter list, which is then not read
+ * (a player is never sent the campaign's prep list).
  */
-export function useComposedDnD5eEncounter(encounterId: number, campaignId: number) {
+export function useComposedDnD5eEncounter(encounterId: number, campaignId: number, details?: DnD5eEncounterDetails) {
   // The state is written by the encounter session; it is absent until the session has joined.
   const { data } = useDnD5eEncounterState(encounterId);
   const encounterState = data?.encounterState;
@@ -22,7 +25,7 @@ export function useComposedDnD5eEncounter(encounterId: number, campaignId: numbe
     data: encounterSummaries,
     isError: summariesError,
     isLoading: summariesLoading,
-  } = useDnD5eEncounterSummaries(campaignId);
+  } = useDnD5eEncounterSummaries(campaignId, { enabled: details === undefined });
   
   // Extract entity IDs from state
   const entityIds = useMemo(() => {
@@ -46,8 +49,8 @@ export function useComposedDnD5eEncounter(encounterId: number, campaignId: numbe
   
   // Get encounter details from summaries cache
   const encounterDetails = useMemo(() => {
-    return encounterSummaries?.find(e => e.id === encounterId);
-  }, [encounterId, encounterSummaries]);
+    return details ?? encounterSummaries?.find(e => e.id === encounterId);
+  }, [details, encounterId, encounterSummaries]);
   
   // Compose full encounter from caches 
   const encounter = useMemo(() => {

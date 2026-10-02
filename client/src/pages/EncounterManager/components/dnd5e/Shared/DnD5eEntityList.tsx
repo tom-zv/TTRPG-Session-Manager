@@ -17,6 +17,8 @@ type EntityListProps = {
   canControlEntity?: (entity: DnD5eEntity) => boolean;
   /** How much of an entity's HP the viewer is shown. Defaults to exact numbers. */
   hpDisplayFor?: (entity: DnD5eEntity) => HpDisplay;
+  /** A board that only follows the fight: rows show no HP actions at all. */
+  readOnly?: boolean;
   sourceId?: number;
   selectedEntityId?: number;
   onSelectEntity?: (entityId: number) => void;
@@ -36,6 +38,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   canMutate = true,
   canControlEntity,
   hpDisplayFor,
+  readOnly = false,
   sourceId,
   selectedEntityId,
   onSelectEntity,
@@ -77,6 +80,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
               canMutate={canMutate}
               canControl={canControlEntity ? canControlEntity(entity) : canMutate}
               hpDisplay={hpDisplayFor?.(entity)}
+              readOnly={readOnly}
               sourceId={sourceId}
               onSelect={onSelectEntity}
               isPinned={entity.instanceId === selectedEntityId ? isPinned : undefined}

@@ -1,15 +1,22 @@
 import { io, Socket } from 'socket.io-client';
 
-// Socket instance cache
+// Socket instance cache, with the session token each socket authenticated with.
 const socketInstances: Record<string, Socket> = {};
+const socketTokens: Record<string, string | null> = {};
 
 /**
- * Get or create a socket instance for a specific namespace
+ * Get or create a socket instance for a specific namespace. A socket is bound to the account it
+ * authenticated as at its handshake, so a cached socket of another session is replaced.
  */
 export const getSocket = (namespace: string = '/'): Socket => {
-  // Return existing instance if available
-  if (socketInstances[namespace]) {
-    return socketInstances[namespace];
+  const currentToken = localStorage.getItem('sessionToken');
+  const cached = socketInstances[namespace];
+  if (cached && socketTokens[namespace] === currentToken) {
+    return cached;
+  }
+  if (cached) {
+    cached.disconnect();
+    delete socketInstances[namespace];
   }
 
   // Determine the base URL (same as current host in production)
@@ -18,7 +25,7 @@ export const getSocket = (namespace: string = '/'): Socket => {
     : 'http://localhost:3000';
   
   // Get auth token for socket authentication
-  const token = localStorage.getItem('sessionToken');
+  const token = currentToken;
   
   // Create new socket instance
   const socket = io(`${baseUrl}${namespace}`, {
@@ -45,6 +52,7 @@ export const getSocket = (namespace: string = '/'): Socket => {
 
   // Store instance in cache
   socketInstances[namespace] = socket;
+  socketTokens[namespace] = token;
   return socket;
 };
 

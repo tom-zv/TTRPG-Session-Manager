@@ -8,6 +8,7 @@ import {
 import { EncounterOperation, EncounterRequest } from "shared/sockets/encounters/types.js";
 import {
   EncounterBySystem,
+  EncounterDetailsbySystem,
   EncounterStateBySystem,
   SystemType,
 } from "shared/domain/encounters/coreEncounter.js";
@@ -30,7 +31,11 @@ export interface LiveEncounterConfig<
   /** Bring the cached entity templates of this state up to date; all of them, or just one. */
   refreshTemplates?: (queryClient: QueryClient, encounterState: TState, templateId?: number) => Promise<void>;
   queryKeys: QueryKeyProvider;
-  useComposedEncounter: (encounterId: number, campaignId: number) => {
+  /**
+   * `details`: the encounter's metadata when the caller already has it (the player board gets it
+   * with the current encounter); otherwise it is read from the campaign's encounter list.
+   */
+  useComposedEncounter: (encounterId: number, campaignId: number, details?: EncounterDetailsbySystem<T>) => {
     encounter: TEncounter | null;
     isLoading: boolean;
   };
@@ -57,7 +62,8 @@ export function useGenericLiveEncounter<
 >(
   encounterId: number,
   campaignId: number,
-  config: LiveEncounterConfig<T, TEncounter, TState, TEvent, TActions>
+  config: LiveEncounterConfig<T, TEncounter, TState, TEvent, TActions>,
+  details?: EncounterDetailsbySystem<T>
 ) {
   const queryClient = useQueryClient();
   const {
@@ -67,7 +73,7 @@ export function useGenericLiveEncounter<
     refreshTemplates,
   } = config;
 
-  const { encounter, isLoading } = useComposedEncounter(encounterId, campaignId);
+  const { encounter, isLoading } = useComposedEncounter(encounterId, campaignId, details);
   // Connection problems (join failed, sync failed) stay until the session recovers.
   const [lifecycleError, setLifecycleError] = useState<string | null>(null);
   // A rejected action says nothing about the connection, so it is reported separately and fades.

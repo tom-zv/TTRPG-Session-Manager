@@ -28,15 +28,15 @@ export function isVisibleTo(viewer: EncounterViewer, entity: { hidden: boolean }
 export type HpDisplay = "exact" | "status" | "hidden";
 
 /**
- * Exact for the GM, for the entity's own player and for every player character. For NPCs and
- * creatures the encounter's `visibility.monsterHp` setting decides.
+ * Exact for the GM and for every player character. For NPCs and creatures the encounter's
+ * `visibility.monsterHp` setting decides, also for a player who controls one.
  */
 export function hpDisplayFor(
   viewer: EncounterViewer,
-  entity: { role: string; controllerUserIds?: number[] },
+  entity: { role: string },
   settings: EncounterSettings
 ): HpDisplay {
-  if (entity.role === "pc" || controlsEntity(viewer, entity)) return "exact";
+  if (viewer.isGm || entity.role === "pc") return "exact";
   return settings.visibility.monsterHp;
 }
 

@@ -13,6 +13,7 @@ import { Compendium } from 'src/pages/Compendium/components/Compendium.js';
 import { Campaigns } from 'src/pages/Campaigns/components/Campaigns.js';
 import { PlayerEncounter } from 'src/pages/EncounterManager/components/PlayerEncounter.js';
 import { CampaignSelectionProvider } from './contexts/CampaignSelectionContext.js';
+import { OpenEncounterNotice } from 'src/components/OpenEncounterNotice/OpenEncounterNotice.js';
 
 const Notes: React.FC = () => <div className="page-container">Notes Coming Soon</div>;
 const Home: React.FC = () => <div className="page-container">Welcome to TTRPG Session Manager</div>;
@@ -60,6 +61,7 @@ const AppLayout: React.FC = () => {
     // Keyed by account: another account in this tab starts from its own stored campaign.
     <CampaignSelectionProvider key={currentUser.id} userId={currentUser.id}>
       <NavBar isGm={isGm} />
+      {!isGm && <OpenEncounterNotice />}
       <main className="app-content">
         {/* use CSS to show/hide pages instead of unmounting them */}
         <div className="page-wrapper">

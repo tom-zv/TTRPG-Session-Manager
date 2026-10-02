@@ -2,6 +2,8 @@ import type {
   CampaignDTO,
   CampaignMemberDTO,
   CreateCampaignDTO,
+  CurrentEncounterDTO,
+  CurrentEncounterResponse,
   UpdateCampaignDTO,
 } from "shared/DTO/campaigns/types.js";
 import { authenticatedJsonHeaders } from "./requestHeaders.js";
@@ -41,4 +43,9 @@ export async function addCampaignMember(id: number, userId: number): Promise<Cam
 
 export async function removeCampaignMember(id: number, userId: number): Promise<void> {
   await request<void>(`/${id}/members/${userId}`, { method: "DELETE" }, "Failed to remove player");
+}
+
+/** The campaign's current encounter, or null while its players wait. */
+export async function getCurrentEncounter(id: number, signal?: AbortSignal): Promise<CurrentEncounterDTO | null> {
+  return (await request<CurrentEncounterResponse>(`/${id}/current-encounter`, { signal }, "Failed to load the current encounter")).encounter;
 }

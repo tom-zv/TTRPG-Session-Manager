@@ -28,6 +28,8 @@ type DnD5eEntityRowProps = {
   canControl?: boolean;
   /** How much of the HP this viewer is shown. */
   hpDisplay?: HpDisplay;
+  /** A board that only follows the fight: no HP actions, not even disabled ones. */
+  readOnly?: boolean;
   sourceId?: number;
   onSelect?: (entityId: number) => void;
   isPinned?: boolean;
@@ -44,6 +46,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   canMutate = true,
   canControl = canMutate,
   hpDisplay = "exact",
+  readOnly = false,
   sourceId,
   onSelect,
   isPinned,
@@ -222,7 +225,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           </div>
         )}
 
-        {isLive && (
+        {isLive && !readOnly && (
           <EntityRowLiveActions
             entity={entity}
             canMutate={canMutate}

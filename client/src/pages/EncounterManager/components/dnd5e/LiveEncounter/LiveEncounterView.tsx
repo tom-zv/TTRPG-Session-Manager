@@ -3,6 +3,7 @@ import { GiWarlockEye } from "react-icons/gi";
 import { BsPinAngle, BsPinAngleFill } from "react-icons/bs";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import type { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
+import type { DnD5eEncounterDetails } from "shared/domain/encounters/dnd5e/encounter.js";
 import { controlsEntity, hpDisplayFor, isVisibleTo } from "shared/domain/encounters/dnd5e/view.js";
 import { ToggleSwitch } from "../Shared/ToggleSwitch/ToggleSwitch.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
@@ -29,7 +30,13 @@ type LiveEncounterProps = {
   campaignId: number;
   encounterId: number;
   isGm: boolean;
-  onExit: () => void;
+  /** Absent on the player board, which has no prep list to return to. */
+  onExit?: () => void;
+  /**
+   * The player board (S3): the encounter's metadata comes with the campaign's current encounter,
+   * and the board only follows the fight: no prep, edit, turn or HP controls.
+   */
+  playerBoard?: { details: DnD5eEncounterDetails };
 };
 
 export const LiveEncounter: React.FC<LiveEncounterProps> = ({
@@ -38,6 +45,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
   encounterId,
   isGm,
   onExit,
+  playerBoard,
 }) => {
   const { currentUser } = useAuth();
   const {
@@ -49,14 +57,15 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     encounterEnded,
     lastOperation,
     actions,
-  } = useLiveEncounter(system, campaignId, encounterId);
+  } = useLiveEncounter(system, campaignId, encounterId, playerBoard?.details);
+  const readOnly = playerBoard !== undefined;
 
   const phase = encounter?.phase;
   const isRunning = phase === "running";
   const connectionFailed = !isLifecycleReady && lifecycleError !== null;
   const hasDataError = (isLifecycleReady && !isLoading && !encounter) || connectionFailed;
   const isBootstrapping = isLoading || !isLifecycleReady || !actions;
-  const isWritable = isLifecycleReady && !encounterEnded;
+  const isWritable = !readOnly && isLifecycleReady && !encounterEnded;
   // GM powers: membership, phases, settings, the grave.
   const canMutate = isGm && isWritable;
   const sourceId = currentUser?.id;
@@ -264,7 +273,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 End combat
               </button>
             )}
-            {!phase || phase === "setup" ? null : confirmingReset && canMutate ? (
+            {!phase || phase === "setup" || readOnly ? null : confirmingReset && canMutate ? (
               <InlineConfirm
                 label="Reset encounter?"
                 confirmLabel="Confirm reset: return to setup, return everyone from the grave, and restore all HP"
@@ -290,7 +299,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 reset
               </button>
             )}
-            <button onClick={onExit}>Exit Encounter</button>
+            {onExit && <button onClick={onExit}>Exit Encounter</button>}
           </div>
         </div>
 
@@ -344,11 +353,12 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 entities={visibleEntities}
                 initiativeOrder={encounter!.initiativeOrder}
                 currentTurn={isRunning ? encounter!.currentTurn : undefined}
-                mode={phase === "setup" ? "edit" : "live"}
+                mode={phase === "setup" && !readOnly ? "edit" : "live"}
                 actions={actions}
                 canMutate={canMutate}
                 canControlEntity={canControlEntity}
                 hpDisplayFor={hpDisplayForEntity}
+                readOnly={readOnly}
                 sourceId={sourceId}
                 selectedEntityId={selectedEntityId}
                 onSelectEntity={handleSelectEntity}
@@ -358,7 +368,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                   <TurnDock
                     currentRound={encounter!.currentRound}
                     activeEntityName={activeEntityName}
-                    onNextTurn={handleNextTurn}
+                    onNextTurn={readOnly ? undefined : handleNextTurn}
                     disabled={nextTurnDisabled}
                     canMutate={canEndTurn}
                   />

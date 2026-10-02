@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { getCurrentUser, login, logout } from 'src/api/authApi.js'
 import { LoginDTO } from 'shared/DTO/auth/types.js';
 import { User } from 'src/api/types.js';
+import { disconnectSocket } from 'src/services/SocketService/socket.js';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -73,6 +74,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(null);
     setSessionToken(null);
     localStorage.removeItem('sessionToken');
+    // The encounter socket authenticated as this account; the next account gets its own.
+    disconnectSocket('/encounter');
     await logout(sessionToken);
   };
 

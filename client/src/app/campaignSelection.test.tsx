@@ -12,6 +12,7 @@ import { currentUrl, go, RouterProbe } from "src/test/routerProbe.js";
 import { ENCOUNTER_KEYS } from "src/pages/EncounterManager/api/dnd5e/encounters/query/keys.js";
 import { AppRoutes } from "./router.js";
 
+vi.mock("src/services/SocketService/socket.js", async () => (await import("src/test/fakes/socket.js")).socketModule);
 // Sections outside campaign selection only show where the app landed; the live board has its own suites.
 vi.mock("src/pages/SoundManager/components/SoundManager.js", () => ({ default: () => null }));
 vi.mock("src/pages/Compendium/components/Compendium.js", () => ({ Compendium: () => <p>Compendium section</p> }));
@@ -56,6 +57,8 @@ beforeEach(() => {
     }),
     http.get("/api/users", () => json({ users: [] })),
     http.get("/api/campaigns/:id/members", () => json({ members: [] })),
+    // No board has been started in any campaign; the player board has its own suite.
+    http.get("/api/campaigns/:id/current-encounter", () => json({ encounter: null })),
   );
 });
 

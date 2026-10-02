@@ -65,6 +65,21 @@ export class FakeSocket {
     return this;
   }
 
+  /**
+   * `socket.timeout(ms).emit(...)`: the ack then receives `(error, ...response)`. The fake never
+   * times out, so an answered ack gets `null` as the error and an unanswered one stays pending.
+   */
+  timeout(): { emit: (event: string, ...args: unknown[]) => FakeSocket } {
+    return {
+      emit: (event, ...args) => {
+        const last = args.at(-1);
+        if (typeof last !== "function") return this.emit(event, ...args);
+        const ack = last as Ack;
+        return this.emit(event, ...args.slice(0, -1), (...response: unknown[]) => ack(null, ...response));
+      },
+    };
+  }
+
   connect(): this {
     this.serverConnect();
     return this;

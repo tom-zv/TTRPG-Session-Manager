@@ -4,7 +4,8 @@ import styles from "./TurnDock.module.css";
 type TurnDockProps = {
   currentRound: number;
   activeEntityName: string;
-  onNextTurn: () => void;
+  /** Absent on a read-only board: no turn control is shown. */
+  onNextTurn?: () => void;
   disabled: boolean;
   canMutate: boolean;
 };
@@ -22,14 +23,16 @@ export const TurnDock: React.FC<TurnDockProps> = ({
         <span className={styles.roundBadge}>Round {currentRound}</span>
         <span className={styles.turnContext}>Current turn: {activeEntityName}</span>
       </div>
-      <button
-        className={styles.nextTurnButton}
-        onClick={onNextTurn}
-        disabled={disabled}
-        title={canMutate ? "Advance to the next turn" : "Only the GM or the player whose turn it is can end the turn"}
-      >
-        Next Turn
-      </button>
+      {onNextTurn && (
+        <button
+          className={styles.nextTurnButton}
+          onClick={onNextTurn}
+          disabled={disabled}
+          title={canMutate ? "Advance to the next turn" : "Only the GM or the player whose turn it is can end the turn"}
+        >
+          Next Turn
+        </button>
+      )}
     </div>
   );
 };
