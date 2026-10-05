@@ -24,6 +24,7 @@ export type EncounterCommit = {
 
 /** How an operation changes its campaign's current encounter. */
 type SelectionChange = "select" | "clearIfCurrent" | null;
+type CheckBeforeCommit = (transaction: SqlExecutor) => Promise<void>;
 
 const selectionChange = (previous: BaseEncounterState["phase"], next: BaseEncounterState["phase"]): SelectionChange => {
     if (previous === "setup" && next === "running") return "select";
@@ -34,7 +35,8 @@ const selectionChange = (previous: BaseEncounterState["phase"], next: BaseEncoun
 export interface IEncounterEngine<TState extends AnySystemEncounterState = AnySystemEncounterState> {
     /** `commit`, returning only the operation. */
     dispatch(request: EncounterRequest, user: UserDB): Promise<EncounterOperation>;
-    commit(request: EncounterRequest, user: UserDB): Promise<EncounterCommit>;
+    /** A supplied check runs in the write transaction and may reject the whole operation. */
+    commit(request: EncounterRequest, user: UserDB, checkBeforeCommit?: CheckBeforeCommit): Promise<EncounterCommit>;
     snapshot(): TState;
     cleanup(): Promise<void>;
 }
@@ -57,9 +59,10 @@ export abstract class BaseEncounterEngine<
         return (await this.commit(request, user)).operation;
     }
 
-    async commit(request: EncounterRequest, user: UserDB): Promise<EncounterCommit> {
+    async commit(request: EncounterRequest, user: UserDB, checkBeforeCommit?: CheckBeforeCommit): Promise<EncounterCommit> {
         const existingOperation = this.operationsByRequestId.get(request.requestId);
         if (existingOperation) {
+            if (checkBeforeCommit) await this.inTransaction(checkBeforeCommit);
             return { operation: existingOperation, currentEncounterChangedIn: null };
         }
 
@@ -78,7 +81,7 @@ export abstract class BaseEncounterEngine<
 
         // Every operation is stored before it takes effect: a failed write leaves the engine
         // unchanged, and a restart never loses an acknowledged change.
-        const currentEncounterChangedIn = await this.persistOperation(this.state, draft);
+        const currentEncounterChangedIn = await this.persistOperation(this.state, draft, checkBeforeCommit);
         const previous = this.state;
         this.state = draft;
         this.rememberOperation(request.requestId, operation);
@@ -102,7 +105,9 @@ export abstract class BaseEncounterEngine<
      * snapshot, the membership and the selection then commit in one transaction, so a failed start
      * leaves the encounter in setup and the players on what they were shown before.
      */
-    private async persistOperation(previous: TState, draft: TState): Promise<number | null> {
+    private async persistOperation(
+        previous: TState, draft: TState, checkBeforeCommit?: CheckBeforeCommit,
+    ): Promise<number | null> {
         const change = selectionChange(previous.phase, draft.phase);
         const store = async (transaction?: SqlExecutor) => {
             await this.persistSnapshot(draft, transaction);
@@ -110,13 +115,16 @@ export abstract class BaseEncounterEngine<
                 await this.persistMembership(draft, transaction);
             }
         };
-        if (change === null) {
+        if (change === null && !checkBeforeCommit) {
             await store();
             return null;
         }
         return this.inTransaction(async (transaction) => {
             await store(transaction);
-            return this.persistSelection(change, draft.id, transaction);
+            // Take the selection lock after the snapshot write. Start/reset use the same lock
+            // order, and a replacement that already committed makes this provisional write roll back.
+            await checkBeforeCommit?.(transaction);
+            return change === null ? null : this.persistSelection(change, draft.id, transaction);
         });
     }
     

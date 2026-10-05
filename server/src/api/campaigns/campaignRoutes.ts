@@ -21,6 +21,10 @@ router.patch("/:id", requireGm, trimBodyStrings, campaignController.updateCampai
 // Any user who can reach the campaign (a GM, or a member).
 router.get("/:id/current-encounter", campaignController.getCurrentEncounter);
 
+// GET /campaigns/:id/encounter-history - Encounters whose combat ended, newest first; { encounters }.
+// Any user who can reach the campaign.
+router.get("/:id/encounter-history", campaignController.getEncounterHistory);
+
 // GET /campaigns/:id/members - The roster; { members }
 router.get("/:id/members", requireGm, campaignController.listMembers);
 

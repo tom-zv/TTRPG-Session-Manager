@@ -11,6 +11,7 @@ import { emitCurrentEncounterChanged, emitEncounterError, emitEncounterOperation
 import { EncounterAuthorizationError } from "src/services/encounters/EncounterAuthorizationError.js";
 import { EncounterNotFoundError } from "src/services/encounters/encounterSystems.js";
 import { EncounterSocketEvents } from "shared/sockets/encounters/socketEvents.js";
+import { preparePlayerCommit } from "./encounterAccess.js";
 
 const assertSocketJoinedEncounter = (socket: Socket, encounterId: number): void => {
   const trackedEncounterId = encounterConnectionManager.getEncounterIdBySocketId(socket.id);
@@ -57,7 +58,8 @@ export const registerEncounterRequestHandlers = (namespace: Namespace, socket: S
 
       const { operation, currentEncounterChangedIn } = await encounterRequestQueue.enqueue(request.encounterId, async () => {
         const encounterEngine = await encounterEngineManager.getOrLoadEngine(request.encounterId);
-        return await encounterEngine.commit(request, socket.data.user);
+        const checkBeforeCommit = await preparePlayerCommit(socket.data.user, request.encounterId);
+        return encounterEngine.commit(request, socket.data.user, checkBeforeCommit);
       });
 
       emitEncounterOperation(namespace, operation);

@@ -15,12 +15,10 @@ import {
   joinEncounterRooms,
   leaveEncounterRooms,
 } from "./encounterTransport.js";
-import encounterModel from "src/api/encounter/encounters/encounterModel.js";
-import currentEncounterModel from "src/api/campaigns/currentEncounterModel.js";
 import campaignService from "src/api/campaigns/campaignService.js";
 import { NotFoundError } from "src/api/HttpErrors.js";
 import { CampaignSocketEvents, CampaignWatchRequest } from "shared/sockets/campaigns/types.js";
-import type { UserDB } from "src/api/users/types.js";
+import { assertMayJoin } from "./encounterAccess.js";
 
 type FailureAck = (ack: { success: false; error: string }) => void;
 
@@ -74,28 +72,6 @@ const requireEncounterId = (data: EncounterRoomData | undefined): number => {
   }
 
   return encounterId;
-};
-
-const notFound = () => new EncounterHandlerError(EncounterErrorCode.ENCOUNTER_NOT_FOUND, "Encounter not found");
-
-/**
- * Who may join an encounter's room: a GM any encounter, a player only the current encounter of a
- * campaign they belong to (prep stays private until the GM starts it). Membership and the selection
- * are read on every join, so a roster change or a new start applies to the next one. Anything else
- * answers like a missing encounter.
- */
-const assertMayJoin = async (user: Pick<UserDB, "id" | "is_gm">, encounterId: number): Promise<void> => {
-  const encounter = await encounterModel.getEncounterDetailsById(encounterId);
-  if (!encounter) throw notFound();
-  try {
-    await campaignService.assertCampaignAccess(user, encounter.campaign_id);
-  } catch (error) {
-    if (error instanceof NotFoundError) throw notFound();
-    throw error;
-  }
-  if (!user.is_gm && (await currentEncounterModel.getCurrentEncounterId(encounter.campaign_id)) !== encounterId) {
-    throw notFound();
-  }
 };
 
 /**

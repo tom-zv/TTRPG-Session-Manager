@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { controlsEntity, isVisibleTo, hpDisplayFor, getHpStatus } from './view.js';
+import { controlsEntity, isVisibleTo, hpDisplayFor, getHpStatus, hasControlledCombatant, mayAdjustHp, mayRunEntity, maySetHpValues } from './view.js';
 import { resolveEncounterSettings } from './settings.js';
 
 test("A GM controls every entity and a player controls only entities explicitly assigned to their user ID.", () => {
@@ -39,3 +39,42 @@ test("HP status is down at zero, bloodied at or below half, and healthy above ha
   }
 });
 
+
+test("A player acts only during a running fight on entities in play (not hidden, not buried): damage and healing with a combatant of their own in play, initiative on their own, and HP values on their own with exact HP; the GM always may.", () => {
+  type E = { id: number; hidden: boolean; inGrave: boolean; mine: boolean; exact: boolean };
+  const entity = (id: number, overrides: Partial<E>): E => ({ id, hidden: false, inGrave: false, mine: false, exact: true, ...overrides });
+  const mine = entity(0, { mine: true });
+  const hiddenMine = entity(1, { hidden: true, mine: true });
+  const buriedMine = entity(2, { inGrave: true, mine: true });
+  const concealedMine = entity(3, { mine: true, exact: false });
+  const theirs = entity(4, {});
+  const lurker = entity(5, { hidden: true });
+  const buried = entity(6, { inGrave: true });
+  const inPlay = (e: E) => !e.hidden && !e.inGrave;
+  for (const running of [false, true]) {
+    for (const isGm of [false, true]) {
+      const context = {
+        isGm,
+        running,
+        controls: (e: E) => e.mine,
+        hpDisplay: (e: E) => (e.exact ? "exact" as const : "status" as const),
+      };
+      for (const entities of [
+        [mine, theirs, lurker, buried],
+        [hiddenMine, theirs],
+        [buriedMine, theirs, buried],
+        [concealedMine, theirs],
+        [theirs, lurker],
+      ]) {
+        const hasOwn = entities.some((e) => e.mine && inPlay(e));
+        expect(hasControlledCombatant(context, entities)).toBe(hasOwn);
+        for (const target of entities) {
+          const runs = isGm || (running && inPlay(target) && target.mine);
+          expect(mayAdjustHp(context, entities, target)).toBe(isGm || (running && inPlay(target) && hasOwn));
+          expect(mayRunEntity(context, target)).toBe(runs);
+          expect(maySetHpValues(context, target)).toBe(isGm || (runs && target.exact));
+        }
+      }
+    }
+  }
+});

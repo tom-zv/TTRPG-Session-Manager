@@ -151,8 +151,9 @@ test("New requests consult current NPC settings and controllers across copies an
   });
   const copies = [encounterEntity(0), encounterEntity(1, { templateId: 100 })];
   const loadProfiles = async (ids: number[]) => ids.includes(profile.id) ? [profile] : [];
-  const first = new RecordingEncounterEngine(encounterState(copies, { settings: auto }), loadProfiles);
-  const second = new RecordingEncounterEngine(encounterState(copies, { id: 13, settings: auto }), loadProfiles);
+  const settings = resolveEncounterSettings({ automation: { zeroHpTransfer: "auto" }, visibility: { monsterHp: "exact" } });
+  const first = new RecordingEncounterEngine(encounterState(copies, { settings }), loadProfiles);
+  const second = new RecordingEncounterEngine(encounterState(copies, { id: 13, settings }), loadProfiles);
   const firstHit = damage(0, 10);
   expect((await first.dispatch(encounterRequest([firstHit]), player)).appliedEvents).toEqual([firstHit]);
   expect(first.snapshot().entityStates[0]).toMatchObject({ currentHp: 0, inGrave: false });
@@ -278,7 +279,7 @@ test("Membership, HP and initiative edits remain available in setup, running and
   }
 });
 
-test("Only a GM can change membership, phase, settings, graves, hidden state or maximum HP even when a player controls the target. (All ten GM-only event types.)", async () => {
+test("Only a GM can change membership, phase, turns, settings, graves, hidden state or maximum HP even when a player controls the target. (All eleven GM-only event types.)", async () => {
   const cases: {
     event: DnD5eEncounterEvent;
     initial?: ReturnType<typeof encounterState>;
@@ -298,6 +299,7 @@ test("Only a GM can change membership, phase, settings, graves, hidden state or 
     },
     { event: { type: "setHidden", values: { targetId: 0, hidden: true } }, expected: { entityStates: [{ hidden: true }] } },
     { event: { type: "setHp", values: { targetId: 0, hp: 14 } }, expected: { entityStates: [{ maxHp: 14, currentHp: 14 }] } },
+    { event: nextTurn, expected: { currentTurn: 0, currentRound: 2 } },
   ];
   for (const { event, initial = encounterState([encounterEntity(0)]), expected } of cases) {
     const engine = new RecordingEncounterEngine(initial, async (ids) =>
@@ -332,17 +334,96 @@ async function dispatchAsGmAndTargetController(event: DnD5eEncounterEvent, initi
   }));
 }
 
-test("Damage is allowed for the GM or target controller and rejected for other players.", async () => {
-  const targets = await dispatchAsGmAndTargetController(damage(0, 3), encounterEntity(0));
-  for (const target of targets) expect(target.currentHp).toBe(7);
+test("During a running fight, a player with a visible combatant of their own may damage or heal any visible target; the GM always may.", async () => {
+  // 0 is the other player's PC, 1 the player's own PC, 2 an uncontrolled creature.
+  const loadProfiles = async (ids: number[]) => ids.map((id) => combatProfile(id, {
+    role: id === 102 ? "creature" : "pc",
+    controllerUserIds: id === 100 ? [otherPlayer.id] : id === 101 ? [player.id] : [],
+  }));
+  const heal = { type: "heal", values: { targetId: 2, sourceId: 1, amount: 2 } } satisfies DnD5eEncounterEvent;
+  for (const user of [gm, player, otherPlayer]) {
+    const engine = new RecordingEncounterEngine(
+      encounterState([encounterEntity(0), encounterEntity(1), encounterEntity(2, { currentHp: 5 })]), loadProfiles,
+    );
+    expect((await engine.dispatch(encounterRequest([damage(0, 3)]), user)).appliedEvents).toEqual([damage(0, 3)]);
+    expect((await engine.dispatch(encounterRequest([damage(2, 1), heal]), user)).appliedEvents).toEqual([damage(2, 1), heal]);
+    expect(engine.snapshot().entityStates.map(({ currentHp }) => currentHp)).toEqual([7, 10, 6]);
+  }
 });
 
-test("Healing is allowed for the GM or target controller and rejected for other players.", async () => {
-  const targets = await dispatchAsGmAndTargetController(
-    { type: "heal", values: { targetId: 0, sourceId: 1, amount: 2 } },
-    encounterEntity(0, { currentHp: 3 }),
+test("Damage and healing are refused to an observer, for a hidden target, with only a hidden combatant of one's own, and outside a running fight.", async () => {
+  const heal = (targetId: number) => ({ type: "heal", values: { targetId, sourceId: 0, amount: 1 } }) satisfies DnD5eEncounterEvent;
+  const ownedBy = (owners: Record<number, number[]>) => async (ids: number[]) =>
+    ids.map((id) => combatProfile(id, { controllerUserIds: owners[id] ?? [] }));
+  const cases: { user: typeof player; entities: DnD5eEntityState[]; owners: Record<number, number[]>; phase?: "setup" | "ended"; targetId: number }[] = [
+    // An observer: no combatant of their own.
+    { user: otherPlayer, entities: [encounterEntity(0), encounterEntity(1)], owners: { 100: [player.id] }, targetId: 1 },
+    // A hidden target, even one of the player's own.
+    { user: player, entities: [encounterEntity(0), encounterEntity(1, { hidden: true })], owners: { 100: [player.id] }, targetId: 1 },
+    { user: player, entities: [encounterEntity(0, { hidden: true }), encounterEntity(1)], owners: { 100: [player.id], 101: [player.id] }, targetId: 0 },
+    // The player's only combatant is hidden.
+    { user: player, entities: [encounterEntity(0, { hidden: true }), encounterEntity(1)], owners: { 100: [player.id] }, targetId: 1 },
+    // Prep and an ended fight.
+    { user: player, entities: [encounterEntity(0), encounterEntity(1)], owners: { 100: [player.id] }, phase: "setup", targetId: 1 },
+    { user: player, entities: [encounterEntity(0), encounterEntity(1)], owners: { 100: [player.id] }, phase: "ended", targetId: 1 },
+  ];
+  for (const { user, entities, owners, phase, targetId } of cases) {
+    for (const event of [damage(targetId, 2), heal(targetId)]) {
+      const engine = new RecordingEncounterEngine(encounterState(entities, { phase }), ownedBy(owners));
+      const before = engine.snapshot();
+      await expect(engine.dispatch(encounterRequest([event]), user)).rejects.toThrow(EncounterAuthorizationError);
+      expectNoWrites(engine, before);
+      expect((await engine.dispatch(encounterRequest([event]), gm)).appliedEvents).toEqual([event]);
+    }
+  }
+});
+
+test("A player's absolute changes, current HP, temporary HP, initiative and death saves, are refused outside a running fight and for a hidden own entity.", async () => {
+  const events: DnD5eEncounterEvent[] = [
+    { type: "setCurrentHp", values: { targetId: 0, hp: 0 } },
+    { type: "setTempHp", values: { targetId: 0, sourceId: 0, tempHp: 4 } },
+    { type: "setInitiative", values: { targetId: 0, initiative: 26 } },
+  ];
+  const loadProfiles = async (ids: number[]) => ids.map((id) => combatProfile(id, { role: "pc", controllerUserIds: [player.id] }));
+  for (const [phase, hidden] of [["setup", false], ["ended", false], ["running", true]] as const) {
+    for (const event of [...events, saves(1, 0)]) {
+      const engine = new RecordingEncounterEngine(
+        encounterState([encounterEntity(0, { currentHp: 0, hidden }), encounterEntity(1)], { phase }), loadProfiles,
+      );
+      const before = engine.snapshot();
+      await expect(engine.dispatch(encounterRequest([event]), player)).rejects.toThrow(EncounterAuthorizationError);
+      expectNoWrites(engine, before);
+    }
+  }
+});
+
+test("Auto-burial within a batch blocks later player events against the new grave or without a combatant of their own", async () => {
+  for (const [whoControls, secondTarget] of [[1, 0], [0, 1]] as const) {
+    const loadProfiles = async (ids: number[]) => ids.map((id) => combatProfile(id, {
+      controllerUserIds: id === 100 + whoControls ? [player.id] : [],
+    }));
+    const engine = new RecordingEncounterEngine(encounterState([encounterEntity(0), encounterEntity(1)], { settings: auto }), loadProfiles);
+    const before = engine.snapshot();
+    const hit = damage(0, 10);
+    const heal: DnD5eEncounterEvent = { type: "heal", values: { targetId: secondTarget, sourceId: 0, amount: 2 } };
+    await expect(engine.dispatch(encounterRequest([hit, heal]), player)).rejects.toThrow(EncounterAuthorizationError);
+    expectNoWrites(engine, before);
+    expect((await engine.dispatch(encounterRequest([hit]), player)).appliedEvents).toEqual([hit, bury(0)]);
+  }
+});
+
+test("A player may clear death saves only while their character is making them; the GM may clear them at any time.", async () => {
+  const loadProfiles = async (ids: number[]) => ids.map((id) => combatProfile(id, { role: "pc", controllerUserIds: [player.id] }));
+  const engine = new RecordingEncounterEngine(
+    encounterState([encounterEntity(0, { deathSaveSuccesses: 1 }), encounterEntity(1, { currentHp: 0, deathSaveFailures: 2 })]),
+    loadProfiles,
   );
-  for (const target of targets) expect(target.currentHp).toBe(5);
+  const before = engine.snapshot();
+  await expect(engine.dispatch(encounterRequest([saves(0, 0)]), player)).rejects.toThrow("Death saves require");
+  expectNoWrites(engine, before);
+  const clearOne = { type: "setDeathSaves", values: { targetId: 1, successes: 0, failures: 0 } } satisfies DnD5eEncounterEvent;
+  expect((await engine.dispatch(encounterRequest([clearOne]), player)).appliedEvents).toEqual([clearOne]);
+  expect((await engine.dispatch(encounterRequest([saves(0, 0)]), gm)).appliedEvents).toEqual([saves(0, 0)]);
 });
 
 test("Current HP assignment is allowed for the GM or target controller and rejected for other players.", async () => {
@@ -371,34 +452,25 @@ test("Death-save assignment is allowed for the GM or target controller and rejec
   for (const target of targets) expect(target).toMatchObject({ deathSaveSuccesses: 2, deathSaveFailures: 1 });
 });
 
-test("The GM or current actor controller can advance a running turn; another controller and a player with no active actor cannot.", async () => {
-  const loadProfiles = async (ids: number[]) => ids.map((id) =>
-    combatProfile(id, { controllerUserIds: [id === 100 ? player.id : otherPlayer.id] }));
-  for (const allowed of [gm, player]) {
-    const engine = new RecordingEncounterEngine(encounterState(), loadProfiles);
-    const before = engine.snapshot();
+test("Only the GM advances a running turn, also when a player controls the entity whose turn it is.", async () => {
+  const loadProfiles = async (ids: number[]) => ids.map((id) => combatProfile(id, { controllerUserIds: [player.id] }));
+  const engine = new RecordingEncounterEngine(encounterState(), loadProfiles);
+  const before = engine.snapshot();
 
-    await expect(engine.dispatch(encounterRequest([nextTurn]), otherPlayer)).rejects.toThrow(EncounterAuthorizationError);
-    expectNoWrites(engine, before);
-    expect((await engine.dispatch(encounterRequest([nextTurn]), allowed)).appliedEvents).toEqual([nextTurn]);
-    const after = engine.snapshot();
-    expect(after.initiativeOrder[after.currentTurn]).toBe(1);
-    expect(after.version).toBe(1);
-  }
-
-  const empty = new RecordingEncounterEngine(encounterState([encounterEntity(0, { inGrave: true })]), loadProfiles);
-  const before = empty.snapshot();
-  expect(before.initiativeOrder).toEqual([]);
-  await expect(empty.dispatch(encounterRequest([nextTurn]), player)).rejects.toThrow(EncounterAuthorizationError);
-  expectNoWrites(empty, before);
+  await expect(engine.dispatch(encounterRequest([nextTurn]), player)).rejects.toThrow(EncounterAuthorizationError);
+  expectNoWrites(engine, before);
+  expect((await engine.dispatch(encounterRequest([nextTurn]), gm)).appliedEvents).toEqual([nextTurn]);
+  const after = engine.snapshot();
+  expect(after.initiativeOrder[after.currentTurn]).toBe(1);
 });
 
 test("One forbidden event rejects an entire batch even after an allowed event, without persisting or consuming the request ID.", async () => {
   let controlsBoth = false;
   const engine = new RecordingEncounterEngine(encounterState(undefined, { version: 7 }), async (ids) =>
-    ids.map((id) => combatProfile(id, { controllerUserIds: id === 100 || controlsBoth ? [player.id] : [] })));
+    ids.map((id) => combatProfile(id, { role: "pc", controllerUserIds: id === 100 || controlsBoth ? [player.id] : [] })));
   const before = engine.snapshot();
-  const events = [damage(0, 2), damage(1, 3)];
+  const setOther = { type: "setCurrentHp", values: { targetId: 1, hp: 7 } } satisfies DnD5eEncounterEvent;
+  const events = [damage(0, 2), setOther];
   const request = encounterRequest(events);
 
   await expect(engine.dispatch(request, player)).rejects.toThrow(EncounterAuthorizationError);

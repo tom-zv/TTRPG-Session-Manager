@@ -18,11 +18,12 @@ export abstract class BaseRequestHandler<TState extends { version: number }>
 
       // Authorization may depend on data loaded for the events (who controls an entity).
       await this.prepareEvents(validatedEvents, user);
-      this.authorizeEvents(validatedEvents, user);
 
       const appliedEvents: encounterEvent[] = [];
 
       for (const event of validatedEvents) {
+        // An earlier event in this request can change which combatants are still in play.
+        this.authorizeEvent(event, user);
         appliedEvents.push(...structuredClone(this.applyValidatedEvent(event)));
       }
 
@@ -37,8 +38,8 @@ export abstract class BaseRequestHandler<TState extends { version: number }>
   }
 
   protected abstract validateEvent(event: encounterEvent): encounterEvent;
-  /** Throws `EncounterAuthorizationError` when the user may not perform one of the events. */
-  protected abstract authorizeEvents(events: encounterEvent[], user: UserDB): void;
+  /** Throws `EncounterAuthorizationError` when the user may not perform the event. */
+  protected abstract authorizeEvent(event: encounterEvent, user: UserDB): void;
   protected abstract applyEvent(event: encounterEvent): void;
   protected abstract findEntity(entityId: number): unknown;
 }

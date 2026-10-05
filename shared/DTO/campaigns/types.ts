@@ -66,6 +66,14 @@ export interface CurrentEncounterDTO {
   createdAt: string;
 }
 
+/**
+ * `GET /api/campaigns/:id/encounter-history`: the campaign's encounters whose combat has ended (the
+ * stored phase decides, not `status`), most recently changed first. Players open them read-only.
+ */
+export interface EncounterHistoryResponse {
+  encounters: CurrentEncounterDTO[];
+}
+
 /** `GET /api/campaigns/:id/current-encounter`; `encounter` is null while the players wait. */
 export interface CurrentEncounterResponse {
   encounter: CurrentEncounterDTO | null;

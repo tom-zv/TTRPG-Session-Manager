@@ -13,6 +13,7 @@ import type { UserDB } from "src/api/users/types.js";
 import currentEncounterModel from "src/api/campaigns/currentEncounterModel.js";
 import type { CurrentEncounterDTO } from "shared/DTO/campaigns/types.js";
 import { currentEncounterToDto } from "src/utils/format-transformers/campaign-transformer.js";
+import { listEndedEncounterIds } from "src/services/encounters/encounterSystems.js";
 
 export const ENCOUNTER_NOT_FOUND = "Encounter not found";
 
@@ -124,6 +125,21 @@ async function getCurrentEncounter(
   return encounterDb ? currentEncounterToDto(encounterDb) : null;
 }
 
+/**
+ * A campaign's history: its encounters whose combat has ended, by the stored phase, most recently
+ * changed first. The status label cannot put prep here. GM notes are never part of it.
+ */
+async function getEncounterHistory(
+  user: Pick<UserDB, "id" | "is_gm">,
+  campaignId: number
+): Promise<CurrentEncounterDTO[]> {
+  await campaignService.assertCampaignAccess(user, campaignId);
+  const ids = await listEndedEncounterIds(campaignId);
+  const encounters = await Promise.all(ids.map((id) => encounterModel.getEncounterDetailsById(id)));
+  return encounters.flatMap((encounterDb) =>
+    encounterDb && encounterDb.campaign_id === campaignId ? [currentEncounterToDto(encounterDb)] : []);
+}
+
 async function getSystemId(systemName: SystemType): Promise<number> {
   return encounterModel.getSystemId(systemName);
 }
@@ -135,5 +151,6 @@ export default {
   updateEncounter,
   deleteEncounter,
   getCurrentEncounter,
+  getEncounterHistory,
   getSystemId,
 };

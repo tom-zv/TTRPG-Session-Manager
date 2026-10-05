@@ -8,9 +8,18 @@ import { corePool, type SqlExecutor } from "src/db.js";
  */
 
 /** The campaign's current encounter, or null while its players wait. */
-export async function getCurrentEncounterId(campaignId: number, executor: SqlExecutor = corePool): Promise<number | null> {
+export async function getCurrentEncounterId(campaignId: number): Promise<number | null> {
+  return readCurrentEncounterId(campaignId, corePool, false);
+}
+
+/** Read the committed selection and hold it until the command's transaction finishes. */
+export async function lockCurrentEncounterId(campaignId: number, transaction: SqlExecutor): Promise<number | null> {
+  return readCurrentEncounterId(campaignId, transaction, true);
+}
+
+async function readCurrentEncounterId(campaignId: number, executor: SqlExecutor, lock: boolean): Promise<number | null> {
   const [rows] = await executor.execute<RowDataPacket[]>(
-    "SELECT encounter_id FROM core.campaign_current_encounters WHERE campaign_id = ?",
+    `SELECT encounter_id FROM core.campaign_current_encounters WHERE campaign_id = ?${lock ? " FOR UPDATE" : ""}`,
     [campaignId],
   );
   return rows[0] ? (rows[0].encounter_id as number) : null;
@@ -54,6 +63,7 @@ export async function clearIfCurrent(executor: SqlExecutor, encounterId: number)
 
 export default {
   getCurrentEncounterId,
+  lockCurrentEncounterId,
   setCurrentEncounter,
   clearIfCurrent,
 };

@@ -3,8 +3,8 @@ import { DnD5eEncounterState } from "shared/domain/encounters/dnd5e/encounter.js
 import { DnD5eEncounterEvent, isEntityEvent } from "shared/domain/encounters/dnd5e/events/types.js";
 import { DnD5eEventProcessor } from "shared/domain/encounters/dnd5e/events/EventProcessor.js";
 import { validateDnD5eEvent } from "./dnd5eEventValidator.js";
-import { authorizeDnD5eEvents } from "./dnd5eEventAuth.js";
-import { controlsEntity } from "shared/domain/encounters/dnd5e/view.js";
+import { authorizeDnD5eEvent } from "./dnd5eEventAuth.js";
+import { controlsEntity, hpDisplayFor } from "shared/domain/encounters/dnd5e/view.js";
 import { UserDB } from "src/api/users/types.js";
 import { usesDeathSaves } from "shared/domain/encounters/dnd5e/settings.js";
 import { EntityCombatProfile, getCombatProfiles } from "src/api/encounter/entities/dnd5e/dnd5eEntityModel.js";
@@ -14,6 +14,7 @@ const hpEvents = new Set<DnD5eEncounterEvent["type"]>(["damage", "heal", "setHp"
 
 export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState> {
     private profiles = new Map<number, EntityCombatProfile>();
+    private isGm = false;
 
     constructor(state: DnD5eEncounterState, private readonly loadProfiles: CombatProfileLoader = getCombatProfiles) {
         super(state);
@@ -21,38 +22,45 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
 
     /** Load the template facts this request depends on: rules for HP changes, ownership for players. */
     protected async prepareEvents(events: DnD5eEncounterEvent[], user: UserDB): Promise<void> {
+        this.isGm = Boolean(user.is_gm);
         const instanceIds = new Set<number>();
         const templateIds = new Set<number>();
         for (const event of events) {
             if (event.type === "addEntity") templateIds.add(event.values.templateId);
-            // A player's request is checked against who controls the target, or the active entity.
-            const needsProfile = hpEvents.has(event.type) || event.type === "setDeathSaves" || !user.is_gm;
-            if (!needsProfile) continue;
-            if (isEntityEvent(event)) instanceIds.add(event.values.targetId);
-            if (event.type === "nextTurn") {
-                const activeId = this.state.initiativeOrder[this.state.currentTurn];
-                if (activeId !== undefined) instanceIds.add(activeId);
-            }
+            const needsProfile = hpEvents.has(event.type) || event.type === "setDeathSaves";
+            if (needsProfile && isEntityEvent(event)) instanceIds.add(event.values.targetId);
         }
         for (const entity of this.state.entityStates) {
-            if (instanceIds.has(entity.instanceId)) templateIds.add(entity.templateId);
+            // A player's request is checked against who controls every entity and its role: damage
+            // and healing depend on having a combatant of one's own in play.
+            if (!this.isGm || instanceIds.has(entity.instanceId)) templateIds.add(entity.templateId);
         }
         if (!templateIds.size) return;
         this.profiles = new Map((await this.loadProfiles([...templateIds])).map((profile) => [profile.id, profile]));
     }
 
-    protected authorizeEvents(events: DnD5eEncounterEvent[], user: UserDB): void {
+    protected authorizeEvent(event: DnD5eEncounterEvent, user: UserDB): void {
         const viewer = { userId: user.id, isGm: Boolean(user.is_gm) };
-        authorizeDnD5eEvents({
+        authorizeDnD5eEvent({
             state: this.state,
             isGm: viewer.isGm,
             controls: (instanceId) => {
                 if (viewer.isGm) return true;
-                const entity = this.state.entityStates.find((candidate) => candidate.instanceId === instanceId);
-                const profile = entity && this.profiles.get(entity.templateId);
+                const profile = this.profileOf(instanceId);
                 return Boolean(profile && controlsEntity(viewer, profile));
             },
-        }, events);
+            // A player's view of the entity's HP; unknown templates count as concealed.
+            hpDisplay: (instanceId) => {
+                if (viewer.isGm) return "exact";
+                const profile = this.profileOf(instanceId);
+                return profile ? hpDisplayFor(viewer, profile, this.state.settings) : "hidden";
+            },
+        }, event);
+    }
+
+    private profileOf(instanceId: number): EntityCombatProfile | undefined {
+        const entity = this.state.entityStates.find((candidate) => candidate.instanceId === instanceId);
+        return entity && this.profiles.get(entity.templateId);
     }
 
     protected applyValidatedEvent(requested: DnD5eEncounterEvent): DnD5eEncounterEvent[] {
@@ -61,7 +69,8 @@ export class DnD5eRequestHandler extends BaseRequestHandler<DnD5eEncounterState>
         const entity = isEntityEvent(event) ? this.findEntity(event.values.targetId) : undefined;
         const previousHp = entity?.currentHp;
         const profile = entity && this.profiles.get(entity.templateId);
-        if (event.type === "setDeathSaves" && (event.values.successes || event.values.failures)) {
+        // A player only touches the death saves of a character that is making them, clearing included.
+        if (event.type === "setDeathSaves" && (event.values.successes || event.values.failures || !this.isGm)) {
             if (!entity || entity.inGrave || entity.currentHp !== 0 || !profile || !usesDeathSaves(profile)) {
                 throw new Error("Death saves require an active PC or opted-in NPC at 0 HP");
             }

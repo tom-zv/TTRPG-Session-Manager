@@ -204,7 +204,8 @@ test("snapshot persistence round-trips grave state and normalizes older JSON str
   let stored = JSON.stringify(combat);
   vi.spyOn(dnd5ePool, "execute").mockImplementation((async (sql: string, parameters: unknown[]) => {
     if (sql.startsWith("SELECT")) return [[{ snapshot: stored }]];
-    stored = String(parameters[0]);
+    const [, snapshotJson] = parameters;
+    stored = String(snapshotJson);
     return [{ affectedRows: 1 }];
   }) as unknown as typeof dnd5ePool.execute);
   await snapshotModel.saveSnapshot(12, combat);
