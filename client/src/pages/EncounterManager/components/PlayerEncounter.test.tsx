@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { act, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { http } from "msw";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
@@ -44,11 +44,11 @@ const template = (templateId: number, name: string, role: DnD5eEntityDetails["ro
   abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 10, cha: 10 },
 });
 const templates = [
-  // The player's own character: exact HP, but this board offers no way to change it.
+  // The player's own character always shows exact HP.
   template(100, "Bram", "pc", [player.id]),
   // The player runs this NPC, yet the monster HP setting still decides what they see of it.
   template(101, "Captain Vex", "npc", [player.id]),
-  template(102, "Lurker", "creature"),
+  template(102, "Lurker", "creature", [player.id]),
 ];
 
 /** A running fight in which the hidden Lurker holds the turn. */
@@ -66,6 +66,7 @@ const fight = (id: number, overrides: Partial<DnD5eEncounterState> = {}): DnD5eE
 });
 
 let current: Record<number, CurrentEncounterDTO | null>;
+let history: Record<number, CurrentEncounterDTO[]>;
 let currentRequests: number[];
 let states: Record<number, DnD5eEncounterState>;
 
@@ -73,6 +74,7 @@ beforeEach(() => {
   installLayoutApis();
   localStorage.setItem(`ttrpg.lastCampaign.${player.id}`, String(ashes.id));
   current = { [ashes.id]: null, [brine.id]: null };
+  history = { [ashes.id]: [], [brine.id]: [] };
   currentRequests = [];
   states = { [ambush.id]: fight(ambush.id), [bridge.id]: fight(bridge.id), [wreck.id]: fight(wreck.id) };
   server.use(
@@ -82,6 +84,7 @@ beforeEach(() => {
       currentRequests.push(campaignId);
       return json({ encounter: current[campaignId] });
     }),
+    http.get("/api/campaigns/:id/encounter-history", ({ params }) => json({ encounters: history[Number(params.id)] })),
     http.post("/api/dnd5e/entities/batch", () => json({ entities: templates })),
     http.get("/api/dnd5e/entities/summary", () => json({ entities: [] })),
   );
@@ -102,14 +105,20 @@ const renderShell = (route: string) =>
 const encounterPage = () => within(document.getElementById("encounter-manager-page")!);
 const signal = (campaignId: number) =>
   act(() => fakeSocket("/encounter").serverEmit("campaign:currentEncounterChanged", { campaignId }));
-const row = (name: string) => encounterPage().getByRole("button", { name: new RegExp(name) });
+/** An entity row: the row itself is a pressable button whose name includes the entity's. */
+const row = (name: string) => {
+  const rows = encounterPage().getAllByRole("button", { name: new RegExp(name) }).filter((element) => element.hasAttribute("aria-pressed"));
+  expect(rows).toHaveLength(1);
+  return rows[0];
+};
+const navBar = () => within(document.querySelector<HTMLElement>("nav.nav-bar")!);
 const damage = (encounterId: number, version: number, targetId: number, amount: number): EncounterOperation => ({
   encounterId, operationId: `op-${encounterId}-${version}`, version, createdAt: "2026-11-26T00:00:00.000Z",
   appliedEvents: [{ type: "damage", values: { targetId, sourceId: 0, amount } }],
 });
 
 describe("player board", () => {
-  test("a start switches a player following Encounter from waiting to a read-only board with player visibility", async () => {
+  test("a start switches a player following Encounter from waiting to the board, with player visibility and the table's controls", async () => {
     renderShell(`/encounter-manager/${ashes.id}`);
     await waitFor(() => expect(document.getElementById("encounter-manager-page")).not.toBeNull());
     expect(await encounterPage().findByText("Waiting for the GM to start an encounter.")).toBeInTheDocument();
@@ -125,13 +134,15 @@ describe("player board", () => {
     expect(within(row("Bram")).getByText("33")).toBeInTheDocument();
     expect(within(row("Captain Vex")).getByText("Healthy")).toBeInTheDocument();
     expect(within(row("Captain Vex")).queryByText("31")).not.toBeInTheDocument();
-    // Nothing to prepare, edit or run.
-    for (const name of [/Next Turn/i, /reset/i, /Add Entity/i, /Exit Encounter/i, /Start combat/i, /End combat/i, /More actions/i, /Deal damage/i, /^Heal/i]) {
+    // Nothing to prepare or advance. This player has characters in the fight, so every visible row
+    // offers damage and healing.
+    for (const name of [/Next Turn/i, /reset/i, /Add Entity/i, /Exit Encounter/i, /Start combat/i, /End combat/i, /More actions/i]) {
       expect(encounterPage().queryByRole("button", { name })).not.toBeInTheDocument();
     }
-    expect(encounterPage().queryByRole("spinbutton")).not.toBeInTheDocument();
-    expect(within(row("Bram")).queryAllByRole("button")).toEqual([]);
-    expect(within(row("Captain Vex")).queryAllByRole("button")).toEqual([]);
+    for (const name of ["Bram", "Captain Vex"]) {
+      expect(within(row(name)).getByRole("button", { name: `Deal damage to ${name}` })).toBeEnabled();
+      expect(within(row(name)).getByRole("button", { name: `Heal ${name}` })).toBeEnabled();
+    }
 
     // An ordinary combat update arrives on the board's stream and navigates nowhere.
     act(() => fakeSocket("/encounter").serverEmit("encounter:operation", damage(ambush.id, 5, 0, 3)));
@@ -287,7 +298,7 @@ describe("player board", () => {
     // A replacement watched on the board is not offered afterwards.
     await select(bridge);
     expect(await encounterPage().findByRole("heading", { name: "Bridge of bones" })).toBeInTheDocument();
-    await user.click(within(screen.getByRole("navigation")).getByRole("link", { name: "Compendium" }));
+    await user.click(navBar().getByRole("link", { name: "Compendium" }));
     expect(currentUrl()).toBe("/compendium");
     expect(screen.queryByRole("status", { name: "New encounter" })).not.toBeInTheDocument();
   });
@@ -307,7 +318,7 @@ describe("player board", () => {
     renderShell(`/encounter-manager/${ashes.id}`);
     await waitFor(() => expect(currentRequests).toContain(ashes.id));
 
-    await user.selectOptions(within(screen.getByRole("navigation")).getByRole("combobox", { name: "Campaign" }), String(brine.id));
+    await user.selectOptions(navBar().getByRole("combobox", { name: "Campaign" }), String(brine.id));
     expect(await encounterPage().findByRole("heading", { name: "Wreck of the Gull" })).toBeInTheDocument();
 
     releaseAshes();
@@ -318,5 +329,266 @@ describe("player board", () => {
     expect(encounterPage().queryByRole("heading", { name: /Ambush|Bridge/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("status", { name: "New encounter" })).not.toBeInTheDocument();
     expect(fakeSocket("/encounter").emitsOf("campaign:watch").at(-1)).toEqual([{ campaignId: brine.id }]);
+  });
+});
+
+describe("player actions and history", () => {
+  type Request = { encounterId: number; requestedEvents: { type: string; values: Record<string, unknown> }[] };
+  const requests = () => fakeSocket("/encounter").emitsOf("encounter:request").map(([request]) => request as Request);
+
+  const openBoard = async (encounter = ambush) => {
+    current[ashes.id] = encounter;
+    renderShell(`/encounter-manager/${ashes.id}`);
+    await waitFor(() => expect(document.getElementById("encounter-manager-page")).not.toBeNull());
+    expect(await encounterPage().findByRole("heading", { name: encounter.name })).toBeInTheDocument();
+    await waitFor(() => expect(within(row("Bram")).getByText("33")).toBeInTheDocument());
+  };
+
+  test("a player damages another visible target; with concealed HP the amount is confirmed and the HP stays concealed", async () => {
+    const user = userEvent.setup();
+    fakeSocket("/encounter").autoAck("encounter:request", () => ({ success: true }));
+    await openBoard();
+
+    const vex = within(row("Captain Vex"));
+    // Typed in Chrome; under jsdom's zero-size layout the panel separator takes the pointer focus.
+    fireEvent.change(vex.getByLabelText("HP amount"), { target: { value: "12" } });
+    await user.click(vex.getByRole("button", { name: "Deal damage to Captain Vex" }));
+    expect(requests().at(-1)).toEqual(expect.objectContaining({
+      encounterId: ambush.id,
+      requestedEvents: [{ type: "damage", values: { targetId: 1, amount: 12, sourceId: player.id } }],
+    }));
+    expect(await vex.findByText("Dealt 12 damage to Captain Vex.")).toBeInTheDocument();
+
+    // The resulting operation changes the status at most; no number of the NPC is drawn.
+    act(() => fakeSocket("/encounter").serverEmit("encounter:operation", {
+      ...damage(ambush.id, 5, 1, 12), appliedEvents: [{ type: "damage", values: { targetId: 1, sourceId: player.id, amount: 12 } }],
+    }));
+    await waitFor(() => expect(within(row("Captain Vex")).getByText("Bloodied")).toBeInTheDocument());
+    for (const hidden of ["19", "31", "40"]) expect(within(row("Captain Vex")).queryByText(hidden)).not.toBeInTheDocument();
+
+    // Exact HP needs no confirmation: the row shows the new numbers.
+    await user.click(within(row("Bram")).getByRole("button", { name: "Heal Bram" }));
+    expect(requests().at(-1)?.requestedEvents).toEqual([{ type: "heal", values: { targetId: 0, amount: 5, sourceId: player.id } }]);
+    expect(within(row("Bram")).queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  test("a rejected damage is reported and confirms nothing", async () => {
+    const user = userEvent.setup();
+    fakeSocket("/encounter").autoAck("encounter:request", () => ({ success: false, error: "This encounter is no longer the campaign's current encounter" }));
+    await openBoard();
+
+    await user.click(within(row("Captain Vex")).getByRole("button", { name: "Deal damage to Captain Vex" }));
+    expect(await encounterPage().findByText(/Action failed: This encounter is no longer/)).toBeInTheDocument();
+    expect(within(row("Captain Vex")).queryByText(/Dealt/)).not.toBeInTheDocument();
+  });
+
+  test("a player sets their own character's current HP and initiative and nobody else's", async () => {
+    fakeSocket("/encounter").autoAck("encounter:request", () => ({ success: true }));
+    templates.push(template(103, "Cora", "pc", [7]));
+    try {
+      states[ambush.id] = fight(ambush.id, {
+        entityStates: [...fight(ambush.id).entityStates, entity({ instanceId: 3, templateId: 103, maxHp: 30, currentHp: 30 })],
+        initiativeOrder: [0, 1, 2, 3],
+      });
+      await openBoard();
+
+      // Bram's initiative (20) and current HP (33) are editable; Cora's are plain text.
+      fireEvent.keyDown(within(row("Bram")).getByRole("button", { name: "33" }), { key: "Enter" });
+      const input = await within(row("Bram")).findByRole("textbox");
+      fireEvent.change(input, { target: { value: "50" } });
+      fireEvent.keyDown(input, { key: "Enter" });
+      const hpChange = { type: "setCurrentHp", values: { targetId: 0, hp: 40 } } as const;
+      expect(requests().at(-1)?.requestedEvents).toEqual([hpChange]);
+      act(() => fakeSocket("/encounter").serverEmit("encounter:operation", {
+        ...damage(ambush.id, 5, 0, 0), appliedEvents: [hpChange],
+      }));
+      await waitFor(() => expect(within(row("Bram")).getAllByText("40")).toHaveLength(2));
+      fireEvent.keyDown(within(row("Bram")).getByRole("button", { name: "20" }), { key: "Enter" });
+      const initiative = await within(row("Bram")).findByRole("textbox");
+      fireEvent.change(initiative, { target: { value: "18" } });
+      fireEvent.keyDown(initiative, { key: "Enter" });
+      expect(requests().at(-1)?.requestedEvents).toEqual([{ type: "setInitiative", values: { targetId: 0, initiative: 18 } }]);
+      expect(within(row("Cora")).queryByRole("button", { name: "30" })).not.toBeInTheDocument();
+      expect(within(row("Cora")).queryByRole("button", { name: "20" })).not.toBeInTheDocument();
+      expect(within(row("Cora")).getByText("20")).toBeInTheDocument();
+      expect(within(row("Cora")).getAllByText("30")).toHaveLength(2);
+      // Cora can still be damaged and healed: she is a visible target.
+      expect(within(row("Cora")).getByRole("button", { name: "Deal damage to Cora" })).toBeEnabled();
+    } finally {
+      templates.pop();
+    }
+  });
+
+  test("the player clicks Temporary HP to set it from zero and clear it on their own PC", async () => {
+    const user = userEvent.setup();
+    fakeSocket("/encounter").autoAck("encounter:request", () => ({ success: true }));
+    await openBoard();
+    for (const [previous, value, version] of [[0, 7, 5], [7, 0, 6]] as const) {
+      await user.click(within(row("Bram")).getByRole("button", { name: `Temporary HP: ${previous}` }));
+      const input = within(row("Bram")).getByRole("textbox", { name: "Temporary HP" });
+      fireEvent.change(input, { target: { value: String(value) } });
+      await user.keyboard("{Enter}");
+      const event = { type: "setTempHp", values: { targetId: 0, tempHp: value, sourceId: player.id } } as const;
+      expect(requests().at(-1)?.requestedEvents).toEqual([event]);
+      act(() => fakeSocket("/encounter").serverEmit("encounter:operation", {
+        ...damage(ambush.id, version, 0, 0), appliedEvents: [event],
+      }));
+      expect(await within(row("Bram")).findByRole("button", { name: `Temporary HP: ${value}` })).toBeInTheDocument();
+    }
+  });
+
+  test.each(["status", "hidden"] as const)("a controlled NPC with %s HP has initiative and amount controls without HP values or death saves", async (monsterHp) => {
+    states[ambush.id] = fight(ambush.id, {
+      settings: resolveEncounterSettings({ visibility: { monsterHp } }),
+      entityStates: fight(ambush.id).entityStates.map((candidate) => candidate.instanceId === 1
+        ? { ...candidate, currentHp: 0, deathSaveSuccesses: 1, tempHp: 7 }
+        : candidate),
+    });
+    templates[1].settings = { combat: { deathSaves: true } };
+    try {
+      await openBoard();
+      const vex = within(row("Captain Vex"));
+      expect(vex.getByRole("button", { name: "20" })).toBeEnabled();
+      expect(vex.getByRole("button", { name: "Deal damage to Captain Vex" })).toBeEnabled();
+      expect(vex.getByRole("button", { name: "Heal Captain Vex" })).toBeEnabled();
+      expect(vex.queryByRole("button", { name: /Temporary HP|^0$|Set successes/ })).not.toBeInTheDocument();
+      expect(vex.queryByRole("group", { name: /death save/ })).not.toBeInTheDocument();
+      expect(vex.queryByText("40")).not.toBeInTheDocument();
+      expect(vex.queryAllByText("Down")).toHaveLength(monsterHp === "status" ? 1 : 0);
+    } finally {
+      delete templates[1].settings;
+    }
+  });
+
+  test.each(["status", "hidden"] as const)("the grave applies %s NPC HP and exact PC HP on the current and past boards", async (monsterHp) => {
+    const user = userEvent.setup();
+    const entities = fight(ambush.id).entityStates;
+    states[ambush.id] = fight(ambush.id, {
+      settings: resolveEncounterSettings({ visibility: { monsterHp } }),
+      entityStates: [{ ...entities[0], inGrave: true }, { ...entities[1], inGrave: true, currentHp: 0 }, entities[2]],
+      initiativeOrder: [2], currentTurn: 0,
+    });
+    await openBoard();
+
+    const checkGrave = () => {
+      const grave = within(encounterPage().getByRole("region", { name: "Grave" }));
+      const npc = within(grave.getByRole("button", { name: "Captain Vex, in the grave" }));
+      const pc = within(grave.getByRole("button", { name: "Bram, in the grave" }));
+      expect(npc.queryAllByText("Down")).toHaveLength(monsterHp === "status" ? 1 : 0);
+      expect(npc.queryAllByText("HP")).toHaveLength(monsterHp === "status" ? 1 : 0);
+      for (const concealed of ["0", "40", "AC"]) expect(npc.queryByText(concealed)).not.toBeInTheDocument();
+      for (const exact of ["33", "40", "AC"]) expect(pc.getByText(exact)).toBeInTheDocument();
+      expect(grave.queryByRole("button", { name: /Heal|Deal damage|Temporary HP|Restore|^33$/ })).not.toBeInTheDocument();
+    };
+    checkGrave();
+
+    history[ashes.id] = [ambush];
+    states[ambush.id] = { ...states[ambush.id], phase: "ended" };
+    await user.click(encounterPage().getByRole("button", { name: "Past fights" }));
+    await user.click(await encounterPage().findByRole("link", { name: ambush.name }));
+    expect(await encounterPage().findByText(/This is a past fight/)).toBeInTheDocument();
+    await waitFor(checkGrave);
+  });
+
+  test("a player whose only controlled combatants are buried or hidden watches until a GM restoration", async () => {
+    const entities = fight(ambush.id).entityStates;
+    templates.push(template(103, "Cora", "pc", [7]));
+    try {
+      states[ambush.id] = fight(ambush.id, {
+        entityStates: [{ ...entities[0], inGrave: true }, { ...entities[1], inGrave: true }, entities[2],
+          entity({ instanceId: 3, templateId: 103, maxHp: 30, currentHp: 30 })],
+        initiativeOrder: [2, 3], currentTurn: 1,
+      });
+      await openBoard();
+      expect(encounterPage().queryByRole("button", { name: /Deal damage|^Heal/ })).not.toBeInTheDocument();
+      act(() => fakeSocket("/encounter").serverEmit("encounter:operation", {
+        ...damage(ambush.id, 5, 0, 0),
+        appliedEvents: [{ type: "restoreFromGrave", values: { targetId: 0, hp: 10 } }],
+      }));
+      expect(await encounterPage().findByRole("button", { name: "Deal damage to Cora" })).toBeEnabled();
+    } finally {
+      templates.pop();
+    }
+  });
+
+  test("a player with no character in the fight only watches", async () => {
+    const own = templates.map((candidate) => candidate.controllerUserIds);
+    for (const candidate of templates) candidate.controllerUserIds = [];
+    try {
+      await openBoard();
+      expect(encounterPage().queryByRole("button", { name: /Deal damage|^Heal/ })).not.toBeInTheDocument();
+      expect(within(row("Bram")).queryAllByRole("button")).toEqual([]);
+    } finally {
+      templates.forEach((candidate, index) => { candidate.controllerUserIds = own[index]; });
+    }
+  });
+
+  test("own death saves can be marked while making them", async () => {
+    const user = userEvent.setup();
+    fakeSocket("/encounter").autoAck("encounter:request", () => ({ success: true }));
+    states[ambush.id] = fight(ambush.id, {
+      entityStates: fight(ambush.id).entityStates.map((candidate) => candidate.instanceId === 0 ? { ...candidate, currentHp: 0 } : candidate),
+    });
+    current[ashes.id] = ambush;
+    renderShell(`/encounter-manager/${ashes.id}`);
+    await waitFor(() => expect(document.getElementById("encounter-manager-page")).not.toBeNull());
+    await user.click(await encounterPage().findByRole("button", { name: "Set successes to 1" }));
+    expect(requests().at(-1)?.requestedEvents).toEqual([{ type: "setDeathSaves", values: { targetId: 0, successes: 1, failures: 0 } }]);
+  });
+
+  test("the ended board and a past fight are read-only; a start while viewing history offers Open encounter; Encounter returns to the board", async () => {
+    const user = userEvent.setup();
+    states[ambush.id] = fight(ambush.id, { phase: "ended" });
+    history[ashes.id] = [ambush];
+    await openBoard();
+    expect(encounterPage().getByText(/Combat has ended/)).toBeInTheDocument();
+    expect(encounterPage().queryByRole("button", { name: /Deal damage|^Heal/ })).not.toBeInTheDocument();
+    // After End even the player's own values are fixed.
+    expect(within(row("Bram")).queryByRole("button", { name: /^33$|^20$|Temporary HP/ })).not.toBeInTheDocument();
+    expect(within(row("Bram")).getByText("20")).toBeInTheDocument();
+
+    // History is opened explicitly; a planned encounter is never listed (the server decides).
+    await user.click(encounterPage().getByRole("button", { name: "Past fights" }));
+    await user.click(await encounterPage().findByRole("link", { name: "Ambush at the ford" }));
+    expect(currentUrl()).toBe(`/encounter-manager/${ashes.id}/${ambush.id}`);
+    expect(await encounterPage().findByText(/This is a past fight/)).toBeInTheDocument();
+    // Nothing to change: no HP actions and no editable values, not even the player's own.
+    expect(within(row("Bram")).queryByRole("button", { name: /Deal damage|^Heal|^33$|^20$/ })).not.toBeInTheDocument();
+    expect(encounterPage().queryByLabelText("HP amount")).not.toBeInTheDocument();
+
+    // The GM starts Bridge: the past fight stays on screen and the start is offered.
+    current[ashes.id] = bridge;
+    await signal(ashes.id);
+    const notice = await screen.findByRole("status", { name: "New encounter" });
+    expect(notice).toHaveTextContent("Ashes: the GM started Bridge of bones.");
+    expect(encounterPage().getByRole("heading", { name: "Ambush at the ford" })).toBeInTheDocument();
+    await user.click(within(notice).getByRole("button", { name: "Open encounter" }));
+    expect(currentUrl()).toBe(`/encounter-manager/${ashes.id}`);
+    expect(await encounterPage().findByRole("heading", { name: "Bridge of bones" })).toBeInTheDocument();
+
+    // Back in history, the Encounter tab leads to the current board.
+    await user.click(encounterPage().getByRole("button", { name: "Past fights" }));
+    await user.click(await encounterPage().findByRole("link", { name: "Ambush at the ford" }));
+    expect(await encounterPage().findByText(/This is a past fight/)).toBeInTheDocument();
+    await user.click(navBar().getByRole("link", { name: "Encounter" }));
+    await waitFor(() => expect(currentUrl()).toBe(`/encounter-manager/${ashes.id}`));
+    expect(await encounterPage().findByRole("heading", { name: "Bridge of bones" })).toBeInTheDocument();
+  });
+
+  test("a past fight that the GM reopens leaves history; an encounter outside history is refused", async () => {
+    states[ambush.id] = fight(ambush.id, { phase: "ended" });
+    history[ashes.id] = [ambush];
+    current[ashes.id] = bridge;
+    renderShell(`/encounter-manager/${ashes.id}/${ambush.id}`);
+    await waitFor(() => expect(document.getElementById("encounter-manager-page")).not.toBeNull());
+    expect(await encounterPage().findByText(/This is a past fight/)).toBeInTheDocument();
+
+    history[ashes.id] = [];
+    act(() => fakeSocket("/encounter").serverEmit("encounter:operation", {
+      encounterId: ambush.id, operationId: "reset", version: 5, createdAt: "2026-11-26T00:00:00.000Z",
+      appliedEvents: [{ type: "resetEncounter", values: {} }],
+    }));
+    expect(await encounterPage().findByText("This encounter is not one of Ashes's past fights.")).toBeInTheDocument();
+    expect(encounterPage().queryByRole("button", { name: /Bram/ })).not.toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import React, { useCallback, useId, useState } from "react";
 import { FiChevronDown } from "react-icons/fi";
 import { GiTombstone } from "react-icons/gi";
 import type { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
+import type { HpDisplay } from "shared/domain/encounters/dnd5e/view.js";
 import type { DnD5eEncounterActions } from "src/pages/EncounterManager/services/dnd5e/DnD5eEncounterActions.js";
 import { GraveEntityRow } from "../DnD5eEntityRow/GraveEntityRow.js";
 import styles from "./GraveSection.module.css";
@@ -11,6 +12,7 @@ type GraveSectionProps = {
   entities: DnD5eEntity[];
   actions: DnD5eEncounterActions;
   canMutate: boolean;
+  hpDisplayFor: (entity: DnD5eEntity) => HpDisplay;
   selectedEntityId?: number;
   isPinned?: boolean;
   onTogglePin?: () => void;
@@ -45,6 +47,7 @@ export const GraveSection: React.FC<GraveSectionProps> = ({
   entities,
   actions,
   canMutate,
+  hpDisplayFor,
   selectedEntityId,
   isPinned,
   onTogglePin,
@@ -106,6 +109,7 @@ export const GraveSection: React.FC<GraveSectionProps> = ({
                 key={entity.instanceId}
                 entity={entity}
                 canMutate={canMutate}
+                hpDisplay={hpDisplayFor(entity)}
                 isSelected={isSelected}
                 isPinned={isSelected ? isPinned : undefined}
                 onTogglePin={isSelected ? onTogglePin : undefined}

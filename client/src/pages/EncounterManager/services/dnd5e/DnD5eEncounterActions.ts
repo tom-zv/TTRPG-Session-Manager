@@ -27,14 +27,18 @@ export class DnD5eEncounterActions extends EncounterActions<
   ) {
     super(stateManager, encounterId, transmit);
 
-    // UI handlers fire and forget; the session reports a rejected event to the user.
-    const emitEvent = (event: DnD5eEncounterEvent): void => {
-      void this.dispatch(event).catch((error) => {
+    // The session reports a rejected event to the user; the result only says whether it applied.
+    const sendEvent = (event: DnD5eEncounterEvent): Promise<boolean> =>
+      this.dispatch(event).then(() => true, (error: unknown) => {
         console.error("Failed to dispatch encounter event", error);
+        return false;
       });
+    // Most UI handlers fire and forget.
+    const emitEvent = (event: DnD5eEncounterEvent): void => {
+      void sendEvent(event);
     };
 
-    this.hp = new DnD5eHpActions(emitEvent);
+    this.hp = new DnD5eHpActions(sendEvent);
     this.stats = new DnD5eStatActions(emitEvent);
     this.global = new DnD5eGlobalActions(emitEvent);
     this.combat = new DnD5eCombatActions(emitEvent);

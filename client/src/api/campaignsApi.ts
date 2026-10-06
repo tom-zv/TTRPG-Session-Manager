@@ -4,6 +4,7 @@ import type {
   CreateCampaignDTO,
   CurrentEncounterDTO,
   CurrentEncounterResponse,
+  EncounterHistoryResponse,
   UpdateCampaignDTO,
 } from "shared/DTO/campaigns/types.js";
 import { authenticatedJsonHeaders } from "./requestHeaders.js";
@@ -48,4 +49,9 @@ export async function removeCampaignMember(id: number, userId: number): Promise<
 /** The campaign's current encounter, or null while its players wait. */
 export async function getCurrentEncounter(id: number, signal?: AbortSignal): Promise<CurrentEncounterDTO | null> {
   return (await request<CurrentEncounterResponse>(`/${id}/current-encounter`, { signal }, "Failed to load the current encounter")).encounter;
+}
+
+/** The campaign's encounters whose combat has ended, most recently changed first. */
+export async function getEncounterHistory(id: number, signal?: AbortSignal): Promise<CurrentEncounterDTO[]> {
+  return (await request<EncounterHistoryResponse>(`/${id}/encounter-history`, { signal }, "Failed to load past encounters")).encounters;
 }

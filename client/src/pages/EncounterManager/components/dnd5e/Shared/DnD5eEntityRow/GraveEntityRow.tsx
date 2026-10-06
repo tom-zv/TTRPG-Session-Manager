@@ -2,6 +2,7 @@ import React, { useCallback, useId, useRef, useState } from "react";
 import { GiHeartBeats, GiTombstone } from "react-icons/gi";
 import { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import { usesDeathSaves } from "shared/domain/encounters/dnd5e/settings.js";
+import type { HpDisplay } from "shared/domain/encounters/dnd5e/view.js";
 import { EntityHpStats } from "./EntityHpStats.js";
 import { DeathSaveTracker } from "./DeathSaveTracker.js";
 import { InlineConfirm } from "./InlineConfirm.js";
@@ -14,6 +15,7 @@ import styles from "./DnD5eEntityRow.module.css";
 type GraveEntityRowProps = {
   entity: DnD5eEntity;
   canMutate: boolean;
+  hpDisplay: HpDisplay;
   isSelected?: boolean;
   isPinned?: boolean;
   onTogglePin?: () => void;
@@ -28,6 +30,7 @@ const noop = () => {};
 const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
   entity,
   canMutate,
+  hpDisplay,
   isSelected = false,
   isPinned,
   onTogglePin,
@@ -40,7 +43,8 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
   const restoreButtonRef = useRef<HTMLButtonElement>(null);
   const restoreTrayId = useId();
   const entityName = entity.displayName ?? entity.name;
-  const showDeathSaves = usesDeathSaves(entity) && (entity.deathSaveSuccesses > 0 || entity.deathSaveFailures > 0);
+  const showDeathSaves = hpDisplay === "exact" && usesDeathSaves(entity) &&
+    (entity.deathSaveSuccesses > 0 || entity.deathSaveFailures > 0);
 
   const handleSelectRow = useCallback(() => {
     onSelect?.(entity.instanceId);
@@ -139,6 +143,7 @@ const GraveEntityRowComponent: React.FC<GraveEntityRowProps> = ({
           mode="live"
           canMutate={false}
           canControl={false}
+          hpDisplay={hpDisplay}
           onMaxHpChange={noop}
           onCurrentHpChange={noop}
         />

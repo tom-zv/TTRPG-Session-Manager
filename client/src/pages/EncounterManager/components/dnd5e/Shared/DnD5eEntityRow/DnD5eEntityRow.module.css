@@ -880,3 +880,14 @@
     animation: none;
   }
 }
+
+/* Confirms a damage or heal amount when the HP itself is concealed. Empty while there is nothing to say. */
+.hpFeedback {
+  align-self: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.hpFeedback:empty {
+  display: none;
+}

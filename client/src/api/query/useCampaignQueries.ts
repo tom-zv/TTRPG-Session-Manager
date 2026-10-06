@@ -5,6 +5,7 @@ import {
   addCampaignMember,
   createCampaign,
   getCurrentEncounter,
+  getEncounterHistory,
   listCampaignMembers,
   listCampaigns,
   removeCampaignMember,
@@ -44,6 +45,20 @@ export function useCurrentEncounter(campaignId: number | null) {
     queryKey: CAMPAIGN_KEYS.currentEncounter(userId ?? 0, campaignId ?? 0),
     queryFn: ({ signal }) => getCurrentEncounter(campaignId!, signal),
     enabled: userId !== undefined && campaignId !== null,
+    refetchOnMount: "always",
+  });
+}
+
+/**
+ * The campaign's past fights (ended combat), newest first. Read on every mount and invalidated by
+ * change signals and by phase changes on a board of this campaign.
+ */
+export function useEncounterHistory(campaignId: number) {
+  const userId = useAuth().currentUser?.id;
+  return useQuery({
+    queryKey: CAMPAIGN_KEYS.encounterHistory(userId ?? 0, campaignId),
+    queryFn: ({ signal }) => getEncounterHistory(campaignId, signal),
+    enabled: userId !== undefined,
     refetchOnMount: "always",
   });
 }

@@ -17,6 +17,7 @@ import { EncounterError } from "shared/sockets/encounters/errors.js";
 import { EncounterActions } from "../services/EncounterActions.js";
 import type { QueryKeyProvider } from "../services/LocalStateManager.js";
 import { LiveOperationQueue } from "../services/LiveOperationQueue.js";
+import { isEncounterHistoryKey } from "src/api/query/keys.js";
 
 const COMMAND_ERROR_DISPLAY_MS = 6000;
 
@@ -187,6 +188,8 @@ export function useGenericLiveEncounter<
         // The encounter list shows a status derived from the phase.
         if (getState()?.phase !== phaseBefore) {
           void queryClient.invalidateQueries({ queryKey: queryKeys.summaries() });
+          // An End adds the fight to the campaign's history, a reset takes it out.
+          void queryClient.invalidateQueries({ predicate: ({ queryKey }) => isEncounterHistoryKey(queryKey, campaignId) });
         }
       },
       resync: syncFromServer,
@@ -295,7 +298,7 @@ export function useGenericLiveEncounter<
       // Without a session nothing keeps the cached state current, so it must not be shown again.
       queryClient.removeQueries({ queryKey: stateKey, exact: true });
     };
-  }, [encounterId, queryClient, queryKeys, refreshTemplates]);
+  }, [encounterId, campaignId, queryClient, queryKeys, refreshTemplates]);
 
   const currentActions = actionsEncounterIdRef.current === encounterId
     ? actions

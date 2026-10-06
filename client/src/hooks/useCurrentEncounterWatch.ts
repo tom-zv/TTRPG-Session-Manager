@@ -21,6 +21,8 @@ export function useCurrentEncounterWatch(campaignId: number | null): void {
       void queryClient
         .cancelQueries({ queryKey, exact: true })
         .then(() => queryClient.invalidateQueries({ queryKey, exact: true }));
+      // A new start often follows an End, which adds a past fight.
+      void queryClient.invalidateQueries({ queryKey: CAMPAIGN_KEYS.encounterHistory(userId, campaignId), exact: true });
     });
   }, [campaignId, userId, queryClient]);
 }

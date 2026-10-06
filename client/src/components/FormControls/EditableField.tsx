@@ -35,6 +35,7 @@ type NumberEditableProps = {
 };
 
 export type EditableFieldProps = (StringEditableProps | NumberEditableProps) & {
+  "aria-label"?: string;
   /** Hides the edit icon and label; field still activates on click/dblclick */
   compact?: boolean;
 };
@@ -52,6 +53,7 @@ export const EditableField: React.FC<EditableFieldProps> = (props) => {
     compact = false,
     displayClassName,
     inputClassName,
+    "aria-label": ariaLabel,
   } = props;
   const isNumber = props.type === "number";
   const activateOn = isNumber ? ((props as NumberEditableProps).activateOn ?? "dblclick") : "click";
@@ -120,6 +122,7 @@ export const EditableField: React.FC<EditableFieldProps> = (props) => {
         <div className={contentClassName}>
           {isMultiline ? (
             <textarea
+              aria-label={ariaLabel}
               ref={inputRef as React.RefObject<HTMLTextAreaElement>}
               value={draft}
               rows={rows}
@@ -130,6 +133,7 @@ export const EditableField: React.FC<EditableFieldProps> = (props) => {
             />
           ) : (
             <input
+              aria-label={ariaLabel}
               ref={inputRef as React.RefObject<HTMLInputElement>}
               type={isNumber ? "text" : (props as StringEditableProps).type ?? "text"}
               inputMode={isNumber ? "numeric" : undefined}
@@ -152,6 +156,7 @@ export const EditableField: React.FC<EditableFieldProps> = (props) => {
         <div
           className={joinClassNames(styles.editableFieldDisplay, displayClassName)}
           role="button"
+          aria-label={ariaLabel ? `${ariaLabel}: ${displayValue}` : undefined}
           tabIndex={0}
           onClick={activateOn === "click" ? activate : undefined}
           onDoubleClick={activateOn === "dblclick" ? activate : undefined}

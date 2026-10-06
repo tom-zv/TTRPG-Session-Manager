@@ -15,6 +15,8 @@ type EntityListProps = {
   canMutate?: boolean;
   /** Whether the viewer may run this entity. Defaults to `canMutate` for every entity. */
   canControlEntity?: (entity: DnD5eEntity) => boolean;
+  /** Whether the viewer may damage or heal this entity. Defaults to `canControlEntity`. */
+  canAdjustHpOf?: (entity: DnD5eEntity) => boolean;
   /** How much of an entity's HP the viewer is shown. Defaults to exact numbers. */
   hpDisplayFor?: (entity: DnD5eEntity) => HpDisplay;
   /** A board that only follows the fight: rows show no HP actions at all. */
@@ -37,6 +39,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
   actions,
   canMutate = true,
   canControlEntity,
+  canAdjustHpOf,
   hpDisplayFor,
   readOnly = false,
   sourceId,
@@ -79,6 +82,7 @@ const DnD5eEntityListComponent: React.FC<EntityListProps> = ({
               onRemove={handleRemove}
               canMutate={canMutate}
               canControl={canControlEntity ? canControlEntity(entity) : canMutate}
+              canAdjustHp={canAdjustHpOf?.(entity)}
               hpDisplay={hpDisplayFor?.(entity)}
               readOnly={readOnly}
               sourceId={sourceId}

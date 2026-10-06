@@ -13,7 +13,7 @@ interface ObservedSelection {
 
 /**
  * For a player: watches the selected campaign's current encounter and, when the GM starts a new one
- * while the player is in another section, offers to open it. The other section is left as it is;
+ * while the player is in another section or viewing a past fight, offers to open it. The other section is left as it is;
  * nothing navigates on its own. Following Encounter already shows the new board.
  */
 export const OpenEncounterNotice: React.FC = () => {
@@ -23,7 +23,9 @@ export const OpenEncounterNotice: React.FC = () => {
   const current = useCurrentEncounter(campaignId);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const onEncounter = parseEncounterPath(pathname) !== null;
+  // A past fight (an encounter ID in the path) is not the current board, so a start is offered there.
+  const route = parseEncounterPath(pathname);
+  const onEncounter = route !== null && route.encounterId === null;
   // Per campaign, the selection last observed and whether the player has been shown or dismissed it.
   const [observed, setObserved] = useState<Record<number, ObservedSelection>>({});
 

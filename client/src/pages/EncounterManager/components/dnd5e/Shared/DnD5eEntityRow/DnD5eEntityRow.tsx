@@ -24,8 +24,10 @@ type DnD5eEntityRowProps = {
   onRemove: (entityId: number) => void;
   /** GM powers: change membership, maximum HP, the grave and template options. */
   canMutate?: boolean;
-  /** Run this entity: its current HP, initiative and death saves. A GM, or the player it is assigned to. */
+  /** Run this entity. HP values and death saves additionally require exact HP. Defaults to `canMutate`. */
   canControl?: boolean;
+  /** Damage or heal this entity. Defaults to `canControl`. */
+  canAdjustHp?: boolean;
   /** How much of the HP this viewer is shown. */
   hpDisplay?: HpDisplay;
   /** A board that only follows the fight: no HP actions, not even disabled ones. */
@@ -45,6 +47,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
   onRemove,
   canMutate = true,
   canControl = canMutate,
+  canAdjustHp = canControl,
   hpDisplay = "exact",
   readOnly = false,
   sourceId,
@@ -93,6 +96,10 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
     actions.hp.setCurrentHp(entity.instanceId, newCurrentHp);
   }, [actions.hp, entity.instanceId]);
 
+  const handleTempHpChange = useCallback((value: number) => {
+    if (sourceId !== undefined) actions.hp.setTempHp(sourceId, entity.instanceId, value);
+  }, [actions.hp, entity.instanceId, sourceId]);
+
   const handleDeathSavesChange = useCallback((successes: number, failures: number) => {
     actions.combat.setDeathSaves(entity.instanceId, successes, failures);
   }, [actions.combat, entity.instanceId]);
@@ -103,8 +110,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
 
   const isLive = mode === "live";
   const entityName = entity.displayName ?? entity.name;
-  // A 0 HP badge would give away what the HP display is meant to keep back.
-  const vitalStatus = isLive && hpDisplay !== "hidden" ? getVitalStatus(entity) : null;
+  const vitalStatus = isLive && hpDisplay === "exact" ? getVitalStatus(entity) : null;
   const offerBurial = isAwaitingBurial(vitalStatus);
   const showDeathSaves = vitalStatus === "dying" || vitalStatus === "stable" || vitalStatus === "dead";
   const secondaryActionsId = `entity-secondary-actions-${entity.instanceId}`;
@@ -217,6 +223,7 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           hpDisplay={hpDisplay}
           onMaxHpChange={handleMaxHpChange}
           onCurrentHpChange={handleCurrentHpChange}
+          onTempHpChange={sourceId === undefined ? undefined : handleTempHpChange}
         />
 
         {hasConditions && (
@@ -229,7 +236,8 @@ const DnD5eEntityRowComponent: React.FC<DnD5eEntityRowProps> = ({
           <EntityRowLiveActions
             entity={entity}
             canMutate={canMutate}
-            canControl={canControl}
+            canAdjustHp={canAdjustHp}
+            hpDisplay={hpDisplay}
             sourceId={sourceId}
             actions={actions}
             offerBurial={offerBurial}

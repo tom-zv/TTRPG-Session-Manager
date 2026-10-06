@@ -15,6 +15,7 @@ type EntityHpStatsProps = {
   hpDisplay?: HpDisplay;
   onMaxHpChange: (value: number) => void;
   onCurrentHpChange: (value: number) => void;
+  onTempHpChange?: (value: number) => void;
 };
 
 export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
@@ -25,6 +26,7 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
   hpDisplay = "exact",
   onMaxHpChange,
   onCurrentHpChange,
+  onTempHpChange,
 }) => {
   if (hpDisplay === "hidden") return null;
 
@@ -40,6 +42,7 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
     );
   }
 
+  const editTempHp = canControl ? onTempHpChange : undefined;
   return (
     <div className={styles.entityStatsCompact}>
       <div className={`${styles.statItem} ${styles.statItemHp}`}>
@@ -85,7 +88,7 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
               value={entity.currentHp}
               onChange={onCurrentHpChange}
               min={0}
-              max={9999}
+              max={canMutate ? 9999 : entity.maxHp}
               className={`${styles.statValue} ${styles.hpCurrent}`}
               displayClassName={styles.inlineNumberDisplay}
               inputClassName={styles.inlineNumberInput}
@@ -103,10 +106,23 @@ export const EntityHpStats: React.FC<EntityHpStatsProps> = ({
         )}
       </div>
 
-      {entity.tempHp > 0 && mode === "live" && (
+      {mode === "live" && (editTempHp || entity.tempHp > 0) && (
         <div className={`${styles.statItem} ${styles.statItemTempHp}`}>
           <span className={styles.statLabel}>Temp</span>
-          <span className={styles.statValue}>{entity.tempHp}</span>
+          {editTempHp ? (
+            <EditableField
+              aria-label="Temporary HP"
+              type="number"
+              value={entity.tempHp}
+              onChange={editTempHp}
+              min={0}
+              activateOn="click"
+              className={styles.statValue}
+              displayClassName={styles.inlineNumberDisplay}
+              inputClassName={styles.inlineNumberInput}
+              compact
+            />
+          ) : <span className={styles.statValue}>{entity.tempHp}</span>}
         </div>
       )}
 

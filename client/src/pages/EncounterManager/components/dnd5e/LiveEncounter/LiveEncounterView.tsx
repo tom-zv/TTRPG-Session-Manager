@@ -4,7 +4,15 @@ import { BsPinAngle, BsPinAngleFill } from "react-icons/bs";
 import { SystemType } from "shared/domain/encounters/coreEncounter.js";
 import type { DnD5eEntity } from "shared/domain/encounters/dnd5e/entity.js";
 import type { DnD5eEncounterDetails } from "shared/domain/encounters/dnd5e/encounter.js";
-import { controlsEntity, hpDisplayFor, isVisibleTo } from "shared/domain/encounters/dnd5e/view.js";
+import {
+  type ActingContext,
+  controlsEntity,
+  hasControlledCombatant,
+  hpDisplayFor,
+  isVisibleTo,
+  mayAdjustHp,
+  mayRunEntity,
+} from "shared/domain/encounters/dnd5e/view.js";
 import { ToggleSwitch } from "../Shared/ToggleSwitch/ToggleSwitch.js";
 import { useLiveEncounter } from "src/pages/EncounterManager/hooks/useLiveEncounter.js";
 import { useDnD5eEntitySummaries } from "src/pages/EncounterManager/api/dnd5e/entities/query/useDnD5eEntityQueries.js";
@@ -33,10 +41,12 @@ type LiveEncounterProps = {
   /** Absent on the player board, which has no prep list to return to. */
   onExit?: () => void;
   /**
-   * The player board (S3): the encounter's metadata comes with the campaign's current encounter,
-   * and the board only follows the fight: no prep, edit, turn or HP controls.
+   * The player board: the encounter's metadata comes with the campaign's current encounter or its
+   * history, so the campaign's encounter list is not read. No prep, turn, reset or exit controls.
+   * On the current board a player acts by the table policy (`mayAdjustHp`, `mayRunEntity`); a
+   * `history` board is read-only.
    */
-  playerBoard?: { details: DnD5eEncounterDetails };
+  playerBoard?: { details: DnD5eEncounterDetails; history?: boolean };
 };
 
 export const LiveEncounter: React.FC<LiveEncounterProps> = ({
@@ -58,34 +68,48 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
     lastOperation,
     actions,
   } = useLiveEncounter(system, campaignId, encounterId, playerBoard?.details);
-  const readOnly = playerBoard !== undefined;
+  const isPlayerBoard = playerBoard !== undefined;
+  const isHistory = playerBoard?.history === true;
 
   const phase = encounter?.phase;
   const isRunning = phase === "running";
   const connectionFailed = !isLifecycleReady && lifecycleError !== null;
   const hasDataError = (isLifecycleReady && !isLoading && !encounter) || connectionFailed;
   const isBootstrapping = isLoading || !isLifecycleReady || !actions;
-  const isWritable = !readOnly && isLifecycleReady && !encounterEnded;
-  // GM powers: membership, phases, settings, the grave.
+  const isWritable = !isHistory && isLifecycleReady && !encounterEnded;
+  // GM powers: membership, phases, turns, settings, the grave.
   const canMutate = isGm && isWritable;
   const sourceId = currentUser?.id;
   const viewer = useMemo(() => ({ userId: currentUser?.id, isGm }), [currentUser?.id, isGm]);
-  // Running a single entity: the GM, or the player it is assigned to.
-  const canControlEntity = useCallback(
-    (entity: DnD5eEntity) => isWritable && controlsEntity(viewer, entity),
-    [isWritable, viewer]
+  const settings = encounter?.settings;
+  const hpDisplayForEntity = useCallback(
+    (entity: DnD5eEntity) => (settings ? hpDisplayFor(viewer, entity, settings) : "exact"),
+    [viewer, settings]
   );
+  // The same rules the server applies when it executes the command.
+  const acting = useMemo<ActingContext<DnD5eEntity>>(
+    () => ({ isGm, running: isRunning, controls: (entity) => controlsEntity(viewer, entity), hpDisplay: hpDisplayForEntity }),
+    [isGm, isRunning, viewer, hpDisplayForEntity]
+  );
+  const allEntities = encounter?.entities;
+  // Initiative of one entity. Its HP editors also require exact HP visibility.
+  const canControlEntity = useCallback(
+    (entity: DnD5eEntity) => isWritable && mayRunEntity(acting, entity),
+    [isWritable, acting]
+  );
+  // Damage and healing: the GM, or during the fight any player with a combatant in play.
+  const canAdjustHpOf = useCallback(
+    (entity: DnD5eEntity) => isWritable && mayAdjustHp(acting, allEntities ?? [], entity),
+    [isWritable, acting, allEntities]
+  );
+  // A player who may not deal damage (an observer, or outside the fight) gets no HP controls at all.
+  const hideHpActions = isPlayerBoard && !(isWritable && isRunning && hasControlledCombatant(acting, allEntities ?? []));
   const [isEntityPickerOpen, setIsEntityPickerOpen] = useState(false);
   const [addHidden, setAddHidden] = useState(false);
   // Everything below draws from this list, so a hidden entity never reaches a player's screen.
   const visibleEntities = useMemo(
     () => encounter?.entities.filter((entity) => isVisibleTo(viewer, entity)) ?? [],
     [encounter?.entities, viewer]
-  );
-  const settings = encounter?.settings;
-  const hpDisplayForEntity = useCallback(
-    (entity: DnD5eEntity) => (settings ? hpDisplayFor(viewer, entity, settings) : "exact"),
-    [viewer, settings]
   );
 
   const [userSelectedEntityId, setUserSelectedEntityId] = useState<number | undefined>();
@@ -176,7 +200,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
       setIsPinned(false);
     }
   }, [effectiveIsPinned, selectedEntityId]);
-  const canEndTurn = canMutate || (activeEntity !== undefined && canControlEntity(activeEntity));
+  const canEndTurn = canMutate;
   const nextTurnDisabled = !canEndTurn || !encounter || encounter.initiativeOrder.length === 0;
   const deathAnnouncement = lastOperation?.appliedEvents.flatMap((event) => {
     if (event.type !== "moveToGrave" && event.type !== "restoreFromGrave") return [];
@@ -273,7 +297,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 End combat
               </button>
             )}
-            {!phase || phase === "setup" || readOnly ? null : confirmingReset && canMutate ? (
+            {!phase || phase === "setup" || isPlayerBoard ? null : confirmingReset && canMutate ? (
               <InlineConfirm
                 label="Reset encounter?"
                 confirmLabel="Confirm reset: return to setup, return everyone from the grave, and restore all HP"
@@ -323,14 +347,20 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
 
         {phase === "ended" && !encounterEnded && (
           <p role="status" className={styles.liveMessageStatus}>
-            Combat has ended.{isGm ? " Reset the encounter to run it again." : ""}
+            Combat has ended.{isGm ? " Reset the encounter to run it again." : isHistory ? " This is a past fight; nothing here can be changed." : ""}
+          </p>
+        )}
+
+        {isHistory && phase !== undefined && phase !== "ended" && (
+          <p role="status" className={styles.liveMessageStatus}>
+            The GM reopened this encounter, so it is no longer a past fight.
           </p>
         )}
 
         {/* Kept mounted so screen readers pick up each change; the grave itself is the visual cue. */}
         <p role="status" aria-live="polite" className={styles.srOnly}>{deathAnnouncement}</p>
 
-        {hasDataError ? (
+        {isHistory && phase !== undefined && phase !== "ended" ? null : hasDataError ? (
           <div className={layoutStyles.encounterLoading}>
             <p>Failed to load encounter data.</p>
           </div>
@@ -353,12 +383,13 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                 entities={visibleEntities}
                 initiativeOrder={encounter!.initiativeOrder}
                 currentTurn={isRunning ? encounter!.currentTurn : undefined}
-                mode={phase === "setup" && !readOnly ? "edit" : "live"}
+                mode={phase === "setup" && !isPlayerBoard ? "edit" : "live"}
                 actions={actions}
                 canMutate={canMutate}
                 canControlEntity={canControlEntity}
+                canAdjustHpOf={canAdjustHpOf}
                 hpDisplayFor={hpDisplayForEntity}
-                readOnly={readOnly}
+                readOnly={hideHpActions}
                 sourceId={sourceId}
                 selectedEntityId={selectedEntityId}
                 onSelectEntity={handleSelectEntity}
@@ -368,7 +399,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                   <TurnDock
                     currentRound={encounter!.currentRound}
                     activeEntityName={activeEntityName}
-                    onNextTurn={readOnly ? undefined : handleNextTurn}
+                    onNextTurn={isPlayerBoard ? undefined : handleNextTurn}
                     disabled={nextTurnDisabled}
                     canMutate={canEndTurn}
                   />
@@ -379,6 +410,7 @@ export const LiveEncounter: React.FC<LiveEncounterProps> = ({
                     entities={graveEntities}
                     actions={actions}
                     canMutate={canMutate}
+                    hpDisplayFor={hpDisplayForEntity}
                     selectedEntityId={selectedEntityId}
                     isPinned={effectiveIsPinned}
                     onTogglePin={handleTogglePin}

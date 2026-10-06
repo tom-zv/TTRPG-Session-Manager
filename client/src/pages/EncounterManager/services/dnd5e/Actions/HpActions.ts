@@ -1,21 +1,27 @@
 import { DnD5eEncounterEvent } from "shared/domain/encounters/dnd5e/events/types.js";
 
-type EmitEvent = (event: DnD5eEncounterEvent) => void;
+/** Resolves true once the server applied the event, false when it was rejected (already reported). */
+type SendEvent = (event: DnD5eEncounterEvent) => Promise<boolean>;
 
 export class DnD5eHpActions {
   constructor(
-    private emitEvent: EmitEvent,
+    private sendEvent: SendEvent,
   ) {}
 
-  damage(sourceId: number, entityId: number, amount: number): void {
-    this.emitEvent({
+  private emitEvent(event: DnD5eEncounterEvent): void {
+    void this.sendEvent(event);
+  }
+
+  /** Resolves whether the damage applied, for feedback that does not depend on seeing the HP. */
+  damage(sourceId: number, entityId: number, amount: number): Promise<boolean> {
+    return this.sendEvent({
       type: "damage",
       values: { targetId: entityId, amount, sourceId}
     });
   }
 
-  heal(sourceId:number, entityId: number, amount: number): void {
-    this.emitEvent({
+  heal(sourceId: number, entityId: number, amount: number): Promise<boolean> {
+    return this.sendEvent({
       type: "heal",
       values: { targetId: entityId, amount, sourceId},
     });
